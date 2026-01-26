@@ -1,7 +1,10 @@
 import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Menu, X } from "lucide-react";
+import { Menu, X, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const navLinks = [
   { label: "Возможности", href: "#features" },
@@ -11,25 +14,27 @@ const navLinks = [
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { user, profile, loading } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50">
       <div className="container-wide">
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
-          <motion.a
-            href="/"
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="flex items-center gap-2"
           >
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-emerald-dark flex items-center justify-center">
-              <span className="text-white font-bold text-lg">S</span>
-            </div>
-            <span className="font-display font-bold text-xl text-foreground">
-              SkillSpot
-            </span>
-          </motion.a>
+            <Link to="/" className="flex items-center gap-2">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-emerald-dark flex items-center justify-center">
+                <span className="text-primary-foreground font-bold text-lg">S</span>
+              </div>
+              <span className="font-display font-bold text-xl text-foreground">
+                SkillSpot
+              </span>
+            </Link>
+          </motion.div>
 
           {/* Desktop nav */}
           <nav className="hidden md:flex items-center gap-8">
@@ -54,8 +59,32 @@ const Header = () => {
             transition={{ delay: 0.3 }}
             className="hidden md:flex items-center gap-3"
           >
-            <Button variant="ghost">Войти</Button>
-            <Button variant="hero">Начать бесплатно</Button>
+            {loading ? (
+              <div className="w-8 h-8 rounded-full bg-muted animate-pulse" />
+            ) : user ? (
+              <Button
+                variant="ghost"
+                className="gap-2"
+                onClick={() => navigate('/dashboard')}
+              >
+                <Avatar className="h-7 w-7">
+                  <AvatarImage src={profile?.avatar_url || undefined} />
+                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                    {profile?.first_name?.[0] || profile?.email?.[0] || <User className="h-4 w-4" />}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="hidden lg:inline">Личный кабинет</span>
+              </Button>
+            ) : (
+              <>
+                <Button variant="ghost" onClick={() => navigate('/auth')}>
+                  Войти
+                </Button>
+                <Button variant="hero" onClick={() => navigate('/auth?tab=signup')}>
+                  Начать бесплатно
+                </Button>
+              </>
+            )}
           </motion.div>
 
           {/* Mobile menu button */}
@@ -88,8 +117,41 @@ const Header = () => {
               </a>
             ))}
             <div className="pt-4 space-y-3">
-              <Button variant="ghost" className="w-full">Войти</Button>
-              <Button variant="hero" className="w-full">Начать бесплатно</Button>
+              {user ? (
+                <Button 
+                  variant="hero" 
+                  className="w-full"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    navigate('/dashboard');
+                  }}
+                >
+                  Личный кабинет
+                </Button>
+              ) : (
+                <>
+                  <Button 
+                    variant="ghost" 
+                    className="w-full"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      navigate('/auth');
+                    }}
+                  >
+                    Войти
+                  </Button>
+                  <Button 
+                    variant="hero" 
+                    className="w-full"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      navigate('/auth?tab=signup');
+                    }}
+                  >
+                    Начать бесплатно
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </motion.div>
