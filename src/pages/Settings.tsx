@@ -1,0 +1,287 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useToast } from '@/hooks/use-toast';
+import { ArrowLeft, Loader2, Camera } from 'lucide-react';
+import { z } from 'zod';
+
+const profileSchema = z.object({
+  first_name: z.string().trim().max(100, 'Максимум 100 символов').optional(),
+  last_name: z.string().trim().max(100, 'Максимум 100 символов').optional(),
+  phone: z.string().trim().max(20, 'Максимум 20 символов').optional(),
+  bio: z.string().trim().max(500, 'Максимум 500 символов').optional(),
+});
+
+type ProfileFormData = z.infer<typeof profileSchema>;
+
+const Settings = () => {
+  const { user, profile, loading, refreshProfile } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [formData, setFormData] = useState<ProfileFormData>({
+    first_name: '',
+    last_name: '',
+    phone: '',
+    bio: '',
+  });
+
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/auth');
+    }
+  }, [user, loading, navigate]);
+
+  useEffect(() => {
+    if (profile) {
+      setFormData({
+        first_name: profile.first_name || '',
+        last_name: profile.last_name || '',
+        phone: profile.phone || '',
+        bio: profile.bio || '',
+      });
+    }
+  }, [profile]);
+
+  const handleChange = (field: keyof ProfileFormData, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const result = profileSchema.safeParse(formData);
+    
+    if (!result.success) {
+      const newErrors: Record<string, string> = {};
+      result.error.errors.forEach(err => {
+        if (err.path[0]) {
+          newErrors[err.path[0] as string] = err.message;
+        }
+      });
+      setErrors(newErrors);
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          first_name: result.data.first_name || null,
+          last_name: result.data.last_name || null,
+          phone: result.data.phone || null,
+          bio: result.data.bio || null,
+        })
+        .eq('id', user!.id);
+
+      if (error) throw error;
+
+      await refreshProfile();
+
+      toast({
+        title: 'Профиль обновлён',
+        description: 'Ваши данные успешно сохранены',
+      });
+    } catch (error: any) {
+      console.error('Error updating profile:', error);
+      toast({
+        title: 'Ошибка',
+        description: error.message || 'Не удалось обновить профиль',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="container-wide py-8">
+        <Button
+          variant="ghost"
+          onClick={() => navigate('/dashboard')}
+          className="mb-6"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Назад в кабинет
+        </Button>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-2xl mx-auto"
+        >
+          <h1 className="text-2xl font-bold mb-6">Настройки профиля</h1>
+
+          <div className="space-y-6">
+            {/* Avatar Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Фото профиля</CardTitle>
+                <CardDescription>Ваше фото будет видно другим пользователям</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-6">
+                  <Avatar className="h-24 w-24">
+                    <AvatarImage src={profile?.avatar_url || undefined} />
+                    <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
+                      {profile?.first_name?.[0] || profile?.email?.[0] || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <Button variant="outline" disabled>
+                    <Camera className="h-4 w-4 mr-2" />
+                    Загрузить фото
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Profile Form */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Личные данные</CardTitle>
+                <CardDescription>Обновите вашу контактную информацию</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="first_name">Имя</Label>
+                      <Input
+                        id="first_name"
+                        placeholder="Иван"
+                        value={formData.first_name}
+                        onChange={(e) => handleChange('first_name', e.target.value)}
+                        className={errors.first_name ? 'border-destructive' : ''}
+                        disabled={isSubmitting}
+                      />
+                      {errors.first_name && (
+                        <p className="text-sm text-destructive">{errors.first_name}</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="last_name">Фамилия</Label>
+                      <Input
+                        id="last_name"
+                        placeholder="Иванов"
+                        value={formData.last_name}
+                        onChange={(e) => handleChange('last_name', e.target.value)}
+                        className={errors.last_name ? 'border-destructive' : ''}
+                        disabled={isSubmitting}
+                      />
+                      {errors.last_name && (
+                        <p className="text-sm text-destructive">{errors.last_name}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={profile?.email || ''}
+                      disabled
+                      className="bg-muted"
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Email нельзя изменить
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Телефон</Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder="+7 (999) 123-45-67"
+                      value={formData.phone}
+                      onChange={(e) => handleChange('phone', e.target.value)}
+                      className={errors.phone ? 'border-destructive' : ''}
+                      disabled={isSubmitting}
+                    />
+                    {errors.phone && (
+                      <p className="text-sm text-destructive">{errors.phone}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="bio">О себе</Label>
+                    <Textarea
+                      id="bio"
+                      placeholder="Расскажите о себе..."
+                      value={formData.bio}
+                      onChange={(e) => handleChange('bio', e.target.value)}
+                      className={errors.bio ? 'border-destructive' : ''}
+                      disabled={isSubmitting}
+                      rows={4}
+                    />
+                    {errors.bio && (
+                      <p className="text-sm text-destructive">{errors.bio}</p>
+                    )}
+                    <p className="text-sm text-muted-foreground">
+                      {formData.bio?.length || 0}/500 символов
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>SkillSpot ID</Label>
+                    <Input
+                      value={profile?.skillspot_id || ''}
+                      disabled
+                      className="bg-muted font-mono"
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Ваш уникальный ID для приглашений в организации
+                    </p>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full btn-primary"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Сохранение...
+                      </>
+                    ) : (
+                      'Сохранить изменения'
+                    )}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+        </motion.div>
+      </div>
+    </div>
+  );
+};
+
+export default Settings;
