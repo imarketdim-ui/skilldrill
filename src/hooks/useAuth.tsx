@@ -2,6 +2,8 @@ import { useState, useEffect, createContext, useContext, ReactNode } from 'react
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
 
+export type UserRoleType = 'client' | 'master' | 'business_manager' | 'network_manager' | 'business_owner' | 'network_owner' | 'platform_admin' | 'super_admin';
+
 interface Profile {
   id: string;
   skillspot_id: string;
@@ -20,6 +22,9 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   profile: Profile | null;
+  roles: UserRoleType[];
+  activeRole: UserRoleType;
+  setActiveRole: (role: UserRoleType) => void;
   loading: boolean;
   signUp: (email: string, password: string, firstName?: string, lastName?: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
@@ -33,6 +38,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [roles, setRoles] = useState<UserRoleType[]>([]);
+  const [activeRole, setActiveRole] = useState<UserRoleType>('client');
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (userId: string) => {
@@ -50,35 +57,76 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return data as Profile | null;
   };
 
+  const fetchRoles = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .eq('is_active', true);
+
+    if (error) {
+      console.error('Error fetching roles:', error);
+      return ['client' as UserRoleType];
+    }
+
+    const userRoles = (data || []).map((r: any) => r.role as UserRoleType);
+    return userRoles.length > 0 ? userRoles : ['client' as UserRoleType];
+  };
+
   const refreshProfile = async () => {
     if (user) {
-      const profileData = await fetchProfile(user.id);
+      const [profileData, userRoles] = await Promise.all([
+        fetchProfile(user.id),
+        fetchRoles(user.id),
+      ]);
       setProfile(profileData);
+      setRoles(userRoles);
+      // Restore active role from localStorage or default to first role
+      const savedRole = localStorage.getItem('skillspot_active_role') as UserRoleType;
+      if (savedRole && userRoles.includes(savedRole)) {
+        setActiveRole(savedRole);
+      } else {
+        setActiveRole(userRoles[0]);
+      }
     }
   };
 
+  const handleSetActiveRole = (role: UserRoleType) => {
+    setActiveRole(role);
+    localStorage.setItem('skillspot_active_role', role);
+  };
+
   useEffect(() => {
-    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
 
         if (currentSession?.user) {
-          // Use setTimeout to avoid potential race conditions
           setTimeout(async () => {
-            const profileData = await fetchProfile(currentSession.user.id);
+            const [profileData, userRoles] = await Promise.all([
+              fetchProfile(currentSession.user.id),
+              fetchRoles(currentSession.user.id),
+            ]);
             setProfile(profileData);
+            setRoles(userRoles);
+            const savedRole = localStorage.getItem('skillspot_active_role') as UserRoleType;
+            if (savedRole && userRoles.includes(savedRole)) {
+              setActiveRole(savedRole);
+            } else {
+              setActiveRole(userRoles[0]);
+            }
             setLoading(false);
           }, 0);
         } else {
           setProfile(null);
+          setRoles([]);
+          setActiveRole('client');
           setLoading(false);
         }
       }
     );
 
-    // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
       if (!existingSession) {
         setLoading(false);
@@ -92,8 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string, firstName?: string, lastName?: string) => {
     try {
-      // First, sign up the user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      const { error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -109,33 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error: authError };
       }
 
-      // If we have a user, create their profile with a unique skillspot_id
-      if (authData.user) {
-        // Generate skillspot_id using the database function
-        const { data: skillspotIdData, error: idError } = await supabase
-          .rpc('generate_skillspot_id');
-
-        if (idError) {
-          console.error('Error generating skillspot_id:', idError);
-          return { error: idError };
-        }
-
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            id: authData.user.id,
-            skillspot_id: skillspotIdData,
-            email: email,
-            first_name: firstName || null,
-            last_name: lastName || null,
-          });
-
-        if (profileError) {
-          console.error('Error creating profile:', profileError);
-          return { error: profileError };
-        }
-      }
-
+      // Profile is auto-created by database trigger
       return { error: null };
     } catch (error) {
       return { error: error as Error };
@@ -147,7 +168,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email,
       password,
     });
-
     return { error };
   };
 
@@ -156,6 +176,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setSession(null);
     setProfile(null);
+    setRoles([]);
+    setActiveRole('client');
+    localStorage.removeItem('skillspot_active_role');
   };
 
   return (
@@ -164,6 +187,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         session,
         profile,
+        roles,
+        activeRole,
+        setActiveRole: handleSetActiveRole,
         loading,
         signUp,
         signIn,
