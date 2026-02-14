@@ -57,7 +57,7 @@ const NetworkDashboard = () => {
           <h2 className="text-2xl font-bold">{selectedNetwork?.name || 'Сеть'}</h2>
           <p className="text-muted-foreground">{locations.length} точек</p>
         </div>
-        <Badge variant="outline">3 999 ₽/мес + 1 200 ₽/доп. точка</Badge>
+        <Badge variant="outline">3 000 ₽/мес + 1 000 ₽/доп. точка</Badge>
       </div>
 
       <Tabs defaultValue="locations" className="space-y-4">
@@ -76,7 +76,7 @@ const NetworkDashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle>Точки сети</CardTitle>
-                  <CardDescription>3 бесплатных, каждая доп. +1 200 ₽/мес</CardDescription>
+                  <CardDescription>3 бесплатных, каждая доп. +1 000 ₽/мес</CardDescription>
                 </div>
                 <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Добавить точку</Button>
               </div>

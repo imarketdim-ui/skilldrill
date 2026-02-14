@@ -135,7 +135,7 @@ const ClientDashboard = () => {
                   <CardContent className="pt-6 text-center">
                     <Wrench className="h-10 w-10 mx-auto mb-2 text-primary" />
                     <p className="font-semibold">Стать мастером</p>
-                    <p className="text-sm text-muted-foreground">600 ₽/мес, 14 дней бесплатно</p>
+                    <p className="text-sm text-muted-foreground">1 000 ₽/мес</p>
                   </CardContent>
                 </Card>
               )}
@@ -144,7 +144,7 @@ const ClientDashboard = () => {
                   <CardContent className="pt-6 text-center">
                     <Building2 className="h-10 w-10 mx-auto mb-2 text-primary" />
                     <p className="font-semibold">Создать бизнес</p>
-                    <p className="text-sm text-muted-foreground">1 499 ₽/мес, 30 дней бесплатно</p>
+                    <p className="text-sm text-muted-foreground">3 000 ₽/мес</p>
                   </CardContent>
                 </Card>
               )}
@@ -153,7 +153,7 @@ const ClientDashboard = () => {
                   <CardContent className="pt-6 text-center">
                     <Globe className="h-10 w-10 mx-auto mb-2 text-primary" />
                     <p className="font-semibold">Создать сеть</p>
-                    <p className="text-sm text-muted-foreground">3 999 ₽/мес</p>
+                    <p className="text-sm text-muted-foreground">3 000 ₽/мес</p>
                   </CardContent>
                 </Card>
               )}

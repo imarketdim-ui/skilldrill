@@ -225,17 +225,17 @@ const SuperAdminDashboard = () => {
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="p-4 rounded-lg border">
                   <p className="font-medium">Мастера</p>
-                  <p className="text-sm text-muted-foreground">600 ₽/мес</p>
+                  <p className="text-sm text-muted-foreground">1 000 ₽/мес</p>
                   <p className="text-2xl font-bold mt-2">{stats.masters}</p>
                 </div>
                 <div className="p-4 rounded-lg border">
                   <p className="font-medium">Бизнесы</p>
-                  <p className="text-sm text-muted-foreground">1 499 ₽/мес</p>
+                  <p className="text-sm text-muted-foreground">3 000 ₽/мес</p>
                   <p className="text-2xl font-bold mt-2">{stats.businesses}</p>
                 </div>
                 <div className="p-4 rounded-lg border">
                   <p className="font-medium">Сети</p>
-                  <p className="text-sm text-muted-foreground">3 999 ₽/мес</p>
+                  <p className="text-sm text-muted-foreground">3 000 ₽/мес</p>
                   <p className="text-2xl font-bold mt-2">{stats.networks}</p>
                 </div>
               </div>

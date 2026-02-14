@@ -324,7 +324,10 @@ const Auth = () => {
                   </Button>
 
                   <p className="text-xs text-center text-muted-foreground">
-                    Регистрируясь, вы соглашаетесь с условиями использования
+                    Регистрируясь, вы соглашаетесь с{' '}
+                    <a href="/terms" target="_blank" className="text-primary hover:underline">условиями использования</a>{' '}
+                    и{' '}
+                    <a href="/privacy" target="_blank" className="text-primary hover:underline">политикой конфиденциальности</a>
                   </p>
                 </form>
               </TabsContent>

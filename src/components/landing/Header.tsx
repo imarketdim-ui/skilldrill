@@ -7,9 +7,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const navLinks = [
-  { label: "Возможности", href: "#features" },
-  { label: "Как это работает", href: "#how-it-works" },
-  { label: "Роли", href: "#roles" },
+  { label: "Каталог", href: "/catalog", isRoute: true },
+  { label: "Тарифы", href: "/subscription", isRoute: true },
+  { label: "Контакты", href: "/contacts", isRoute: true },
 ];
 
 const Header = () => {
@@ -39,16 +39,19 @@ const Header = () => {
           {/* Desktop nav */}
           <nav className="hidden md:flex items-center gap-8">
             {navLinks.map((link, index) => (
-              <motion.a
+              <motion.div
                 key={link.href}
-                href={link.href}
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
-                {link.label}
-              </motion.a>
+                <Link
+                  to={link.href}
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {link.label}
+                </Link>
+              </motion.div>
             ))}
           </nav>
 
@@ -107,14 +110,14 @@ const Header = () => {
         >
           <div className="container-wide py-4 space-y-4">
             {navLinks.map((link) => (
-              <a
+              <Link
                 key={link.href}
-                href={link.href}
+                to={link.href}
                 onClick={() => setIsMenuOpen(false)}
                 className="block text-foreground font-medium py-2"
               >
                 {link.label}
-              </a>
+              </Link>
             ))}
             <div className="pt-4 space-y-3">
               {user ? (
