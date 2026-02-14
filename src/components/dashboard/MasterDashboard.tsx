@@ -57,7 +57,7 @@ const MasterDashboard = () => {
           <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-destructive" />
           <h2 className="text-xl font-bold mb-2">Подписка неактивна</h2>
           <p className="text-muted-foreground mb-4">
-            Ваши данные сохранены, но интерфейс мастера недоступен. Оплатите подписку (600 ₽/мес) для продолжения работы.
+            Ваши данные сохранены, но интерфейс мастера недоступен. Оплатите подписку (1 000 ₽/мес) для продолжения работы.
           </p>
           {masterProfile.business_id && (
             <p className="text-sm text-muted-foreground mb-4">

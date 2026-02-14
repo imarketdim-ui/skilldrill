@@ -60,7 +60,7 @@ const BusinessDashboard = () => {
         </div>
         <div className="flex items-center gap-2">
           {getSubscriptionBadge()}
-          <Badge variant="outline">1 499 ₽/мес</Badge>
+          <Badge variant="outline">3 000 ₽/мес</Badge>
         </div>
       </div>
 

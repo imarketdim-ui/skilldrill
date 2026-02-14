@@ -294,16 +294,19 @@ export type Database = {
           exterior_photos: Json | null
           extra_master_price: number
           free_masters: number
+          grace_start_date: string | null
           id: string
           inn: string
           interior_photos: Json | null
           is_active: boolean
+          last_payment_date: string | null
           legal_form: Database["public"]["Enums"]["legal_form"]
           name: string
           network_id: string | null
           owner_id: string
           subscription_price: number
           subscription_status: string
+          suspended_at: string | null
           trial_start_date: string | null
           updated_at: string
         }
@@ -316,16 +319,19 @@ export type Database = {
           exterior_photos?: Json | null
           extra_master_price?: number
           free_masters?: number
+          grace_start_date?: string | null
           id?: string
           inn: string
           interior_photos?: Json | null
           is_active?: boolean
+          last_payment_date?: string | null
           legal_form: Database["public"]["Enums"]["legal_form"]
           name: string
           network_id?: string | null
           owner_id: string
           subscription_price?: number
           subscription_status?: string
+          suspended_at?: string | null
           trial_start_date?: string | null
           updated_at?: string
         }
@@ -338,16 +344,19 @@ export type Database = {
           exterior_photos?: Json | null
           extra_master_price?: number
           free_masters?: number
+          grace_start_date?: string | null
           id?: string
           inn?: string
           interior_photos?: Json | null
           is_active?: boolean
+          last_payment_date?: string | null
           legal_form?: Database["public"]["Enums"]["legal_form"]
           name?: string
           network_id?: string | null
           owner_id?: string
           subscription_price?: number
           subscription_status?: string
+          suspended_at?: string | null
           trial_start_date?: string | null
           updated_at?: string
         }
@@ -728,13 +737,16 @@ export type Database = {
           category_id: string | null
           created_at: string
           description: string | null
+          grace_start_date: string | null
           id: string
           is_active: boolean
+          last_payment_date: string | null
           max_monthly_bookings: number
           max_services: number
           promo_code_used: string | null
           subscription_price: number
           subscription_status: string
+          suspended_at: string | null
           trial_days: number
           trial_start_date: string | null
           updated_at: string
@@ -746,13 +758,16 @@ export type Database = {
           category_id?: string | null
           created_at?: string
           description?: string | null
+          grace_start_date?: string | null
           id?: string
           is_active?: boolean
+          last_payment_date?: string | null
           max_monthly_bookings?: number
           max_services?: number
           promo_code_used?: string | null
           subscription_price?: number
           subscription_status?: string
+          suspended_at?: string | null
           trial_days?: number
           trial_start_date?: string | null
           updated_at?: string
@@ -764,13 +779,16 @@ export type Database = {
           category_id?: string | null
           created_at?: string
           description?: string | null
+          grace_start_date?: string | null
           id?: string
           is_active?: boolean
+          last_payment_date?: string | null
           max_monthly_bookings?: number
           max_services?: number
           promo_code_used?: string | null
           subscription_price?: number
           subscription_status?: string
+          suspended_at?: string | null
           trial_days?: number
           trial_start_date?: string | null
           updated_at?: string
@@ -847,12 +865,15 @@ export type Database = {
           extra_location_price: number
           free_locations: number
           free_masters_per_location: number
+          grace_start_date: string | null
           id: string
           is_active: boolean
+          last_payment_date: string | null
           name: string
           owner_id: string
           subscription_price: number
           subscription_status: string
+          suspended_at: string | null
           trial_start_date: string | null
           updated_at: string
         }
@@ -862,12 +883,15 @@ export type Database = {
           extra_location_price?: number
           free_locations?: number
           free_masters_per_location?: number
+          grace_start_date?: string | null
           id?: string
           is_active?: boolean
+          last_payment_date?: string | null
           name: string
           owner_id: string
           subscription_price?: number
           subscription_status?: string
+          suspended_at?: string | null
           trial_start_date?: string | null
           updated_at?: string
         }
@@ -877,12 +901,15 @@ export type Database = {
           extra_location_price?: number
           free_locations?: number
           free_masters_per_location?: number
+          grace_start_date?: string | null
           id?: string
           is_active?: boolean
+          last_payment_date?: string | null
           name?: string
           owner_id?: string
           subscription_price?: number
           subscription_status?: string
+          suspended_at?: string | null
           trial_start_date?: string | null
           updated_at?: string
         }
