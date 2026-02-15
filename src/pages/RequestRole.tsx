@@ -42,6 +42,10 @@ const RequestRole = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (requestType === 'master' && !form.category_id) {
+      toast({ title: 'Выберите направление работы', variant: 'destructive' });
+      return;
+    }
     setIsSubmitting(true);
     try {
       const { error } = await supabase.from('role_requests').insert({
@@ -93,8 +97,8 @@ const RequestRole = () => {
               {requestType === 'master' && (
                 <>
                   <div className="space-y-2">
-                    <Label>Направление работы</Label>
-                    <Select onValueChange={(v) => setForm({ ...form, category_id: v })}>
+                    <Label>Направление работы *</Label>
+                    <Select required onValueChange={(v) => setForm({ ...form, category_id: v })}>
                       <SelectTrigger><SelectValue placeholder="Выберите категорию" /></SelectTrigger>
                       <SelectContent>
                         {categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
