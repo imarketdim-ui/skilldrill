@@ -5,13 +5,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { 
-  Users, Building2, ClipboardList, Shield, MessageSquare, 
-  CheckCircle, XCircle, AlertTriangle, Search, Tag, Loader2
+  Users, Shield, MessageSquare, 
+  CheckCircle, XCircle, AlertTriangle, Tag, ShieldBan
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import AdminUserList from './admin/AdminUserList';
+import RevocationRequests from './admin/RevocationRequests';
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -22,9 +22,7 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
-      loadData();
-    }
+    if (user) loadData();
   }, [user]);
 
   const loadData = async () => {
@@ -53,14 +51,12 @@ const AdminDashboard = () => {
       if (error) throw error;
 
       if (approve) {
-        // Assign role
         const roleMap: Record<string, string> = { master: 'master', business: 'business_owner', network: 'network_owner' };
         const role = roleMap[requestType];
         if (role) {
           await supabase.from('user_roles').insert([{ user_id: requesterId, role: role as any }]);
         }
 
-        // Create entities
         if (requestType === 'master') {
           await supabase.from('master_profiles').insert({
             user_id: requesterId,
@@ -120,14 +116,23 @@ const AdminDashboard = () => {
     <div className="space-y-6">
       <h2 className="text-2xl font-bold">Панель администратора</h2>
 
-      <Tabs defaultValue="role_requests" className="space-y-4">
+      <Tabs defaultValue="users" className="space-y-4">
         <TabsList className="flex-wrap">
+          <TabsTrigger value="users"><Users className="h-4 w-4 mr-1" /> Пользователи</TabsTrigger>
           <TabsTrigger value="role_requests"><Shield className="h-4 w-4 mr-1" /> Заявки на роли</TabsTrigger>
+          <TabsTrigger value="revocations"><ShieldBan className="h-4 w-4 mr-1" /> Аннулирование</TabsTrigger>
           <TabsTrigger value="category_requests"><Tag className="h-4 w-4 mr-1" /> Категории</TabsTrigger>
           <TabsTrigger value="disputes"><AlertTriangle className="h-4 w-4 mr-1" /> Споры</TabsTrigger>
-          <TabsTrigger value="users"><Users className="h-4 w-4 mr-1" /> Пользователи</TabsTrigger>
           <TabsTrigger value="support"><MessageSquare className="h-4 w-4 mr-1" /> Поддержка</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="users">
+          <AdminUserList />
+        </TabsContent>
+
+        <TabsContent value="revocations">
+          <RevocationRequests />
+        </TabsContent>
 
         <TabsContent value="role_requests">
           <Card>
@@ -179,9 +184,7 @@ const AdminDashboard = () => {
 
         <TabsContent value="category_requests">
           <Card>
-            <CardHeader>
-              <CardTitle>Заявки на добавление категорий</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle>Заявки на добавление категорий</CardTitle></CardHeader>
             <CardContent>
               {categoryRequests.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
@@ -224,18 +227,6 @@ const AdminDashboard = () => {
               <div className="text-center py-8 text-muted-foreground">
                 <AlertTriangle className="h-10 w-10 mx-auto mb-3 opacity-50" />
                 <p>Нет открытых споров</p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="users">
-          <Card>
-            <CardHeader><CardTitle>Пользователи платформы</CardTitle></CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                <Users className="h-10 w-10 mx-auto mb-3 opacity-50" />
-                <p>Функционал просмотра пользователей</p>
               </div>
             </CardContent>
           </Card>
