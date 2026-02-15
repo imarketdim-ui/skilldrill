@@ -1772,6 +1772,170 @@ export type Database = {
           },
         ]
       }
+      revocation_archive: {
+        Row: {
+          entity_data: Json
+          entity_type: string
+          id: string
+          restored_at: string | null
+          restored_by: string | null
+          revocation_request_id: string | null
+          revoked_at: string
+          user_id: string
+        }
+        Insert: {
+          entity_data?: Json
+          entity_type: string
+          id?: string
+          restored_at?: string | null
+          restored_by?: string | null
+          revocation_request_id?: string | null
+          revoked_at?: string
+          user_id: string
+        }
+        Update: {
+          entity_data?: Json
+          entity_type?: string
+          id?: string
+          restored_at?: string | null
+          restored_by?: string | null
+          revocation_request_id?: string | null
+          revoked_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "revocation_archive_restored_by_fkey"
+            columns: ["restored_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "revocation_archive_revocation_request_id_fkey"
+            columns: ["revocation_request_id"]
+            isOneToOne: false
+            referencedRelation: "revocation_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "revocation_archive_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      revocation_reasons: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "revocation_reasons_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      revocation_requests: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          reason_id: string
+          requested_by: string
+          review_comment: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          target_entity_id: string | null
+          target_type: string
+          target_user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          reason_id: string
+          requested_by: string
+          review_comment?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          target_entity_id?: string | null
+          target_type: string
+          target_user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          reason_id?: string
+          requested_by?: string
+          review_comment?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          target_entity_id?: string | null
+          target_type?: string
+          target_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "revocation_requests_reason_id_fkey"
+            columns: ["reason_id"]
+            isOneToOne: false
+            referencedRelation: "revocation_reasons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "revocation_requests_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "revocation_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "revocation_requests_target_user_id_fkey"
+            columns: ["target_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       role_permissions: {
         Row: {
           id: string
