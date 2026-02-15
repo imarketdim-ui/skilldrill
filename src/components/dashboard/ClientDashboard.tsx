@@ -129,31 +129,13 @@ const ClientDashboard = () => {
           {/* Role Upgrade Cards */}
           <div className="mt-6">
             <h3 className="text-lg font-semibold mb-3">Расширьте возможности</h3>
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-1">
               {canRequestRole('master') && (
                 <Card className="border-dashed cursor-pointer hover:border-primary transition-colors" onClick={() => navigate('/request-role?type=master')}>
                   <CardContent className="pt-6 text-center">
                     <Wrench className="h-10 w-10 mx-auto mb-2 text-primary" />
                     <p className="font-semibold">Стать мастером</p>
-                    <p className="text-sm text-muted-foreground">1 000 ₽/мес</p>
-                  </CardContent>
-                </Card>
-              )}
-              {canRequestRole('business_owner') && (
-                <Card className="border-dashed cursor-pointer hover:border-primary transition-colors" onClick={() => navigate('/request-role?type=business')}>
-                  <CardContent className="pt-6 text-center">
-                    <Building2 className="h-10 w-10 mx-auto mb-2 text-primary" />
-                    <p className="font-semibold">Создать бизнес</p>
-                    <p className="text-sm text-muted-foreground">3 000 ₽/мес</p>
-                  </CardContent>
-                </Card>
-              )}
-              {canRequestRole('network_owner') && (
-                <Card className="border-dashed cursor-pointer hover:border-primary transition-colors" onClick={() => navigate('/request-role?type=network')}>
-                  <CardContent className="pt-6 text-center">
-                    <Globe className="h-10 w-10 mx-auto mb-2 text-primary" />
-                    <p className="font-semibold">Создать сеть</p>
-                    <p className="text-sm text-muted-foreground">3 000 ₽/мес</p>
+                    <p className="text-sm text-muted-foreground">Выберите категорию и начните принимать клиентов · 1 000 ₽/мес</p>
                   </CardContent>
                 </Card>
               )}
