@@ -731,6 +731,144 @@ export type Database = {
           },
         ]
       }
+      lesson_bookings: {
+        Row: {
+          booked_at: string
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          confirmed_at: string | null
+          created_at: string
+          id: string
+          lesson_id: string
+          no_show_category:
+            | Database["public"]["Enums"]["no_show_category"]
+            | null
+          status: Database["public"]["Enums"]["booking_status"]
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          booked_at?: string
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          confirmed_at?: string | null
+          created_at?: string
+          id?: string
+          lesson_id: string
+          no_show_category?:
+            | Database["public"]["Enums"]["no_show_category"]
+            | null
+          status?: Database["public"]["Enums"]["booking_status"]
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          booked_at?: string
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          confirmed_at?: string | null
+          created_at?: string
+          id?: string
+          lesson_id?: string
+          no_show_category?:
+            | Database["public"]["Enums"]["no_show_category"]
+            | null
+          status?: Database["public"]["Enums"]["booking_status"]
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lesson_bookings_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "lessons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lesson_bookings_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lessons: {
+        Row: {
+          created_at: string
+          current_participants: number
+          description: string | null
+          end_time: string
+          id: string
+          is_modified: boolean
+          lesson_date: string
+          lesson_type: Database["public"]["Enums"]["lesson_type"]
+          max_participants: number
+          notes: string | null
+          price: number
+          recurring_pattern_id: string | null
+          start_time: string
+          status: Database["public"]["Enums"]["lesson_status"]
+          teacher_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_participants?: number
+          description?: string | null
+          end_time: string
+          id?: string
+          is_modified?: boolean
+          lesson_date: string
+          lesson_type?: Database["public"]["Enums"]["lesson_type"]
+          max_participants?: number
+          notes?: string | null
+          price?: number
+          recurring_pattern_id?: string | null
+          start_time: string
+          status?: Database["public"]["Enums"]["lesson_status"]
+          teacher_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_participants?: number
+          description?: string | null
+          end_time?: string
+          id?: string
+          is_modified?: boolean
+          lesson_date?: string
+          lesson_type?: Database["public"]["Enums"]["lesson_type"]
+          max_participants?: number
+          notes?: string | null
+          price?: number
+          recurring_pattern_id?: string | null
+          start_time?: string
+          status?: Database["public"]["Enums"]["lesson_status"]
+          teacher_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lessons_recurring_pattern_id_fkey"
+            columns: ["recurring_pattern_id"]
+            isOneToOne: false
+            referencedRelation: "recurring_patterns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lessons_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       master_profiles: {
         Row: {
           business_id: string | null
@@ -917,6 +1055,47 @@ export type Database = {
           {
             foreignKeyName: "networks_owner_id_fkey"
             columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string
+          related_id: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message: string
+          related_id?: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string
+          related_id?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -1441,6 +1620,84 @@ export type Database = {
           },
         ]
       }
+      recurring_patterns: {
+        Row: {
+          created_at: string
+          day_of_month: number | null
+          day_of_week: number | null
+          description: string | null
+          end_date: string | null
+          end_time: string
+          id: string
+          is_active: boolean
+          lesson_type: Database["public"]["Enums"]["lesson_type"]
+          max_participants: number
+          price: number
+          recurrence_type: Database["public"]["Enums"]["recurrence_type"]
+          start_date: string
+          start_time: string
+          student_id: string | null
+          teacher_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          day_of_month?: number | null
+          day_of_week?: number | null
+          description?: string | null
+          end_date?: string | null
+          end_time: string
+          id?: string
+          is_active?: boolean
+          lesson_type?: Database["public"]["Enums"]["lesson_type"]
+          max_participants?: number
+          price?: number
+          recurrence_type?: Database["public"]["Enums"]["recurrence_type"]
+          start_date: string
+          start_time: string
+          student_id?: string | null
+          teacher_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          day_of_month?: number | null
+          day_of_week?: number | null
+          description?: string | null
+          end_date?: string | null
+          end_time?: string
+          id?: string
+          is_active?: boolean
+          lesson_type?: Database["public"]["Enums"]["lesson_type"]
+          max_participants?: number
+          price?: number
+          recurrence_type?: Database["public"]["Enums"]["recurrence_type"]
+          start_date?: string
+          start_time?: string
+          student_id?: string | null
+          teacher_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurring_patterns_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_patterns_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       referral_codes: {
         Row: {
           code: string
@@ -1915,6 +2172,88 @@ export type Database = {
           },
         ]
       }
+      teaching_expenses: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          description: string | null
+          expense_date: string
+          id: string
+          teacher_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          category: string
+          created_at?: string
+          description?: string | null
+          expense_date?: string
+          id?: string
+          teacher_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          description?: string | null
+          expense_date?: string
+          id?: string
+          teacher_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teaching_expenses_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      teaching_payments: {
+        Row: {
+          amount: number
+          booking_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          paid_at: string | null
+          status: Database["public"]["Enums"]["payment_status"]
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          booking_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          status?: Database["public"]["Enums"]["payment_status"]
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          booking_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          status?: Database["public"]["Enums"]["payment_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teaching_payments_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "lesson_bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_balances: {
         Row: {
           created_at: string
@@ -2023,11 +2362,25 @@ export type Database = {
       }
       is_platform_admin: { Args: { user_id: string }; Returns: boolean }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_teaching_blacklisted: {
+        Args: { _student_id: string; _teacher_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       booking_status: "pending" | "confirmed" | "cancelled" | "completed"
       legal_form: "ip" | "ooo" | "zao" | "oao" | "self_employed" | "other"
+      lesson_status: "scheduled" | "completed" | "cancelled" | "no_show"
+      lesson_type: "individual" | "group"
+      no_show_category:
+        | "day_before"
+        | "more_than_3_hours"
+        | "more_than_1_hour"
+        | "less_than_1_hour"
+        | "no_warning"
+      payment_status: "unpaid" | "paid" | "credited"
       platform_role: "platform_admin" | "user"
+      recurrence_type: "none" | "daily" | "weekly" | "monthly"
       request_status: "pending" | "approved" | "rejected"
       role_request_type: "master" | "business" | "network"
       user_role:
@@ -2168,7 +2521,18 @@ export const Constants = {
     Enums: {
       booking_status: ["pending", "confirmed", "cancelled", "completed"],
       legal_form: ["ip", "ooo", "zao", "oao", "self_employed", "other"],
+      lesson_status: ["scheduled", "completed", "cancelled", "no_show"],
+      lesson_type: ["individual", "group"],
+      no_show_category: [
+        "day_before",
+        "more_than_3_hours",
+        "more_than_1_hour",
+        "less_than_1_hour",
+        "no_warning",
+      ],
+      payment_status: ["unpaid", "paid", "credited"],
       platform_role: ["platform_admin", "user"],
+      recurrence_type: ["none", "daily", "weekly", "monthly"],
       request_status: ["pending", "approved", "rejected"],
       role_request_type: ["master", "business", "network"],
       user_role: [

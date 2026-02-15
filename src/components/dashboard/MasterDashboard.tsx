@@ -9,6 +9,7 @@ import {
   Calendar, ClipboardList, Users, Star, BarChart3, Settings, 
   Plus, Ban, Tag, Percent, AlertTriangle
 } from 'lucide-react';
+import TeachingMasterDashboard from './teaching/TeachingMasterDashboard';
 
 const MasterDashboard = () => {
   const { user } = useAuth();
@@ -29,15 +30,6 @@ const MasterDashboard = () => {
     }
   }, [user]);
 
-  const getSubscriptionBadge = () => {
-    if (!masterProfile) return null;
-    const status = masterProfile.subscription_status;
-    if (status === 'trial') return <Badge className="bg-blue-500 text-white">Тестовый период</Badge>;
-    if (status === 'active') return <Badge className="bg-emerald-500 text-white">Активна</Badge>;
-    if (status === 'in_business') return <Badge className="bg-purple-500 text-white">В составе бизнеса</Badge>;
-    return <Badge variant="destructive">Неактивна</Badge>;
-  };
-
   const isSubscriptionActive = () => {
     if (!masterProfile) return false;
     const status = masterProfile.subscription_status;
@@ -48,6 +40,25 @@ const MasterDashboard = () => {
       return new Date() < trialEnd;
     }
     return false;
+  };
+
+  if (loading) return null;
+
+  // Detect education category → show teaching dashboard
+  const categoryName = masterProfile?.service_categories?.name?.toLowerCase() || '';
+  const isEducation = categoryName.includes('образован') || categoryName.includes('преподав') || categoryName.includes('репетитор') || categoryName === 'education';
+
+  if (isEducation) {
+    return <TeachingMasterDashboard masterProfile={masterProfile} isSubscriptionActive={isSubscriptionActive()} />;
+  }
+
+  const getSubscriptionBadge = () => {
+    if (!masterProfile) return null;
+    const status = masterProfile.subscription_status;
+    if (status === 'trial') return <Badge className="bg-blue-500 text-white">Тестовый период</Badge>;
+    if (status === 'active') return <Badge className="bg-primary text-primary-foreground">Активна</Badge>;
+    if (status === 'in_business') return <Badge className="bg-purple-500 text-white">В составе бизнеса</Badge>;
+    return <Badge variant="destructive">Неактивна</Badge>;
   };
 
   if (!isSubscriptionActive() && masterProfile) {
