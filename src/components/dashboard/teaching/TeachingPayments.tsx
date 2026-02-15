@@ -140,7 +140,7 @@ const TeachingPayments = () => {
                 <CardContent className="py-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-medium">{student?.first_name || 'Студент'} {student?.last_name || ''}</p>
+                      <p className="font-medium">{student?.first_name || 'Клиент'} {student?.last_name || ''}</p>
                       <p className="text-sm text-muted-foreground">
                         {lesson?.title} · {lesson?.lesson_date} · {lesson?.start_time?.slice(0, 5)}
                       </p>

@@ -108,7 +108,7 @@ const TeachingDashboardHome = () => {
               </div>
               <div>
                 <p className="text-2xl font-bold">{stats.totalStudents}</p>
-                <p className="text-sm text-muted-foreground">Студентов</p>
+                <p className="text-sm text-muted-foreground">Клиентов</p>
               </div>
             </div>
           </CardContent>
@@ -186,7 +186,7 @@ const TeachingDashboardHome = () => {
                 <div key={event.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                   <div>
                     <p className="font-medium">
-                      {(event.profiles as any)?.first_name || 'Студент'} {(event.profiles as any)?.last_name || ''}
+                      {(event.profiles as any)?.first_name || 'Клиент'} {(event.profiles as any)?.last_name || ''}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       {(event.lessons as any)?.title}

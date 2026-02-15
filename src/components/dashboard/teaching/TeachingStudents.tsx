@@ -104,7 +104,7 @@ const TeachingStudents = () => {
 
   const filtered = students.filter(s => {
     const q = search.toLowerCase();
-    return !q || (s.first_name?.toLowerCase().includes(q)) || (s.last_name?.toLowerCase().includes(q)) || s.email?.toLowerCase().includes(q) || s.skillspot_id.includes(q);
+    return !q || s.first_name?.toLowerCase().includes(q) || s.last_name?.toLowerCase().includes(q) || s.email?.toLowerCase().includes(q) || s.skillspot_id.includes(q);
   });
 
   const getAttendanceRate = (s: StudentInfo) => {
@@ -117,7 +117,7 @@ const TeachingStudents = () => {
       <div className="flex items-center gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Поиск по имени, email или ID..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+          <Input placeholder="Поиск клиента по имени, email или ID..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
       </div>
 
@@ -128,7 +128,7 @@ const TeachingStudents = () => {
           <CardContent className="text-center py-12">
             <User className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
             <p className="text-muted-foreground">
-              {search ? 'Студенты не найдены' : 'У вас пока нет студентов'}
+              {search ? 'Клиенты не найдены' : 'У вас пока нет клиентов'}
             </p>
           </CardContent>
         </Card>
@@ -173,7 +173,7 @@ const TeachingStudents = () => {
       <Dialog open={!!selectedStudent} onOpenChange={() => setSelectedStudent(null)}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Профиль студента</DialogTitle>
+            <DialogTitle>Профиль клиента</DialogTitle>
           </DialogHeader>
           {selectedStudent && (
             <div className="space-y-4">
