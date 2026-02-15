@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { 
   Scissors, 
@@ -7,21 +8,25 @@ import {
   Camera, 
   GraduationCap,
   Car,
-  Home
+  Home,
+  MoreHorizontal
 } from "lucide-react";
 
 const categories = [
-  { icon: Scissors, name: "Красота", count: 1234, color: "bg-pink-100 text-pink-600" },
-  { icon: Dumbbell, name: "Фитнес", count: 567, color: "bg-emerald-light text-primary" },
-  { icon: Heart, name: "Здоровье", count: 890, color: "bg-red-100 text-red-500" },
-  { icon: Sparkles, name: "СПА", count: 456, color: "bg-purple-100 text-purple-600" },
-  { icon: Camera, name: "Фото", count: 234, color: "bg-blue-100 text-blue-600" },
-  { icon: GraduationCap, name: "Обучение", count: 789, color: "bg-amber-100 text-amber-dark" },
-  { icon: Car, name: "Авто", count: 345, color: "bg-slate-100 text-slate-600" },
-  { icon: Home, name: "Дом", count: 678, color: "bg-orange-100 text-orange-600" },
+  { icon: Scissors, name: "Бьюти", slug: "cat-beauty", count: 1234, color: "bg-pink-100 text-pink-600" },
+  { icon: Dumbbell, name: "Фитнес", slug: "cat-fitness", count: 567, color: "bg-emerald-100 text-emerald-600" },
+  { icon: Heart, name: "Здоровье", slug: "cat-health", count: 890, color: "bg-red-100 text-red-500" },
+  { icon: Sparkles, name: "СПА", slug: "cat-spa", count: 456, color: "bg-purple-100 text-purple-600" },
+  { icon: Camera, name: "Фото и видео", slug: "cat-photo", count: 234, color: "bg-blue-100 text-blue-600" },
+  { icon: GraduationCap, name: "Обучение", slug: "cat-education", count: 789, color: "bg-amber-100 text-amber-600" },
+  { icon: Car, name: "Авто", slug: "cat-auto", count: 345, color: "bg-slate-100 text-slate-600" },
+  { icon: Home, name: "Дом", slug: "cat-home", count: 678, color: "bg-orange-100 text-orange-600" },
+  { icon: MoreHorizontal, name: "Прочие", slug: "cat-other", count: 123, color: "bg-gray-100 text-gray-600" },
 ];
 
 const CategoryGrid = () => {
+  const navigate = useNavigate();
+
   return (
     <section className="py-12 bg-background border-b border-border/50">
       <div className="container-wide">
@@ -33,7 +38,8 @@ const CategoryGrid = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
               whileHover={{ y: -2 }}
-              className="flex flex-col items-center gap-2 min-w-[80px] p-4 rounded-xl hover:bg-surface transition-colors"
+              onClick={() => navigate(`/catalog/${category.slug}`)}
+              className="flex flex-col items-center gap-2 min-w-[80px] p-4 rounded-xl hover:bg-surface transition-colors cursor-pointer"
             >
               <div className={`w-14 h-14 rounded-xl ${category.color} flex items-center justify-center`}>
                 <category.icon className="w-6 h-6" />
