@@ -14,6 +14,8 @@ import Terms from "./pages/Terms";
 import Offer from "./pages/Offer";
 import Contacts from "./pages/Contacts";
 import Catalog from "./pages/Catalog";
+import MasterDetail from "./pages/MasterDetail";
+import BusinessDetail from "./pages/BusinessDetail";
 import Subscription from "./pages/Subscription";
 import NotFound from "./pages/NotFound";
 
@@ -34,6 +36,8 @@ const App = () => (
             <Route path="/request-role" element={<RequestRole />} />
             <Route path="/catalog" element={<Catalog />} />
             <Route path="/catalog/:categoryId" element={<Catalog />} />
+            <Route path="/master/:masterId" element={<MasterDetail />} />
+            <Route path="/business/:businessId" element={<BusinessDetail />} />
             <Route path="/subscription" element={<Subscription />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />
