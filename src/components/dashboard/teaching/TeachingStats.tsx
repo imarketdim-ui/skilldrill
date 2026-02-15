@@ -58,7 +58,7 @@ const TeachingStats = () => {
   const statCards = [
     { icon: Calendar, label: 'Всего занятий', value: stats.totalLessons, color: 'text-primary' },
     { icon: BookOpen, label: 'Проведено', value: stats.completedLessons, color: 'text-primary' },
-    { icon: Users, label: 'Студентов', value: stats.totalStudents, color: 'text-primary' },
+    { icon: Users, label: 'Клиентов', value: stats.totalStudents, color: 'text-primary' },
     { icon: TrendingUp, label: 'Доход', value: `${stats.totalIncome.toLocaleString()} ₽`, color: 'text-primary' },
     { icon: TrendingDown, label: 'Расходы', value: `${stats.totalExpenses.toLocaleString()} ₽`, color: 'text-destructive' },
     { icon: Banknote, label: 'Прибыль', value: `${(stats.totalIncome - stats.totalExpenses).toLocaleString()} ₽`, color: 'text-primary' },

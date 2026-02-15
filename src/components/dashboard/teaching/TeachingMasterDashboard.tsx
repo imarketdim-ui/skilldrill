@@ -21,7 +21,7 @@ interface Props {
 const navItems = [
   { key: 'home', label: 'Главная', icon: LayoutDashboard },
   { key: 'schedule', label: 'Расписание', icon: Calendar },
-  { key: 'students', label: 'Студенты', icon: Users },
+  { key: 'students', label: 'Клиенты', icon: Users },
   { key: 'payments', label: 'Оплаты', icon: CreditCard },
   { key: 'expenses', label: 'Расходы', icon: Banknote },
   { key: 'chats', label: 'Чаты', icon: MessageSquare },
