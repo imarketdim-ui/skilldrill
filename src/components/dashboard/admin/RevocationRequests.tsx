@@ -55,40 +55,63 @@ const RevocationRequests = ({ isSuperAdmin = false }: Props) => {
 
       if (approve) {
         // Archive and deactivate
-        if (req.target_type === 'master' && req.target_entity_id) {
-          const { data: mp } = await supabase.from('master_profiles').select('*').eq('id', req.target_entity_id).single();
-          if (mp) {
-            await supabase.from('revocation_archive').insert({
-              user_id: req.target_user_id,
-              entity_type: 'master',
-              entity_data: mp,
-              revocation_request_id: req.id,
-            });
-            await supabase.from('master_profiles').update({ is_active: false, suspended_at: new Date().toISOString() }).eq('id', req.target_entity_id);
+        if (req.target_type === 'master') {
+          // Find master profile by user_id if entity_id is null
+          let entityId = req.target_entity_id;
+          if (!entityId) {
+            const { data: mp } = await supabase.from('master_profiles').select('id').eq('user_id', req.target_user_id).maybeSingle();
+            entityId = mp?.id;
           }
+          if (entityId) {
+            const { data: mp } = await supabase.from('master_profiles').select('*').eq('id', entityId).single();
+            if (mp) {
+              await supabase.from('revocation_archive').insert({
+                user_id: req.target_user_id,
+                entity_type: 'master',
+                entity_data: mp,
+                revocation_request_id: req.id,
+              });
+              await supabase.from('master_profiles').update({ is_active: false, suspended_at: new Date().toISOString() }).eq('id', entityId);
+            }
+          }
+          // Always delete the role regardless of entity
           await supabase.from('user_roles').delete().eq('user_id', req.target_user_id).eq('role', 'master');
-        } else if (req.target_type === 'business' && req.target_entity_id) {
-          const { data: bl } = await supabase.from('business_locations').select('*').eq('id', req.target_entity_id).single();
-          if (bl) {
-            await supabase.from('revocation_archive').insert({
-              user_id: req.target_user_id,
-              entity_type: 'business',
-              entity_data: bl,
-              revocation_request_id: req.id,
-            });
-            await supabase.from('business_locations').update({ is_active: false, suspended_at: new Date().toISOString() }).eq('id', req.target_entity_id);
+        } else if (req.target_type === 'business') {
+          let entityId = req.target_entity_id;
+          if (!entityId) {
+            const { data: bl } = await supabase.from('business_locations').select('id').eq('owner_id', req.target_user_id).maybeSingle();
+            entityId = bl?.id;
+          }
+          if (entityId) {
+            const { data: bl } = await supabase.from('business_locations').select('*').eq('id', entityId).single();
+            if (bl) {
+              await supabase.from('revocation_archive').insert({
+                user_id: req.target_user_id,
+                entity_type: 'business',
+                entity_data: bl,
+                revocation_request_id: req.id,
+              });
+              await supabase.from('business_locations').update({ is_active: false, suspended_at: new Date().toISOString() }).eq('id', entityId);
+            }
           }
           await supabase.from('user_roles').delete().eq('user_id', req.target_user_id).eq('role', 'business_owner');
-        } else if (req.target_type === 'network' && req.target_entity_id) {
-          const { data: net } = await supabase.from('networks').select('*').eq('id', req.target_entity_id).single();
-          if (net) {
-            await supabase.from('revocation_archive').insert({
-              user_id: req.target_user_id,
-              entity_type: 'network',
-              entity_data: net,
-              revocation_request_id: req.id,
-            });
-            await supabase.from('networks').update({ is_active: false, suspended_at: new Date().toISOString() }).eq('id', req.target_entity_id);
+        } else if (req.target_type === 'network') {
+          let entityId = req.target_entity_id;
+          if (!entityId) {
+            const { data: net } = await supabase.from('networks').select('id').eq('owner_id', req.target_user_id).maybeSingle();
+            entityId = net?.id;
+          }
+          if (entityId) {
+            const { data: net } = await supabase.from('networks').select('*').eq('id', entityId).single();
+            if (net) {
+              await supabase.from('revocation_archive').insert({
+                user_id: req.target_user_id,
+                entity_type: 'network',
+                entity_data: net,
+                revocation_request_id: req.id,
+              });
+              await supabase.from('networks').update({ is_active: false, suspended_at: new Date().toISOString() }).eq('id', entityId);
+            }
           }
           await supabase.from('user_roles').delete().eq('user_id', req.target_user_id).eq('role', 'network_owner');
         }

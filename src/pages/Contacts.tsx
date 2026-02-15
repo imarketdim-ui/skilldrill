@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Mail, Phone, MapPin, Clock } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, MapPin, Clock, Building2 } from 'lucide-react';
 import Header from '@/components/landing/Header';
 import Footer from '@/components/landing/Footer';
 
@@ -23,13 +23,25 @@ const Contacts = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5 text-primary" /> Юридическая информация
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <p className="font-semibold">ООО «СКИЛЛ СПОТ»</p>
+                <p>ИНН: 1901142926</p>
+                <p>КПП: 190101001</p>
+                <p>ОГРН: 1191901004272</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
                   <Mail className="h-5 w-5 text-primary" /> Электронная почта
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                <p>Общие вопросы: <a href="mailto:info@skillspot.ru" className="text-primary hover:underline">info@skillspot.ru</a></p>
-                <p>Поддержка: <a href="mailto:support@skillspot.ru" className="text-primary hover:underline">support@skillspot.ru</a></p>
-                <p>Партнёрство: <a href="mailto:partners@skillspot.ru" className="text-primary hover:underline">partners@skillspot.ru</a></p>
+                <p>Общие вопросы: <a href="mailto:imp-invest@mail.ru" className="text-primary hover:underline">imp-invest@mail.ru</a></p>
               </CardContent>
             </Card>
             
@@ -40,8 +52,7 @@ const Contacts = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                <p>Горячая линия: <a href="tel:+78001234567" className="text-primary hover:underline">8 (800) 123-45-67</a></p>
-                <p className="text-sm text-muted-foreground">Звонок бесплатный по РФ</p>
+                <p><a href="tel:+78617440008" className="text-primary hover:underline">8 (617) 44-00-08</a></p>
               </CardContent>
             </Card>
             
@@ -52,20 +63,8 @@ const Contacts = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p>Россия, г. Москва</p>
-                <p className="text-sm text-muted-foreground mt-2">Юридический адрес будет указан после регистрации юридического лица</p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="h-5 w-5 text-primary" /> Режим работы
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p>Пн–Пт: 09:00–18:00 (МСК)</p>
-                <p>Техническая поддержка: 24/7</p>
+                <p>655009, Россия, Республика Хакасия,</p>
+                <p>г. Абакан, ул. Российская, д. 45Б</p>
               </CardContent>
             </Card>
           </div>

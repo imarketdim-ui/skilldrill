@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Search, Heart, Calendar, Star, Wallet, Users, MessageSquare, 
-  AlertTriangle, Copy, Check, Gift, ArrowUpRight, Wrench, Building2, Globe, Shield
+  AlertTriangle, Copy, Check, Gift, ArrowUpRight, Wrench, Building2, Globe, Shield, Loader2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -19,6 +19,8 @@ const ClientDashboard = () => {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
   const [balance, setBalance] = useState({ main_balance: 0, referral_balance: 0 });
+  const [referralCode, setReferralCode] = useState<string | null>(null);
+  const [creatingCode, setCreatingCode] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -30,6 +32,17 @@ const ClientDashboard = () => {
         .then(({ data }) => {
           if (data) setBalance(data);
         });
+      
+      // Load existing referral code
+      supabase
+        .from('referral_codes')
+        .select('code')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) setReferralCode(data.code);
+        });
     }
   }, [user]);
 
@@ -40,6 +53,35 @@ const ClientDashboard = () => {
       toast({ title: 'ID скопирован', description: 'Ваш SkillSpot ID скопирован' });
       setTimeout(() => setCopied(false), 2000);
     }
+  };
+
+  const handleCopyReferral = () => {
+    if (referralCode) {
+      navigator.clipboard.writeText(referralCode);
+      toast({ title: 'Код скопирован', description: 'Реферальный код скопирован в буфер обмена' });
+    }
+  };
+
+  const handleCreateReferralCode = async () => {
+    if (!user) return;
+    setCreatingCode(true);
+    try {
+      // Generate a unique code
+      const code = 'REF-' + profile?.skillspot_id + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+      
+      const { data, error } = await supabase
+        .from('referral_codes')
+        .insert({ user_id: user.id, code, is_active: true })
+        .select('code')
+        .single();
+
+      if (error) throw error;
+      setReferralCode(data.code);
+      toast({ title: 'Реферальный код создан', description: `Ваш код: ${data.code}` });
+    } catch (err: any) {
+      toast({ title: 'Ошибка', description: err.message, variant: 'destructive' });
+    }
+    setCreatingCode(false);
   };
 
   const canRequestRole = (role: string) => !roles.includes(role as any);
@@ -103,7 +145,7 @@ const ClientDashboard = () => {
                 <CardTitle className="text-lg">Быстрые действия</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                <Button variant="outline" className="w-full justify-start gap-2" onClick={() => navigate('/')}>
+                <Button variant="outline" className="w-full justify-start gap-2" onClick={() => navigate('/catalog')}>
                   <Search className="h-4 w-4" /> Найти услугу
                 </Button>
                 <Button variant="outline" className="w-full justify-start gap-2" onClick={() => navigate('/settings')}>
@@ -119,9 +161,21 @@ const ClientDashboard = () => {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground mb-2">Приглашайте друзей и зарабатывайте</p>
-                <Button variant="outline" className="w-full gap-2">
-                  <Gift className="h-4 w-4" /> Создать реферальный код
-                </Button>
+                {referralCode ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 p-2 rounded-lg bg-muted">
+                      <code className="text-sm font-mono flex-1 truncate">{referralCode}</code>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={handleCopyReferral}>
+                        <Copy className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button variant="outline" className="w-full gap-2" onClick={handleCreateReferralCode} disabled={creatingCode}>
+                    {creatingCode ? <Loader2 className="h-4 w-4 animate-spin" /> : <Gift className="h-4 w-4" />}
+                    Создать реферальный код
+                  </Button>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -153,7 +207,7 @@ const ClientDashboard = () => {
               <div className="text-center py-12 text-muted-foreground">
                 <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>У вас пока нет записей</p>
-                <Button className="mt-4" onClick={() => navigate('/')}>Найти услугу</Button>
+                <Button className="mt-4" onClick={() => navigate('/catalog')}>Найти услугу</Button>
               </div>
             </CardContent>
           </Card>
