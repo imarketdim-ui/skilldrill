@@ -10,7 +10,7 @@ import {
   Plus, Ban, Tag, Percent, AlertTriangle
 } from 'lucide-react';
 import TeachingMasterDashboard from './teaching/TeachingMasterDashboard';
-
+import FitnessMasterDashboard from './fitness/FitnessMasterDashboard';
 const MasterDashboard = () => {
   const { user } = useAuth();
   const [masterProfile, setMasterProfile] = useState<any>(null);
@@ -44,12 +44,17 @@ const MasterDashboard = () => {
 
   if (loading) return null;
 
-  // Detect education category → show teaching dashboard
+  // Detect category → show category-specific dashboard
   const categoryName = masterProfile?.service_categories?.name?.toLowerCase() || '';
   const isEducation = categoryName.includes('образован') || categoryName.includes('преподав') || categoryName.includes('репетитор') || categoryName === 'education';
+  const isFitness = categoryName.includes('фитнес') || categoryName.includes('спорт') || categoryName.includes('fitness') || categoryName.includes('тренер');
 
   if (isEducation) {
     return <TeachingMasterDashboard masterProfile={masterProfile} isSubscriptionActive={isSubscriptionActive()} />;
+  }
+
+  if (isFitness) {
+    return <FitnessMasterDashboard masterProfile={masterProfile} isSubscriptionActive={isSubscriptionActive()} />;
   }
 
   const getSubscriptionBadge = () => {
