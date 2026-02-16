@@ -8,10 +8,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertTriangle, CheckCircle, MapPin, FileText, Image, Hash,
-  Upload, X, Plus, Loader2, Camera, Award
+  Upload, X, Plus, Loader2, Camera, Award, Pencil, Eye, MessageSquare
 } from 'lucide-react';
 
 interface ProfileCompletionCheckProps {
@@ -31,13 +32,24 @@ interface CompletionItem {
 const ProfileCompletionCheck = ({ entityType, entityData, onProfileUpdated }: ProfileCompletionCheckProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [editing, setEditing] = useState<string | null>(null);
-  const [form, setForm] = useState<any>({});
   const [saving, setSaving] = useState(false);
   const [services, setServices] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+
+  // Dialog states
+  const [addressDialogOpen, setAddressDialogOpen] = useState(false);
+  const [descriptionDialogOpen, setDescriptionDialogOpen] = useState(false);
+  const [serviceDialogOpen, setServiceDialogOpen] = useState(false);
+  const [hashtagDialogOpen, setHashtagDialogOpen] = useState(false);
+  const [certificateDialogOpen, setCertificateDialogOpen] = useState(false);
+
+  // Form states
+  const [addressValue, setAddressValue] = useState(entityData?.address || '');
+  const [descriptionValue, setDescriptionValue] = useState(entityData?.description || '');
   const [newService, setNewService] = useState({ name: '', price: '', duration_minutes: '60' });
-  const [newHashtag, setNewHashtag] = useState('');
+  const [hashtagInput, setHashtagInput] = useState('');
+  const [certificateComment, setCertificateComment] = useState('');
 
   useEffect(() => {
     if (user && entityType === 'master' && entityData) {
@@ -47,28 +59,22 @@ const ProfileCompletionCheck = ({ entityType, entityData, onProfileUpdated }: Pr
     }
   }, [user, entityType, entityData]);
 
+  useEffect(() => {
+    setAddressValue(entityData?.address || '');
+    setDescriptionValue(entityData?.description || '');
+  }, [entityData]);
+
   const getCompletionItems = (): CompletionItem[] => {
-    if (entityType === 'master') {
-      return [
-        { key: 'address', label: 'Адрес', required: true, completed: !!entityData?.address, icon: MapPin },
-        { key: 'services', label: 'Услуги (мин. 1)', required: true, completed: services.length > 0, icon: FileText },
-        { key: 'description', label: 'Описание', required: false, completed: !!entityData?.description, icon: FileText },
-        { key: 'interior_photos', label: 'Фото интерьера/экстерьера', required: false, completed: (entityData?.interior_photos?.length || 0) > 0, icon: Camera },
-        { key: 'work_photos', label: 'Фото работ', required: false, completed: (entityData?.work_photos?.length || 0) > 0, icon: Image },
-        { key: 'certificates', label: 'Сертификаты и референсы', required: false, completed: (entityData?.certificate_photos?.length || 0) > 0, icon: Award },
-        { key: 'hashtags', label: 'Хэштеги', required: false, completed: (entityData?.hashtags?.length || 0) > 0, icon: Hash },
-      ];
-    }
-    // business/network share similar fields
-    return [
+    const base: CompletionItem[] = [
       { key: 'address', label: 'Адрес', required: true, completed: !!entityData?.address, icon: MapPin },
       { key: 'services', label: 'Услуги (мин. 1)', required: true, completed: services.length > 0, icon: FileText },
       { key: 'description', label: 'Описание', required: false, completed: !!entityData?.description, icon: FileText },
-      { key: 'interior_photos', label: 'Фото интерьера/экстерьера', required: false, completed: (entityData?.interior_photos?.length || entityData?.exterior_photos?.length || 0) > 0, icon: Camera },
+      { key: 'interior_photos', label: 'Фото интерьера/экстерьера', required: false, completed: (entityData?.interior_photos?.length || 0) > 0, icon: Camera },
       { key: 'work_photos', label: 'Фото работ', required: false, completed: (entityData?.work_photos?.length || 0) > 0, icon: Image },
-      { key: 'certificates', label: 'Сертификаты', required: false, completed: (entityData?.certificate_photos?.length || 0) > 0, icon: Award },
+      { key: 'certificates', label: 'Сертификаты и референсы', required: false, completed: (entityData?.certificate_photos?.length || 0) > 0, icon: Award },
       { key: 'hashtags', label: 'Хэштеги', required: false, completed: (entityData?.hashtags?.length || 0) > 0, icon: Hash },
     ];
+    return base;
   };
 
   const items = getCompletionItems();
@@ -96,12 +102,21 @@ const ProfileCompletionCheck = ({ entityType, entityData, onProfileUpdated }: Pr
       const { error } = await supabase.from(getTable() as any).update({ [field]: value }).eq(getIdField(), getIdValue());
       if (error) throw error;
       toast({ title: 'Сохранено' });
-      setEditing(null);
       onProfileUpdated();
     } catch (err: any) {
       toast({ title: 'Ошибка', description: err.message, variant: 'destructive' });
     }
     setSaving(false);
+  };
+
+  const handleSaveAddress = async () => {
+    await handleSaveField('address', addressValue);
+    setAddressDialogOpen(false);
+  };
+
+  const handleSaveDescription = async () => {
+    await handleSaveField('description', descriptionValue);
+    setDescriptionDialogOpen(false);
   };
 
   const handleAddService = async () => {
@@ -123,7 +138,6 @@ const ProfileCompletionCheck = ({ entityType, entityData, onProfileUpdated }: Pr
       } else {
         insertData.organization_id = entityData?.id;
       }
-
       const { error } = await supabase.from('services').insert(insertData);
       if (error) throw error;
       setNewService({ name: '', price: '', duration_minutes: '60' });
@@ -176,12 +190,16 @@ const ProfileCompletionCheck = ({ entityType, entityData, onProfileUpdated }: Pr
     await handleSaveField(field, updated);
   };
 
-  const handleAddHashtag = async () => {
-    if (!newHashtag.trim()) return;
-    const tag = newHashtag.trim().replace(/^#/, '');
-    const updated = [...(entityData?.hashtags || []), tag];
+  const handleAddHashtags = async () => {
+    if (!hashtagInput.trim()) return;
+    const newTags = hashtagInput
+      .split(',')
+      .map(t => t.trim().replace(/^#/, ''))
+      .filter(t => t.length > 0);
+    const updated = [...(entityData?.hashtags || []), ...newTags];
     await handleSaveField('hashtags', updated);
-    setNewHashtag('');
+    setHashtagInput('');
+    setHashtagDialogOpen(false);
   };
 
   const handleRemoveHashtag = async (tag: string) => {
@@ -203,198 +221,312 @@ const ProfileCompletionCheck = ({ entityType, entityData, onProfileUpdated }: Pr
 
   if (!showBanner && moderationStatus === 'approved') return null;
 
-  return (
-    <Card className={moderationStatus === 'rejected' ? 'border-destructive' : 'border-primary/50'}>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg flex items-center gap-2">
-            {moderationStatus === 'rejected' ? (
-              <><AlertTriangle className="h-5 w-5 text-destructive" /> Профиль отклонён</>
-            ) : moderationStatus === 'pending' ? (
-              <><Loader2 className="h-5 w-5 text-primary animate-spin" /> На модерации</>
-            ) : (
-              <><AlertTriangle className="h-5 w-5 text-primary" /> Заполните профиль</>
-            )}
-          </CardTitle>
-          <Badge variant={moderationStatus === 'pending' ? 'default' : 'outline'}>{progress}%</Badge>
-        </div>
-        {moderationStatus === 'rejected' && entityData?.moderation_comment && (
-          <p className="text-sm text-destructive mt-1">Причина: {entityData.moderation_comment}</p>
-        )}
-        {moderationStatus === 'draft' && (
-          <p className="text-sm text-muted-foreground">
-            Заполните необходимые поля и отправьте на модерацию. После одобрения ваш профиль станет доступен в каталоге.
-          </p>
-        )}
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <Progress value={progress} className="h-2" />
-
-        {items.map(item => (
-          <div key={item.key} className="flex items-center justify-between p-3 rounded-lg border">
-            <div className="flex items-center gap-3">
-              {item.completed ? (
-                <CheckCircle className="h-5 w-5 text-primary" />
-              ) : (
-                <item.icon className="h-5 w-5 text-muted-foreground" />
-              )}
-              <span className={`text-sm ${item.completed ? '' : 'text-muted-foreground'}`}>
-                {item.label} {item.required && <span className="text-destructive">*</span>}
-              </span>
-            </div>
-
-            {item.key === 'address' && (
-              editing === 'address' ? (
-                <div className="flex gap-2 items-center">
-                  <Input
-                    className="w-48"
-                    defaultValue={entityData?.address || ''}
-                    onChange={(e) => setForm({ ...form, address: e.target.value })}
-                  />
-                  <Button size="sm" onClick={() => handleSaveField('address', form.address)} disabled={saving}>
-                    {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : 'OK'}
-                  </Button>
+  const PhotoGrid = ({ field, bucket }: { field: string; bucket: string }) => {
+    const photos = entityData?.[field] || [];
+    return (
+      <div className="mt-2">
+        {photos.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-2">
+            {photos.map((url: string, i: number) => (
+              <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden border group">
+                <img src={url} alt="" className="w-full h-full object-cover cursor-pointer" onClick={() => setLightboxUrl(url)} />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+                  <button onClick={() => setLightboxUrl(url)} className="p-1 rounded bg-white/20">
+                    <Eye className="h-3 w-3 text-white" />
+                  </button>
+                  <button onClick={() => handleRemovePhoto(field, url)} className="p-1 rounded bg-destructive/80">
+                    <X className="h-3 w-3 text-white" />
+                  </button>
                 </div>
-              ) : (
-                <Button variant="ghost" size="sm" onClick={() => setEditing('address')}>
-                  {item.completed ? 'Изменить' : 'Добавить'}
-                </Button>
-              )
-            )}
-
-            {item.key === 'description' && (
-              editing === 'description' ? (
-                <div className="flex gap-2 items-center">
-                  <Textarea
-                    className="w-48"
-                    defaultValue={entityData?.description || ''}
-                    onChange={(e) => setForm({ ...form, description: e.target.value })}
-                    rows={2}
-                  />
-                  <Button size="sm" onClick={() => handleSaveField('description', form.description)} disabled={saving}>
-                    {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : 'OK'}
-                  </Button>
-                </div>
-              ) : (
-                <Button variant="ghost" size="sm" onClick={() => setEditing('description')}>
-                  {item.completed ? 'Изменить' : 'Добавить'}
-                </Button>
-              )
-            )}
-
-            {item.key === 'services' && (
-              <Button variant="ghost" size="sm" onClick={() => setEditing(editing === 'services' ? null : 'services')}>
-                {item.completed ? `${services.length} услуг` : 'Добавить'}
-              </Button>
-            )}
-
-            {item.key === 'interior_photos' && (
-              <Button variant="ghost" size="sm" onClick={() => handleUploadPhoto('interiors', 'interior_photos')} disabled={uploading}>
-                {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Upload className="h-3 w-3 mr-1" /> Загрузить</>}
-              </Button>
-            )}
-
-            {item.key === 'work_photos' && (
-              <Button variant="ghost" size="sm" onClick={() => handleUploadPhoto('portfolio', 'work_photos')} disabled={uploading}>
-                {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Upload className="h-3 w-3 mr-1" /> Загрузить</>}
-              </Button>
-            )}
-
-            {item.key === 'certificates' && (
-              <Button variant="ghost" size="sm" onClick={() => handleUploadPhoto('certificates', 'certificate_photos')} disabled={uploading}>
-                {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Upload className="h-3 w-3 mr-1" /> Загрузить</>}
-              </Button>
-            )}
-
-            {item.key === 'hashtags' && (
-              <Button variant="ghost" size="sm" onClick={() => setEditing(editing === 'hashtags' ? null : 'hashtags')}>
-                {item.completed ? `${entityData?.hashtags?.length} тегов` : 'Добавить'}
-              </Button>
-            )}
-          </div>
-        ))}
-
-        {/* Services inline editor */}
-        {editing === 'services' && (
-          <div className="p-4 rounded-lg border space-y-3">
-            {services.map(s => (
-              <div key={s.id} className="flex items-center justify-between text-sm p-2 bg-muted rounded">
-                <span>{s.name} — {s.price} ₽ · {s.duration_minutes} мин</span>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleDeleteService(s.id)}>
-                  <X className="h-3 w-3" />
-                </Button>
               </div>
             ))}
-            <div className="grid gap-2 sm:grid-cols-4">
-              <Input placeholder="Название" value={newService.name} onChange={(e) => setNewService({ ...newService, name: e.target.value })} />
-              <Input placeholder="Цена ₽" type="number" value={newService.price} onChange={(e) => setNewService({ ...newService, price: e.target.value })} />
-              <Input placeholder="Минут" type="number" value={newService.duration_minutes} onChange={(e) => setNewService({ ...newService, duration_minutes: e.target.value })} />
-              <Button onClick={handleAddService} disabled={saving}>
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Plus className="h-4 w-4 mr-1" /> Добавить</>}
-              </Button>
-            </div>
           </div>
         )}
+        <Button variant="outline" size="sm" onClick={() => handleUploadPhoto(bucket, field)} disabled={uploading}>
+          {uploading ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Upload className="h-3 w-3 mr-1" />}
+          Загрузить
+        </Button>
+      </div>
+    );
+  };
 
-        {/* Photos preview */}
-        {['interior_photos', 'work_photos', 'certificate_photos'].map(field => {
-          const photos = entityData?.[field] || [];
-          if (photos.length === 0) return null;
-          return (
-            <div key={field} className="flex flex-wrap gap-2">
-              {photos.map((url: string, i: number) => (
-                <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden border">
-                  <img src={url} alt="" className="w-full h-full object-cover" />
-                  <button
-                    onClick={() => handleRemovePhoto(field, url)}
-                    className="absolute top-0 right-0 bg-destructive text-destructive-foreground rounded-bl p-0.5"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          );
-        })}
+  return (
+    <>
+      {/* Lightbox */}
+      {lightboxUrl && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setLightboxUrl(null)}>
+          <img src={lightboxUrl} alt="" className="max-w-full max-h-full object-contain rounded-lg" />
+          <button className="absolute top-4 right-4 text-white bg-black/50 rounded-full p-2" onClick={() => setLightboxUrl(null)}>
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+      )}
 
-        {/* Hashtags editor */}
-        {editing === 'hashtags' && (
-          <div className="p-4 rounded-lg border space-y-3">
-            <div className="flex flex-wrap gap-2">
-              {(entityData?.hashtags || []).map((tag: string) => (
-                <Badge key={tag} variant="secondary" className="gap-1">
-                  #{tag}
-                  <button onClick={() => handleRemoveHashtag(tag)}>
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <Input
-                placeholder="#хэштег"
-                value={newHashtag}
-                onChange={(e) => setNewHashtag(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddHashtag())}
-              />
-              <Button onClick={handleAddHashtag} disabled={saving}>Добавить</Button>
-            </div>
+      <Card className={moderationStatus === 'rejected' ? 'border-destructive' : 'border-primary/50'}>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              {moderationStatus === 'rejected' ? (
+                <><AlertTriangle className="h-5 w-5 text-destructive" /> Профиль отклонён</>
+              ) : moderationStatus === 'pending' ? (
+                <><Loader2 className="h-5 w-5 text-primary animate-spin" /> На модерации</>
+              ) : (
+                <><AlertTriangle className="h-5 w-5 text-primary" /> Заполните профиль</>
+              )}
+            </CardTitle>
+            <Badge variant={moderationStatus === 'pending' ? 'default' : 'outline'}>{progress}%</Badge>
           </div>
-        )}
+          {moderationStatus === 'rejected' && entityData?.moderation_comment && (
+            <p className="text-sm text-destructive mt-1">Причина: {entityData.moderation_comment}</p>
+          )}
+          {moderationStatus === 'draft' && (
+            <p className="text-sm text-muted-foreground">
+              Заполните необходимые поля и отправьте на модерацию. После одобрения ваш профиль станет доступен в каталоге.
+            </p>
+          )}
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Progress value={progress} className="h-2" />
 
-        {/* Submit for moderation */}
-        {moderationStatus !== 'pending' && (
-          <Button
-            className="w-full"
-            onClick={handleSubmitForModeration}
-            disabled={!allRequiredDone || saving}
-          >
-            {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-            {allRequiredDone ? 'Отправить на модерацию' : 'Заполните обязательные поля'}
-          </Button>
-        )}
-      </CardContent>
-    </Card>
+          {/* 1. Address */}
+          <div className="p-4 rounded-lg border space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {entityData?.address ? <CheckCircle className="h-5 w-5 text-primary" /> : <MapPin className="h-5 w-5 text-muted-foreground" />}
+                <span className="text-sm font-medium">Адрес <span className="text-destructive">*</span></span>
+              </div>
+              <Dialog open={addressDialogOpen} onOpenChange={setAddressDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" size="sm">
+                    {entityData?.address ? <><Pencil className="h-3 w-3 mr-1" /> Изменить</> : <><Plus className="h-3 w-3 mr-1" /> Добавить</>}
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>Адрес</DialogTitle></DialogHeader>
+                  <div className="space-y-3">
+                    <Input value={addressValue} onChange={e => setAddressValue(e.target.value)} placeholder="Введите адрес" />
+                    <Button className="w-full" onClick={handleSaveAddress} disabled={saving}>
+                      {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null} Сохранить
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+            {entityData?.address && (
+              <p className="text-sm text-muted-foreground pl-7">{entityData.address}</p>
+            )}
+          </div>
+
+          {/* 2. Services */}
+          <div className="p-4 rounded-lg border space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {services.length > 0 ? <CheckCircle className="h-5 w-5 text-primary" /> : <FileText className="h-5 w-5 text-muted-foreground" />}
+                <span className="text-sm font-medium">Услуги (мин. 1) <span className="text-destructive">*</span></span>
+              </div>
+              <Dialog open={serviceDialogOpen} onOpenChange={setServiceDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" size="sm">
+                    {services.length > 0 ? `${services.length} услуг · Изменить` : <><Plus className="h-3 w-3 mr-1" /> Добавить</>}
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-lg">
+                  <DialogHeader><DialogTitle>Управление услугами</DialogTitle></DialogHeader>
+                  <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+                    {services.length > 0 && (
+                      <div className="space-y-2">
+                        {services.map(s => (
+                          <div key={s.id} className="flex items-center justify-between text-sm p-3 bg-muted rounded-lg">
+                            <div>
+                              <p className="font-medium">{s.name}</p>
+                              <p className="text-muted-foreground">{s.price} ₽ · {s.duration_minutes} мин</p>
+                            </div>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDeleteService(s.id)}>
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="border-t pt-4 space-y-3">
+                      <p className="text-sm font-medium">Добавить услугу</p>
+                      <div className="space-y-2">
+                        <Input placeholder="Название услуги" value={newService.name} onChange={e => setNewService({ ...newService, name: e.target.value })} />
+                        <div className="grid grid-cols-2 gap-2">
+                          <Input placeholder="Цена ₽" type="number" value={newService.price} onChange={e => setNewService({ ...newService, price: e.target.value })} />
+                          <Input placeholder="Длительность (мин)" type="number" value={newService.duration_minutes} onChange={e => setNewService({ ...newService, duration_minutes: e.target.value })} />
+                        </div>
+                      </div>
+                      <Button className="w-full" onClick={handleAddService} disabled={saving}>
+                        {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Plus className="h-4 w-4 mr-1" />} Добавить услугу
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+            {services.length > 0 && (
+              <div className="pl-7 space-y-1">
+                {services.slice(0, 3).map(s => (
+                  <p key={s.id} className="text-sm text-muted-foreground">{s.name} — {s.price} ₽</p>
+                ))}
+                {services.length > 3 && <p className="text-xs text-muted-foreground">и ещё {services.length - 3}...</p>}
+              </div>
+            )}
+          </div>
+
+          {/* 3. Description */}
+          <div className="p-4 rounded-lg border space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {entityData?.description ? <CheckCircle className="h-5 w-5 text-primary" /> : <FileText className="h-5 w-5 text-muted-foreground" />}
+                <span className="text-sm font-medium">Описание</span>
+              </div>
+              <Dialog open={descriptionDialogOpen} onOpenChange={setDescriptionDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" size="sm">
+                    {entityData?.description ? <><Pencil className="h-3 w-3 mr-1" /> Изменить</> : <><Plus className="h-3 w-3 mr-1" /> Добавить</>}
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>Описание</DialogTitle></DialogHeader>
+                  <div className="space-y-3">
+                    <Textarea value={descriptionValue} onChange={e => setDescriptionValue(e.target.value)} placeholder="Расскажите о себе и своих услугах" rows={5} />
+                    <Button className="w-full" onClick={handleSaveDescription} disabled={saving}>
+                      {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null} Сохранить
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+            {entityData?.description && (
+              <p className="text-sm text-muted-foreground pl-7 line-clamp-3">{entityData.description}</p>
+            )}
+          </div>
+
+          {/* 4. Interior/Exterior Photos */}
+          <div className="p-4 rounded-lg border space-y-2">
+            <div className="flex items-center gap-2">
+              {(entityData?.interior_photos?.length || 0) > 0 ? <CheckCircle className="h-5 w-5 text-primary" /> : <Camera className="h-5 w-5 text-muted-foreground" />}
+              <span className="text-sm font-medium">Фото интерьера/экстерьера</span>
+            </div>
+            <PhotoGrid field="interior_photos" bucket="interiors" />
+          </div>
+
+          {/* 5. Work Photos */}
+          <div className="p-4 rounded-lg border space-y-2">
+            <div className="flex items-center gap-2">
+              {(entityData?.work_photos?.length || 0) > 0 ? <CheckCircle className="h-5 w-5 text-primary" /> : <Image className="h-5 w-5 text-muted-foreground" />}
+              <span className="text-sm font-medium">Фото работ</span>
+            </div>
+            <PhotoGrid field="work_photos" bucket="portfolio" />
+          </div>
+
+          {/* 6. Certificates & References */}
+          <div className="p-4 rounded-lg border space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {(entityData?.certificate_photos?.length || 0) > 0 ? <CheckCircle className="h-5 w-5 text-primary" /> : <Award className="h-5 w-5 text-muted-foreground" />}
+                <span className="text-sm font-medium">Сертификаты и референсы</span>
+              </div>
+              <Dialog open={certificateDialogOpen} onOpenChange={setCertificateDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" size="sm"><Plus className="h-3 w-3 mr-1" /> Добавить</Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>Добавить сертификат/референс</DialogTitle></DialogHeader>
+                  <div className="space-y-3">
+                    <div>
+                      <Label>Комментарий (необязательно)</Label>
+                      <Input value={certificateComment} onChange={e => setCertificateComment(e.target.value)} placeholder="Описание сертификата" />
+                    </div>
+                    <Button className="w-full" onClick={() => { handleUploadPhoto('certificates', 'certificate_photos'); setCertificateDialogOpen(false); }} disabled={uploading}>
+                      {uploading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Upload className="h-4 w-4 mr-1" />} Загрузить фото
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+            {(entityData?.certificate_photos?.length || 0) > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2 pl-7">
+                {(entityData.certificate_photos || []).map((url: string, i: number) => (
+                  <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden border group">
+                    <img src={url} alt="" className="w-full h-full object-cover cursor-pointer" onClick={() => setLightboxUrl(url)} />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+                      <button onClick={() => setLightboxUrl(url)} className="p-1 rounded bg-white/20"><Eye className="h-3 w-3 text-white" /></button>
+                      <button onClick={() => handleRemovePhoto('certificate_photos', url)} className="p-1 rounded bg-destructive/80"><X className="h-3 w-3 text-white" /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 7. Hashtags */}
+          <div className="p-4 rounded-lg border space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {(entityData?.hashtags?.length || 0) > 0 ? <CheckCircle className="h-5 w-5 text-primary" /> : <Hash className="h-5 w-5 text-muted-foreground" />}
+                <span className="text-sm font-medium">Хэштеги</span>
+              </div>
+              <Dialog open={hashtagDialogOpen} onOpenChange={setHashtagDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" size="sm">
+                    {(entityData?.hashtags?.length || 0) > 0 ? <><Pencil className="h-3 w-3 mr-1" /> Изменить</> : <><Plus className="h-3 w-3 mr-1" /> Добавить</>}
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>Хэштеги</DialogTitle></DialogHeader>
+                  <div className="space-y-3">
+                    {(entityData?.hashtags || []).length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {(entityData.hashtags || []).map((tag: string) => (
+                          <Badge key={tag} variant="secondary" className="gap-1">
+                            #{tag}
+                            <button onClick={() => handleRemoveHashtag(tag)}><X className="h-3 w-3" /></button>
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                    <div>
+                      <Label>Введите теги через запятую</Label>
+                      <Input
+                        placeholder="маникюр, педикюр, гель-лак"
+                        value={hashtagInput}
+                        onChange={e => setHashtagInput(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddHashtags())}
+                      />
+                    </div>
+                    <Button className="w-full" onClick={handleAddHashtags} disabled={saving}>
+                      {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Plus className="h-4 w-4 mr-1" />} Добавить
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+            {(entityData?.hashtags?.length || 0) > 0 && (
+              <div className="flex flex-wrap gap-1.5 pl-7">
+                {(entityData.hashtags || []).map((tag: string) => (
+                  <Badge key={tag} variant="secondary" className="text-xs">#{tag}</Badge>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Submit for moderation */}
+          {moderationStatus !== 'pending' && (
+            <Button
+              className="w-full"
+              onClick={handleSubmitForModeration}
+              disabled={!allRequiredDone || saving}
+            >
+              {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              {allRequiredDone ? 'Отправить на модерацию' : 'Заполните обязательные поля'}
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+    </>
   );
 };
 

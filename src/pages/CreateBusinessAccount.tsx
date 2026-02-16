@@ -168,7 +168,16 @@ const CreateBusinessAccount = () => {
       }
 
       await refreshProfile();
-      navigate('/dashboard');
+      // Set active role to the newly created role
+      if (accountType === 'master') {
+        localStorage.setItem('skillspot_active_role', 'master');
+      } else if (accountType === 'business') {
+        localStorage.setItem('skillspot_active_role', 'business_owner');
+      } else if (accountType === 'network') {
+        localStorage.setItem('skillspot_active_role', 'network_owner');
+      }
+      // Force page reload to pick up new role
+      window.location.href = '/dashboard';
     } catch (err: any) {
       toast({ title: 'Ошибка', description: err.message, variant: 'destructive' });
     } finally {
