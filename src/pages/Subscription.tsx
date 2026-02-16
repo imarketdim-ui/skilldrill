@@ -3,14 +3,14 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Check, Crown, Building2, Globe } from 'lucide-react';
+import { Check, Crown, Building2, Globe } from 'lucide-react';
 import Header from '@/components/landing/Header';
 import Footer from '@/components/landing/Footer';
 
 const plans = [
   {
     name: 'Мастер',
-    price: '1 000',
+    price: '900',
     period: 'мес',
     icon: Crown,
     description: 'Для самозанятых специалистов',
@@ -27,7 +27,7 @@ const plans = [
   },
   {
     name: 'Бизнес',
-    price: '3 000',
+    price: 'от 2 500',
     period: 'мес',
     icon: Building2,
     description: 'Для организаций с одной точкой',
@@ -46,7 +46,7 @@ const plans = [
   },
   {
     name: 'Сеть',
-    price: '3 000',
+    price: 'от 4 500',
     period: 'мес',
     icon: Globe,
     description: 'Для сетей с несколькими точками',

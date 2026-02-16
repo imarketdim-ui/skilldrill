@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Mail, Phone, MapPin, Clock, Building2 } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, MapPin, Building2 } from 'lucide-react';
 import Header from '@/components/landing/Header';
 import Footer from '@/components/landing/Footer';
 
@@ -52,7 +52,7 @@ const Contacts = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                <p><a href="tel:+78617440008" className="text-primary hover:underline">8 (617) 44-00-08</a></p>
+                <p><a href="tel:+79617440008" className="text-primary hover:underline">8 (961) 744-00-08</a></p>
               </CardContent>
             </Card>
             

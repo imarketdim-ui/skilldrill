@@ -8,7 +8,8 @@ const footerLinks = {
     { label: "Для специалистов", href: "/request-role?type=master" },
   ],
   company: [
-    { label: "О нас", href: "/contacts" },
+    { label: "О платформе", href: "/about" },
+    { label: "Для бизнеса", href: "/for-business" },
     { label: "Контакты", href: "/contacts" },
   ],
   legal: [
@@ -23,14 +24,8 @@ const Footer = () => {
     <footer className="bg-foreground text-white pt-16 pb-8">
       <div className="container-wide">
         <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-12 mb-12">
-          {/* Brand */}
           <div className="lg:col-span-2">
-            <motion.div
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-              className="flex items-center gap-2 mb-4"
-            >
+            <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} className="flex items-center gap-2 mb-4">
               <Link to="/" className="flex items-center gap-2">
                 <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
                   <span className="text-white font-bold text-lg">S</span>
@@ -44,19 +39,16 @@ const Footer = () => {
             <div className="text-white/40 text-xs space-y-1">
               <p>ООО «СКИЛЛ СПОТ» · ИНН 1901142926 · ОГРН 1191901004272</p>
               <p>655009, Республика Хакасия, г. Абакан, ул. Российская, д. 45Б</p>
-              <p>Email: imp-invest@mail.ru · Тел: 8 (617) 44-00-08</p>
+              <p>Email: imp-invest@mail.ru · Тел: 8 (961) 744-00-08</p>
             </div>
           </div>
 
-          {/* Links */}
           <div>
             <h4 className="font-semibold mb-4">Продукт</h4>
             <ul className="space-y-3">
               {footerLinks.product.map((link) => (
                 <li key={link.label}>
-                  <Link to={link.href} className="text-white/60 hover:text-white transition-colors">
-                    {link.label}
-                  </Link>
+                  <Link to={link.href} className="text-white/60 hover:text-white transition-colors">{link.label}</Link>
                 </li>
               ))}
             </ul>
@@ -67,9 +59,7 @@ const Footer = () => {
             <ul className="space-y-3">
               {footerLinks.company.map((link) => (
                 <li key={link.label}>
-                  <Link to={link.href} className="text-white/60 hover:text-white transition-colors">
-                    {link.label}
-                  </Link>
+                  <Link to={link.href} className="text-white/60 hover:text-white transition-colors">{link.label}</Link>
                 </li>
               ))}
             </ul>
@@ -80,23 +70,16 @@ const Footer = () => {
             <ul className="space-y-3">
               {footerLinks.legal.map((link) => (
                 <li key={link.label}>
-                  <Link to={link.href} className="text-white/60 hover:text-white transition-colors">
-                    {link.label}
-                  </Link>
+                  <Link to={link.href} className="text-white/60 hover:text-white transition-colors">{link.label}</Link>
                 </li>
               ))}
             </ul>
           </div>
         </div>
 
-        {/* Bottom */}
         <div className="pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-white/40 text-sm">
-            © 2026 ООО «СКИЛЛ СПОТ». Все права защищены.
-          </p>
-          <p className="text-white/40 text-sm">
-            Платежи обрабатываются АО «Тинькофф Банк»
-          </p>
+          <p className="text-white/40 text-sm">© 2026 ООО «СКИЛЛ СПОТ». Все права защищены.</p>
+          <p className="text-white/40 text-sm">Платежи обрабатываются АО «Тинькофф Банк»</p>
         </div>
       </div>
     </footer>
