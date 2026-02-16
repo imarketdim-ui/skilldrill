@@ -2664,6 +2664,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assign_role_on_account_creation: {
+        Args: {
+          _role: Database["public"]["Enums"]["user_role"]
+          _user_id: string
+        }
+        Returns: undefined
+      }
       generate_skillspot_id: { Args: never; Returns: string }
       get_user_org_role: {
         Args: { org_id: string; user_id: string }
