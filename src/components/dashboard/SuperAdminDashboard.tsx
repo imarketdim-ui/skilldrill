@@ -33,9 +33,9 @@ const SuperAdminDashboard = () => {
   const loadData = async () => {
     const [profilesRes, mastersRes, bizRes, netRes, assignRes] = await Promise.all([
       supabase.from('profiles').select('*', { count: 'exact', head: true }),
-      supabase.from('master_profiles').select('*', { count: 'exact', head: true }),
-      supabase.from('business_locations').select('*', { count: 'exact', head: true }),
-      supabase.from('networks').select('*', { count: 'exact', head: true }),
+      supabase.from('master_profiles').select('*', { count: 'exact', head: true }).eq('is_active', true),
+      supabase.from('business_locations').select('*', { count: 'exact', head: true }).eq('is_active', true),
+      supabase.from('networks').select('*', { count: 'exact', head: true }).eq('is_active', true),
       supabase.from('admin_assignments').select('*, assigner:profiles!admin_assignments_assigner_id_fkey(first_name,last_name), assignee:profiles!admin_assignments_assignee_id_fkey(first_name,last_name,email,skillspot_id)').order('created_at', { ascending: false }),
     ]);
     setStats({
@@ -118,9 +118,7 @@ const SuperAdminDashboard = () => {
 
         <TabsContent value="admins">
           <Card>
-            <CardHeader>
-              <CardTitle>Назначить администратора</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle>Назначить администратора</CardTitle></CardHeader>
             <CardContent>
               <div className="flex gap-2 mb-4">
                 <Input placeholder="SkillSpot ID (например AB1234)" value={searchId} onChange={(e) => setSearchId(e.target.value)} />
@@ -199,9 +197,9 @@ const SuperAdminDashboard = () => {
             <CardHeader><CardTitle>Подписки</CardTitle></CardHeader>
             <CardContent>
               <div className="grid gap-4 md:grid-cols-3">
-                <div className="p-4 rounded-lg border"><p className="font-medium">Мастера</p><p className="text-sm text-muted-foreground">1 000 ₽/мес</p><p className="text-2xl font-bold mt-2">{stats.masters}</p></div>
-                <div className="p-4 rounded-lg border"><p className="font-medium">Бизнесы</p><p className="text-sm text-muted-foreground">3 000 ₽/мес</p><p className="text-2xl font-bold mt-2">{stats.businesses}</p></div>
-                <div className="p-4 rounded-lg border"><p className="font-medium">Сети</p><p className="text-sm text-muted-foreground">3 000 ₽/мес</p><p className="text-2xl font-bold mt-2">{stats.networks}</p></div>
+                <div className="p-4 rounded-lg border"><p className="font-medium">Мастера</p><p className="text-sm text-muted-foreground">900 ₽/мес</p><p className="text-2xl font-bold mt-2">{stats.masters}</p></div>
+                <div className="p-4 rounded-lg border"><p className="font-medium">Бизнесы</p><p className="text-sm text-muted-foreground">от 2 500 ₽/мес</p><p className="text-2xl font-bold mt-2">{stats.businesses}</p></div>
+                <div className="p-4 rounded-lg border"><p className="font-medium">Сети</p><p className="text-sm text-muted-foreground">от 4 500 ₽/мес</p><p className="text-2xl font-bold mt-2">{stats.networks}</p></div>
               </div>
             </CardContent>
           </Card>

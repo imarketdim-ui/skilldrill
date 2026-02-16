@@ -189,7 +189,7 @@ const ClientDashboard = () => {
                   <CardContent className="pt-6 text-center">
                     <Wrench className="h-10 w-10 mx-auto mb-2 text-primary" />
                     <p className="font-semibold">Стать мастером</p>
-                    <p className="text-sm text-muted-foreground">Выберите категорию и начните принимать клиентов · 1 000 ₽/мес</p>
+                    <p className="text-sm text-muted-foreground">Выберите категорию и начните принимать клиентов · 900 ₽/мес</p>
                   </CardContent>
                 </Card>
               )}

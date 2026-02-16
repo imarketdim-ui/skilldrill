@@ -1,25 +1,30 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { MapPin, Search, Scissors, Dumbbell, GraduationCap, Camera, Heart, Home, Car, Sparkles } from "lucide-react";
+import { Search, Scissors, Dumbbell, GraduationCap, Camera, Heart, Home, Car, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const quickCategories = [
-  { icon: Scissors, label: "Бьюти", slug: "cat-beauty" },
-  { icon: Dumbbell, label: "Фитнес", slug: "cat-fitness" },
-  { icon: GraduationCap, label: "Обучение", slug: "cat-education" },
-  { icon: Camera, label: "Фото", slug: "cat-photo" },
-  { icon: Heart, label: "Здоровье", slug: "cat-health" },
-  { icon: Home, label: "Дом", slug: "cat-home" },
-  { icon: Car, label: "Авто", slug: "cat-auto" },
-  { icon: Sparkles, label: "СПА", slug: "cat-spa" },
+  { icon: Scissors, label: "Бьюти", id: "a0000001-0000-0000-0000-000000000001" },
+  { icon: Dumbbell, label: "Фитнес", id: "a0000001-0000-0000-0000-000000000007" },
+  { icon: GraduationCap, label: "Обучение", id: "a0000001-0000-0000-0000-000000000003" },
+  { icon: Camera, label: "Фото", id: "a0000001-0000-0000-0000-000000000005" },
+  { icon: Heart, label: "Здоровье", id: "a0000001-0000-0000-0000-000000000006" },
+  { icon: Home, label: "Дом", id: "a0000001-0000-0000-0000-000000000008" },
+  { icon: Car, label: "Авто", id: "a0000001-0000-0000-0000-000000000002" },
+  { icon: Sparkles, label: "СПА", id: "a0000001-0000-0000-0000-000000000004" },
 ];
 
 const Hero = () => {
   const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const handleSearch = () => {
+    navigate(`/catalog?q=${encodeURIComponent(searchQuery)}`);
+  };
 
   return (
     <section className="relative min-h-[85vh] flex items-center overflow-hidden bg-background">
-      {/* Subtle decorative shapes */}
       <div className="absolute top-20 left-10 w-72 h-72 bg-primary/5 rounded-full blur-3xl" />
       <div className="absolute bottom-20 right-10 w-96 h-96 bg-accent/5 rounded-full blur-3xl" />
       
@@ -43,7 +48,7 @@ const Hero = () => {
             
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
               Найдите идеального
-              <span className="text-gradient-primary block">специалиста</span>
+              <span className="text-primary block">специалиста</span>
             </h1>
             
             <p className="text-lg md:text-xl text-muted-foreground max-w-xl mx-auto">
@@ -66,9 +71,12 @@ const Hero = () => {
                   type="text"
                   placeholder="Маникюр, массаж, стрижка..."
                   className="flex-1 bg-transparent outline-none text-foreground placeholder:text-muted-foreground"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 />
               </div>
-              <Button variant="hero" size="lg" className="sm:w-auto" onClick={() => navigate('/catalog')}>
+              <Button variant="hero" size="lg" className="sm:w-auto" onClick={handleSearch}>
                 Найти
               </Button>
             </div>
@@ -83,8 +91,8 @@ const Hero = () => {
           >
             {quickCategories.map((cat) => (
               <button
-                key={cat.slug}
-                onClick={() => navigate(`/catalog/${cat.slug}`)}
+                key={cat.id}
+                onClick={() => navigate(`/catalog/${cat.id}`)}
                 className="flex items-center gap-2 px-4 py-2 rounded-full border border-border/50 bg-card hover:bg-surface hover:border-primary/30 transition-all text-sm text-muted-foreground hover:text-foreground"
               >
                 <cat.icon className="w-4 h-4" />

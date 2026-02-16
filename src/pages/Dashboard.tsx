@@ -11,7 +11,7 @@ import AdminDashboard from '@/components/dashboard/AdminDashboard';
 import SuperAdminDashboard from '@/components/dashboard/SuperAdminDashboard';
 
 const Dashboard = () => {
-  const { user, loading, activeRole } = useAuth();
+  const { user, loading, activeRole, roles } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -32,14 +32,20 @@ const Dashboard = () => {
   }
 
   const renderDashboard = () => {
+    // Only render role-specific dashboards if the user actually has that role
     switch (activeRole) {
-      case 'master': return <MasterDashboard />;
-      case 'business_owner': return <BusinessDashboard />;
-      case 'business_manager': return <BusinessDashboard />;
-      case 'network_owner': return <NetworkDashboard />;
-      case 'network_manager': return <NetworkDashboard />;
-      case 'platform_admin': return <AdminDashboard />;
-      case 'super_admin': return <SuperAdminDashboard />;
+      case 'master': 
+        return roles.includes('master') ? <MasterDashboard /> : <ClientDashboard />;
+      case 'business_owner': 
+      case 'business_manager': 
+        return roles.includes(activeRole) ? <BusinessDashboard /> : <ClientDashboard />;
+      case 'network_owner': 
+      case 'network_manager': 
+        return roles.includes(activeRole) ? <NetworkDashboard /> : <ClientDashboard />;
+      case 'platform_admin': 
+        return roles.includes('platform_admin') ? <AdminDashboard /> : <ClientDashboard />;
+      case 'super_admin': 
+        return roles.includes('super_admin') ? <SuperAdminDashboard /> : <ClientDashboard />;
       default: return <ClientDashboard />;
     }
   };
