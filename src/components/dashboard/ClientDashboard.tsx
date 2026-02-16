@@ -6,17 +6,26 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Search, Heart, Calendar, Star, Wallet, Users, MessageSquare, 
-  AlertTriangle, Copy, Check, Gift, ArrowUpRight, Wrench, Building2, Globe, Shield, Loader2
+import {
+  Search, Heart, Calendar, Wallet, Users, MessageSquare,
+  Copy, Check, Gift, ArrowUpRight, Wrench, Shield, Loader2,
+  LayoutDashboard, Star, Settings
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+
+const menuItems = [
+  { key: 'overview', label: 'Обзор', icon: LayoutDashboard },
+  { key: 'bookings', label: 'Мои записи', icon: Calendar },
+  { key: 'favorites', label: 'Избранное', icon: Heart },
+  { key: 'wallet', label: 'Баланс', icon: Wallet },
+  { key: 'requests', label: 'Запросы', icon: Shield },
+];
 
 const ClientDashboard = () => {
   const { user, profile, roles } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [activeSection, setActiveSection] = useState('overview');
   const [copied, setCopied] = useState(false);
   const [balance, setBalance] = useState({ main_balance: 0, referral_balance: 0 });
   const [referralCode, setReferralCode] = useState<string | null>(null);
@@ -24,25 +33,10 @@ const ClientDashboard = () => {
 
   useEffect(() => {
     if (user) {
-      supabase
-        .from('user_balances')
-        .select('main_balance, referral_balance')
-        .eq('user_id', user.id)
-        .maybeSingle()
-        .then(({ data }) => {
-          if (data) setBalance(data);
-        });
-      
-      // Load existing referral code
-      supabase
-        .from('referral_codes')
-        .select('code')
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .maybeSingle()
-        .then(({ data }) => {
-          if (data) setReferralCode(data.code);
-        });
+      supabase.from('user_balances').select('main_balance, referral_balance').eq('user_id', user.id).maybeSingle()
+        .then(({ data }) => { if (data) setBalance(data); });
+      supabase.from('referral_codes').select('code').eq('user_id', user.id).eq('is_active', true).maybeSingle()
+        .then(({ data }) => { if (data) setReferralCode(data.code); });
     }
   }, [user]);
 
@@ -50,7 +44,7 @@ const ClientDashboard = () => {
     if (profile?.skillspot_id) {
       navigator.clipboard.writeText(profile.skillspot_id);
       setCopied(true);
-      toast({ title: 'ID скопирован', description: 'Ваш SkillSpot ID скопирован' });
+      toast({ title: 'ID скопирован' });
       setTimeout(() => setCopied(false), 2000);
     }
   };
@@ -58,7 +52,7 @@ const ClientDashboard = () => {
   const handleCopyReferral = () => {
     if (referralCode) {
       navigator.clipboard.writeText(referralCode);
-      toast({ title: 'Код скопирован', description: 'Реферальный код скопирован в буфер обмена' });
+      toast({ title: 'Код скопирован' });
     }
   };
 
@@ -66,15 +60,8 @@ const ClientDashboard = () => {
     if (!user) return;
     setCreatingCode(true);
     try {
-      // Generate a unique code
       const code = 'REF-' + profile?.skillspot_id + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
-      
-      const { data, error } = await supabase
-        .from('referral_codes')
-        .insert({ user_id: user.id, code, is_active: true })
-        .select('code')
-        .single();
-
+      const { data, error } = await supabase.from('referral_codes').insert({ user_id: user.id, code, is_active: true }).select('code').single();
       if (error) throw error;
       setReferralCode(data.code);
       toast({ title: 'Реферальный код создан', description: `Ваш код: ${data.code}` });
@@ -86,118 +73,24 @@ const ClientDashboard = () => {
 
   const canRequestRole = (role: string) => !roles.includes(role as any);
 
-  return (
-    <div className="space-y-6">
-      {/* Profile Header */}
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-4">
-          <Avatar className="h-16 w-16">
-            <AvatarImage src={profile?.avatar_url || undefined} />
-            <AvatarFallback className="bg-primary text-primary-foreground text-xl">
-              {profile?.first_name?.[0] || profile?.email?.[0] || 'U'}
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <h1 className="text-2xl font-bold">
-              {profile?.first_name && profile?.last_name
-                ? `${profile.first_name} ${profile.last_name}`
-                : profile?.email || 'Пользователь'}
-            </h1>
-            <div className="flex items-center gap-2 mt-1">
-              <Badge variant="secondary" className="font-mono text-sm">
-                ID: {profile?.skillspot_id}
-              </Badge>
-              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleCopyId}>
-                {copied ? <Check className="h-3 w-3 text-primary" /> : <Copy className="h-3 w-3" />}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
+  const getInitials = () =>
+    `${(profile?.first_name || '')[0] || ''}${(profile?.last_name || '')[0] || ''}`.toUpperCase() || '?';
 
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">Обзор</TabsTrigger>
-          <TabsTrigger value="bookings"><Calendar className="h-4 w-4 mr-1" /> Мои записи</TabsTrigger>
-          <TabsTrigger value="favorites"><Heart className="h-4 w-4 mr-1" /> Избранное</TabsTrigger>
-          <TabsTrigger value="wallet"><Wallet className="h-4 w-4 mr-1" /> Баланс</TabsTrigger>
-          <TabsTrigger value="requests">Запросы</TabsTrigger>
-        </TabsList>
+  const NavButton = ({ item }: { item: { key: string; label: string; icon: any } }) => (
+    <Button
+      variant={activeSection === item.key ? 'default' : 'ghost'}
+      className={`w-full justify-start gap-3 ${activeSection === item.key ? '' : 'text-muted-foreground'}`}
+      onClick={() => setActiveSection(item.key)}
+    >
+      <item.icon className="h-4 w-4" />
+      <span>{item.label}</span>
+    </Button>
+  );
 
-        <TabsContent value="overview">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {/* Balance Card */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Баланс</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold">{Number(balance.main_balance).toFixed(0)} ₽</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Реферальный: {Number(balance.referral_balance).toFixed(0)} ₽
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Quick Actions */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Быстрые действия</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <Button variant="outline" className="w-full justify-start gap-2" onClick={() => navigate('/catalog')}>
-                  <Search className="h-4 w-4" /> Найти услугу
-                </Button>
-                <Button variant="outline" className="w-full justify-start gap-2" onClick={() => navigate('/settings')}>
-                  <Star className="h-4 w-4" /> Настройки профиля
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Referral */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Реферальная программа</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-2">Приглашайте друзей и зарабатывайте</p>
-                {referralCode ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 p-2 rounded-lg bg-muted">
-                      <code className="text-sm font-mono flex-1 truncate">{referralCode}</code>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={handleCopyReferral}>
-                        <Copy className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <Button variant="outline" className="w-full gap-2" onClick={handleCreateReferralCode} disabled={creatingCode}>
-                    {creatingCode ? <Loader2 className="h-4 w-4 animate-spin" /> : <Gift className="h-4 w-4" />}
-                    Создать реферальный код
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Role Upgrade Cards */}
-          <div className="mt-6">
-            <h3 className="text-lg font-semibold mb-3">Расширьте возможности</h3>
-            <div className="grid gap-4 md:grid-cols-1">
-              {canRequestRole('master') && (
-                <Card className="border-dashed cursor-pointer hover:border-primary transition-colors" onClick={() => navigate('/request-role?type=master')}>
-                  <CardContent className="pt-6 text-center">
-                    <Wrench className="h-10 w-10 mx-auto mb-2 text-primary" />
-                    <p className="font-semibold">Стать мастером</p>
-                    <p className="text-sm text-muted-foreground">Выберите категорию и начните принимать клиентов · 900 ₽/мес</p>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="bookings">
+  const renderContent = () => {
+    switch (activeSection) {
+      case 'bookings':
+        return (
           <Card>
             <CardHeader>
               <CardTitle>Мои записи</CardTitle>
@@ -207,13 +100,14 @@ const ClientDashboard = () => {
               <div className="text-center py-12 text-muted-foreground">
                 <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>У вас пока нет записей</p>
-                <Button className="mt-4" onClick={() => navigate('/catalog')}>Найти услугу</Button>
+                <Button className="mt-4" onClick={() => navigate('/')}>Найти услугу</Button>
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
+        );
 
-        <TabsContent value="favorites">
+      case 'favorites':
+        return (
           <Card>
             <CardHeader>
               <CardTitle>Избранное</CardTitle>
@@ -226,14 +120,13 @@ const ClientDashboard = () => {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
+        );
 
-        <TabsContent value="wallet">
+      case 'wallet':
+        return (
           <div className="grid gap-4 md:grid-cols-2">
             <Card>
-              <CardHeader>
-                <CardTitle>Основной баланс</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle>Основной баланс</CardTitle></CardHeader>
               <CardContent>
                 <p className="text-3xl font-bold mb-4">{Number(balance.main_balance).toFixed(0)} ₽</p>
                 <div className="space-y-2">
@@ -243,21 +136,19 @@ const ClientDashboard = () => {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader>
-                <CardTitle>Реферальный баланс</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle>Реферальный баланс</CardTitle></CardHeader>
               <CardContent>
                 <p className="text-3xl font-bold mb-4">{Number(balance.referral_balance).toFixed(0)} ₽</p>
                 <Button variant="outline" className="w-full">
-                  <ArrowUpRight className="h-4 w-4 mr-2" />
-                  Перевести на основной баланс
+                  <ArrowUpRight className="h-4 w-4 mr-2" /> Перевести на основной
                 </Button>
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
+        );
 
-        <TabsContent value="requests">
+      case 'requests':
+        return (
           <Card>
             <CardHeader>
               <CardTitle>Мои запросы</CardTitle>
@@ -270,8 +161,157 @@ const ClientDashboard = () => {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-      </Tabs>
+        );
+
+      default: // overview
+        return (
+          <div className="space-y-6">
+            {/* Profile Card */}
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-4">
+                  <Avatar className="h-16 w-16">
+                    <AvatarImage src={profile?.avatar_url || undefined} />
+                    <AvatarFallback className="text-lg bg-primary/10 text-primary">{getInitials()}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="text-xl font-semibold">
+                          {profile?.first_name && profile?.last_name
+                            ? `${profile.first_name} ${profile.last_name}`
+                            : profile?.email || 'Пользователь'}
+                        </h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge variant="secondary" className="font-mono text-sm">ID: {profile?.skillspot_id}</Badge>
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleCopyId}>
+                            {copied ? <Check className="h-3 w-3 text-primary" /> : <Copy className="h-3 w-3" />}
+                          </Button>
+                        </div>
+                      </div>
+                      <Button variant="outline" size="sm" onClick={() => navigate('/settings')}>
+                        <Settings className="h-4 w-4 mr-1" /> Настройки
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Stat Cards */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Баланс</p>
+                      <p className="text-3xl font-bold mt-1">{Number(balance.main_balance).toFixed(0)} ₽</p>
+                      <p className="text-xs text-muted-foreground mt-1">Реферальный: {Number(balance.referral_balance).toFixed(0)} ₽</p>
+                    </div>
+                    <Wallet className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="pt-6">
+                  <p className="text-sm text-muted-foreground mb-3">Быстрые действия</p>
+                  <div className="space-y-2">
+                    <Button variant="outline" className="w-full justify-start gap-2" size="sm" onClick={() => navigate('/')}>
+                      <Search className="h-4 w-4" /> Найти услугу
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start gap-2" size="sm" onClick={() => navigate('/settings')}>
+                      <Star className="h-4 w-4" /> Настройки профиля
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="pt-6">
+                  <p className="text-sm text-muted-foreground mb-2">Реферальная программа</p>
+                  {referralCode ? (
+                    <div className="flex items-center gap-2 p-2 rounded-lg bg-muted">
+                      <code className="text-sm font-mono flex-1 truncate">{referralCode}</code>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={handleCopyReferral}>
+                        <Copy className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button variant="outline" className="w-full gap-2" onClick={handleCreateReferralCode} disabled={creatingCode}>
+                      {creatingCode ? <Loader2 className="h-4 w-4 animate-spin" /> : <Gift className="h-4 w-4" />}
+                      Создать реферальный код
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Role Upgrade */}
+            {canRequestRole('master') && (
+              <Card className="border-dashed cursor-pointer hover:border-primary transition-colors" onClick={() => navigate('/request-role?type=master')}>
+                <CardContent className="pt-6 text-center">
+                  <Wrench className="h-10 w-10 mx-auto mb-2 text-primary" />
+                  <p className="font-semibold">Стать мастером</p>
+                  <p className="text-sm text-muted-foreground">Выберите категорию и начните принимать клиентов · 900 ₽/мес</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        );
+    }
+  };
+
+  return (
+    <div className="flex gap-6">
+      {/* Sidebar */}
+      <aside className="hidden lg:flex flex-col w-60 shrink-0">
+        <div className="flex items-center gap-3 px-3 pb-6 border-b mb-4">
+          <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
+            <Users className="h-5 w-5 text-primary-foreground" />
+          </div>
+          <div>
+            <p className="font-semibold text-sm">Личный кабинет</p>
+            <p className="text-xs text-muted-foreground">Клиент</p>
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Меню</p>
+          {menuItems.map(item => <NavButton key={item.key} item={item} />)}
+        </div>
+
+        <div className="mt-auto pt-6 border-t">
+          <div className="flex items-center gap-3 px-3">
+            <Avatar className="h-8 w-8">
+              <AvatarFallback className="text-xs bg-primary/10 text-primary">{getInitials()}</AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <p className="text-sm font-medium truncate">{profile?.first_name || 'Пользователь'}</p>
+              <p className="text-xs text-muted-foreground">Клиент</p>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      {/* Mobile nav */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t z-50 flex overflow-x-auto px-2 py-1">
+        {menuItems.map(item => (
+          <button
+            key={item.key}
+            onClick={() => setActiveSection(item.key)}
+            className={`flex flex-col items-center gap-0.5 px-3 py-2 text-xs shrink-0 ${activeSection === item.key ? 'text-primary' : 'text-muted-foreground'}`}
+          >
+            <item.icon className="h-4 w-4" />
+            {item.label}
+          </button>
+        ))}
+      </nav>
+
+      {/* Main Content */}
+      <div className="flex-1 min-w-0 pb-20 lg:pb-0">
+        {renderContent()}
+      </div>
     </div>
   );
 };
