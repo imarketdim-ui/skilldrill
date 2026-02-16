@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useToast } from '@/hooks/use-toast';
 import { Ban, Plus, Search, MessageSquare, UserMinus, AlertTriangle } from 'lucide-react';
 
-const TeachingBlacklist = () => {
+const FitnessBlacklist = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [entries, setEntries] = useState<any[]>([]);
@@ -23,9 +23,7 @@ const TeachingBlacklist = () => {
   const [foundUser, setFoundUser] = useState<any>(null);
   const [reason, setReason] = useState('');
 
-  useEffect(() => {
-    if (user) fetchBlacklist();
-  }, [user]);
+  useEffect(() => { if (user) fetchBlacklist(); }, [user]);
 
   const fetchBlacklist = async () => {
     if (!user) return;
@@ -88,7 +86,7 @@ const TeachingBlacklist = () => {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2"><Ban className="h-6 w-6 text-destructive" /> Чёрный список</h2>
-          <p className="text-muted-foreground">Студенты с ограниченным доступом к записи на занятия</p>
+          <p className="text-muted-foreground">Клиенты с ограниченным доступом к записи на тренировки</p>
         </div>
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
@@ -120,17 +118,15 @@ const TeachingBlacklist = () => {
         </Dialog>
       </div>
 
-      {/* Info banner */}
       <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 p-4">
-        <p className="font-semibold flex items-center gap-2 text-foreground"><AlertTriangle className="h-5 w-5 text-amber-500" /> Студенты в чёрном списке:</p>
+        <p className="font-semibold flex items-center gap-2 text-foreground"><AlertTriangle className="h-5 w-5 text-amber-500" /> Клиенты в чёрном списке:</p>
         <ul className="mt-2 space-y-1 text-sm text-muted-foreground ml-7 list-disc">
-          <li>Не могут записываться на занятия</li>
+          <li>Не могут записываться на тренировки</li>
           <li>Не могут отправлять сообщения в чат</li>
           <li>Не получают уведомления о расписании</li>
         </ul>
       </div>
 
-      {/* Search */}
       <div className="relative max-w-lg">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input placeholder="Поиск по имени или Telegram..." value={searchFilter} onChange={e => setSearchFilter(e.target.value)} className="pl-9" />
@@ -150,7 +146,6 @@ const TeachingBlacklist = () => {
             return (
               <Card key={entry.id} className="overflow-hidden">
                 <CardContent className="p-5 space-y-4">
-                  {/* Header */}
                   <div className="flex items-center gap-3">
                     <Avatar className="h-11 w-11">
                       <AvatarFallback className="bg-destructive/10 text-destructive font-semibold">
@@ -165,16 +160,12 @@ const TeachingBlacklist = () => {
                       <p className="text-sm text-muted-foreground truncate">@{profile?.skillspot_id}</p>
                     </div>
                   </div>
-
-                  {/* Reason */}
                   {entry.reason && (
                     <div>
                       <p className="text-sm font-medium text-foreground">Причина:</p>
                       <p className="text-sm text-muted-foreground">{entry.reason}</p>
                     </div>
                   )}
-
-                  {/* Stats row */}
                   <div className="flex items-center justify-around text-center border-t border-b py-3">
                     <div>
                       <p className="text-lg font-bold text-destructive">—</p>
@@ -189,8 +180,6 @@ const TeachingBlacklist = () => {
                       <p className="text-xs text-muted-foreground">Последнее</p>
                     </div>
                   </div>
-
-                  {/* Actions */}
                   <div className="flex gap-2">
                     <Button variant="outline" className="flex-1 gap-2" size="sm">
                       <MessageSquare className="h-4 w-4" /> Написать
@@ -214,4 +203,4 @@ const TeachingBlacklist = () => {
   );
 };
 
-export default TeachingBlacklist;
+export default FitnessBlacklist;
