@@ -12,7 +12,7 @@ import FitnessClients from './FitnessClients';
 import FitnessPayments from './FitnessPayments';
 import FitnessExpenses from './FitnessExpenses';
 import FitnessStats from './FitnessStats';
-import TeachingBlacklist from '../teaching/TeachingBlacklist';
+import FitnessBlacklist from './FitnessBlacklist';
 import TeachingChats from '../teaching/TeachingChats';
 
 interface Props {
@@ -63,7 +63,7 @@ const FitnessMasterDashboard = ({ masterProfile, isSubscriptionActive }: Props) 
       case 'expenses': return <FitnessExpenses />;
       case 'chats': return <TeachingChats />;
       case 'stats': return <FitnessStats />;
-      case 'blacklist': return <TeachingBlacklist />;
+      case 'blacklist': return <FitnessBlacklist />;
       case 'subscription': return (
         <SubscriptionManager
           entityType="master"
