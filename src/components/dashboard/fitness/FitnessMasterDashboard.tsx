@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { AlertTriangle, LayoutDashboard, Calendar, Users, CreditCard, Banknote, MessageSquare, BarChart3, Ban, Settings, Dumbbell } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import SubscriptionManager from '../SubscriptionManager';
 import FitnessDashboardHome from './FitnessDashboardHome';
 import FitnessSchedule from './FitnessSchedule';
 import FitnessClients from './FitnessClients';
@@ -31,6 +32,7 @@ const menuItems = [
 const managementItems = [
   { key: 'stats', label: 'Статистика', icon: BarChart3 },
   { key: 'blacklist', label: 'Чёрный список', icon: Ban },
+  { key: 'subscription', label: 'Подписка', icon: CreditCard },
   { key: 'settings', label: 'Настройки', icon: Settings },
 ];
 
@@ -62,6 +64,18 @@ const FitnessMasterDashboard = ({ masterProfile, isSubscriptionActive }: Props) 
       case 'chats': return <TeachingChats />;
       case 'stats': return <FitnessStats />;
       case 'blacklist': return <TeachingBlacklist />;
+      case 'subscription': return (
+        <SubscriptionManager
+          entityType="master"
+          subscriptionStatus={masterProfile?.subscription_status || 'inactive'}
+          trialStartDate={masterProfile?.trial_start_date}
+          trialDays={masterProfile?.trial_days || 14}
+          lastPaymentDate={masterProfile?.last_payment_date}
+          basePrice={900}
+          parentManaged={masterProfile?.subscription_status === 'in_business'}
+          parentLabel="Управляется бизнесом"
+        />
+      );
       default: return <FitnessDashboardHome />;
     }
   };
