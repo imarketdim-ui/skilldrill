@@ -82,12 +82,14 @@ const CreateBusinessAccount = () => {
     setIsSubmitting(true);
     try {
       if (accountType === 'master') {
-        // Auto-create master profile + role
-        const { data: existingRole } = await supabase.from('user_roles').select('id').eq('user_id', user.id).eq('role', 'master' as any).maybeSingle();
-        if (!existingRole) {
-          await supabase.from('user_roles').insert({ user_id: user.id, role: 'master' as any });
-        } else {
-          await supabase.from('user_roles').update({ is_active: true }).eq('id', existingRole.id);
+        // Auto-create master profile + role via security definer function
+        const { error: roleError } = await supabase.rpc('assign_role_on_account_creation', {
+          _user_id: user.id,
+          _role: 'master',
+        });
+        if (roleError) {
+          console.error('Role assignment error:', roleError);
+          throw new Error('Не удалось назначить роль мастера');
         }
 
         // Check if master already has this category
@@ -115,12 +117,11 @@ const CreateBusinessAccount = () => {
         });
 
       } else if (accountType === 'business') {
-        const { data: existingRole } = await supabase.from('user_roles').select('id').eq('user_id', user.id).eq('role', 'business_owner' as any).maybeSingle();
-        if (!existingRole) {
-          await supabase.from('user_roles').insert({ user_id: user.id, role: 'business_owner' as any });
-        } else {
-          await supabase.from('user_roles').update({ is_active: true }).eq('id', existingRole.id);
-        }
+        const { error: roleError } = await supabase.rpc('assign_role_on_account_creation', {
+          _user_id: user.id,
+          _role: 'business_owner',
+        });
+        if (roleError) throw new Error('Не удалось назначить роль владельца бизнеса');
 
         await supabase.from('business_locations').insert({
           owner_id: user.id,
@@ -141,12 +142,11 @@ const CreateBusinessAccount = () => {
         });
 
       } else if (accountType === 'network') {
-        const { data: existingRole } = await supabase.from('user_roles').select('id').eq('user_id', user.id).eq('role', 'network_owner' as any).maybeSingle();
-        if (!existingRole) {
-          await supabase.from('user_roles').insert({ user_id: user.id, role: 'network_owner' as any });
-        } else {
-          await supabase.from('user_roles').update({ is_active: true }).eq('id', existingRole.id);
-        }
+        const { error: roleError } = await supabase.rpc('assign_role_on_account_creation', {
+          _user_id: user.id,
+          _role: 'network_owner',
+        });
+        if (roleError) throw new Error('Не удалось назначить роль владельца сети');
 
         await supabase.from('networks').insert({
           owner_id: user.id,
