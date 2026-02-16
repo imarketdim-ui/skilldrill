@@ -10,6 +10,7 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Settings from "./pages/Settings";
 import RequestRole from "./pages/RequestRole";
+import CreateBusinessAccount from "./pages/CreateBusinessAccount";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import Offer from "./pages/Offer";
@@ -38,6 +39,7 @@ const App = () => (
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/request-role" element={<RequestRole />} />
+            <Route path="/create-account" element={<CreateBusinessAccount />} />
             <Route path="/catalog" element={<Catalog />} />
             <Route path="/catalog/:categoryId" element={<Catalog />} />
             <Route path="/master/:masterId" element={<MasterDetail />} />

@@ -287,20 +287,25 @@ export type Database = {
       business_locations: {
         Row: {
           address: string | null
+          certificate_photos: Json | null
           contact_email: string | null
           contact_phone: string | null
           created_at: string
           description: string | null
+          director_name: string | null
           exterior_photos: Json | null
           extra_master_price: number
           free_masters: number
           grace_start_date: string | null
+          hashtags: string[] | null
           id: string
           inn: string
           interior_photos: Json | null
           is_active: boolean
           last_payment_date: string | null
           legal_form: Database["public"]["Enums"]["legal_form"]
+          moderation_comment: string | null
+          moderation_status: string
           name: string
           network_id: string | null
           owner_id: string
@@ -309,23 +314,29 @@ export type Database = {
           suspended_at: string | null
           trial_start_date: string | null
           updated_at: string
+          work_photos: Json | null
         }
         Insert: {
           address?: string | null
+          certificate_photos?: Json | null
           contact_email?: string | null
           contact_phone?: string | null
           created_at?: string
           description?: string | null
+          director_name?: string | null
           exterior_photos?: Json | null
           extra_master_price?: number
           free_masters?: number
           grace_start_date?: string | null
+          hashtags?: string[] | null
           id?: string
           inn: string
           interior_photos?: Json | null
           is_active?: boolean
           last_payment_date?: string | null
           legal_form: Database["public"]["Enums"]["legal_form"]
+          moderation_comment?: string | null
+          moderation_status?: string
           name: string
           network_id?: string | null
           owner_id: string
@@ -334,23 +345,29 @@ export type Database = {
           suspended_at?: string | null
           trial_start_date?: string | null
           updated_at?: string
+          work_photos?: Json | null
         }
         Update: {
           address?: string | null
+          certificate_photos?: Json | null
           contact_email?: string | null
           contact_phone?: string | null
           created_at?: string
           description?: string | null
+          director_name?: string | null
           exterior_photos?: Json | null
           extra_master_price?: number
           free_masters?: number
           grace_start_date?: string | null
+          hashtags?: string[] | null
           id?: string
           inn?: string
           interior_photos?: Json | null
           is_active?: boolean
           last_payment_date?: string | null
           legal_form?: Database["public"]["Enums"]["legal_form"]
+          moderation_comment?: string | null
+          moderation_status?: string
           name?: string
           network_id?: string | null
           owner_id?: string
@@ -359,6 +376,7 @@ export type Database = {
           suspended_at?: string | null
           trial_start_date?: string | null
           updated_at?: string
+          work_photos?: Json | null
         }
         Relationships: [
           {
@@ -871,16 +889,22 @@ export type Database = {
       }
       master_profiles: {
         Row: {
+          address: string | null
           business_id: string | null
           category_id: string | null
+          certificate_photos: Json | null
           created_at: string
           description: string | null
           grace_start_date: string | null
+          hashtags: string[] | null
           id: string
+          interior_photos: Json | null
           is_active: boolean
           last_payment_date: string | null
           max_monthly_bookings: number
           max_services: number
+          moderation_comment: string | null
+          moderation_status: string
           promo_code_used: string | null
           subscription_price: number
           subscription_status: string
@@ -889,19 +913,26 @@ export type Database = {
           trial_start_date: string | null
           updated_at: string
           user_id: string
+          work_photos: Json | null
           workplace_description: string | null
         }
         Insert: {
+          address?: string | null
           business_id?: string | null
           category_id?: string | null
+          certificate_photos?: Json | null
           created_at?: string
           description?: string | null
           grace_start_date?: string | null
+          hashtags?: string[] | null
           id?: string
+          interior_photos?: Json | null
           is_active?: boolean
           last_payment_date?: string | null
           max_monthly_bookings?: number
           max_services?: number
+          moderation_comment?: string | null
+          moderation_status?: string
           promo_code_used?: string | null
           subscription_price?: number
           subscription_status?: string
@@ -910,19 +941,26 @@ export type Database = {
           trial_start_date?: string | null
           updated_at?: string
           user_id: string
+          work_photos?: Json | null
           workplace_description?: string | null
         }
         Update: {
+          address?: string | null
           business_id?: string | null
           category_id?: string | null
+          certificate_photos?: Json | null
           created_at?: string
           description?: string | null
           grace_start_date?: string | null
+          hashtags?: string[] | null
           id?: string
+          interior_photos?: Json | null
           is_active?: boolean
           last_payment_date?: string | null
           max_monthly_bookings?: number
           max_services?: number
+          moderation_comment?: string | null
+          moderation_status?: string
           promo_code_used?: string | null
           subscription_price?: number
           subscription_status?: string
@@ -931,6 +969,7 @@ export type Database = {
           trial_start_date?: string | null
           updated_at?: string
           user_id?: string
+          work_photos?: Json | null
           workplace_description?: string | null
         }
         Relationships: [
@@ -998,15 +1037,24 @@ export type Database = {
       }
       networks: {
         Row: {
+          address: string | null
+          contact_email: string | null
+          contact_phone: string | null
           created_at: string
           description: string | null
+          director_name: string | null
           extra_location_price: number
           free_locations: number
           free_masters_per_location: number
           grace_start_date: string | null
+          hashtags: string[] | null
           id: string
+          inn: string | null
           is_active: boolean
           last_payment_date: string | null
+          legal_form: string | null
+          moderation_comment: string | null
+          moderation_status: string
           name: string
           owner_id: string
           subscription_price: number
@@ -1016,15 +1064,24 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          address?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
           created_at?: string
           description?: string | null
+          director_name?: string | null
           extra_location_price?: number
           free_locations?: number
           free_masters_per_location?: number
           grace_start_date?: string | null
+          hashtags?: string[] | null
           id?: string
+          inn?: string | null
           is_active?: boolean
           last_payment_date?: string | null
+          legal_form?: string | null
+          moderation_comment?: string | null
+          moderation_status?: string
           name: string
           owner_id: string
           subscription_price?: number
@@ -1034,15 +1091,24 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          address?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
           created_at?: string
           description?: string | null
+          director_name?: string | null
           extra_location_price?: number
           free_locations?: number
           free_masters_per_location?: number
           grace_start_date?: string | null
+          hashtags?: string[] | null
           id?: string
+          inn?: string | null
           is_active?: boolean
           last_payment_date?: string | null
+          legal_form?: string | null
+          moderation_comment?: string | null
+          moderation_status?: string
           name?: string
           owner_id?: string
           subscription_price?: number
@@ -2330,41 +2396,105 @@ export type Database = {
           },
         ]
       }
+      service_templates: {
+        Row: {
+          category_id: string
+          created_at: string | null
+          default_duration_minutes: number | null
+          default_price: number | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+        }
+        Insert: {
+          category_id: string
+          created_at?: string | null
+          default_duration_minutes?: number | null
+          default_price?: number | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+        }
+        Update: {
+          category_id?: string
+          created_at?: string | null
+          default_duration_minutes?: number | null
+          default_price?: number | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_templates_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "service_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       services: {
         Row: {
+          category_id: string | null
           created_at: string
           description: string | null
           duration_minutes: number | null
+          hashtags: string[] | null
           id: string
           is_active: boolean
+          master_id: string | null
           name: string
-          organization_id: string
+          organization_id: string | null
           price: number | null
           updated_at: string
         }
         Insert: {
+          category_id?: string | null
           created_at?: string
           description?: string | null
           duration_minutes?: number | null
+          hashtags?: string[] | null
           id?: string
           is_active?: boolean
+          master_id?: string | null
           name: string
-          organization_id: string
+          organization_id?: string | null
           price?: number | null
           updated_at?: string
         }
         Update: {
+          category_id?: string | null
           created_at?: string
           description?: string | null
           duration_minutes?: number | null
+          hashtags?: string[] | null
           id?: string
           is_active?: boolean
+          master_id?: string | null
           name?: string
-          organization_id?: string
+          organization_id?: string | null
           price?: number | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "services_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "service_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "services_master_id_fkey"
+            columns: ["master_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "services_organization_id_fkey"
             columns: ["organization_id"]

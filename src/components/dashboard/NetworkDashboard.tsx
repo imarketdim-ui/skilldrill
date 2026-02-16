@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +9,8 @@ import {
   Globe, Building2, Users, BarChart3, DollarSign, Heart, 
   Plus, Settings
 } from 'lucide-react';
+import ProfileCompletionCheck from './ProfileCompletionCheck';
+import SubscriptionManager from './SubscriptionManager';
 
 const NetworkDashboard = () => {
   const { user } = useAuth();
@@ -17,26 +19,19 @@ const NetworkDashboard = () => {
   const [locations, setLocations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (user) {
-      supabase
-        .from('networks')
-        .select('*')
-        .eq('owner_id', user.id)
-        .then(({ data }) => {
-          setNetworks(data || []);
-          if (data && data.length > 0) {
-            setSelectedNetwork(data[0]);
-            supabase
-              .from('business_locations')
-              .select('*')
-              .eq('network_id', data[0].id)
-              .then(({ data: locs }) => setLocations(locs || []));
-          }
-          setLoading(false);
-        });
+  const fetchNetworks = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase.from('networks').select('*').eq('owner_id', user.id);
+    setNetworks(data || []);
+    if (data && data.length > 0) {
+      setSelectedNetwork(data[0]);
+      const { data: locs } = await supabase.from('business_locations').select('*').eq('network_id', data[0].id);
+      setLocations(locs || []);
     }
+    setLoading(false);
   }, [user]);
+
+  useEffect(() => { fetchNetworks(); }, [fetchNetworks]);
 
   if (!selectedNetwork && !loading) {
     return (
@@ -44,20 +39,35 @@ const NetworkDashboard = () => {
         <CardContent className="pt-6 text-center">
           <Globe className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
           <h2 className="text-xl font-bold mb-2">Нет сетей</h2>
-          <p className="text-muted-foreground">Создайте запрос на создание сети в разделе Клиент.</p>
+          <p className="text-muted-foreground">Создайте бизнес-аккаунт типа «Сеть» в разделе Клиент.</p>
         </CardContent>
       </Card>
     );
   }
 
+  const showCompletion = selectedNetwork?.moderation_status !== 'approved';
+
   return (
     <div className="space-y-6">
+      {showCompletion && selectedNetwork && (
+        <ProfileCompletionCheck
+          entityType="network"
+          entityData={selectedNetwork}
+          onProfileUpdated={fetchNetworks}
+        />
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">{selectedNetwork?.name || 'Сеть'}</h2>
           <p className="text-muted-foreground">{locations.length} точек</p>
         </div>
-        <Badge variant="outline">3 000 ₽/мес + 1 000 ₽/доп. точка</Badge>
+        <div className="flex items-center gap-2">
+          {selectedNetwork?.moderation_status === 'approved' && <Badge variant="outline">В каталоге</Badge>}
+          {selectedNetwork?.moderation_status === 'pending' && <Badge>На модерации</Badge>}
+          {selectedNetwork?.moderation_status === 'draft' && <Badge variant="secondary">Черновик</Badge>}
+          <Badge variant="outline">3 000 ₽/мес</Badge>
+        </div>
       </div>
 
       <Tabs defaultValue="locations" className="space-y-4">
@@ -66,6 +76,7 @@ const NetworkDashboard = () => {
           <TabsTrigger value="masters"><Users className="h-4 w-4 mr-1" /> Мастера</TabsTrigger>
           <TabsTrigger value="clients"><Heart className="h-4 w-4 mr-1" /> CRM</TabsTrigger>
           <TabsTrigger value="finance"><DollarSign className="h-4 w-4 mr-1" /> Финансы</TabsTrigger>
+          <TabsTrigger value="subscription">Подписка</TabsTrigger>
           <TabsTrigger value="dashboard"><BarChart3 className="h-4 w-4 mr-1" /> Дашборд</TabsTrigger>
           <TabsTrigger value="settings"><Settings className="h-4 w-4 mr-1" /> Настройки</TabsTrigger>
         </TabsList>
@@ -76,7 +87,7 @@ const NetworkDashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle>Точки сети</CardTitle>
-                  <CardDescription>3 бесплатных, каждая доп. +1 000 ₽/мес</CardDescription>
+                  <CardDescription>3 бесплатных, каждая доп. +1 200 ₽/мес</CardDescription>
                 </div>
                 <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Добавить точку</Button>
               </div>
@@ -135,21 +146,28 @@ const NetworkDashboard = () => {
             <CardHeader><CardTitle>Общие финансы сети</CardTitle></CardHeader>
             <CardContent>
               <div className="grid gap-4 md:grid-cols-3">
-                <div className="text-center p-4 rounded-lg bg-muted">
-                  <p className="text-2xl font-bold">0 ₽</p>
-                  <p className="text-sm text-muted-foreground">Общий доход</p>
-                </div>
-                <div className="text-center p-4 rounded-lg bg-muted">
-                  <p className="text-2xl font-bold">0 ₽</p>
-                  <p className="text-sm text-muted-foreground">Общий расход</p>
-                </div>
-                <div className="text-center p-4 rounded-lg bg-muted">
-                  <p className="text-2xl font-bold">0 ₽</p>
-                  <p className="text-sm text-muted-foreground">Прибыль</p>
-                </div>
+                {['Общий доход', 'Общий расход', 'Прибыль'].map(label => (
+                  <div key={label} className="text-center p-4 rounded-lg bg-muted">
+                    <p className="text-2xl font-bold">0 ₽</p>
+                    <p className="text-sm text-muted-foreground">{label}</p>
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="subscription">
+          <SubscriptionManager
+            entityType="network"
+            subscriptionStatus={selectedNetwork?.subscription_status || 'trial'}
+            trialStartDate={selectedNetwork?.trial_start_date}
+            trialDays={14}
+            lastPaymentDate={selectedNetwork?.last_payment_date}
+            basePrice={3000}
+            parentManaged={false}
+            parentLabel=""
+          />
         </TabsContent>
 
         <TabsContent value="dashboard">
@@ -157,22 +175,17 @@ const NetworkDashboard = () => {
             <CardHeader><CardTitle>Дашборд сети</CardTitle></CardHeader>
             <CardContent>
               <div className="grid gap-4 md:grid-cols-4">
-                <div className="text-center p-4 rounded-lg bg-muted">
-                  <p className="text-2xl font-bold">{locations.length}</p>
-                  <p className="text-sm text-muted-foreground">Точек</p>
-                </div>
-                <div className="text-center p-4 rounded-lg bg-muted">
-                  <p className="text-2xl font-bold">0</p>
-                  <p className="text-sm text-muted-foreground">Мастеров</p>
-                </div>
-                <div className="text-center p-4 rounded-lg bg-muted">
-                  <p className="text-2xl font-bold">—</p>
-                  <p className="text-sm text-muted-foreground">Ср. рейтинг</p>
-                </div>
-                <div className="text-center p-4 rounded-lg bg-muted">
-                  <p className="text-2xl font-bold">0</p>
-                  <p className="text-sm text-muted-foreground">Клиентов</p>
-                </div>
+                {[
+                  { val: locations.length, label: 'Точек' },
+                  { val: 0, label: 'Мастеров' },
+                  { val: '—', label: 'Ср. рейтинг' },
+                  { val: 0, label: 'Клиентов' },
+                ].map(item => (
+                  <div key={item.label} className="text-center p-4 rounded-lg bg-muted">
+                    <p className="text-2xl font-bold">{item.val}</p>
+                    <p className="text-sm text-muted-foreground">{item.label}</p>
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>

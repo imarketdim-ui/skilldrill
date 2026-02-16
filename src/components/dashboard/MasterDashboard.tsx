@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { AlertTriangle } from 'lucide-react';
 import UniversalMasterDashboard from './universal/UniversalMasterDashboard';
+import ProfileCompletionCheck from './ProfileCompletionCheck';
 import { getCategoryConfig } from './universal/categoryConfig';
 
 const MasterDashboard = () => {
@@ -12,19 +12,18 @@ const MasterDashboard = () => {
   const [masterProfile, setMasterProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (user) {
-      supabase
-        .from('master_profiles')
-        .select('*, service_categories(name)')
-        .eq('user_id', user.id)
-        .maybeSingle()
-        .then(({ data }) => {
-          setMasterProfile(data);
-          setLoading(false);
-        });
-    }
+  const fetchProfile = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('master_profiles')
+      .select('*, service_categories(name)')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    setMasterProfile(data);
+    setLoading(false);
   }, [user]);
+
+  useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
   const isSubscriptionActive = () => {
     if (!masterProfile) return false;
@@ -46,7 +45,7 @@ const MasterDashboard = () => {
         <CardContent className="pt-6 text-center">
           <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-destructive" />
           <h2 className="text-xl font-bold mb-2">Профиль мастера не найден</h2>
-          <p className="text-muted-foreground">Обратитесь в поддержку или запросите роль мастера.</p>
+          <p className="text-muted-foreground">Обратитесь в поддержку или создайте бизнес-аккаунт.</p>
         </CardContent>
       </Card>
     );
@@ -54,13 +53,23 @@ const MasterDashboard = () => {
 
   const categoryName = masterProfile?.service_categories?.name || 'Прочие услуги';
   const config = getCategoryConfig(categoryName);
+  const showCompletion = masterProfile.moderation_status !== 'approved';
 
   return (
-    <UniversalMasterDashboard
-      masterProfile={masterProfile}
-      isSubscriptionActive={isSubscriptionActive()}
-      config={config}
-    />
+    <div className="space-y-6">
+      {showCompletion && (
+        <ProfileCompletionCheck
+          entityType="master"
+          entityData={masterProfile}
+          onProfileUpdated={fetchProfile}
+        />
+      )}
+      <UniversalMasterDashboard
+        masterProfile={masterProfile}
+        isSubscriptionActive={isSubscriptionActive()}
+        config={config}
+      />
+    </div>
   );
 };
 

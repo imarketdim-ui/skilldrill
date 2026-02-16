@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Search, Heart, Calendar, Wallet, Users, MessageSquare,
-  Copy, Check, Gift, ArrowUpRight, Wrench, Shield, Loader2,
+  Copy, Check, Gift, ArrowUpRight, Building2, Shield, Loader2,
   LayoutDashboard, Star, Settings
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -248,15 +248,13 @@ const ClientDashboard = () => {
             </div>
 
             {/* Role Upgrade */}
-            {canRequestRole('master') && (
-              <Card className="border-dashed cursor-pointer hover:border-primary transition-colors" onClick={() => navigate('/request-role?type=master')}>
-                <CardContent className="pt-6 text-center">
-                  <Wrench className="h-10 w-10 mx-auto mb-2 text-primary" />
-                  <p className="font-semibold">Стать мастером</p>
-                  <p className="text-sm text-muted-foreground">Выберите категорию и начните принимать клиентов · 900 ₽/мес</p>
-                </CardContent>
-              </Card>
-            )}
+            <Card className="border-dashed cursor-pointer hover:border-primary transition-colors" onClick={() => navigate('/create-account')}>
+              <CardContent className="pt-6 text-center">
+                <Building2 className="h-10 w-10 mx-auto mb-2 text-primary" />
+                <p className="font-semibold">Создать бизнес-аккаунт</p>
+                <p className="text-sm text-muted-foreground">Мастер, бизнес или сеть — выберите тип и начните работу</p>
+              </CardContent>
+            </Card>
           </div>
         );
     }
