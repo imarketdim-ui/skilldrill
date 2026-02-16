@@ -1,0 +1,401 @@
+import { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { useToast } from '@/hooks/use-toast';
+import {
+  AlertTriangle, CheckCircle, MapPin, FileText, Image, Hash,
+  Upload, X, Plus, Loader2, Camera, Award
+} from 'lucide-react';
+
+interface ProfileCompletionCheckProps {
+  entityType: 'master' | 'business' | 'network';
+  entityData: any;
+  onProfileUpdated: () => void;
+}
+
+interface CompletionItem {
+  key: string;
+  label: string;
+  required: boolean;
+  completed: boolean;
+  icon: any;
+}
+
+const ProfileCompletionCheck = ({ entityType, entityData, onProfileUpdated }: ProfileCompletionCheckProps) => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [editing, setEditing] = useState<string | null>(null);
+  const [form, setForm] = useState<any>({});
+  const [saving, setSaving] = useState(false);
+  const [services, setServices] = useState<any[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [newService, setNewService] = useState({ name: '', price: '', duration_minutes: '60' });
+  const [newHashtag, setNewHashtag] = useState('');
+
+  useEffect(() => {
+    if (user && entityType === 'master' && entityData) {
+      supabase.from('services').select('*').eq('master_id', user.id).then(({ data }) => setServices(data || []));
+    } else if (entityType === 'business' && entityData) {
+      supabase.from('services').select('*').eq('organization_id', entityData.id).then(({ data }) => setServices(data || []));
+    }
+  }, [user, entityType, entityData]);
+
+  const getCompletionItems = (): CompletionItem[] => {
+    if (entityType === 'master') {
+      return [
+        { key: 'address', label: 'Адрес', required: true, completed: !!entityData?.address, icon: MapPin },
+        { key: 'services', label: 'Услуги (мин. 1)', required: true, completed: services.length > 0, icon: FileText },
+        { key: 'description', label: 'Описание', required: false, completed: !!entityData?.description, icon: FileText },
+        { key: 'interior_photos', label: 'Фото интерьера/экстерьера', required: false, completed: (entityData?.interior_photos?.length || 0) > 0, icon: Camera },
+        { key: 'work_photos', label: 'Фото работ', required: false, completed: (entityData?.work_photos?.length || 0) > 0, icon: Image },
+        { key: 'certificates', label: 'Сертификаты и референсы', required: false, completed: (entityData?.certificate_photos?.length || 0) > 0, icon: Award },
+        { key: 'hashtags', label: 'Хэштеги', required: false, completed: (entityData?.hashtags?.length || 0) > 0, icon: Hash },
+      ];
+    }
+    // business/network share similar fields
+    return [
+      { key: 'address', label: 'Адрес', required: true, completed: !!entityData?.address, icon: MapPin },
+      { key: 'services', label: 'Услуги (мин. 1)', required: true, completed: services.length > 0, icon: FileText },
+      { key: 'description', label: 'Описание', required: false, completed: !!entityData?.description, icon: FileText },
+      { key: 'interior_photos', label: 'Фото интерьера/экстерьера', required: false, completed: (entityData?.interior_photos?.length || entityData?.exterior_photos?.length || 0) > 0, icon: Camera },
+      { key: 'work_photos', label: 'Фото работ', required: false, completed: (entityData?.work_photos?.length || 0) > 0, icon: Image },
+      { key: 'certificates', label: 'Сертификаты', required: false, completed: (entityData?.certificate_photos?.length || 0) > 0, icon: Award },
+      { key: 'hashtags', label: 'Хэштеги', required: false, completed: (entityData?.hashtags?.length || 0) > 0, icon: Hash },
+    ];
+  };
+
+  const items = getCompletionItems();
+  const requiredItems = items.filter(i => i.required);
+  const completedRequired = requiredItems.filter(i => i.completed).length;
+  const allRequiredDone = completedRequired === requiredItems.length;
+  const completedTotal = items.filter(i => i.completed).length;
+  const progress = Math.round((completedTotal / items.length) * 100);
+
+  const moderationStatus = entityData?.moderation_status || 'draft';
+  const showBanner = moderationStatus === 'draft' || moderationStatus === 'rejected';
+
+  const getTable = () => {
+    if (entityType === 'master') return 'master_profiles';
+    if (entityType === 'business') return 'business_locations';
+    return 'networks';
+  };
+
+  const getIdField = () => entityType === 'master' ? 'user_id' : 'id';
+  const getIdValue = () => entityType === 'master' ? user?.id : entityData?.id;
+
+  const handleSaveField = async (field: string, value: any) => {
+    setSaving(true);
+    try {
+      const { error } = await supabase.from(getTable() as any).update({ [field]: value }).eq(getIdField(), getIdValue());
+      if (error) throw error;
+      toast({ title: 'Сохранено' });
+      setEditing(null);
+      onProfileUpdated();
+    } catch (err: any) {
+      toast({ title: 'Ошибка', description: err.message, variant: 'destructive' });
+    }
+    setSaving(false);
+  };
+
+  const handleAddService = async () => {
+    if (!newService.name || !newService.price) {
+      toast({ title: 'Заполните название и цену', variant: 'destructive' });
+      return;
+    }
+    setSaving(true);
+    try {
+      const insertData: any = {
+        name: newService.name,
+        price: Number(newService.price),
+        duration_minutes: Number(newService.duration_minutes) || 60,
+        is_active: true,
+      };
+      if (entityType === 'master') {
+        insertData.master_id = user?.id;
+        insertData.category_id = entityData?.category_id;
+      } else {
+        insertData.organization_id = entityData?.id;
+      }
+
+      const { error } = await supabase.from('services').insert(insertData);
+      if (error) throw error;
+      setNewService({ name: '', price: '', duration_minutes: '60' });
+      const { data } = entityType === 'master'
+        ? await supabase.from('services').select('*').eq('master_id', user?.id)
+        : await supabase.from('services').select('*').eq('organization_id', entityData?.id);
+      setServices(data || []);
+      toast({ title: 'Услуга добавлена' });
+    } catch (err: any) {
+      toast({ title: 'Ошибка', description: err.message, variant: 'destructive' });
+    }
+    setSaving(false);
+  };
+
+  const handleDeleteService = async (serviceId: string) => {
+    await supabase.from('services').delete().eq('id', serviceId);
+    setServices(prev => prev.filter(s => s.id !== serviceId));
+  };
+
+  const handleUploadPhoto = async (bucket: string, field: string) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.multiple = true;
+    input.onchange = async (e: any) => {
+      const files = Array.from(e.target.files || []) as File[];
+      if (files.length === 0) return;
+      setUploading(true);
+      try {
+        const urls: string[] = [...(entityData?.[field] || [])];
+        for (const file of files) {
+          const ext = file.name.split('.').pop();
+          const path = `${user?.id}/${Date.now()}-${Math.random().toString(36).substring(2)}.${ext}`;
+          const { error } = await supabase.storage.from(bucket).upload(path, file);
+          if (error) throw error;
+          const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
+          urls.push(urlData.publicUrl);
+        }
+        await handleSaveField(field, urls);
+      } catch (err: any) {
+        toast({ title: 'Ошибка загрузки', description: err.message, variant: 'destructive' });
+      }
+      setUploading(false);
+    };
+    input.click();
+  };
+
+  const handleRemovePhoto = async (field: string, url: string) => {
+    const updated = (entityData?.[field] || []).filter((u: string) => u !== url);
+    await handleSaveField(field, updated);
+  };
+
+  const handleAddHashtag = async () => {
+    if (!newHashtag.trim()) return;
+    const tag = newHashtag.trim().replace(/^#/, '');
+    const updated = [...(entityData?.hashtags || []), tag];
+    await handleSaveField('hashtags', updated);
+    setNewHashtag('');
+  };
+
+  const handleRemoveHashtag = async (tag: string) => {
+    const updated = (entityData?.hashtags || []).filter((t: string) => t !== tag);
+    await handleSaveField('hashtags', updated);
+  };
+
+  const handleSubmitForModeration = async () => {
+    if (!allRequiredDone) {
+      toast({ title: 'Заполните все обязательные поля', variant: 'destructive' });
+      return;
+    }
+    setSaving(true);
+    await supabase.from(getTable() as any).update({ moderation_status: 'pending' }).eq(getIdField(), getIdValue());
+    toast({ title: 'Отправлено на модерацию', description: 'Модератор проверит ваш профиль и подтвердит публикацию.' });
+    onProfileUpdated();
+    setSaving(false);
+  };
+
+  if (!showBanner && moderationStatus === 'approved') return null;
+
+  return (
+    <Card className={moderationStatus === 'rejected' ? 'border-destructive' : 'border-primary/50'}>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg flex items-center gap-2">
+            {moderationStatus === 'rejected' ? (
+              <><AlertTriangle className="h-5 w-5 text-destructive" /> Профиль отклонён</>
+            ) : moderationStatus === 'pending' ? (
+              <><Loader2 className="h-5 w-5 text-primary animate-spin" /> На модерации</>
+            ) : (
+              <><AlertTriangle className="h-5 w-5 text-primary" /> Заполните профиль</>
+            )}
+          </CardTitle>
+          <Badge variant={moderationStatus === 'pending' ? 'default' : 'outline'}>{progress}%</Badge>
+        </div>
+        {moderationStatus === 'rejected' && entityData?.moderation_comment && (
+          <p className="text-sm text-destructive mt-1">Причина: {entityData.moderation_comment}</p>
+        )}
+        {moderationStatus === 'draft' && (
+          <p className="text-sm text-muted-foreground">
+            Заполните необходимые поля и отправьте на модерацию. После одобрения ваш профиль станет доступен в каталоге.
+          </p>
+        )}
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <Progress value={progress} className="h-2" />
+
+        {items.map(item => (
+          <div key={item.key} className="flex items-center justify-between p-3 rounded-lg border">
+            <div className="flex items-center gap-3">
+              {item.completed ? (
+                <CheckCircle className="h-5 w-5 text-primary" />
+              ) : (
+                <item.icon className="h-5 w-5 text-muted-foreground" />
+              )}
+              <span className={`text-sm ${item.completed ? '' : 'text-muted-foreground'}`}>
+                {item.label} {item.required && <span className="text-destructive">*</span>}
+              </span>
+            </div>
+
+            {item.key === 'address' && (
+              editing === 'address' ? (
+                <div className="flex gap-2 items-center">
+                  <Input
+                    className="w-48"
+                    defaultValue={entityData?.address || ''}
+                    onChange={(e) => setForm({ ...form, address: e.target.value })}
+                  />
+                  <Button size="sm" onClick={() => handleSaveField('address', form.address)} disabled={saving}>
+                    {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : 'OK'}
+                  </Button>
+                </div>
+              ) : (
+                <Button variant="ghost" size="sm" onClick={() => setEditing('address')}>
+                  {item.completed ? 'Изменить' : 'Добавить'}
+                </Button>
+              )
+            )}
+
+            {item.key === 'description' && (
+              editing === 'description' ? (
+                <div className="flex gap-2 items-center">
+                  <Textarea
+                    className="w-48"
+                    defaultValue={entityData?.description || ''}
+                    onChange={(e) => setForm({ ...form, description: e.target.value })}
+                    rows={2}
+                  />
+                  <Button size="sm" onClick={() => handleSaveField('description', form.description)} disabled={saving}>
+                    {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : 'OK'}
+                  </Button>
+                </div>
+              ) : (
+                <Button variant="ghost" size="sm" onClick={() => setEditing('description')}>
+                  {item.completed ? 'Изменить' : 'Добавить'}
+                </Button>
+              )
+            )}
+
+            {item.key === 'services' && (
+              <Button variant="ghost" size="sm" onClick={() => setEditing(editing === 'services' ? null : 'services')}>
+                {item.completed ? `${services.length} услуг` : 'Добавить'}
+              </Button>
+            )}
+
+            {item.key === 'interior_photos' && (
+              <Button variant="ghost" size="sm" onClick={() => handleUploadPhoto('interiors', 'interior_photos')} disabled={uploading}>
+                {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Upload className="h-3 w-3 mr-1" /> Загрузить</>}
+              </Button>
+            )}
+
+            {item.key === 'work_photos' && (
+              <Button variant="ghost" size="sm" onClick={() => handleUploadPhoto('portfolio', 'work_photos')} disabled={uploading}>
+                {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Upload className="h-3 w-3 mr-1" /> Загрузить</>}
+              </Button>
+            )}
+
+            {item.key === 'certificates' && (
+              <Button variant="ghost" size="sm" onClick={() => handleUploadPhoto('certificates', 'certificate_photos')} disabled={uploading}>
+                {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Upload className="h-3 w-3 mr-1" /> Загрузить</>}
+              </Button>
+            )}
+
+            {item.key === 'hashtags' && (
+              <Button variant="ghost" size="sm" onClick={() => setEditing(editing === 'hashtags' ? null : 'hashtags')}>
+                {item.completed ? `${entityData?.hashtags?.length} тегов` : 'Добавить'}
+              </Button>
+            )}
+          </div>
+        ))}
+
+        {/* Services inline editor */}
+        {editing === 'services' && (
+          <div className="p-4 rounded-lg border space-y-3">
+            {services.map(s => (
+              <div key={s.id} className="flex items-center justify-between text-sm p-2 bg-muted rounded">
+                <span>{s.name} — {s.price} ₽ · {s.duration_minutes} мин</span>
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleDeleteService(s.id)}>
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            ))}
+            <div className="grid gap-2 sm:grid-cols-4">
+              <Input placeholder="Название" value={newService.name} onChange={(e) => setNewService({ ...newService, name: e.target.value })} />
+              <Input placeholder="Цена ₽" type="number" value={newService.price} onChange={(e) => setNewService({ ...newService, price: e.target.value })} />
+              <Input placeholder="Минут" type="number" value={newService.duration_minutes} onChange={(e) => setNewService({ ...newService, duration_minutes: e.target.value })} />
+              <Button onClick={handleAddService} disabled={saving}>
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Plus className="h-4 w-4 mr-1" /> Добавить</>}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Photos preview */}
+        {['interior_photos', 'work_photos', 'certificate_photos'].map(field => {
+          const photos = entityData?.[field] || [];
+          if (photos.length === 0) return null;
+          return (
+            <div key={field} className="flex flex-wrap gap-2">
+              {photos.map((url: string, i: number) => (
+                <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden border">
+                  <img src={url} alt="" className="w-full h-full object-cover" />
+                  <button
+                    onClick={() => handleRemovePhoto(field, url)}
+                    className="absolute top-0 right-0 bg-destructive text-destructive-foreground rounded-bl p-0.5"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          );
+        })}
+
+        {/* Hashtags editor */}
+        {editing === 'hashtags' && (
+          <div className="p-4 rounded-lg border space-y-3">
+            <div className="flex flex-wrap gap-2">
+              {(entityData?.hashtags || []).map((tag: string) => (
+                <Badge key={tag} variant="secondary" className="gap-1">
+                  #{tag}
+                  <button onClick={() => handleRemoveHashtag(tag)}>
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Input
+                placeholder="#хэштег"
+                value={newHashtag}
+                onChange={(e) => setNewHashtag(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddHashtag())}
+              />
+              <Button onClick={handleAddHashtag} disabled={saving}>Добавить</Button>
+            </div>
+          </div>
+        )}
+
+        {/* Submit for moderation */}
+        {moderationStatus !== 'pending' && (
+          <Button
+            className="w-full"
+            onClick={handleSubmitForModeration}
+            disabled={!allRequiredDone || saving}
+          >
+            {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+            {allRequiredDone ? 'Отправить на модерацию' : 'Заполните обязательные поля'}
+          </Button>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+export default ProfileCompletionCheck;
