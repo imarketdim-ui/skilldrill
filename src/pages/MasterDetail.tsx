@@ -108,7 +108,16 @@ const MasterDetail = () => {
                               <p className="text-sm text-muted-foreground">Стоимость: {service.price.toLocaleString()} ₽ · {service.duration}</p>
                               <Input type="text" placeholder="Ваше имя" />
                               <Input type="tel" placeholder="Телефон" />
-                              <Input type="date" />
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                  <label className="text-sm font-medium">Дата</label>
+                                  <Input type="date" />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-sm font-medium">Время</label>
+                                  <Input type="time" />
+                                </div>
+                              </div>
                               <Textarea placeholder="Комментарий (необязательно)" />
                               <Button onClick={() => handleBook(service.id)} className="w-full">Подтвердить запись</Button>
                             </div>
