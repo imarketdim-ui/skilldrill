@@ -12,257 +12,93 @@ import { ru } from 'date-fns/locale';
 const FitnessDashboardHome = () => {
   const { user, profile } = useAuth();
   const [masterProfile, setMasterProfile] = useState<any>(null);
-  const [stats, setStats] = useState({
-    todayWorkouts: 0, todayPersonal: 0, todayGroup: 0,
-    totalClients: 0,
-    monthIncome: 0, incomeGrowth: 0,
-    noShows: 0,
-  });
+  const [stats, setStats] = useState({ todayWorkouts: 0, todayPersonal: 0, todayGroup: 0, totalClients: 0, monthIncome: 0, incomeGrowth: 0, noShows: 0 });
   const [upcomingWorkouts, setUpcomingWorkouts] = useState<any[]>([]);
   const [recentEvents, setRecentEvents] = useState<any[]>([]);
 
   useEffect(() => {
     if (!user) return;
-
     const today = new Date().toISOString().split('T')[0];
     const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
     const lastMonthStart = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1).toISOString().split('T')[0];
 
-    supabase.from('master_profiles')
-      .select('*, service_categories(name)')
-      .eq('user_id', user.id)
-      .maybeSingle()
-      .then(({ data }) => setMasterProfile(data));
-
-    // Today's workouts
-    supabase.from('lessons')
-      .select('*')
-      .eq('teacher_id', user.id)
-      .eq('lesson_date', today)
-      .then(({ data }) => {
-        const workouts = data || [];
-        setStats(prev => ({
-          ...prev,
-          todayWorkouts: workouts.length,
-          todayPersonal: workouts.filter(w => w.lesson_type === 'individual').length,
-          todayGroup: workouts.filter(w => w.lesson_type === 'group').length,
-        }));
-      });
-
-    // Upcoming
-    supabase.from('lessons')
-      .select('*, lesson_bookings(student_id, profiles:student_id(first_name, last_name, avatar_url))')
-      .eq('teacher_id', user.id)
-      .eq('status', 'scheduled')
-      .gte('lesson_date', today)
-      .order('lesson_date')
-      .order('start_time')
-      .limit(5)
+    supabase.from('master_profiles').select('*, service_categories(name)').eq('user_id', user.id).maybeSingle().then(({ data }) => setMasterProfile(data));
+    supabase.from('lessons').select('*').eq('teacher_id', user.id).eq('lesson_date', today).then(({ data }) => {
+      const w = data || [];
+      setStats(prev => ({ ...prev, todayWorkouts: w.length, todayPersonal: w.filter(x => x.lesson_type === 'individual').length, todayGroup: w.filter(x => x.lesson_type === 'group').length }));
+    });
+    supabase.from('lessons').select('*, lesson_bookings(student_id, profiles:student_id(first_name, last_name, avatar_url))')
+      .eq('teacher_id', user.id).eq('status', 'scheduled').gte('lesson_date', today).order('lesson_date').order('start_time').limit(5)
       .then(({ data }) => setUpcomingWorkouts(data || []));
-
-    // Total clients
-    supabase.from('lesson_bookings')
-      .select('student_id, lessons!inner(teacher_id)')
-      .eq('lessons.teacher_id', user.id)
-      .then(({ data }) => {
-        if (data) setStats(prev => ({ ...prev, totalClients: new Set(data.map(b => b.student_id)).size }));
-      });
-
-    // Income
+    supabase.from('lesson_bookings').select('student_id, lessons!inner(teacher_id)').eq('lessons.teacher_id', user.id)
+      .then(({ data }) => { if (data) setStats(prev => ({ ...prev, totalClients: new Set(data.map(b => b.student_id)).size })); });
     Promise.all([
       supabase.from('lessons').select('price').eq('teacher_id', user.id).eq('status', 'completed').gte('lesson_date', monthStart),
       supabase.from('lessons').select('price').eq('teacher_id', user.id).eq('status', 'completed').gte('lesson_date', lastMonthStart).lt('lesson_date', monthStart),
-    ]).then(([currentRes, lastRes]) => {
-      const current = (currentRes.data || []).reduce((s, l) => s + Number(l.price), 0);
-      const last = (lastRes.data || []).reduce((s, l) => s + Number(l.price), 0);
-      setStats(prev => ({
-        ...prev,
-        monthIncome: current,
-        incomeGrowth: last > 0 ? Math.round(((current - last) / last) * 100) : 0,
-      }));
+    ]).then(([c, l]) => {
+      const cur = (c.data || []).reduce((s, x) => s + Number(x.price), 0);
+      const last = (l.data || []).reduce((s, x) => s + Number(x.price), 0);
+      setStats(prev => ({ ...prev, monthIncome: cur, incomeGrowth: last > 0 ? Math.round(((cur - last) / last) * 100) : 0 }));
     });
-
-    // No-shows
-    supabase.from('lessons')
-      .select('id', { count: 'exact' })
-      .eq('teacher_id', user.id)
-      .eq('status', 'no_show')
-      .gte('lesson_date', monthStart)
+    supabase.from('lessons').select('id', { count: 'exact' }).eq('teacher_id', user.id).eq('status', 'no_show').gte('lesson_date', monthStart)
       .then(({ count }) => setStats(prev => ({ ...prev, noShows: count || 0 })));
-
-    // Recent activity
-    supabase.from('lesson_bookings')
-      .select('*, lessons!inner(title, teacher_id, lesson_date, status), profiles:student_id(first_name, last_name)')
-      .eq('lessons.teacher_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(5)
+    supabase.from('lesson_bookings').select('*, lessons!inner(title, teacher_id, lesson_date, status), profiles:student_id(first_name, last_name)')
+      .eq('lessons.teacher_id', user.id).order('created_at', { ascending: false }).limit(5)
       .then(({ data }) => setRecentEvents(data || []));
   }, [user]);
 
-  const getInitials = (firstName?: string | null, lastName?: string | null) => {
-    return `${(firstName || '')[0] || ''}${(lastName || '')[0] || ''}`.toUpperCase() || '?';
-  };
-
-  const getLessonDateLabel = (dateStr: string) => {
-    const date = new Date(dateStr);
-    if (isToday(date)) return 'Сегодня';
-    return format(date, 'd MMM', { locale: ru });
-  };
-
-  const getActivityIcon = (status: string) => {
-    switch (status) {
-      case 'confirmed': return <div className="p-2 rounded-full bg-primary/10"><User className="h-4 w-4 text-primary" /></div>;
-      case 'completed': return <div className="p-2 rounded-full bg-green-100"><CheckCircle className="h-4 w-4 text-green-600" /></div>;
-      case 'cancelled': return <div className="p-2 rounded-full bg-destructive/10"><AlertTriangle className="h-4 w-4 text-destructive" /></div>;
-      default: return <div className="p-2 rounded-full bg-muted"><MessageSquare className="h-4 w-4 text-muted-foreground" /></div>;
-    }
-  };
-
-  const getActivityText = (event: any) => {
-    const name = `${(event.profiles as any)?.first_name || ''} ${(event.profiles as any)?.last_name || ''}`.trim() || 'Клиент';
-    switch (event.status) {
-      case 'confirmed': return `${name} записался на тренировку`;
-      case 'completed': return `Тренировка с ${name} завершена`;
-      case 'cancelled': return `${name} отменил запись`;
-      default: return `${name} — ${(event.lessons as any)?.title}`;
-    }
-  };
+  const getInitials = (f?: string | null, l?: string | null) => `${(f || '')[0] || ''}${(l || '')[0] || ''}`.toUpperCase() || '?';
+  const getLessonDateLabel = (d: string) => isToday(new Date(d)) ? 'Сегодня' : format(new Date(d), 'd MMM', { locale: ru });
 
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Добро пожаловать! 💪</h2>
-          <p className="text-muted-foreground">Вот что происходит с вашими тренировками сегодня</p>
-        </div>
-        <Button className="gap-2">
-          <Plus className="h-4 w-4" /> Новая тренировка
-        </Button>
+        <div><h2 className="text-2xl font-bold">Добро пожаловать! 💪</h2><p className="text-muted-foreground">Вот что происходит с вашими тренировками сегодня</p></div>
+        <Button className="gap-2"><Plus className="h-4 w-4" /> Новая тренировка</Button>
       </div>
 
-      {/* Profile Card */}
       <Card>
         <CardContent className="pt-6">
           <div className="flex items-start gap-4">
-            <Avatar className="h-16 w-16">
-              <AvatarImage src={profile?.avatar_url || undefined} />
-              <AvatarFallback className="text-lg bg-primary/10 text-primary">
-                {getInitials(profile?.first_name, profile?.last_name)}
-              </AvatarFallback>
-            </Avatar>
+            <Avatar className="h-16 w-16"><AvatarImage src={profile?.avatar_url || undefined} /><AvatarFallback className="text-lg bg-primary/10 text-primary">{getInitials(profile?.first_name, profile?.last_name)}</AvatarFallback></Avatar>
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="text-xl font-semibold">{profile?.first_name} {profile?.last_name}</h3>
-                  <p className="text-muted-foreground text-sm mt-1">
-                    {masterProfile?.description || 'Добавьте описание в настройках профиля'}
-                  </p>
-                </div>
+                <div><h3 className="text-xl font-semibold">{profile?.first_name} {profile?.last_name}</h3><p className="text-muted-foreground text-sm mt-1">{masterProfile?.description || 'Добавьте описание в настройках профиля'}</p></div>
                 <Button variant="outline" size="sm">Редактировать</Button>
               </div>
-              {masterProfile?.service_categories?.name && (
-                <div className="flex flex-wrap gap-2 mt-3">
-                  <Badge variant="outline" className="gap-1">
-                    <Dumbbell className="h-3 w-3" />
-                    {masterProfile.service_categories.name}
-                  </Badge>
-                </div>
-              )}
+              {masterProfile?.service_categories?.name && <Badge variant="outline" className="gap-1 mt-3"><Dumbbell className="h-3 w-3" />{masterProfile.service_categories.name}</Badge>}
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Stat Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="bg-primary text-primary-foreground">
-          <CardContent className="pt-6">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm opacity-90">Тренировок сегодня</p>
-                <p className="text-3xl font-bold mt-1">{stats.todayWorkouts}</p>
-                <p className="text-xs opacity-75 mt-1">{stats.todayPersonal} персон., {stats.todayGroup} группов.</p>
-              </div>
-              <Calendar className="h-5 w-5 opacity-75" />
-            </div>
-          </CardContent>
+          <CardContent className="pt-6"><div className="flex items-start justify-between"><div><p className="text-sm opacity-90">Тренировок сегодня</p><p className="text-3xl font-bold mt-1">{stats.todayWorkouts}</p><p className="text-xs opacity-75 mt-1">{stats.todayPersonal} персон., {stats.todayGroup} группов.</p></div><Calendar className="h-5 w-5 opacity-75" /></div></CardContent>
         </Card>
-
+        <Card><CardContent className="pt-6"><div className="flex items-start justify-between"><div><p className="text-sm text-muted-foreground">Всего клиентов</p><p className="text-3xl font-bold mt-1">{stats.totalClients}</p></div><Users className="h-5 w-5 text-muted-foreground" /></div></CardContent></Card>
         <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Всего клиентов</p>
-                <p className="text-3xl font-bold mt-1">{stats.totalClients}</p>
-              </div>
-              <Users className="h-5 w-5 text-muted-foreground" />
-            </div>
-          </CardContent>
+          <CardContent className="pt-6"><div className="flex items-start justify-between"><div><p className="text-sm text-muted-foreground">Доход за месяц</p><p className="text-3xl font-bold mt-1">₽ {stats.monthIncome.toLocaleString()}</p>{stats.incomeGrowth !== 0 && <p className="text-xs text-emerald-600 mt-1">{stats.incomeGrowth > 0 ? '+' : ''}{stats.incomeGrowth}% за мес.</p>}</div><Banknote className="h-5 w-5 text-muted-foreground" /></div></CardContent>
         </Card>
-
-        <Card className="bg-green-600 text-white">
-          <CardContent className="pt-6">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm opacity-90">Доход за месяц</p>
-                <p className="text-3xl font-bold mt-1">₽ {stats.monthIncome.toLocaleString()}</p>
-                {stats.incomeGrowth !== 0 && (
-                  <p className="text-xs opacity-75 mt-1">{stats.incomeGrowth > 0 ? '+' : ''}{stats.incomeGrowth}% за последний месяц</p>
-                )}
-              </div>
-              <Banknote className="h-5 w-5 opacity-75" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Неявки</p>
-                <p className="text-3xl font-bold mt-1">{stats.noShows}</p>
-                <p className="text-xs text-muted-foreground mt-1">За последний месяц</p>
-              </div>
-              <AlertTriangle className="h-5 w-5 text-muted-foreground" />
-            </div>
-          </CardContent>
-        </Card>
+        <Card><CardContent className="pt-6"><div className="flex items-start justify-between"><div><p className="text-sm text-muted-foreground">Неявки</p><p className="text-3xl font-bold mt-1">{stats.noShows}</p><p className="text-xs text-muted-foreground mt-1">За последний месяц</p></div><AlertTriangle className="h-5 w-5 text-muted-foreground" /></div></CardContent></Card>
       </div>
 
-      {/* Two columns */}
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-3">
-            <CardTitle className="text-lg">Ближайшие тренировки</CardTitle>
-            <Badge variant="secondary">{upcomingWorkouts.length} тренировок</Badge>
-          </CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between pb-3"><CardTitle className="text-lg">Ближайшие тренировки</CardTitle><Badge variant="secondary">{upcomingWorkouts.length} тренировок</Badge></CardHeader>
           <CardContent>
-            {upcomingWorkouts.length === 0 ? (
-              <p className="text-center py-8 text-muted-foreground">Нет предстоящих тренировок</p>
-            ) : (
+            {upcomingWorkouts.length === 0 ? <p className="text-center py-8 text-muted-foreground">Нет предстоящих тренировок</p> : (
               <div className="space-y-4">
                 {upcomingWorkouts.map(w => {
-                  const booking = (w.lesson_bookings as any[])?.[0];
-                  const sp = booking?.profiles;
+                  const b = (w.lesson_bookings as any[])?.[0];
+                  const sp = b?.profiles;
                   const name = sp ? `${sp.first_name || ''} ${sp.last_name || ''}`.trim() : w.title;
-                  const initials = sp ? getInitials(sp.first_name, sp.last_name) : w.title.substring(0, 2).toUpperCase();
-
                   return (
                     <div key={w.id} className="flex items-center gap-3">
-                      <div className="text-center shrink-0 w-16">
-                        <p className="text-xs text-muted-foreground">{getLessonDateLabel(w.lesson_date)}</p>
-                        <p className="text-lg font-bold">{w.start_time?.slice(0, 5)}</p>
-                      </div>
+                      <div className="text-center shrink-0 w-16"><p className="text-xs text-muted-foreground">{getLessonDateLabel(w.lesson_date)}</p><p className="text-lg font-bold">{w.start_time?.slice(0, 5)}</p></div>
                       <div className="w-px h-10 bg-border" />
-                      <Avatar className="h-9 w-9">
-                        <AvatarFallback className="text-xs bg-primary/10 text-primary">{initials}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{name}</p>
-                        <Badge variant={w.lesson_type === 'group' ? 'secondary' : 'outline'} className="text-xs mt-0.5">
-                          {w.lesson_type === 'group' ? `Группа (${w.current_participants}/${w.max_participants})` : 'Персональная'}
-                        </Badge>
-                      </div>
+                      <Avatar className="h-9 w-9"><AvatarFallback className="text-xs bg-primary/10 text-primary">{getInitials(sp?.first_name, sp?.last_name)}</AvatarFallback></Avatar>
+                      <div className="flex-1 min-w-0"><p className="font-medium text-sm truncate">{name}</p><Badge variant={w.lesson_type === 'group' ? 'secondary' : 'outline'} className="text-xs mt-0.5">{w.lesson_type === 'group' ? `Группа (${w.current_participants}/${w.max_participants})` : 'Персональная'}</Badge></div>
                       <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
                     </div>
                   );
@@ -271,27 +107,22 @@ const FitnessDashboardHome = () => {
             )}
           </CardContent>
         </Card>
-
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Последняя активность</CardTitle>
-          </CardHeader>
+          <CardHeader className="pb-3"><CardTitle className="text-lg">Последняя активность</CardTitle></CardHeader>
           <CardContent>
-            {recentEvents.length === 0 ? (
-              <p className="text-center py-8 text-muted-foreground">Нет событий</p>
-            ) : (
+            {recentEvents.length === 0 ? <p className="text-center py-8 text-muted-foreground">Нет событий</p> : (
               <div className="space-y-4">
-                {recentEvents.map(event => (
-                  <div key={event.id} className="flex items-start gap-3">
-                    {getActivityIcon(event.status)}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{getActivityText(event)}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(event.created_at), { addSuffix: true, locale: ru })}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                {recentEvents.map(ev => {
+                  const name = `${(ev.profiles as any)?.first_name || ''} ${(ev.profiles as any)?.last_name || ''}`.trim() || 'Клиент';
+                  const icon = ev.status === 'confirmed' ? <div className="p-2 rounded-full bg-primary/10"><User className="h-4 w-4 text-primary" /></div>
+                    : ev.status === 'completed' ? <div className="p-2 rounded-full bg-emerald-100"><CheckCircle className="h-4 w-4 text-emerald-600" /></div>
+                    : ev.status === 'cancelled' ? <div className="p-2 rounded-full bg-destructive/10"><AlertTriangle className="h-4 w-4 text-destructive" /></div>
+                    : <div className="p-2 rounded-full bg-muted"><MessageSquare className="h-4 w-4 text-muted-foreground" /></div>;
+                  const text = ev.status === 'confirmed' ? `${name} записался на тренировку` : ev.status === 'completed' ? `Тренировка с ${name} завершена` : ev.status === 'cancelled' ? `${name} отменил запись` : `${name} — ${(ev.lessons as any)?.title}`;
+                  return (
+                    <div key={ev.id} className="flex items-start gap-3">{icon}<div className="flex-1 min-w-0"><p className="text-sm font-medium">{text}</p><p className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(ev.created_at), { addSuffix: true, locale: ru })}</p></div></div>
+                  );
+                })}
               </div>
             )}
           </CardContent>
