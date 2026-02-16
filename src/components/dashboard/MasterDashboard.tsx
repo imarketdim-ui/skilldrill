@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import TeachingMasterDashboard from './teaching/TeachingMasterDashboard';
 import FitnessMasterDashboard from './fitness/FitnessMasterDashboard';
+import SubscriptionManager from './SubscriptionManager';
 const MasterDashboard = () => {
   const { user } = useAuth();
   const [masterProfile, setMasterProfile] = useState<any>(null);
@@ -106,6 +107,7 @@ const MasterDashboard = () => {
           <TabsTrigger value="clients"><Users className="h-4 w-4 mr-1" /> Клиенты</TabsTrigger>
           <TabsTrigger value="promos"><Percent className="h-4 w-4 mr-1" /> Промо</TabsTrigger>
           <TabsTrigger value="stats"><BarChart3 className="h-4 w-4 mr-1" /> Дашборд</TabsTrigger>
+          <TabsTrigger value="subscription">Подписка</TabsTrigger>
         </TabsList>
 
         <TabsContent value="services">
@@ -226,6 +228,19 @@ const MasterDashboard = () => {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="subscription">
+          <SubscriptionManager
+            entityType="master"
+            subscriptionStatus={masterProfile?.subscription_status || 'inactive'}
+            trialStartDate={masterProfile?.trial_start_date}
+            trialDays={masterProfile?.trial_days || 14}
+            lastPaymentDate={masterProfile?.last_payment_date}
+            basePrice={900}
+            parentManaged={masterProfile?.subscription_status === 'in_business'}
+            parentLabel="Управляется бизнесом"
+          />
         </TabsContent>
       </Tabs>
     </div>

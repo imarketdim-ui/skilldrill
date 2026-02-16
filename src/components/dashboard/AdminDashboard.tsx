@@ -54,16 +54,37 @@ const AdminDashboard = () => {
         const roleMap: Record<string, string> = { master: 'master', business: 'business_owner', network: 'network_owner' };
         const role = roleMap[requestType];
         if (role) {
-          await supabase.from('user_roles').insert([{ user_id: requesterId, role: role as any }]);
+          // Upsert to handle re-approval after revocation
+          const { data: existingRole } = await supabase.from('user_roles').select('id').eq('user_id', requesterId).eq('role', role as any).maybeSingle();
+          if (existingRole) {
+            await supabase.from('user_roles').update({ is_active: true }).eq('id', existingRole.id);
+          } else {
+            await supabase.from('user_roles').insert([{ user_id: requesterId, role: role as any, is_active: true }]);
+          }
         }
 
         if (requestType === 'master') {
-          await supabase.from('master_profiles').insert({
-            user_id: requesterId,
-            category_id: request.category_id,
-            trial_days: request.promo_code ? 45 : 14,
-            promo_code_used: request.promo_code,
-          });
+          // Check if master_profile already exists (e.g. after revocation)
+          const { data: existingMp } = await supabase.from('master_profiles').select('id').eq('user_id', requesterId).maybeSingle();
+          if (existingMp) {
+            await supabase.from('master_profiles').update({
+              category_id: request.category_id,
+              is_active: true,
+              subscription_status: 'trial',
+              trial_start_date: new Date().toISOString(),
+              trial_days: request.promo_code ? 45 : 14,
+              promo_code_used: request.promo_code,
+            }).eq('user_id', requesterId);
+          } else {
+            await supabase.from('master_profiles').insert({
+              user_id: requesterId,
+              category_id: request.category_id,
+              subscription_status: 'trial',
+              trial_start_date: new Date().toISOString(),
+              trial_days: request.promo_code ? 45 : 14,
+              promo_code_used: request.promo_code,
+            });
+          }
         } else if (requestType === 'business') {
           await supabase.from('business_locations').insert({
             owner_id: requesterId,
