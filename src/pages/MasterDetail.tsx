@@ -99,7 +99,7 @@ const MasterDetail = () => {
                         <p className="text-2xl font-bold">{service.price.toLocaleString()} ₽</p>
                         <Dialog open={bookingService === service.id} onOpenChange={(open) => setBookingService(open ? service.id : null)}>
                           <DialogTrigger asChild>
-                            <Button variant="hero">Записаться</Button>
+                            <Button>Записаться</Button>
                           </DialogTrigger>
                           <DialogContent>
                             <DialogHeader><DialogTitle>Запись на «{service.name}»</DialogTitle></DialogHeader>

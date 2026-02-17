@@ -29,13 +29,13 @@ const About = () => {
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
               <p className="text-primary text-sm font-semibold uppercase tracking-wider mb-4">О платформе</p>
               <h1 className="text-4xl md:text-5xl font-display font-bold mb-6">
-                Почему клиенты выбирают <span className="text-gradient-primary">SkillSpot</span>
+                Почему клиенты выбирают <span className="text-primary">SkillSpot</span>
               </h1>
               <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
                 Единая платформа для поиска и записи к проверенным специалистам. Удобно, прозрачно, выгодно.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button variant="hero" size="lg" onClick={() => navigate('/auth?tab=signup')}>
+                <Button size="lg" onClick={() => navigate('/auth?tab=signup')}>
                   Зарегистрироваться <ArrowRight className="w-5 h-5" />
                 </Button>
                 <Button variant="outline" size="lg" onClick={() => navigate('/catalog')}>
@@ -53,7 +53,7 @@ const About = () => {
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
               {clientBenefits.map((b, i) => (
                 <motion.div key={i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.05 }}
-                  className="bg-card rounded-2xl p-6 border border-border/50 hover:border-primary/20 transition-colors"
+                  className="bg-card rounded-2xl p-6 border border-border"
                 >
                   <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
                     <b.icon className="w-6 h-6 text-primary" />
@@ -79,7 +79,7 @@ const About = () => {
                 { val: '3.5+', desc: 'Стандартный доступ ко всем услугам платформы', color: 'text-primary' },
                 { val: '<3.5', desc: 'Ограничение записи, рекомендация улучшить рейтинг', color: 'text-accent' },
               ].map((item, i) => (
-                <div key={i} className="p-6 rounded-2xl bg-surface border border-border/50">
+                <div key={i} className="p-6 rounded-2xl bg-card border border-border">
                   <p className={`text-4xl font-display font-bold ${item.color} mb-2`}>{item.val}</p>
                   <p className="text-sm text-muted-foreground">{item.desc}</p>
                 </div>
@@ -96,7 +96,7 @@ const About = () => {
               Любой зарегистрированный пользователь может подать заявку на мастера или создать кабинет бизнеса.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button variant="hero" size="lg" onClick={() => navigate('/for-business')}>Для бизнеса и мастеров <ArrowRight className="w-5 h-5" /></Button>
+              <Button size="lg" onClick={() => navigate('/for-business')}>Для бизнеса и мастеров <ArrowRight className="w-5 h-5" /></Button>
               <Button variant="outline" size="lg" onClick={() => navigate('/subscription')}>Тарифы</Button>
             </div>
           </div>

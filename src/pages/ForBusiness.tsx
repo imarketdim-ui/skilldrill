@@ -48,7 +48,7 @@ const ForBusiness = () => {
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
               <p className="text-primary text-sm font-semibold uppercase tracking-wider mb-4">Для бизнеса</p>
               <h1 className="text-4xl md:text-5xl font-display font-bold mb-6">
-                <span className="text-gradient-primary">SkillSpot</span> для бизнеса и мастеров
+                <span className="text-primary">SkillSpot</span> для бизнеса и мастеров
               </h1>
               <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
                 Операционная система для сервисного бизнеса: от онлайн-записи до финансовой аналитики.
@@ -67,7 +67,7 @@ const ForBusiness = () => {
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {masterFeatures.map((f, i) => (
                 <motion.div key={i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.05 }}
-                  className="bg-card rounded-2xl p-6 border border-border/50 hover:border-primary/20 transition-colors"
+                  className="bg-card rounded-2xl p-6 border border-border"
                 >
                   <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
                     <f.icon className="w-6 h-6 text-primary" />
@@ -90,7 +90,7 @@ const ForBusiness = () => {
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
               {businessFeatures.map((f, i) => (
                 <motion.div key={i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.05 }}
-                  className="bg-card rounded-2xl p-6 border border-border/50 hover:border-primary/20 transition-colors"
+                  className="bg-card rounded-2xl p-6 border border-border"
                 >
                   <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
                     <f.icon className="w-6 h-6 text-primary" />
@@ -109,7 +109,7 @@ const ForBusiness = () => {
             <h2 className="text-3xl font-display font-bold text-center mb-12">Тарифы</h2>
             <div className="grid md:grid-cols-3 gap-6">
               {plans.map((plan) => (
-                <div key={plan.name} className={`bg-card rounded-2xl p-6 border ${plan.popular ? 'border-primary shadow-primary' : 'border-border/50'} relative`}>
+                <div key={plan.name} className={`bg-card rounded-2xl p-6 border ${plan.popular ? 'border-primary shadow-md' : 'border-border'} relative`}>
                   {plan.popular && (
                     <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-primary text-primary-foreground text-xs font-medium rounded-full">
                       Популярный
@@ -143,7 +143,7 @@ const ForBusiness = () => {
               Зарегистрируйтесь, затем подайте заявку на мастера или создание бизнеса.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button variant="hero" size="lg" onClick={() => navigate('/auth?tab=signup')}>
+              <Button size="lg" onClick={() => navigate('/auth?tab=signup')}>
                 Зарегистрироваться <ArrowRight className="w-5 h-5" />
               </Button>
               <Button variant="outline" size="lg" onClick={() => navigate('/about')}>

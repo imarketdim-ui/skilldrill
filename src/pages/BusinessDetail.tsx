@@ -48,10 +48,9 @@ const BusinessDetail = () => {
           {/* Header */}
           <div className="relative h-48 rounded-2xl overflow-hidden mb-6">
             <img src={business.image} alt={business.name} className="w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
             <div className="absolute bottom-4 left-6">
-              <Badge className="bg-white/20 backdrop-blur-sm text-white mb-2">{business.categoryName}</Badge>
-              <h1 className="text-2xl font-bold text-white">{business.name}</h1>
+              <Badge className="bg-card text-foreground mb-2 shadow-sm">{business.categoryName}</Badge>
+              <h1 className="text-2xl font-bold text-foreground bg-card/90 px-3 py-1 rounded-lg inline-block">{business.name}</h1>
             </div>
           </div>
 
@@ -89,7 +88,7 @@ const BusinessDetail = () => {
                         <p className="text-2xl font-bold">{service.price.toLocaleString()} ₽</p>
                         <Dialog open={bookingService === service.id} onOpenChange={(open) => setBookingService(open ? service.id : null)}>
                           <DialogTrigger asChild>
-                            <Button variant="hero">Записаться</Button>
+                            <Button>Записаться</Button>
                           </DialogTrigger>
                           <DialogContent>
                             <DialogHeader><DialogTitle>Запись на «{service.name}»</DialogTitle></DialogHeader>
