@@ -20,7 +20,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border/50 bg-card/80 backdrop-blur-xl sticky top-0 z-40">
+      <header className="border-b border-border bg-card sticky top-0 z-40">
         <div className="container-wide py-3 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
             <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">

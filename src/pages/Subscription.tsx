@@ -49,7 +49,7 @@ const Subscription = () => {
             {plans.map((plan) => {
               const Icon = plan.icon;
               return (
-                <Card key={plan.name} className={`relative ${plan.popular ? 'border-primary shadow-primary scale-105' : ''}`}>
+                <Card key={plan.name} className={`relative ${plan.popular ? 'border-primary shadow-md scale-105' : ''}`}>
                   {plan.popular && (
                     <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground">
                       Популярный

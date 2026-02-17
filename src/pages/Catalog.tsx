@@ -139,7 +139,7 @@ const MasterCard = ({ master, onClick }: { master: MockMaster; onClick: () => vo
   <motion.div
     initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
     whileHover={{ y: -4 }} transition={{ duration: 0.3 }}
-    className="bg-card rounded-2xl overflow-hidden border border-border/50 shadow-md hover:shadow-xl transition-all cursor-pointer"
+    className="bg-card rounded-2xl overflow-hidden border border-border shadow-sm hover:shadow-md transition-shadow cursor-pointer"
     onClick={onClick}
   >
     <div className="p-5">
@@ -148,7 +148,7 @@ const MasterCard = ({ master, onClick }: { master: MockMaster; onClick: () => vo
         <div>
           <h3 className="font-semibold text-foreground">{master.name}</h3>
           <div className="flex items-center gap-1 mt-1">
-            <Star className="w-4 h-4 text-amber fill-amber" />
+            <Star className="w-4 h-4 text-primary fill-primary" />
             <span className="text-sm font-medium">{master.rating.toFixed(1)}</span>
             <span className="text-xs text-muted-foreground">({master.reviewCount})</span>
           </div>
@@ -160,13 +160,13 @@ const MasterCard = ({ master, onClick }: { master: MockMaster; onClick: () => vo
       </div>
       <div className="space-y-2">
         {master.services.slice(0, 2).map(s => (
-          <div key={s.id} className="flex items-center justify-between text-sm p-2 rounded-lg bg-muted/50">
+          <div key={s.id} className="flex items-center justify-between text-sm p-2 rounded-lg bg-secondary">
             <span className="truncate">{s.name}</span>
             <span className="font-semibold whitespace-nowrap ml-2">{s.price.toLocaleString()} ₽</span>
           </div>
         ))}
       </div>
-      <Button variant="hero" size="sm" className="w-full mt-4">Записаться</Button>
+      <Button size="sm" className="w-full mt-4">Записаться</Button>
     </div>
   </motion.div>
 );
@@ -175,13 +175,12 @@ const BusinessCardItem = ({ business, onClick }: { business: MockBusiness; onCli
   <motion.div
     initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
     whileHover={{ y: -4 }} transition={{ duration: 0.3 }}
-    className="bg-card rounded-2xl overflow-hidden border border-border/50 shadow-md hover:shadow-xl transition-all cursor-pointer"
+    className="bg-card rounded-2xl overflow-hidden border border-border shadow-sm hover:shadow-md transition-shadow cursor-pointer"
     onClick={onClick}
   >
     <div className="relative h-40 overflow-hidden">
       <img src={business.image} alt={business.name} className="w-full h-full object-cover" />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-      <div className="absolute bottom-3 left-4"><span className="px-2 py-1 rounded-md bg-white/20 backdrop-blur-sm text-white text-xs font-medium">{business.categoryName}</span></div>
+      <div className="absolute bottom-3 left-4"><span className="px-2 py-1 rounded-lg bg-card text-foreground text-xs font-medium shadow-sm">{business.categoryName}</span></div>
     </div>
     <div className="p-5">
       <h3 className="text-lg font-semibold mb-2">{business.name}</h3>
