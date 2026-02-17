@@ -71,21 +71,25 @@ const ClientDashboard = () => {
     setCreatingCode(false);
   };
 
-  const canRequestRole = (role: string) => !roles.includes(role as any);
-
   const getInitials = () =>
     `${(profile?.first_name || '')[0] || ''}${(profile?.last_name || '')[0] || ''}`.toUpperCase() || '?';
 
-  const NavButton = ({ item }: { item: { key: string; label: string; icon: any } }) => (
-    <Button
-      variant={activeSection === item.key ? 'default' : 'ghost'}
-      className={`w-full justify-start gap-3 ${activeSection === item.key ? '' : 'text-muted-foreground'}`}
-      onClick={() => setActiveSection(item.key)}
-    >
-      <item.icon className="h-4 w-4" />
-      <span>{item.label}</span>
-    </Button>
-  );
+  const NavButton = ({ item }: { item: { key: string; label: string; icon: any } }) => {
+    const isActive = activeSection === item.key;
+    return (
+      <button
+        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+          isActive
+            ? 'bg-primary/10 text-primary'
+            : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+        }`}
+        onClick={() => setActiveSection(item.key)}
+      >
+        <item.icon className="h-4 w-4" />
+        <span>{item.label}</span>
+      </button>
+    );
+  };
 
   const renderContent = () => {
     switch (activeSection) {
@@ -93,7 +97,7 @@ const ClientDashboard = () => {
         return (
           <Card>
             <CardHeader>
-              <CardTitle>Мои записи</CardTitle>
+              <CardTitle className="font-display">Мои записи</CardTitle>
               <CardDescription>История записей на услуги</CardDescription>
             </CardHeader>
             <CardContent>
@@ -110,7 +114,7 @@ const ClientDashboard = () => {
         return (
           <Card>
             <CardHeader>
-              <CardTitle>Избранное</CardTitle>
+              <CardTitle className="font-display">Избранное</CardTitle>
               <CardDescription>Организации, мастера и услуги</CardDescription>
             </CardHeader>
             <CardContent>
@@ -126,9 +130,9 @@ const ClientDashboard = () => {
         return (
           <div className="grid gap-4 md:grid-cols-2">
             <Card>
-              <CardHeader><CardTitle>Основной баланс</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="font-display">Основной баланс</CardTitle></CardHeader>
               <CardContent>
-                <p className="text-3xl font-bold mb-4">{Number(balance.main_balance).toFixed(0)} ₽</p>
+                <p className="text-3xl font-display font-bold mb-4">{Number(balance.main_balance).toFixed(0)} ₽</p>
                 <div className="space-y-2">
                   <Button className="w-full">Пополнить баланс</Button>
                   <Button variant="outline" className="w-full">Вывести на карту</Button>
@@ -136,9 +140,9 @@ const ClientDashboard = () => {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle>Реферальный баланс</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="font-display">Реферальный баланс</CardTitle></CardHeader>
               <CardContent>
-                <p className="text-3xl font-bold mb-4">{Number(balance.referral_balance).toFixed(0)} ₽</p>
+                <p className="text-3xl font-display font-bold mb-4">{Number(balance.referral_balance).toFixed(0)} ₽</p>
                 <Button variant="outline" className="w-full">
                   <ArrowUpRight className="h-4 w-4 mr-2" /> Перевести на основной
                 </Button>
@@ -151,7 +155,7 @@ const ClientDashboard = () => {
         return (
           <Card>
             <CardHeader>
-              <CardTitle>Мои запросы</CardTitle>
+              <CardTitle className="font-display">Мои запросы</CardTitle>
               <CardDescription>Запросы на изменение ролей</CardDescription>
             </CardHeader>
             <CardContent>
@@ -163,7 +167,7 @@ const ClientDashboard = () => {
           </Card>
         );
 
-      default: // overview
+      default:
         return (
           <div className="space-y-6">
             {/* Profile Card */}
@@ -172,12 +176,12 @@ const ClientDashboard = () => {
                 <div className="flex items-start gap-4">
                   <Avatar className="h-16 w-16">
                     <AvatarImage src={profile?.avatar_url || undefined} />
-                    <AvatarFallback className="text-lg bg-primary/10 text-primary">{getInitials()}</AvatarFallback>
+                    <AvatarFallback className="text-lg bg-primary/10 text-primary font-display">{getInitials()}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between">
                       <div>
-                        <h3 className="text-xl font-semibold">
+                        <h3 className="text-xl font-display font-semibold">
                           {profile?.first_name && profile?.last_name
                             ? `${profile.first_name} ${profile.last_name}`
                             : profile?.email || 'Пользователь'}
@@ -205,10 +209,12 @@ const ClientDashboard = () => {
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="text-sm text-muted-foreground">Баланс</p>
-                      <p className="text-3xl font-bold mt-1">{Number(balance.main_balance).toFixed(0)} ₽</p>
+                      <p className="text-3xl font-display font-bold mt-1">{Number(balance.main_balance).toFixed(0)} ₽</p>
                       <p className="text-xs text-muted-foreground mt-1">Реферальный: {Number(balance.referral_balance).toFixed(0)} ₽</p>
                     </div>
-                    <Wallet className="h-5 w-5 text-muted-foreground" />
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <Wallet className="h-5 w-5 text-primary" />
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -231,7 +237,7 @@ const ClientDashboard = () => {
                 <CardContent className="pt-6">
                   <p className="text-sm text-muted-foreground mb-2">Реферальная программа</p>
                   {referralCode ? (
-                    <div className="flex items-center gap-2 p-2 rounded-lg bg-muted">
+                    <div className="flex items-center gap-2 p-2 rounded-lg bg-secondary">
                       <code className="text-sm font-mono flex-1 truncate">{referralCode}</code>
                       <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={handleCopyReferral}>
                         <Copy className="h-3 w-3" />
@@ -248,10 +254,12 @@ const ClientDashboard = () => {
             </div>
 
             {/* Role Upgrade */}
-            <Card className="border-dashed cursor-pointer hover:border-primary transition-colors" onClick={() => navigate('/create-account')}>
+            <Card className="border-dashed cursor-pointer hover:border-primary/40 transition-colors" onClick={() => navigate('/create-account')}>
               <CardContent className="pt-6 text-center">
-                <Building2 className="h-10 w-10 mx-auto mb-2 text-primary" />
-                <p className="font-semibold">Создать бизнес-аккаунт</p>
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                  <Building2 className="h-6 w-6 text-primary" />
+                </div>
+                <p className="font-display font-semibold">Создать бизнес-аккаунт</p>
                 <p className="text-sm text-muted-foreground">Мастер, бизнес или сеть — выберите тип и начните работу</p>
               </CardContent>
             </Card>
@@ -264,22 +272,22 @@ const ClientDashboard = () => {
     <div className="flex gap-6">
       {/* Sidebar */}
       <aside className="hidden lg:flex flex-col w-60 shrink-0">
-        <div className="flex items-center gap-3 px-3 pb-6 border-b mb-4">
-          <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
-            <Users className="h-5 w-5 text-primary-foreground" />
+        <div className="flex items-center gap-3 px-3 pb-5 border-b border-border/50 mb-4">
+          <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Users className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <p className="font-semibold text-sm">Личный кабинет</p>
+            <p className="font-display font-semibold text-sm">Личный кабинет</p>
             <p className="text-xs text-muted-foreground">Клиент</p>
           </div>
         </div>
 
-        <div className="space-y-1">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Меню</p>
+        <div className="space-y-0.5">
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Меню</p>
           {menuItems.map(item => <NavButton key={item.key} item={item} />)}
         </div>
 
-        <div className="mt-auto pt-6 border-t">
+        <div className="mt-auto pt-5 border-t border-border/50">
           <div className="flex items-center gap-3 px-3">
             <Avatar className="h-8 w-8">
               <AvatarFallback className="text-xs bg-primary/10 text-primary">{getInitials()}</AvatarFallback>
@@ -293,12 +301,12 @@ const ClientDashboard = () => {
       </aside>
 
       {/* Mobile nav */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t z-50 flex overflow-x-auto px-2 py-1">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border/50 z-50 flex overflow-x-auto px-2 py-1">
         {menuItems.map(item => (
           <button
             key={item.key}
             onClick={() => setActiveSection(item.key)}
-            className={`flex flex-col items-center gap-0.5 px-3 py-2 text-xs shrink-0 ${activeSection === item.key ? 'text-primary' : 'text-muted-foreground'}`}
+            className={`flex flex-col items-center gap-0.5 px-3 py-2 text-xs shrink-0 transition-colors ${activeSection === item.key ? 'text-primary' : 'text-muted-foreground'}`}
           >
             <item.icon className="h-4 w-4" />
             {item.label}

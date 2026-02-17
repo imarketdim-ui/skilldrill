@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Settings, LogOut } from 'lucide-react';
+import { Settings, LogOut } from 'lucide-react';
 import RoleSwitcher from './RoleSwitcher';
 
 interface DashboardLayoutProps {
@@ -20,18 +20,18 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b bg-card">
+      <header className="border-b border-border/50 bg-card/80 backdrop-blur-xl sticky top-0 z-40">
         <div className="container-wide py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center cursor-pointer" onClick={() => navigate('/')}>
-              <Sparkles className="h-5 w-5 text-primary-foreground" />
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
+            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
+              <span className="text-primary-foreground font-bold text-lg font-display">S</span>
             </div>
-            <span className="text-xl font-bold hidden sm:inline">SkillSpot</span>
+            <span className="text-xl font-display font-bold hidden sm:inline">SkillSpot</span>
           </div>
 
           <RoleSwitcher />
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
               <Settings className="h-5 w-5" />
             </Button>

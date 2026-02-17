@@ -15,7 +15,7 @@ export default {
     extend: {
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
-        display: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
+        display: ['Space Grotesk', 'system-ui', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -25,15 +25,15 @@ export default {
         foreground: "hsl(var(--foreground))",
         surface: "hsl(var(--surface))",
         "surface-elevated": "hsl(var(--surface-elevated))",
-        emerald: {
-          DEFAULT: "hsl(var(--emerald))",
-          dark: "hsl(var(--emerald-dark))",
-          light: "hsl(var(--emerald-light))",
+        indigo: {
+          DEFAULT: "hsl(var(--indigo))",
+          dark: "hsl(var(--indigo-dark))",
+          light: "hsl(var(--indigo-light))",
         },
-        amber: {
-          DEFAULT: "hsl(var(--amber))",
-          light: "hsl(var(--amber-light))",
-          dark: "hsl(var(--amber-dark))",
+        cyan: {
+          DEFAULT: "hsl(var(--cyan))",
+          light: "hsl(var(--cyan-light))",
+          dark: "hsl(var(--cyan-dark))",
         },
         primary: {
           DEFAULT: "hsl(var(--primary))",

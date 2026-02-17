@@ -45,7 +45,7 @@ const TeachingMasterDashboard = ({ masterProfile, isSubscriptionActive }: Props)
       <Card className="border-destructive">
         <CardContent className="pt-6 text-center">
           <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-destructive" />
-          <h2 className="text-xl font-bold mb-2">Подписка неактивна</h2>
+          <h2 className="text-xl font-display font-bold mb-2">Подписка неактивна</h2>
           <p className="text-muted-foreground mb-4">
             Ваши данные сохранены, но интерфейс мастера недоступен. Оплатите подписку (900 ₽/мес) для продолжения работы.
           </p>
@@ -54,15 +54,6 @@ const TeachingMasterDashboard = ({ masterProfile, isSubscriptionActive }: Props)
       </Card>
     );
   }
-
-  const getSubscriptionBadge = () => {
-    if (!masterProfile) return null;
-    const status = masterProfile.subscription_status;
-    if (status === 'trial') return <Badge className="bg-blue-500 text-white">Тестовый период</Badge>;
-    if (status === 'active') return <Badge className="bg-primary text-primary-foreground">Активна</Badge>;
-    if (status === 'in_business') return <Badge className="bg-purple-500 text-white">В составе бизнеса</Badge>;
-    return <Badge variant="destructive">Неактивна</Badge>;
-  };
 
   const renderContent = () => {
     switch (activeSection) {
@@ -93,46 +84,50 @@ const TeachingMasterDashboard = ({ masterProfile, isSubscriptionActive }: Props)
     return `${(profile?.first_name || '')[0] || ''}${(profile?.last_name || '')[0] || ''}`.toUpperCase() || '?';
   };
 
-  const NavButton = ({ item }: { item: { key: string; label: string; icon: any } }) => (
-    <Button
-      key={item.key}
-      variant={activeSection === item.key ? 'default' : 'ghost'}
-      className={`w-full justify-start gap-3 ${activeSection === item.key ? '' : 'text-muted-foreground'}`}
-      onClick={() => setActiveSection(item.key)}
-    >
-      <item.icon className="h-4 w-4" />
-      <span>{item.label}</span>
-    </Button>
-  );
+  const NavButton = ({ item }: { item: { key: string; label: string; icon: any } }) => {
+    const isActive = activeSection === item.key;
+    return (
+      <button
+        key={item.key}
+        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+          isActive
+            ? 'bg-primary/10 text-primary'
+            : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+        }`}
+        onClick={() => setActiveSection(item.key)}
+      >
+        <item.icon className="h-4 w-4" />
+        <span>{item.label}</span>
+      </button>
+    );
+  };
 
   return (
     <div className="flex gap-6">
-      {/* Sidebar */}
       <aside className="hidden lg:flex flex-col w-60 shrink-0">
-        <div className="flex items-center gap-3 px-3 pb-6 border-b mb-4">
-          <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
-            <Calendar className="h-5 w-5 text-primary-foreground" />
+        <div className="flex items-center gap-3 px-3 pb-5 border-b border-border/50 mb-4">
+          <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Calendar className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <p className="font-semibold text-sm">
+            <p className="font-display font-semibold text-sm">
               {masterProfile?.service_categories?.name || 'Преподаватель'}
             </p>
             <p className="text-xs text-muted-foreground">Преподаватель</p>
           </div>
         </div>
 
-        <div className="space-y-1">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Меню</p>
+        <div className="space-y-0.5">
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Меню</p>
           {menuItems.map(item => <NavButton key={item.key} item={item} />)}
         </div>
 
-        <div className="space-y-1 mt-6">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Управление</p>
+        <div className="space-y-0.5 mt-6">
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Управление</p>
           {managementItems.map(item => <NavButton key={item.key} item={item} />)}
         </div>
 
-        {/* User card at bottom */}
-        <div className="mt-auto pt-6 border-t">
+        <div className="mt-auto pt-5 border-t border-border/50">
           <div className="flex items-center gap-3 px-3">
             <Avatar className="h-8 w-8">
               <AvatarFallback className="text-xs bg-primary/10 text-primary">{getInitials()}</AvatarFallback>
@@ -145,13 +140,12 @@ const TeachingMasterDashboard = ({ masterProfile, isSubscriptionActive }: Props)
         </div>
       </aside>
 
-      {/* Mobile nav */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t z-50 flex overflow-x-auto px-2 py-1">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border/50 z-50 flex overflow-x-auto px-2 py-1">
         {[...menuItems, ...managementItems].map(item => (
           <button
             key={item.key}
             onClick={() => setActiveSection(item.key)}
-            className={`flex flex-col items-center gap-0.5 px-3 py-2 text-xs shrink-0 ${activeSection === item.key ? 'text-primary' : 'text-muted-foreground'}`}
+            className={`flex flex-col items-center gap-0.5 px-3 py-2 text-xs shrink-0 transition-colors ${activeSection === item.key ? 'text-primary' : 'text-muted-foreground'}`}
           >
             <item.icon className="h-4 w-4" />
             {item.label}
@@ -159,7 +153,6 @@ const TeachingMasterDashboard = ({ masterProfile, isSubscriptionActive }: Props)
         ))}
       </nav>
 
-      {/* Main Content */}
       <div className="flex-1 min-w-0 pb-20 lg:pb-0">
         {renderContent()}
       </div>
