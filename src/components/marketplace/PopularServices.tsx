@@ -11,14 +11,14 @@ const PopularServices = () => {
   const navigate = useNavigate();
 
   return (
-    <section className="section-padding bg-surface">
+    <section className="py-20 md:py-28 bg-surface">
       <div className="container-wide">
         <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-10">
           <div>
-            <h2 className="text-3xl md:text-4xl font-display font-bold text-foreground mb-2">Популярные услуги</h2>
-            <p className="text-muted-foreground">Лучшие предложения от проверенных специалистов</p>
+            <p className="text-primary text-sm font-semibold uppercase tracking-wider mb-2">Популярное</p>
+            <h2 className="text-3xl md:text-4xl font-display font-bold text-foreground">Популярные услуги</h2>
           </div>
-          <a href="/catalog" className="text-primary font-medium hover:underline">Смотреть все →</a>
+          <a href="/catalog" className="text-primary font-medium hover:underline text-sm">Смотреть все →</a>
         </motion.div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-20">
@@ -30,7 +30,7 @@ const PopularServices = () => {
               <div className="relative h-48 overflow-hidden">
                 <img src={master.services[0]?.image} alt={master.services[0]?.name} className="w-full h-full object-cover transition-transform duration-300 hover:scale-105" />
                 <div className="absolute top-3 right-3 px-3 py-1 rounded-full bg-card/90 backdrop-blur-sm flex items-center gap-1">
-                  <Star className="w-4 h-4 text-amber fill-amber" />
+                  <Star className="w-4 h-4 text-accent fill-accent" />
                   <span className="text-sm font-medium text-foreground">{master.rating.toFixed(1)}</span>
                   <span className="text-xs text-muted-foreground">({master.reviewCount})</span>
                 </div>
@@ -57,10 +57,10 @@ const PopularServices = () => {
 
         <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-10">
           <div>
-            <h2 className="text-3xl md:text-4xl font-display font-bold text-foreground mb-2">Популярные заведения</h2>
-            <p className="text-muted-foreground">Проверенные бизнесы с высоким рейтингом</p>
+            <p className="text-primary text-sm font-semibold uppercase tracking-wider mb-2">Заведения</p>
+            <h2 className="text-3xl md:text-4xl font-display font-bold text-foreground">Популярные заведения</h2>
           </div>
-          <a href="/catalog" className="text-primary font-medium hover:underline">Смотреть все →</a>
+          <a href="/catalog" className="text-primary font-medium hover:underline text-sm">Смотреть все →</a>
         </motion.div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -77,7 +77,7 @@ const PopularServices = () => {
               <div className="p-5">
                 <h3 className="text-lg font-display font-semibold text-foreground mb-2 line-clamp-1">{biz.name}</h3>
                 <div className="flex items-center gap-2 mb-3">
-                  <Star className="w-4 h-4 text-amber fill-amber" /><span className="text-sm font-medium">{biz.rating.toFixed(1)}</span>
+                  <Star className="w-4 h-4 text-accent fill-accent" /><span className="text-sm font-medium">{biz.rating.toFixed(1)}</span>
                   <span className="text-muted-foreground text-sm">({biz.reviewCount} отзывов)</span>
                 </div>
                 <div className="flex items-center gap-1 text-sm text-muted-foreground mb-4"><MapPin className="w-4 h-4" />{biz.address}</div>

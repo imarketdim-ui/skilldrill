@@ -7,11 +7,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const navLinks = [
-  { label: "Каталог", href: "/catalog", isRoute: true },
-  { label: "О платформе", href: "/about", isRoute: true },
-  { label: "Для бизнеса", href: "/for-business", isRoute: true },
-  { label: "Тарифы", href: "/subscription", isRoute: true },
-  { label: "Контакты", href: "/contacts", isRoute: true },
+  { label: "Каталог", href: "/catalog" },
+  { label: "О платформе", href: "/about" },
+  { label: "Для бизнеса", href: "/for-business" },
+  { label: "Тарифы", href: "/subscription" },
+  { label: "Контакты", href: "/contacts" },
 ];
 
 const Header = () => {
@@ -20,22 +20,22 @@ const Header = () => {
   const navigate = useNavigate();
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-card/80 backdrop-blur-xl border-b border-border/50">
       <div className="container-wide">
-        <div className="flex items-center justify-between h-16 md:h-20">
+        <div className="flex items-center justify-between h-16 md:h-[72px]">
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <Link to="/" className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-emerald-dark flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-lg">S</span>
+            <Link to="/" className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
+                <span className="text-primary-foreground font-bold text-lg font-display">S</span>
               </div>
               <span className="font-display font-bold text-xl text-foreground">SkillSpot</span>
             </Link>
           </motion.div>
 
-          <nav className="hidden md:flex items-center gap-6">
+          <nav className="hidden md:flex items-center gap-1">
             {navLinks.map((link, index) => (
-              <motion.div key={link.href} initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }}>
-                <Link to={link.href} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+              <motion.div key={link.href} initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }}>
+                <Link to={link.href} className="px-3.5 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-secondary">
                   {link.label}
                 </Link>
               </motion.div>
@@ -49,7 +49,7 @@ const Header = () => {
               <Button variant="ghost" className="gap-2" onClick={() => navigate('/dashboard')}>
                 <Avatar className="h-7 w-7">
                   <AvatarImage src={profile?.avatar_url || undefined} />
-                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                  <AvatarFallback className="bg-primary/10 text-primary text-xs">
                     {profile?.first_name?.[0] || profile?.email?.[0] || <User className="h-4 w-4" />}
                   </AvatarFallback>
                 </Avatar>
@@ -70,14 +70,14 @@ const Header = () => {
       </div>
 
       {isMenuOpen && (
-        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="md:hidden border-t border-border/50 bg-background">
-          <div className="container-wide py-4 space-y-4">
+        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="md:hidden border-t border-border/50 bg-card">
+          <div className="container-wide py-4 space-y-2">
             {navLinks.map((link) => (
-              <Link key={link.href} to={link.href} onClick={() => setIsMenuOpen(false)} className="block text-foreground font-medium py-2">
+              <Link key={link.href} to={link.href} onClick={() => setIsMenuOpen(false)} className="block text-foreground font-medium py-2.5 px-3 rounded-lg hover:bg-secondary">
                 {link.label}
               </Link>
             ))}
-            <div className="pt-4 space-y-3">
+            <div className="pt-4 space-y-3 border-t border-border/50">
               {user ? (
                 <Button variant="hero" className="w-full" onClick={() => { setIsMenuOpen(false); navigate('/dashboard'); }}>
                   Личный кабинет
