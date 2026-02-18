@@ -7,10 +7,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const navLinks = [
   { label: "Каталог", href: "/catalog" },
-  { label: "О платформе", href: "/about" },
-  { label: "Для бизнеса", href: "/for-business" },
-  { label: "Тарифы", href: "/subscription" },
-  { label: "Контакты", href: "/contacts" },
+  { label: "О нас", href: "/about" },
+  { label: "Партнёрам", href: "/for-business" },
 ];
 
 const Header = () => {
@@ -19,7 +17,7 @@ const Header = () => {
   const navigate = useNavigate();
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-none border-b border-border">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-card border-b border-border">
       <div className="container-wide">
         <div className="flex items-center justify-between h-16">
           <Link to="/" className="flex items-center gap-2.5">
@@ -53,7 +51,7 @@ const Header = () => {
             ) : (
               <>
                 <Button variant="ghost" onClick={() => navigate('/auth')}>Войти</Button>
-                <Button onClick={() => navigate('/auth?tab=signup')}>Начать бесплатно</Button>
+                <Button onClick={() => navigate('/create-account')}>Разместить услугу</Button>
               </>
             )}
           </div>
@@ -80,7 +78,7 @@ const Header = () => {
               ) : (
                 <>
                   <Button variant="ghost" className="w-full" onClick={() => { setIsMenuOpen(false); navigate('/auth'); }}>Войти</Button>
-                  <Button className="w-full" onClick={() => { setIsMenuOpen(false); navigate('/auth?tab=signup'); }}>Начать бесплатно</Button>
+                  <Button className="w-full" onClick={() => { setIsMenuOpen(false); navigate('/create-account'); }}>Разместить услугу</Button>
                 </>
               )}
             </div>

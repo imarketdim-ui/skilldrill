@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Scissors, Dumbbell, GraduationCap, Camera, Heart, Home, Car, Sparkles, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import heroBg from "@/assets/hero-bg.jpg";
 
 const quickCategories = [
   { icon: Scissors, label: "Бьюти", id: "a0000001-0000-0000-0000-000000000001" },
@@ -28,30 +27,19 @@ const Hero = () => {
   };
 
   return (
-    <section className="relative min-h-[600px] md:min-h-[680px] flex items-center">
-      {/* Background image */}
-      <div className="absolute inset-0">
-        <img src={heroBg} alt="" className="w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-foreground/60" />
-      </div>
-
-      <div className="container-wide relative z-10 py-28 md:py-36">
+    <section className="pt-24 pb-16 md:pt-32 md:pb-24 bg-background">
+      <div className="container-wide">
         <div className="max-w-3xl mx-auto text-center space-y-8">
-          <p className="text-sm font-medium text-white/70 uppercase tracking-widest">
-            Маркетплейс услуг в Абакане
-          </p>
-          
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold leading-tight text-white">
-            Найдите своего{" "}
-            <span className="text-primary-foreground">специалиста</span>
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold leading-tight text-foreground">
+            Найдите своего специалиста
           </h1>
           
-          <p className="text-lg md:text-xl text-white/80 max-w-xl mx-auto">
+          <p className="text-lg md:text-xl text-muted-foreground max-w-xl mx-auto">
             Записывайтесь онлайн к проверенным мастерам. Удобно, быстро, с гарантией качества.
           </p>
 
-          {/* Search bar — Khakasia-inspired */}
-          <div className="bg-card rounded-2xl p-2 shadow-lg max-w-2xl mx-auto">
+          {/* Search bar */}
+          <div className="bg-card rounded-2xl p-2 border border-border shadow-sm max-w-2xl mx-auto">
             <div className="flex gap-2">
               <div className="flex-1 flex items-center gap-3 px-4 py-3 rounded-xl bg-secondary">
                 <Search className="w-5 h-5 text-muted-foreground shrink-0" />
@@ -77,9 +65,9 @@ const Hero = () => {
               <button
                 key={cat.id}
                 onClick={() => navigate(`/catalog/${cat.id}`)}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 transition-colors text-sm text-white/90 hover:text-white border border-white/10"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-card hover:bg-secondary transition-colors text-sm text-foreground border border-border"
               >
-                <cat.icon className="w-4 h-4" />
+                <cat.icon className="w-4 h-4 text-primary" />
                 {cat.label}
               </button>
             ))}
@@ -88,8 +76,8 @@ const Hero = () => {
           {/* Quick CTA for specialists */}
           <div className="pt-4">
             <button
-              onClick={() => navigate('/for-business')}
-              className="inline-flex items-center gap-2 text-sm text-white/60 hover:text-white/90 transition-colors"
+              onClick={() => navigate('/create-account')}
+              className="inline-flex items-center gap-2 text-sm text-primary hover:text-primary/80 transition-colors font-medium"
             >
               Вы специалист? Разместите свои услуги
               <ArrowRight className="w-4 h-4" />
