@@ -9,14 +9,16 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Search, Heart, Calendar, Wallet, Users, MessageSquare,
   Copy, Check, Gift, ArrowUpRight, Building2, Shield, Loader2,
-  LayoutDashboard, Star, Settings
+  LayoutDashboard, Star, Settings, BarChart3
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import UserScoreCard from '@/components/dashboard/UserScoreCard';
 
 const menuItems = [
   { key: 'overview', label: 'Обзор', icon: LayoutDashboard },
   { key: 'bookings', label: 'Мои записи', icon: Calendar },
   { key: 'favorites', label: 'Избранное', icon: Heart },
+  { key: 'stats', label: 'Статистика', icon: BarChart3 },
   { key: 'wallet', label: 'Баланс', icon: Wallet },
   { key: 'requests', label: 'Запросы', icon: Shield },
 ];
@@ -71,8 +73,6 @@ const ClientDashboard = () => {
     setCreatingCode(false);
   };
 
-  const canRequestRole = (role: string) => !roles.includes(role as any);
-
   const getInitials = () =>
     `${(profile?.first_name || '')[0] || ''}${(profile?.last_name || '')[0] || ''}`.toUpperCase() || '?';
 
@@ -122,6 +122,14 @@ const ClientDashboard = () => {
           </Card>
         );
 
+      case 'stats':
+        return (
+          <div className="space-y-4">
+            <h2 className="text-xl font-bold">Ваша статистика</h2>
+            {user && <UserScoreCard userId={user.id} viewMode="client" />}
+          </div>
+        );
+
       case 'wallet':
         return (
           <div className="grid gap-4 md:grid-cols-2">
@@ -166,7 +174,6 @@ const ClientDashboard = () => {
       default: // overview
         return (
           <div className="space-y-6">
-            {/* Profile Card */}
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-start gap-4">
@@ -198,7 +205,6 @@ const ClientDashboard = () => {
               </CardContent>
             </Card>
 
-            {/* Stat Cards */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <Card>
                 <CardContent className="pt-6">
@@ -247,7 +253,6 @@ const ClientDashboard = () => {
               </Card>
             </div>
 
-            {/* Role Upgrade */}
             <Card className="border-dashed cursor-pointer hover:border-primary transition-colors" onClick={() => navigate('/create-account')}>
               <CardContent className="pt-6 text-center">
                 <Building2 className="h-10 w-10 mx-auto mb-2 text-primary" />
@@ -262,7 +267,6 @@ const ClientDashboard = () => {
 
   return (
     <div className="flex gap-6">
-      {/* Sidebar */}
       <aside className="hidden lg:flex flex-col w-60 shrink-0">
         <div className="flex items-center gap-3 px-3 pb-6 border-b mb-4">
           <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
@@ -273,12 +277,10 @@ const ClientDashboard = () => {
             <p className="text-xs text-muted-foreground">Клиент</p>
           </div>
         </div>
-
         <div className="space-y-1">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Меню</p>
           {menuItems.map(item => <NavButton key={item.key} item={item} />)}
         </div>
-
         <div className="mt-auto pt-6 border-t">
           <div className="flex items-center gap-3 px-3">
             <Avatar className="h-8 w-8">
@@ -292,7 +294,6 @@ const ClientDashboard = () => {
         </div>
       </aside>
 
-      {/* Mobile nav */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t z-50 flex overflow-x-auto px-2 py-1">
         {menuItems.map(item => (
           <button
@@ -306,7 +307,6 @@ const ClientDashboard = () => {
         ))}
       </nav>
 
-      {/* Main Content */}
       <div className="flex-1 min-w-0 pb-20 lg:pb-0">
         {renderContent()}
       </div>
