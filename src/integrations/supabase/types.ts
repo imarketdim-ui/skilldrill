@@ -303,7 +303,9 @@ export type Database = {
           interior_photos: Json | null
           is_active: boolean
           last_payment_date: string | null
+          latitude: number | null
           legal_form: Database["public"]["Enums"]["legal_form"]
+          longitude: number | null
           moderation_comment: string | null
           moderation_status: string
           name: string
@@ -334,7 +336,9 @@ export type Database = {
           interior_photos?: Json | null
           is_active?: boolean
           last_payment_date?: string | null
+          latitude?: number | null
           legal_form: Database["public"]["Enums"]["legal_form"]
+          longitude?: number | null
           moderation_comment?: string | null
           moderation_status?: string
           name: string
@@ -365,7 +369,9 @@ export type Database = {
           interior_photos?: Json | null
           is_active?: boolean
           last_payment_date?: string | null
+          latitude?: number | null
           legal_form?: Database["public"]["Enums"]["legal_form"]
+          longitude?: number | null
           moderation_comment?: string | null
           moderation_status?: string
           name?: string
@@ -901,6 +907,8 @@ export type Database = {
           interior_photos: Json | null
           is_active: boolean
           last_payment_date: string | null
+          latitude: number | null
+          longitude: number | null
           max_monthly_bookings: number
           max_services: number
           moderation_comment: string | null
@@ -929,6 +937,8 @@ export type Database = {
           interior_photos?: Json | null
           is_active?: boolean
           last_payment_date?: string | null
+          latitude?: number | null
+          longitude?: number | null
           max_monthly_bookings?: number
           max_services?: number
           moderation_comment?: string | null
@@ -957,6 +967,8 @@ export type Database = {
           interior_photos?: Json | null
           is_active?: boolean
           last_payment_date?: string | null
+          latitude?: number | null
+          longitude?: number | null
           max_monthly_bookings?: number
           max_services?: number
           moderation_comment?: string | null
@@ -2659,6 +2671,101 @@ export type Database = {
           },
         ]
       }
+      user_scores: {
+        Row: {
+          account_age_days: number
+          activity_score: number
+          blacklist_by_count: number
+          cancel_under_1h: number
+          cancel_under_3h: number
+          completed_visits: number
+          created_at: string
+          disputes_lost: number
+          disputes_total: number
+          disputes_won: number
+          has_full_name: boolean
+          has_photo: boolean
+          id: string
+          last_calculated_at: string | null
+          no_show_count: number
+          profile_score: number
+          reputation_score: number
+          risk_score: number
+          status: string
+          top_partner_pct: number
+          total_cancellations: number
+          total_score: number
+          unique_partners: number
+          updated_at: string
+          user_id: string
+          vip_by_count: number
+        }
+        Insert: {
+          account_age_days?: number
+          activity_score?: number
+          blacklist_by_count?: number
+          cancel_under_1h?: number
+          cancel_under_3h?: number
+          completed_visits?: number
+          created_at?: string
+          disputes_lost?: number
+          disputes_total?: number
+          disputes_won?: number
+          has_full_name?: boolean
+          has_photo?: boolean
+          id?: string
+          last_calculated_at?: string | null
+          no_show_count?: number
+          profile_score?: number
+          reputation_score?: number
+          risk_score?: number
+          status?: string
+          top_partner_pct?: number
+          total_cancellations?: number
+          total_score?: number
+          unique_partners?: number
+          updated_at?: string
+          user_id: string
+          vip_by_count?: number
+        }
+        Update: {
+          account_age_days?: number
+          activity_score?: number
+          blacklist_by_count?: number
+          cancel_under_1h?: number
+          cancel_under_3h?: number
+          completed_visits?: number
+          created_at?: string
+          disputes_lost?: number
+          disputes_total?: number
+          disputes_won?: number
+          has_full_name?: boolean
+          has_photo?: boolean
+          id?: string
+          last_calculated_at?: string | null
+          no_show_count?: number
+          profile_score?: number
+          reputation_score?: number
+          risk_score?: number
+          status?: string
+          top_partner_pct?: number
+          total_cancellations?: number
+          total_score?: number
+          unique_partners?: number
+          updated_at?: string
+          user_id?: string
+          vip_by_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_scores_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -2671,6 +2778,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      calculate_user_score: { Args: { _user_id: string }; Returns: Json }
       generate_skillspot_id: { Args: never; Returns: string }
       get_user_org_role: {
         Args: { org_id: string; user_id: string }
