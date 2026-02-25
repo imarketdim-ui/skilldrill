@@ -12,8 +12,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertTriangle, CheckCircle, MapPin, FileText, Image, Hash,
-  Upload, X, Plus, Loader2, Camera, Award, Pencil, Eye, MessageSquare
+  Upload, X, Plus, Loader2, Camera, Award, Pencil, Eye
 } from 'lucide-react';
+import MapPicker from '@/components/marketplace/MapPicker';
+import TagDropdown from '@/components/marketplace/TagDropdown';
 
 interface ProfileCompletionCheckProps {
   entityType: 'master' | 'business' | 'network';
@@ -48,7 +50,6 @@ const ProfileCompletionCheck = ({ entityType, entityData, onProfileUpdated }: Pr
   const [addressValue, setAddressValue] = useState(entityData?.address || '');
   const [descriptionValue, setDescriptionValue] = useState(entityData?.description || '');
   const [newService, setNewService] = useState({ name: '', price: '', duration_minutes: '60' });
-  const [hashtagInput, setHashtagInput] = useState('');
   const [certificateComment, setCertificateComment] = useState('');
 
   useEffect(() => {
@@ -65,7 +66,7 @@ const ProfileCompletionCheck = ({ entityType, entityData, onProfileUpdated }: Pr
   }, [entityData]);
 
   const getCompletionItems = (): CompletionItem[] => {
-    const base: CompletionItem[] = [
+    return [
       { key: 'address', label: 'Адрес', required: true, completed: !!entityData?.address, icon: MapPin },
       { key: 'services', label: 'Услуги (мин. 1)', required: true, completed: services.length > 0, icon: FileText },
       { key: 'description', label: 'Описание', required: false, completed: !!entityData?.description, icon: FileText },
@@ -74,7 +75,6 @@ const ProfileCompletionCheck = ({ entityType, entityData, onProfileUpdated }: Pr
       { key: 'certificates', label: 'Сертификаты и референсы', required: false, completed: (entityData?.certificate_photos?.length || 0) > 0, icon: Award },
       { key: 'hashtags', label: 'Хэштеги', required: false, completed: (entityData?.hashtags?.length || 0) > 0, icon: Hash },
     ];
-    return base;
   };
 
   const items = getCompletionItems();
@@ -109,9 +109,19 @@ const ProfileCompletionCheck = ({ entityType, entityData, onProfileUpdated }: Pr
     setSaving(false);
   };
 
-  const handleSaveAddress = async () => {
-    await handleSaveField('address', addressValue);
-    setAddressDialogOpen(false);
+  const handleSaveAddressFromMap = async (address: string, lat: number, lng: number) => {
+    setSaving(true);
+    try {
+      const updates: any = { address, latitude: lat, longitude: lng };
+      const { error } = await supabase.from(getTable() as any).update(updates).eq(getIdField(), getIdValue());
+      if (error) throw error;
+      toast({ title: 'Адрес сохранён' });
+      onProfileUpdated();
+      setAddressDialogOpen(false);
+    } catch (err: any) {
+      toast({ title: 'Ошибка', description: err.message, variant: 'destructive' });
+    }
+    setSaving(false);
   };
 
   const handleSaveDescription = async () => {
@@ -190,16 +200,8 @@ const ProfileCompletionCheck = ({ entityType, entityData, onProfileUpdated }: Pr
     await handleSaveField(field, updated);
   };
 
-  const handleAddHashtags = async () => {
-    if (!hashtagInput.trim()) return;
-    const newTags = hashtagInput
-      .split(',')
-      .map(t => t.trim().replace(/^#/, ''))
-      .filter(t => t.length > 0);
-    const updated = [...(entityData?.hashtags || []), ...newTags];
-    await handleSaveField('hashtags', updated);
-    setHashtagInput('');
-    setHashtagDialogOpen(false);
+  const handleHashtagsChange = async (tags: string[]) => {
+    await handleSaveField('hashtags', tags);
   };
 
   const handleRemoveHashtag = async (tag: string) => {
@@ -231,12 +233,8 @@ const ProfileCompletionCheck = ({ entityType, entityData, onProfileUpdated }: Pr
               <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden border group">
                 <img src={url} alt="" className="w-full h-full object-cover cursor-pointer" onClick={() => setLightboxUrl(url)} />
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
-                  <button onClick={() => setLightboxUrl(url)} className="p-1 rounded bg-white/20">
-                    <Eye className="h-3 w-3 text-white" />
-                  </button>
-                  <button onClick={() => handleRemovePhoto(field, url)} className="p-1 rounded bg-destructive/80">
-                    <X className="h-3 w-3 text-white" />
-                  </button>
+                  <button onClick={() => setLightboxUrl(url)} className="p-1 rounded bg-white/20"><Eye className="h-3 w-3 text-white" /></button>
+                  <button onClick={() => handleRemovePhoto(field, url)} className="p-1 rounded bg-destructive/80"><X className="h-3 w-3 text-white" /></button>
                 </div>
               </div>
             ))}
@@ -252,7 +250,6 @@ const ProfileCompletionCheck = ({ entityType, entityData, onProfileUpdated }: Pr
 
   return (
     <>
-      {/* Lightbox */}
       {lightboxUrl && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setLightboxUrl(null)}>
           <img src={lightboxUrl} alt="" className="max-w-full max-h-full object-contain rounded-lg" />
@@ -288,7 +285,7 @@ const ProfileCompletionCheck = ({ entityType, entityData, onProfileUpdated }: Pr
         <CardContent className="space-y-4">
           <Progress value={progress} className="h-2" />
 
-          {/* 1. Address */}
+          {/* 1. Address — now with MapPicker */}
           <div className="p-4 rounded-lg border space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -301,14 +298,14 @@ const ProfileCompletionCheck = ({ entityType, entityData, onProfileUpdated }: Pr
                     {entityData?.address ? <><Pencil className="h-3 w-3 mr-1" /> Изменить</> : <><Plus className="h-3 w-3 mr-1" /> Добавить</>}
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader><DialogTitle>Адрес</DialogTitle></DialogHeader>
-                  <div className="space-y-3">
-                    <Input value={addressValue} onChange={e => setAddressValue(e.target.value)} placeholder="Введите адрес" />
-                    <Button className="w-full" onClick={handleSaveAddress} disabled={saving}>
-                      {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null} Сохранить
-                    </Button>
-                  </div>
+                <DialogContent className="max-w-2xl">
+                  <DialogHeader><DialogTitle>Выберите адрес на карте</DialogTitle></DialogHeader>
+                  <MapPicker
+                    latitude={entityData?.latitude || 53.7151}
+                    longitude={entityData?.longitude || 91.4292}
+                    address={entityData?.address || ''}
+                    onLocationChange={(lat, lng, address) => handleSaveAddressFromMap(address, lat, lng)}
+                  />
                 </DialogContent>
               </Dialog>
             </div>
@@ -422,30 +419,16 @@ const ProfileCompletionCheck = ({ entityType, entityData, onProfileUpdated }: Pr
             <PhotoGrid field="work_photos" bucket="portfolio" />
           </div>
 
-          {/* 6. Certificates & References */}
+          {/* 6. Certificates */}
           <div className="p-4 rounded-lg border space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 {(entityData?.certificate_photos?.length || 0) > 0 ? <CheckCircle className="h-5 w-5 text-primary" /> : <Award className="h-5 w-5 text-muted-foreground" />}
                 <span className="text-sm font-medium">Сертификаты и референсы</span>
               </div>
-              <Dialog open={certificateDialogOpen} onOpenChange={setCertificateDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="ghost" size="sm"><Plus className="h-3 w-3 mr-1" /> Добавить</Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader><DialogTitle>Добавить сертификат/референс</DialogTitle></DialogHeader>
-                  <div className="space-y-3">
-                    <div>
-                      <Label>Комментарий (необязательно)</Label>
-                      <Input value={certificateComment} onChange={e => setCertificateComment(e.target.value)} placeholder="Описание сертификата" />
-                    </div>
-                    <Button className="w-full" onClick={() => { handleUploadPhoto('certificates', 'certificate_photos'); setCertificateDialogOpen(false); }} disabled={uploading}>
-                      {uploading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Upload className="h-4 w-4 mr-1" />} Загрузить фото
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
+              <Button variant="ghost" size="sm" onClick={() => handleUploadPhoto('certificates', 'certificate_photos')} disabled={uploading}>
+                {uploading ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Plus className="h-3 w-3 mr-1" />} Добавить
+              </Button>
             </div>
             {(entityData?.certificate_photos?.length || 0) > 0 && (
               <div className="flex flex-wrap gap-2 mt-2 pl-7">
@@ -462,7 +445,7 @@ const ProfileCompletionCheck = ({ entityType, entityData, onProfileUpdated }: Pr
             )}
           </div>
 
-          {/* 7. Hashtags */}
+          {/* 7. Hashtags — now with TagDropdown */}
           <div className="p-4 rounded-lg border space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -477,37 +460,24 @@ const ProfileCompletionCheck = ({ entityType, entityData, onProfileUpdated }: Pr
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader><DialogTitle>Хэштеги</DialogTitle></DialogHeader>
-                  <div className="space-y-3">
-                    {(entityData?.hashtags || []).length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {(entityData.hashtags || []).map((tag: string) => (
-                          <Badge key={tag} variant="secondary" className="gap-1">
-                            #{tag}
-                            <button onClick={() => handleRemoveHashtag(tag)}><X className="h-3 w-3" /></button>
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                    <div>
-                      <Label>Введите теги через запятую</Label>
-                      <Input
-                        placeholder="маникюр, педикюр, гель-лак"
-                        value={hashtagInput}
-                        onChange={e => setHashtagInput(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddHashtags())}
-                      />
-                    </div>
-                    <Button className="w-full" onClick={handleAddHashtags} disabled={saving}>
-                      {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Plus className="h-4 w-4 mr-1" />} Добавить
-                    </Button>
-                  </div>
+                  <TagDropdown
+                    label="Хэштеги"
+                    tags={entityData?.hashtags || []}
+                    onTagsChange={handleHashtagsChange}
+                    presets={['маникюр', 'педикюр', 'стрижка', 'окрашивание', 'массаж', 'фитнес', 'йога', 'английский', 'детейлинг', 'мойка']}
+                    placeholder="Добавить тег..."
+                  />
+                  <Button className="w-full mt-2" onClick={() => setHashtagDialogOpen(false)}>Готово</Button>
                 </DialogContent>
               </Dialog>
             </div>
             {(entityData?.hashtags?.length || 0) > 0 && (
               <div className="flex flex-wrap gap-1.5 pl-7">
                 {(entityData.hashtags || []).map((tag: string) => (
-                  <Badge key={tag} variant="secondary" className="text-xs">#{tag}</Badge>
+                  <Badge key={tag} variant="secondary" className="text-xs gap-1">
+                    #{tag}
+                    <button onClick={() => handleRemoveHashtag(tag)}><X className="h-3 w-3" /></button>
+                  </Badge>
                 ))}
               </div>
             )}

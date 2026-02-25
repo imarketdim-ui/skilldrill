@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Loader2, Wrench, Building2, Globe, Info, CheckCircle } from 'lucide-react';
+import MapPicker from '@/components/marketplace/MapPicker';
 
 const legalForms = [
   { value: 'ip', label: 'ИП' },
@@ -350,7 +351,12 @@ const CreateBusinessAccount = () => {
                     </div>
                     <div className="space-y-2">
                       <Label>Адрес *</Label>
-                      <Input required value={form.business_address || ''} onChange={(e) => setForm({ ...form, business_address: e.target.value })} />
+                      <MapPicker
+                        latitude={53.7151}
+                        longitude={91.4292}
+                        address={form.business_address || ''}
+                        onLocationChange={(lat, lng, address) => setForm({ ...form, business_address: address, business_lat: lat, business_lng: lng })}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label>Описание</Label>
@@ -394,7 +400,12 @@ const CreateBusinessAccount = () => {
                     </div>
                     <div className="space-y-2">
                       <Label>Адрес *</Label>
-                      <Input required value={form.network_address || ''} onChange={(e) => setForm({ ...form, network_address: e.target.value })} />
+                      <MapPicker
+                        latitude={53.7151}
+                        longitude={91.4292}
+                        address={form.network_address || ''}
+                        onLocationChange={(lat, lng, address) => setForm({ ...form, network_address: address })}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label>Описание</Label>

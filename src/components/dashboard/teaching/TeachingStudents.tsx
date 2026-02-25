@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useToast } from '@/hooks/use-toast';
 import { Search, Ban, User, Calendar, TrendingUp, AlertTriangle, MoreVertical } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import UserScoreCard from '@/components/dashboard/UserScoreCard';
 
 interface StudentInfo {
   id: string; first_name: string | null; last_name: string | null;
@@ -176,6 +177,7 @@ const TeachingStudents = () => {
                   <Badge variant="secondary" className="font-mono mt-1">ID: {selectedStudent.skillspot_id}</Badge>
                 </div>
               </div>
+              <UserScoreCard userId={selectedStudent.id} viewMode="master" />
               <div className="grid grid-cols-3 gap-3">
                 <Card><CardContent className="pt-4 text-center"><Calendar className="h-5 w-5 mx-auto mb-1 text-primary" /><p className="text-xl font-bold">{selectedStudent.completedLessons}</p><p className="text-xs text-muted-foreground">Посещено</p></CardContent></Card>
                 <Card><CardContent className="pt-4 text-center"><Ban className="h-5 w-5 mx-auto mb-1 text-destructive" /><p className="text-xl font-bold">{selectedStudent.noShows}</p><p className="text-xs text-muted-foreground">Пропуски</p></CardContent></Card>

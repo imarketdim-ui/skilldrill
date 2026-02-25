@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Search, User, Ban, TrendingUp } from 'lucide-react';
 import { CategoryConfig } from './categoryConfig';
+import UserScoreCard from '@/components/dashboard/UserScoreCard';
 
 interface ClientInfo {
   id: string; first_name: string | null; last_name: string | null;
@@ -121,6 +122,7 @@ const UniversalClients = ({ config }: Props) => {
                   <Badge variant="secondary" className="font-mono mt-1">ID: {selectedClient.skillspot_id}</Badge>
                 </div>
               </div>
+              <UserScoreCard userId={selectedClient.id} viewMode="master" />
               <div className="grid grid-cols-3 gap-3">
                 <Card><CardContent className="pt-4 text-center"><IconComponent className="h-5 w-5 mx-auto mb-1 text-primary" /><p className="text-xl font-bold">{selectedClient.completedSessions}</p><p className="text-xs text-muted-foreground">Завершено</p></CardContent></Card>
                 <Card><CardContent className="pt-4 text-center"><Ban className="h-5 w-5 mx-auto mb-1 text-destructive" /><p className="text-xl font-bold">{selectedClient.noShows}</p><p className="text-xs text-muted-foreground">Пропуски</p></CardContent></Card>
