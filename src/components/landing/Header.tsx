@@ -7,8 +7,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const navLinks = [
   { label: "Каталог", href: "/catalog" },
-  { label: "О нас", href: "/about" },
-  { label: "Партнёрам", href: "/for-business" },
+  { label: "О платформе", href: "/about" },
+  { label: "Для бизнеса", href: "/for-business" },
+  { label: "Тарифы", href: "/subscription" },
+  { label: "Контакты", href: "/contacts" },
 ];
 
 const Header = () => {
@@ -51,7 +53,7 @@ const Header = () => {
             ) : (
               <>
                 <Button variant="ghost" onClick={() => navigate('/auth')}>Войти</Button>
-                <Button onClick={() => navigate('/create-account')}>Разместить услугу</Button>
+                <Button onClick={() => navigate('/auth?tab=signup')}>Начать бесплатно</Button>
               </>
             )}
           </div>
@@ -78,7 +80,7 @@ const Header = () => {
               ) : (
                 <>
                   <Button variant="ghost" className="w-full" onClick={() => { setIsMenuOpen(false); navigate('/auth'); }}>Войти</Button>
-                  <Button className="w-full" onClick={() => { setIsMenuOpen(false); navigate('/create-account'); }}>Разместить услугу</Button>
+                  <Button className="w-full" onClick={() => { setIsMenuOpen(false); navigate('/auth?tab=signup'); }}>Начать бесплатно</Button>
                 </>
               )}
             </div>

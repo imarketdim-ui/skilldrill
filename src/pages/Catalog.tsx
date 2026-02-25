@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Star, MapPin, Users, ExternalLink, Search, ArrowLeft, Clock, SlidersHorizontal } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Star, MapPin, Users, ExternalLink, Search, ArrowLeft, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -34,8 +35,7 @@ const Catalog = () => {
       <main className="pt-24 pb-16">
         <div className="container-wide">
           <div className="text-center mb-12">
-            <p className="text-primary text-sm font-semibold uppercase tracking-wider mb-3">Каталог</p>
-            <h1 className="text-4xl font-display font-bold mb-4">Каталог услуг</h1>
+            <h1 className="text-4xl font-bold mb-4">Каталог услуг</h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               Найдите нужную услугу среди мастеров и организаций Абакана
             </p>
@@ -44,21 +44,21 @@ const Catalog = () => {
           <div className="max-w-md mx-auto mb-12">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input placeholder="Поиск по категориям..." className="pl-10 h-12 text-lg rounded-xl" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <Input placeholder="Поиск по категориям..." className="pl-10 h-12 text-lg" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
           </div>
 
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             {filtered.map(([id, cat]) => {
               const masters = getMastersByCategory(id);
               const businesses = getBusinessesByCategory(id);
               return (
-                <Card key={id} className="cursor-pointer group hover:shadow-md transition-shadow rounded-2xl" onClick={() => navigate(`/catalog/${id}`)}>
+                <Card key={id} className="cursor-pointer group hover:shadow-lg transition-all" onClick={() => navigate(`/catalog/${id}`)}>
                   <CardContent className="pt-8 pb-6 text-center">
-                    <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/15 transition-colors">
+                    <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/20 transition-colors">
                       <Users className="h-8 w-8 text-primary" />
                     </div>
-                    <h3 className="text-xl font-display font-semibold mb-2">{cat.name}</h3>
+                    <h3 className="text-xl font-semibold mb-2">{cat.name}</h3>
                     <p className="text-sm text-muted-foreground">{masters.length} мастеров · {businesses.length} организаций</p>
                     <Badge variant="secondary" className="mt-3">Смотреть</Badge>
                   </CardContent>
@@ -79,6 +79,7 @@ const CategoryPage = ({ categoryId }: { categoryId: string }) => {
   const cat = categoryMap[categoryId];
   const masters = getMastersByCategory(categoryId);
   const businesses = getBusinessesByCategory(categoryId);
+  const independent = getIndependentMasters(categoryId);
 
   const filteredMasters = masters.filter(m => m.name.toLowerCase().includes(search.toLowerCase()) || m.services.some(s => s.name.toLowerCase().includes(search.toLowerCase())));
   const filteredBusinesses = businesses.filter(b => b.name.toLowerCase().includes(search.toLowerCase()));
@@ -93,21 +94,16 @@ const CategoryPage = ({ categoryId }: { categoryId: string }) => {
           <Button variant="ghost" onClick={() => navigate('/catalog')} className="mb-4">
             <ArrowLeft className="h-4 w-4 mr-2" /> Все категории
           </Button>
-          
           <div className="mb-8">
-            <h1 className="text-3xl font-display font-bold mb-2">{cat.name}</h1>
+            <h1 className="text-3xl font-bold mb-2">{cat.name}</h1>
             <p className="text-muted-foreground">{masters.length} мастеров · {businesses.length} организаций · Абакан</p>
           </div>
 
-          {/* Search + Filters row */}
-          <div className="flex flex-col sm:flex-row gap-3 mb-8">
-            <div className="relative flex-1 max-w-md">
+          <div className="max-w-md mb-8">
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input placeholder="Поиск мастера или услуги..." className="pl-10 rounded-xl" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <Input placeholder="Поиск мастера или услуги..." className="pl-10" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
-            <Button variant="outline" className="gap-2 shrink-0">
-              <SlidersHorizontal className="h-4 w-4" /> Фильтры
-            </Button>
           </div>
 
           <Tabs defaultValue="masters">
@@ -140,7 +136,9 @@ const CategoryPage = ({ categoryId }: { categoryId: string }) => {
 };
 
 const MasterCard = ({ master, onClick }: { master: MockMaster; onClick: () => void }) => (
-  <div
+  <motion.div
+    initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+    whileHover={{ y: -4 }} transition={{ duration: 0.3 }}
     className="bg-card rounded-2xl overflow-hidden border border-border shadow-sm hover:shadow-md transition-shadow cursor-pointer"
     onClick={onClick}
   >
@@ -148,7 +146,7 @@ const MasterCard = ({ master, onClick }: { master: MockMaster; onClick: () => vo
       <div className="flex items-center gap-4 mb-4">
         <img src={master.avatar} alt={master.name} className="w-16 h-16 rounded-full object-cover" />
         <div>
-          <h3 className="font-display font-semibold text-foreground">{master.name}</h3>
+          <h3 className="font-semibold text-foreground">{master.name}</h3>
           <div className="flex items-center gap-1 mt-1">
             <Star className="w-4 h-4 text-primary fill-primary" />
             <span className="text-sm font-medium">{master.rating.toFixed(1)}</span>
@@ -170,24 +168,24 @@ const MasterCard = ({ master, onClick }: { master: MockMaster; onClick: () => vo
       </div>
       <Button size="sm" className="w-full mt-4">Записаться</Button>
     </div>
-  </div>
+  </motion.div>
 );
 
 const BusinessCardItem = ({ business, onClick }: { business: MockBusiness; onClick: () => void }) => (
-  <div
+  <motion.div
+    initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+    whileHover={{ y: -4 }} transition={{ duration: 0.3 }}
     className="bg-card rounded-2xl overflow-hidden border border-border shadow-sm hover:shadow-md transition-shadow cursor-pointer"
     onClick={onClick}
   >
     <div className="relative h-40 overflow-hidden">
       <img src={business.image} alt={business.name} className="w-full h-full object-cover" />
-      <div className="absolute bottom-3 left-4">
-        <span className="px-2 py-1 rounded-lg bg-card text-foreground text-xs font-medium shadow-sm">{business.categoryName}</span>
-      </div>
+      <div className="absolute bottom-3 left-4"><span className="px-2 py-1 rounded-lg bg-card text-foreground text-xs font-medium shadow-sm">{business.categoryName}</span></div>
     </div>
     <div className="p-5">
-      <h3 className="text-lg font-display font-semibold mb-2">{business.name}</h3>
+      <h3 className="text-lg font-semibold mb-2">{business.name}</h3>
       <div className="flex items-center gap-2 mb-2">
-        <Star className="w-4 h-4 text-primary fill-primary" />
+        <Star className="w-4 h-4 text-amber fill-amber" />
         <span className="text-sm font-medium">{business.rating.toFixed(1)}</span>
         <span className="text-sm text-muted-foreground">({business.reviewCount} отзывов)</span>
       </div>
@@ -201,7 +199,7 @@ const BusinessCardItem = ({ business, onClick }: { business: MockBusiness; onCli
       <p className="text-sm text-muted-foreground line-clamp-2 mb-4">{business.description}</p>
       <Button variant="outline" className="w-full">Смотреть услуги <ExternalLink className="w-4 h-4 ml-1" /></Button>
     </div>
-  </div>
+  </motion.div>
 );
 
 export default Catalog;

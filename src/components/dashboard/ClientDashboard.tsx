@@ -170,12 +170,7 @@ const ClientDashboard = () => {
       default:
         return (
           <div className="space-y-6">
-            {/* Welcome + Profile Card — Ledidi-inspired */}
-            <div>
-              <h1 className="text-2xl font-display font-bold mb-1">Добро пожаловать! 👋</h1>
-              <p className="text-muted-foreground">Ваш личный кабинет клиента</p>
-            </div>
-
+            {/* Profile Card */}
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-start gap-4">
@@ -184,7 +179,7 @@ const ClientDashboard = () => {
                     <AvatarFallback className="text-lg bg-primary/10 text-primary font-display">{getInitials()}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between flex-wrap gap-2">
+                    <div className="flex items-start justify-between">
                       <div>
                         <h3 className="text-xl font-display font-semibold">
                           {profile?.first_name && profile?.last_name
@@ -207,9 +202,9 @@ const ClientDashboard = () => {
               </CardContent>
             </Card>
 
-            {/* Stat Cards — Ledidi-inspired colored accents */}
+            {/* Stat Cards */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <Card className="border-l-4 border-l-primary">
+              <Card>
                 <CardContent className="pt-6">
                   <div className="flex items-start justify-between">
                     <div>
@@ -275,9 +270,9 @@ const ClientDashboard = () => {
 
   return (
     <div className="flex gap-6">
-      {/* Sidebar — Ledidi-inspired */}
+      {/* Sidebar */}
       <aside className="hidden lg:flex flex-col w-60 shrink-0">
-        <div className="flex items-center gap-3 px-3 pb-5 border-b border-border mb-4">
+        <div className="flex items-center gap-3 px-3 pb-5 border-b border-border/50 mb-4">
           <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
             <Users className="h-5 w-5 text-primary" />
           </div>
@@ -292,7 +287,7 @@ const ClientDashboard = () => {
           {menuItems.map(item => <NavButton key={item.key} item={item} />)}
         </div>
 
-        <div className="mt-auto pt-5 border-t border-border">
+        <div className="mt-auto pt-5 border-t border-border/50">
           <div className="flex items-center gap-3 px-3">
             <Avatar className="h-8 w-8">
               <AvatarFallback className="text-xs bg-primary/10 text-primary">{getInitials()}</AvatarFallback>
@@ -306,7 +301,7 @@ const ClientDashboard = () => {
       </aside>
 
       {/* Mobile nav */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50 flex overflow-x-auto px-2 py-1">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border/50 z-50 flex overflow-x-auto px-2 py-1">
         {menuItems.map(item => (
           <button
             key={item.key}
