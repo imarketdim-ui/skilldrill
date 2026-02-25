@@ -41,7 +41,6 @@ const App = () => (
             <Route path="/request-role" element={<RequestRole />} />
             <Route path="/create-account" element={<CreateBusinessAccount />} />
             <Route path="/catalog" element={<Catalog />} />
-            <Route path="/catalog/:categoryId" element={<Catalog />} />
             <Route path="/master/:masterId" element={<MasterDetail />} />
             <Route path="/business/:businessId" element={<BusinessDetail />} />
             <Route path="/subscription" element={<Subscription />} />
