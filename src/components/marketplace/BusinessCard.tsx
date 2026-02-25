@@ -30,7 +30,7 @@ const BusinessCard = ({
       viewport={{ once: true }}
       whileHover={{ y: -4 }}
       transition={{ duration: 0.3 }}
-      className="bg-card rounded-2xl overflow-hidden border border-border shadow-sm hover:shadow-md transition-shadow duration-300"
+      className="bg-card rounded-2xl overflow-hidden border border-border/50 shadow-md hover:shadow-xl transition-all duration-300"
     >
       {/* Image */}
       <div className="relative h-40 overflow-hidden">
@@ -39,8 +39,9 @@ const BusinessCard = ({
           alt={name}
           className="w-full h-full object-cover"
         />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
         <div className="absolute bottom-3 left-4 right-4">
-          <span className="inline-block px-2 py-1 rounded-lg bg-card text-foreground text-xs font-medium shadow-sm">
+          <span className="inline-block px-2 py-1 rounded-md bg-white/20 backdrop-blur-sm text-white text-xs font-medium">
             {category}
           </span>
         </div>

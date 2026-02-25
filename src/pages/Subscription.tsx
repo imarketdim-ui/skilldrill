@@ -9,22 +9,58 @@ import Footer from '@/components/landing/Footer';
 
 const plans = [
   {
-    name: 'Мастер', price: '900', period: 'мес', icon: Crown,
+    name: 'Мастер',
+    price: '900',
+    period: 'мес',
+    icon: Crown,
     description: 'Для самозанятых специалистов',
-    features: ['До 10 услуг', 'До 100 записей/мес', 'Персональное расписание', 'Клиентская база', 'Промоакции и скидки', 'Дашборд с аналитикой'],
-    cta: 'Стать мастером', link: '/request-role?type=master',
+    features: [
+      'До 10 услуг',
+      'До 100 записей/мес',
+      'Персональное расписание',
+      'Клиентская база',
+      'Промоакции и скидки',
+      'Дашборд с аналитикой',
+    ],
+    cta: 'Стать мастером',
+    link: '/request-role?type=master',
   },
   {
-    name: 'Бизнес', price: 'от 2 500', period: 'мес', icon: Building2,
-    description: 'Для организаций с одной точкой', popular: true,
-    features: ['До 5 мастеров бесплатно', '+500 ₽/мес за доп. мастера', 'CRM + ERP (бета)', 'Общее расписание', 'Финансовый учёт', 'Менеджеры', 'Фото интерьера/экстерьера'],
-    cta: 'Создать бизнес', link: '/request-role?type=business',
+    name: 'Бизнес',
+    price: 'от 2 500',
+    period: 'мес',
+    icon: Building2,
+    description: 'Для организаций с одной точкой',
+    popular: true,
+    features: [
+      'До 5 мастеров бесплатно',
+      '+500 ₽/мес за доп. мастера',
+      'CRM + ERP (бета)',
+      'Общее расписание',
+      'Финансовый учёт',
+      'Менеджеры',
+      'Фото интерьера/экстерьера',
+    ],
+    cta: 'Создать бизнес',
+    link: '/request-role?type=business',
   },
   {
-    name: 'Сеть', price: 'от 4 500', period: 'мес', icon: Globe,
+    name: 'Сеть',
+    price: 'от 4 500',
+    period: 'мес',
+    icon: Globe,
     description: 'Для сетей с несколькими точками',
-    features: ['До 3 точек бесплатно', '+1 000 ₽/мес за доп. точку', '+500 ₽/мес за доп. мастера', 'Общий дашборд по точкам', 'Централизованная CRM', 'Система лояльности', 'Менеджеры для каждой точки'],
-    cta: 'Создать сеть', link: '/request-role?type=network',
+    features: [
+      'До 3 точек бесплатно',
+      '+1 000 ₽/мес за доп. точку',
+      '+500 ₽/мес за доп. мастера',
+      'Общий дашборд по точкам',
+      'Централизованная CRM',
+      'Система лояльности',
+      'Менеджеры для каждой точки',
+    ],
+    cta: 'Создать сеть',
+    link: '/request-role?type=network',
   },
 ];
 
@@ -35,13 +71,12 @@ const Subscription = () => {
   return (
     <div className="min-h-screen">
       <Header />
-      <main className="pt-20 pb-16">
+      <main className="pt-24 pb-16">
         <div className="container-wide">
-          <div className="text-center mb-12 pt-8">
-            <p className="text-primary text-sm font-semibold uppercase tracking-wider mb-4">Тарифы</p>
-            <h1 className="text-4xl font-display font-bold mb-4">Выберите подходящий план</h1>
+          <div className="text-center mb-12">
+            <h1 className="text-4xl font-bold mb-4">Тарифы</h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Прозрачное ценообразование для вашего бизнеса
+              Выберите подходящий план для вашего бизнеса
             </p>
           </div>
 
@@ -49,7 +84,7 @@ const Subscription = () => {
             {plans.map((plan) => {
               const Icon = plan.icon;
               return (
-                <Card key={plan.name} className={`relative ${plan.popular ? 'border-primary shadow-md scale-105' : ''}`}>
+                <Card key={plan.name} className={`relative ${plan.popular ? 'border-primary shadow-lg scale-105' : ''}`}>
                   {plan.popular && (
                     <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground">
                       Популярный
@@ -59,12 +94,12 @@ const Subscription = () => {
                     <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
                       <Icon className="h-6 w-6 text-primary" />
                     </div>
-                    <CardTitle className="text-xl font-display">{plan.name}</CardTitle>
+                    <CardTitle className="text-xl">{plan.name}</CardTitle>
                     <CardDescription>{plan.description}</CardDescription>
                   </CardHeader>
                   <CardContent className="text-center">
                     <div className="mb-6">
-                      <span className="text-4xl font-display font-bold">{plan.price}</span>
+                      <span className="text-4xl font-bold">{plan.price}</span>
                       <span className="text-muted-foreground"> ₽/{plan.period}</span>
                     </div>
                     <ul className="space-y-3 text-left mb-6">

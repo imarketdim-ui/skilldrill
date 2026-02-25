@@ -34,7 +34,7 @@ const ServiceCard = ({
       viewport={{ once: true }}
       whileHover={{ y: -4 }}
       transition={{ duration: 0.3 }}
-      className="bg-card rounded-2xl overflow-hidden border border-border shadow-sm hover:shadow-md transition-shadow duration-300"
+      className="bg-card rounded-2xl overflow-hidden border border-border/50 shadow-md hover:shadow-xl transition-all duration-300"
     >
       {/* Image */}
       <div className="relative h-48 overflow-hidden">
@@ -43,7 +43,7 @@ const ServiceCard = ({
           alt={title}
           className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
         />
-        <div className="absolute top-3 right-3 px-3 py-1 rounded-full bg-card flex items-center gap-1 shadow-sm">
+        <div className="absolute top-3 right-3 px-3 py-1 rounded-full bg-card/90 backdrop-blur-sm flex items-center gap-1">
           <Star className="w-4 h-4 text-amber fill-amber" />
           <span className="text-sm font-medium text-foreground">{rating.toFixed(1)}</span>
           <span className="text-xs text-muted-foreground">({reviewCount})</span>
@@ -94,7 +94,7 @@ const ServiceCard = ({
               {price.toLocaleString()} ₽
             </p>
           </div>
-          <Button size="sm">
+          <Button variant="hero" size="sm">
             Записаться
           </Button>
         </div>
