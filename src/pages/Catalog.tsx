@@ -130,8 +130,7 @@ const Catalog = () => {
         .select(`
           id, user_id, description, address, category_id, hashtags, latitude, longitude, is_active,
           profiles!master_profiles_user_id_fkey(first_name, last_name, avatar_url, bio),
-          service_categories!master_profiles_category_id_fkey(name),
-          services(price)
+          service_categories!master_profiles_category_id_fkey(name)
         `)
         .eq("is_active", true)
         .eq("moderation_status", "approved");
@@ -142,16 +141,31 @@ const Catalog = () => {
 
       const { data } = await query.limit(100);
 
+      // Fetch services for all masters in parallel
+      const userIds = (data || []).map((mp: any) => mp.user_id);
+      let servicesMap: Record<string, number[]> = {};
+      if (userIds.length > 0) {
+        const { data: svcData } = await supabase
+          .from("services")
+          .select("master_id, price")
+          .in("master_id", userIds)
+          .eq("is_active", true);
+        (svcData || []).forEach((s: any) => {
+          if (!servicesMap[s.master_id]) servicesMap[s.master_id] = [];
+          if (s.price > 0) servicesMap[s.master_id].push(s.price);
+        });
+      }
+
       const mapped: MasterItem[] = (data || []).map((mp: any) => {
         const profile = mp.profiles;
-        const prices = (mp.services || []).map((s: any) => s.price).filter((p: any) => p > 0);
+        const prices = servicesMap[mp.user_id] || [];
         return {
           id: mp.id,
           user_id: mp.user_id,
           name: [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "Мастер",
           avatar_url: profile?.avatar_url,
           bio: mp.description || profile?.bio,
-          rating: null, // TODO: compute from ratings
+          rating: null,
           review_count: 0,
           location: mp.address || "Абакан",
           category_id: mp.category_id,

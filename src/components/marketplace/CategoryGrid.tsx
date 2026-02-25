@@ -38,7 +38,7 @@ const CategoryGrid = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
               whileHover={{ y: -2 }}
-              onClick={() => navigate(`/catalog/${category.id}`)}
+              onClick={() => navigate(`/catalog?category=${category.id}`)}
               className="flex flex-col items-center gap-2 min-w-[80px] p-4 rounded-xl hover:bg-surface transition-colors cursor-pointer"
             >
               <div className={`w-14 h-14 rounded-xl ${category.color} flex items-center justify-center`}>

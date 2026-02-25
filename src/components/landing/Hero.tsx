@@ -91,7 +91,7 @@ const Hero = () => {
             {quickCategories.map((cat) => (
               <button
                 key={cat.id}
-                onClick={() => navigate(`/catalog/${cat.id}`)}
+                onClick={() => navigate(`/catalog?category=${cat.id}`)}
                 className="flex items-center gap-2 px-4 py-2 rounded-full border border-border/50 bg-card hover:bg-surface hover:border-primary/30 transition-all text-sm text-muted-foreground hover:text-foreground"
               >
                 <cat.icon className="w-4 h-4" />
