@@ -30,7 +30,7 @@ interface MasterData {
   certificate_photos: string[] | null;
   category_id: string | null;
   profiles: { first_name: string | null; last_name: string | null; avatar_url: string | null; email: string | null } | null;
-  service_categories: { name: string; slug: string } | null;
+  service_categories: { name: string } | null;
 }
 
 const MasterDetail = () => {
@@ -55,7 +55,7 @@ const MasterDetail = () => {
       setLoading(true);
       const { data: mp } = await supabase
         .from('master_profiles')
-        .select('*, profiles!master_profiles_user_id_fkey(first_name, last_name, avatar_url, email), service_categories(name, slug)')
+        .select('*, profiles!master_profiles_user_id_fkey(first_name, last_name, avatar_url, email), service_categories(name)')
         .eq('id', masterId)
         .maybeSingle();
 
@@ -63,7 +63,7 @@ const MasterDetail = () => {
         // Try by user_id
         const { data: mp2 } = await supabase
           .from('master_profiles')
-          .select('*, profiles!master_profiles_user_id_fkey(first_name, last_name, avatar_url, email), service_categories(name, slug)')
+          .select('*, profiles!master_profiles_user_id_fkey(first_name, last_name, avatar_url, email), service_categories(name)')
           .eq('user_id', masterId)
           .maybeSingle();
         setMaster(mp2 as any);

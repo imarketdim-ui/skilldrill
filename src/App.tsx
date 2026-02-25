@@ -21,6 +21,7 @@ import BusinessDetail from "./pages/BusinessDetail";
 import Subscription from "./pages/Subscription";
 import About from "./pages/About";
 import ForBusiness from "./pages/ForBusiness";
+import CreateOrganization from "./pages/CreateOrganization";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -46,6 +47,7 @@ const App = () => (
             <Route path="/subscription" element={<Subscription />} />
             <Route path="/about" element={<About />} />
             <Route path="/for-business" element={<ForBusiness />} />
+            <Route path="/create-organization" element={<CreateOrganization />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/offer" element={<Offer />} />
