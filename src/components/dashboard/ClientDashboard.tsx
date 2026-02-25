@@ -13,11 +13,13 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import UserScoreCard from '@/components/dashboard/UserScoreCard';
+import TeachingChats from '@/components/dashboard/teaching/TeachingChats';
 
 const menuItems = [
   { key: 'overview', label: 'Обзор', icon: LayoutDashboard },
   { key: 'bookings', label: 'Мои записи', icon: Calendar },
   { key: 'favorites', label: 'Избранное', icon: Heart },
+  { key: 'chats', label: 'Чаты', icon: MessageSquare },
   { key: 'stats', label: 'Статистика', icon: BarChart3 },
   { key: 'wallet', label: 'Баланс', icon: Wallet },
   { key: 'requests', label: 'Запросы', icon: Shield },
@@ -121,6 +123,9 @@ const ClientDashboard = () => {
             </CardContent>
           </Card>
         );
+
+      case 'chats':
+        return <TeachingChats />;
 
       case 'stats':
         return (
