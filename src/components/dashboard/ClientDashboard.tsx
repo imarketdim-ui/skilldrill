@@ -7,23 +7,18 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
-  Search, Heart, Calendar, Wallet, MessageSquare,
+  Search, Heart, Calendar, Wallet, Users, MessageSquare,
   Copy, Check, Gift, ArrowUpRight, Building2, Shield, Loader2,
-  LayoutDashboard, Star, Settings, Users
+  LayoutDashboard, Star, Settings
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-const sidebarMenu = [
-  { key: 'overview', label: 'Главная', icon: LayoutDashboard },
+const menuItems = [
+  { key: 'overview', label: 'Обзор', icon: LayoutDashboard },
   { key: 'bookings', label: 'Мои записи', icon: Calendar },
   { key: 'favorites', label: 'Избранное', icon: Heart },
-  { key: 'messages', label: 'Сообщения', icon: MessageSquare },
   { key: 'wallet', label: 'Баланс', icon: Wallet },
-];
-
-const sidebarManage = [
   { key: 'requests', label: 'Запросы', icon: Shield },
-  { key: 'settings', label: 'Настройки', icon: Settings, route: '/settings' },
 ];
 
 const ClientDashboard = () => {
@@ -79,26 +74,18 @@ const ClientDashboard = () => {
   const getInitials = () =>
     `${(profile?.first_name || '')[0] || ''}${(profile?.last_name || '')[0] || ''}`.toUpperCase() || '?';
 
-  const handleNavClick = (item: { key: string; route?: string }) => {
-    if (item.route) {
-      navigate(item.route);
-    } else {
-      setActiveSection(item.key);
-    }
-  };
-
-  const NavItem = ({ item }: { item: { key: string; label: string; icon: any; route?: string } }) => {
-    const isActive = !item.route && activeSection === item.key;
+  const NavButton = ({ item }: { item: { key: string; label: string; icon: any } }) => {
+    const isActive = activeSection === item.key;
     return (
       <button
-        onClick={() => handleNavClick(item)}
-        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
           isActive
-            ? 'bg-primary text-primary-foreground font-medium'
+            ? 'bg-primary/10 text-primary'
             : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
         }`}
+        onClick={() => setActiveSection(item.key)}
       >
-        <item.icon className="h-4 w-4 shrink-0" />
+        <item.icon className="h-4 w-4" />
         <span>{item.label}</span>
       </button>
     );
@@ -108,209 +95,179 @@ const ClientDashboard = () => {
     switch (activeSection) {
       case 'bookings':
         return (
-          <div>
-            <h2 className="text-xl font-display font-bold mb-1">Мои записи</h2>
-            <p className="text-sm text-muted-foreground mb-6">История ваших записей на услуги</p>
-            <Card>
-              <CardContent className="py-16 text-center">
-                <Calendar className="h-12 w-12 mx-auto mb-4 text-muted-foreground/30" />
-                <p className="text-muted-foreground mb-4">У вас пока нет записей</p>
-                <Button onClick={() => navigate('/catalog')}>Найти услугу</Button>
-              </CardContent>
-            </Card>
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-display">Мои записи</CardTitle>
+              <CardDescription>История записей на услуги</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-12 text-muted-foreground">
+                <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>У вас пока нет записей</p>
+                <Button className="mt-4" onClick={() => navigate('/')}>Найти услугу</Button>
+              </div>
+            </CardContent>
+          </Card>
         );
 
       case 'favorites':
         return (
-          <div>
-            <h2 className="text-xl font-display font-bold mb-1">Избранное</h2>
-            <p className="text-sm text-muted-foreground mb-6">Сохранённые мастера и организации</p>
-            <Card>
-              <CardContent className="py-16 text-center">
-                <Heart className="h-12 w-12 mx-auto mb-4 text-muted-foreground/30" />
-                <p className="text-muted-foreground">Вы ещё ничего не добавили в избранное</p>
-              </CardContent>
-            </Card>
-          </div>
-        );
-
-      case 'messages':
-        return (
-          <div>
-            <h2 className="text-xl font-display font-bold mb-1">Сообщения</h2>
-            <p className="text-sm text-muted-foreground mb-6">Переписка с мастерами и организациями</p>
-            <Card>
-              <CardContent className="py-16 text-center">
-                <MessageSquare className="h-12 w-12 mx-auto mb-4 text-muted-foreground/30" />
-                <p className="text-muted-foreground">Нет сообщений</p>
-              </CardContent>
-            </Card>
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-display">Избранное</CardTitle>
+              <CardDescription>Организации, мастера и услуги</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-12 text-muted-foreground">
+                <Heart className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>Вы ещё ничего не добавили в избранное</p>
+              </div>
+            </CardContent>
+          </Card>
         );
 
       case 'wallet':
         return (
-          <div>
-            <h2 className="text-xl font-display font-bold mb-1">Баланс</h2>
-            <p className="text-sm text-muted-foreground mb-6">Управление финансами</p>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Card>
-                <CardContent className="pt-6">
-                  <p className="text-sm text-muted-foreground mb-1">Основной баланс</p>
-                  <p className="text-3xl font-display font-bold mb-4">{Number(balance.main_balance).toFixed(0)} ₽</p>
-                  <div className="space-y-2">
-                    <Button className="w-full" size="sm">Пополнить</Button>
-                    <Button variant="outline" className="w-full" size="sm">Вывести</Button>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6">
-                  <p className="text-sm text-muted-foreground mb-1">Реферальный баланс</p>
-                  <p className="text-3xl font-display font-bold mb-4">{Number(balance.referral_balance).toFixed(0)} ₽</p>
-                  <Button variant="outline" className="w-full" size="sm">
-                    <ArrowUpRight className="h-4 w-4 mr-1" /> Перевести на основной
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader><CardTitle className="font-display">Основной баланс</CardTitle></CardHeader>
+              <CardContent>
+                <p className="text-3xl font-display font-bold mb-4">{Number(balance.main_balance).toFixed(0)} ₽</p>
+                <div className="space-y-2">
+                  <Button className="w-full">Пополнить баланс</Button>
+                  <Button variant="outline" className="w-full">Вывести на карту</Button>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle className="font-display">Реферальный баланс</CardTitle></CardHeader>
+              <CardContent>
+                <p className="text-3xl font-display font-bold mb-4">{Number(balance.referral_balance).toFixed(0)} ₽</p>
+                <Button variant="outline" className="w-full">
+                  <ArrowUpRight className="h-4 w-4 mr-2" /> Перевести на основной
+                </Button>
+              </CardContent>
+            </Card>
           </div>
         );
 
       case 'requests':
         return (
-          <div>
-            <h2 className="text-xl font-display font-bold mb-1">Мои запросы</h2>
-            <p className="text-sm text-muted-foreground mb-6">Запросы на изменение ролей</p>
-            <Card>
-              <CardContent className="py-16 text-center">
-                <Shield className="h-12 w-12 mx-auto mb-4 text-muted-foreground/30" />
-                <p className="text-muted-foreground">Нет активных запросов</p>
-              </CardContent>
-            </Card>
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-display">Мои запросы</CardTitle>
+              <CardDescription>Запросы на изменение ролей</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-12 text-muted-foreground">
+                <Shield className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>Нет активных запросов</p>
+              </div>
+            </CardContent>
+          </Card>
         );
 
       default:
         return (
           <div className="space-y-6">
+            {/* Welcome + Profile Card — Ledidi-inspired */}
             <div>
-              <h2 className="text-xl font-display font-bold mb-1">
-                Добро пожаловать{profile?.first_name ? `, ${profile.first_name}` : ''}! 👋
-              </h2>
-              <p className="text-sm text-muted-foreground">Ваш личный кабинет</p>
+              <h1 className="text-2xl font-display font-bold mb-1">Добро пожаловать! 👋</h1>
+              <p className="text-muted-foreground">Ваш личный кабинет клиента</p>
             </div>
 
-            {/* Quick stats */}
-            <div className="grid gap-4 sm:grid-cols-3">
-              <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveSection('wallet')}>
-                <CardContent className="pt-5 pb-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm text-muted-foreground">Баланс</p>
-                    <Wallet className="h-4 w-4 text-primary" />
-                  </div>
-                  <p className="text-2xl font-display font-bold">{Number(balance.main_balance).toFixed(0)} ₽</p>
-                </CardContent>
-              </Card>
-              <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveSection('bookings')}>
-                <CardContent className="pt-5 pb-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm text-muted-foreground">Записи</p>
-                    <Calendar className="h-4 w-4 text-primary" />
-                  </div>
-                  <p className="text-2xl font-display font-bold">0</p>
-                </CardContent>
-              </Card>
-              <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveSection('favorites')}>
-                <CardContent className="pt-5 pb-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm text-muted-foreground">Избранное</p>
-                    <Heart className="h-4 w-4 text-primary" />
-                  </div>
-                  <p className="text-2xl font-display font-bold">0</p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Profile card */}
             <Card>
-              <CardContent className="pt-5 pb-5">
-                <div className="flex items-center gap-4">
-                  <Avatar className="h-14 w-14">
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-4">
+                  <Avatar className="h-16 w-16">
                     <AvatarImage src={profile?.avatar_url || undefined} />
-                    <AvatarFallback className="bg-primary/10 text-primary font-display text-lg">{getInitials()}</AvatarFallback>
+                    <AvatarFallback className="text-lg bg-primary/10 text-primary font-display">{getInitials()}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-display font-semibold text-lg">
-                      {profile?.first_name && profile?.last_name
-                        ? `${profile.first_name} ${profile.last_name}`
-                        : profile?.email || 'Пользователь'}
-                    </h3>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs text-muted-foreground font-mono">ID: {profile?.skillspot_id}</span>
-                      <button onClick={handleCopyId} className="text-muted-foreground hover:text-foreground">
-                        {copied ? <Check className="h-3 w-3 text-primary" /> : <Copy className="h-3 w-3" />}
-                      </button>
+                    <div className="flex items-start justify-between flex-wrap gap-2">
+                      <div>
+                        <h3 className="text-xl font-display font-semibold">
+                          {profile?.first_name && profile?.last_name
+                            ? `${profile.first_name} ${profile.last_name}`
+                            : profile?.email || 'Пользователь'}
+                        </h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge variant="secondary" className="font-mono text-sm">ID: {profile?.skillspot_id}</Badge>
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleCopyId}>
+                            {copied ? <Check className="h-3 w-3 text-primary" /> : <Copy className="h-3 w-3" />}
+                          </Button>
+                        </div>
+                      </div>
+                      <Button variant="outline" size="sm" onClick={() => navigate('/settings')}>
+                        <Settings className="h-4 w-4 mr-1" /> Настройки
+                      </Button>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => navigate('/settings')}>
-                    Редактировать
-                  </Button>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Referral */}
-            <Card>
-              <CardContent className="pt-5 pb-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-display font-semibold">Реферальная программа</p>
-                    <p className="text-sm text-muted-foreground">Приглашайте друзей и зарабатывайте</p>
-                  </div>
-                  {referralCode ? (
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary">
-                      <code className="text-sm font-mono">{referralCode}</code>
-                      <button onClick={handleCopyReferral} className="text-muted-foreground hover:text-foreground">
-                        <Copy className="h-3.5 w-3.5" />
-                      </button>
+            {/* Stat Cards — Ledidi-inspired colored accents */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <Card className="border-l-4 border-l-primary">
+                <CardContent className="pt-6">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Баланс</p>
+                      <p className="text-3xl font-display font-bold mt-1">{Number(balance.main_balance).toFixed(0)} ₽</p>
+                      <p className="text-xs text-muted-foreground mt-1">Реферальный: {Number(balance.referral_balance).toFixed(0)} ₽</p>
                     </div>
-                  ) : (
-                    <Button variant="outline" size="sm" onClick={handleCreateReferralCode} disabled={creatingCode}>
-                      {creatingCode ? <Loader2 className="h-4 w-4 animate-spin" /> : <Gift className="h-4 w-4 mr-1" />}
-                      Создать код
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Quick actions */}
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/catalog')}>
-                <CardContent className="pt-5 pb-5 flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                    <Search className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-display font-semibold">Найти услугу</p>
-                    <p className="text-sm text-muted-foreground">Каталог мастеров и организаций</p>
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <Wallet className="h-5 w-5 text-primary" />
+                    </div>
                   </div>
                 </CardContent>
               </Card>
-              <Card className="cursor-pointer hover:shadow-md transition-shadow border-dashed" onClick={() => navigate('/create-account')}>
-                <CardContent className="pt-5 pb-5 flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                    <Building2 className="h-5 w-5 text-primary" />
+
+              <Card>
+                <CardContent className="pt-6">
+                  <p className="text-sm text-muted-foreground mb-3">Быстрые действия</p>
+                  <div className="space-y-2">
+                    <Button variant="outline" className="w-full justify-start gap-2" size="sm" onClick={() => navigate('/')}>
+                      <Search className="h-4 w-4" /> Найти услугу
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start gap-2" size="sm" onClick={() => navigate('/settings')}>
+                      <Star className="h-4 w-4" /> Настройки профиля
+                    </Button>
                   </div>
-                  <div>
-                    <p className="font-display font-semibold">Стать партнёром</p>
-                    <p className="text-sm text-muted-foreground">Мастер, бизнес или сеть</p>
-                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="pt-6">
+                  <p className="text-sm text-muted-foreground mb-2">Реферальная программа</p>
+                  {referralCode ? (
+                    <div className="flex items-center gap-2 p-2 rounded-lg bg-secondary">
+                      <code className="text-sm font-mono flex-1 truncate">{referralCode}</code>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={handleCopyReferral}>
+                        <Copy className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button variant="outline" className="w-full gap-2" onClick={handleCreateReferralCode} disabled={creatingCode}>
+                      {creatingCode ? <Loader2 className="h-4 w-4 animate-spin" /> : <Gift className="h-4 w-4" />}
+                      Создать реферальный код
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             </div>
+
+            {/* Role Upgrade */}
+            <Card className="border-dashed cursor-pointer hover:border-primary/40 transition-colors" onClick={() => navigate('/create-account')}>
+              <CardContent className="pt-6 text-center">
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                  <Building2 className="h-6 w-6 text-primary" />
+                </div>
+                <p className="font-display font-semibold">Создать бизнес-аккаунт</p>
+                <p className="text-sm text-muted-foreground">Мастер, бизнес или сеть — выберите тип и начните работу</p>
+              </CardContent>
+            </Card>
           </div>
         );
     }
@@ -318,41 +275,51 @@ const ClientDashboard = () => {
 
   return (
     <div className="flex gap-6">
-      {/* Sidebar */}
-      <aside className="hidden lg:block w-56 shrink-0">
-        <div className="sticky top-20 space-y-6">
-          <div>
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Меню</p>
-            <div className="space-y-0.5">
-              {sidebarMenu.map(item => <NavItem key={item.key} item={item} />)}
-            </div>
+      {/* Sidebar — Ledidi-inspired */}
+      <aside className="hidden lg:flex flex-col w-60 shrink-0">
+        <div className="flex items-center gap-3 px-3 pb-5 border-b border-border mb-4">
+          <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Users className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Управление</p>
-            <div className="space-y-0.5">
-              {sidebarManage.map(item => <NavItem key={item.key} item={item} />)}
+            <p className="font-display font-semibold text-sm">Личный кабинет</p>
+            <p className="text-xs text-muted-foreground">Клиент</p>
+          </div>
+        </div>
+
+        <div className="space-y-0.5">
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Меню</p>
+          {menuItems.map(item => <NavButton key={item.key} item={item} />)}
+        </div>
+
+        <div className="mt-auto pt-5 border-t border-border">
+          <div className="flex items-center gap-3 px-3">
+            <Avatar className="h-8 w-8">
+              <AvatarFallback className="text-xs bg-primary/10 text-primary">{getInitials()}</AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <p className="text-sm font-medium truncate">{profile?.first_name || 'Пользователь'}</p>
+              <p className="text-xs text-muted-foreground">Клиент</p>
             </div>
           </div>
         </div>
       </aside>
 
-      {/* Mobile bottom nav */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50 flex px-1">
-        {sidebarMenu.map(item => (
+      {/* Mobile nav */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50 flex overflow-x-auto px-2 py-1">
+        {menuItems.map(item => (
           <button
             key={item.key}
             onClick={() => setActiveSection(item.key)}
-            className={`flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] transition-colors ${
-              activeSection === item.key ? 'text-primary' : 'text-muted-foreground'
-            }`}
+            className={`flex flex-col items-center gap-0.5 px-3 py-2 text-xs shrink-0 transition-colors ${activeSection === item.key ? 'text-primary' : 'text-muted-foreground'}`}
           >
-            <item.icon className="h-5 w-5" />
+            <item.icon className="h-4 w-4" />
             {item.label}
           </button>
         ))}
       </nav>
 
-      {/* Content */}
+      {/* Main Content */}
       <div className="flex-1 min-w-0 pb-20 lg:pb-0">
         {renderContent()}
       </div>
