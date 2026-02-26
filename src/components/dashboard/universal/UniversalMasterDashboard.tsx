@@ -34,7 +34,6 @@ const managementItems = [
   { key: 'stats', label: 'Статистика', icon: BarChart3 },
   { key: 'blacklist', label: 'Чёрный список', icon: Ban },
   { key: 'subscription', label: 'Подписка', icon: CreditCard },
-  { key: 'settings', label: 'Настройки', icon: Settings },
 ];
 
 const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config }: Props) => {
@@ -48,7 +47,7 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
           <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-destructive" />
           <h2 className="text-xl font-bold mb-2">Подписка неактивна</h2>
           <p className="text-muted-foreground mb-4">
-            Ваши данные сохранены, но интерфейс мастера недоступен. Оплатите подписку (900 ₽/мес) для продолжения работы.
+            Ваши данные сохранены, но интерфейс мастера недоступен. Оплатите подписку (650 ₽/мес) для продолжения работы.
           </p>
           <Button onClick={() => setActiveSection('subscription')}>Оплатить подписку</Button>
         </CardContent>
@@ -72,7 +71,7 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
           trialStartDate={masterProfile?.trial_start_date}
           trialDays={masterProfile?.trial_days || 14}
           lastPaymentDate={masterProfile?.last_payment_date}
-          basePrice={900}
+          basePrice={650}
           parentManaged={masterProfile?.subscription_status === 'in_business'}
           parentLabel="Управляется бизнесом"
         />

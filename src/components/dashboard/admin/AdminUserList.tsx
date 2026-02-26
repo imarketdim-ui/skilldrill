@@ -34,7 +34,7 @@ const AdminUserList = () => {
       .from('profiles')
       .select('*, user_roles(role, is_active), master_profiles(id, category_id, is_active)')
       .order('created_at', { ascending: false })
-      .limit(200);
+      .limit(1000);
     setUsers(data || []);
     setLoading(false);
   };

@@ -151,14 +151,14 @@ export default function UserScoreCard({ userId, viewMode }: UserScoreCardProps) 
               <Info className="w-4 h-4 text-muted-foreground" />
             </TooltipTrigger>
             <TooltipContent className="max-w-xs">
-              <p className="text-xs">Статистика отражает вашу активность и поведение на платформе.</p>
+              <p className="text-xs">Статистика отражает вашу активность на платформе. Активируется после 20 визитов или 3 месяцев.</p>
             </TooltipContent>
           </Tooltip>
         </div>
 
         {score.status === "insufficient_data" && (
           <div className="p-3 rounded-lg bg-secondary border border-border">
-            <p className="text-sm text-muted-foreground">📊 Мало данных — статистика станет доступна после 20 завершённых визитов и 3 месяцев на платформе</p>
+            <p className="text-sm text-muted-foreground">📊 Мало данных — статистика станет доступна после 20 завершённых визитов или 3 месяцев на платформе</p>
           </div>
         )}
 
@@ -198,7 +198,7 @@ export default function UserScoreCard({ userId, viewMode }: UserScoreCardProps) 
       {score.status === "insufficient_data" ? (
         <div className="p-4 rounded-lg bg-secondary border border-border text-center">
           <p className="text-sm text-muted-foreground">📊 Мало данных</p>
-          <p className="text-xs text-muted-foreground mt-1">{score.completed_visits}/20 визитов, {score.account_age_days}/90 дней</p>
+          <p className="text-xs text-muted-foreground mt-1">{score.completed_visits}/20 визитов или {score.account_age_days}/90 дней</p>
         </div>
       ) : (
         <>
