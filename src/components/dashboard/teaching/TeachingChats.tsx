@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { MessageSquare, Send, Search, Paperclip, Image } from 'lucide-react';
-import { format, formatDistanceToNow } from 'date-fns';
+import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 
 interface ChatContact {
@@ -31,6 +31,36 @@ const TeachingChats = () => {
 
   useEffect(() => { if (user) fetchContacts(); }, [user]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel(`teaching-chat-${user.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'chat_messages',
+      }, (payload) => {
+        const msg = payload.new as any;
+        const isMine = msg.sender_id === user.id || msg.recipient_id === user.id;
+        if (!isMine) return;
+
+        if (selectedContact && (
+          (msg.sender_id === selectedContact.id && msg.recipient_id === user.id) ||
+          (msg.sender_id === user.id && msg.recipient_id === selectedContact.id)
+        )) {
+          setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);
+          if (msg.sender_id === selectedContact.id) {
+            supabase.from('chat_messages').update({ is_read: true }).eq('id', msg.id);
+          }
+        }
+
+        fetchContacts();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [user, selectedContact]);
 
   const fetchContacts = async () => {
     if (!user) return;
@@ -78,14 +108,24 @@ const TeachingChats = () => {
       .order('created_at', { ascending: true });
     setMessages(data || []);
     await supabase.from('chat_messages').update({ is_read: true }).eq('sender_id', contact.id).eq('recipient_id', user.id).eq('is_read', false);
+    setContacts(prev => prev.map(c => c.id === contact.id ? { ...c, unread: 0 } : c));
   };
 
   const sendMessage = async () => {
     if (!user || !selectedContact || !newMessage.trim()) return;
+
+    const { data: blocked } = await supabase.from('blacklists').select('id').eq('blocker_id', selectedContact.id).eq('blocked_id', user.id).maybeSingle();
+    if (blocked) return;
+
     const { error } = await supabase.from('chat_messages').insert({
       sender_id: user.id, recipient_id: selectedContact.id, message: newMessage.trim(), chat_type: 'direct',
     });
-    if (!error) { setNewMessage(''); openChat(selectedContact); }
+
+    if (!error) {
+      setNewMessage('');
+      openChat(selectedContact);
+      fetchContacts();
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

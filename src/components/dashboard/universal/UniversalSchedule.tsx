@@ -60,11 +60,11 @@ const UniversalSchedule = ({ config }: Props) => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isBreakOpen, setIsBreakOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [slotDuration, setSlotDuration] = useState(60);
+  const [slotDuration, setSlotDuration] = useState(30);
   const [breakDuration, setBreakDuration] = useState(15);
   const [services, setServices] = useState<ServiceOption[]>([]);
-  const [workStart] = useState('09:00');
-  const [workEnd] = useState('18:00');
+  const [workStart, setWorkStart] = useState('09:00');
+  const [workEnd, setWorkEnd] = useState('18:00');
 
   const [formData, setFormData] = useState({
     service_id: '', title: '', description: '',
@@ -89,6 +89,22 @@ const UniversalSchedule = ({ config }: Props) => {
       .then(({ data }) => setServices((data || []).map(s => ({
         id: s.id, name: s.name, duration_minutes: s.duration_minutes || 60, price: Number(s.price) || 0,
       }))));
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const key = `schedule_settings_${user.id}`;
+    const raw = localStorage.getItem(key);
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw) as { slotDuration?: number; breakDuration?: number; workStart?: string; workEnd?: string };
+      if (parsed.slotDuration) setSlotDuration(parsed.slotDuration);
+      if (parsed.breakDuration !== undefined) setBreakDuration(parsed.breakDuration);
+      if (parsed.workStart) setWorkStart(parsed.workStart);
+      if (parsed.workEnd) setWorkEnd(parsed.workEnd);
+    } catch {
+      // ignore invalid local storage payload
+    }
   }, [user]);
 
   const fetchItems = useCallback(async () => {
@@ -119,15 +135,16 @@ const UniversalSchedule = ({ config }: Props) => {
     if (!selectedService || !formData.lesson_date) return [];
 
     const duration = selectedService.duration_minutes;
-    const minSlot = Math.min(...services.map(s => s.duration_minutes), 30);
-    const slotStep = minSlot; // Generate slots by minimum service duration
+    const minServiceDuration = Math.min(...services.map(s => s.duration_minutes));
+    const slotStep = Math.max(15, Math.min(slotDuration, minServiceDuration));
 
     const dayItems = items.filter(w => w.lesson_date === formData.lesson_date);
     // Blocked intervals: existing lessons + breaks
-    const blocked: { start: number; end: number }[] = dayItems.map(w => ({
-      start: timeToMinutes(w.start_time?.slice(0, 5) || '00:00'),
-      end: timeToMinutes(w.end_time?.slice(0, 5) || '00:00'),
-    }));
+    const blocked: { start: number; end: number }[] = dayItems.map(w => {
+      const start = timeToMinutes(w.start_time?.slice(0, 5) || '00:00');
+      const end = timeToMinutes(w.end_time?.slice(0, 5) || '00:00') + breakDuration;
+      return { start, end };
+    });
 
     const wsMin = timeToMinutes(workStart);
     const weMin = timeToMinutes(workEnd);
@@ -145,7 +162,7 @@ const UniversalSchedule = ({ config }: Props) => {
       }
     }
     return slots;
-  }, [formData.service_id, formData.lesson_date, services, items, workStart, workEnd]);
+  }, [formData.service_id, formData.lesson_date, services, items, workStart, workEnd, slotDuration, breakDuration]);
 
   const onServiceChange = (serviceId: string) => {
     const svc = services.find(s => s.id === serviceId);
@@ -580,11 +597,18 @@ const UniversalSchedule = ({ config }: Props) => {
           <DialogHeader><DialogTitle>Настройки расписания</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Длительность тайм-слота (мин)</Label>
+              <Label>Рабочее время</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <Input type="time" value={workStart} onChange={e => setWorkStart(e.target.value)} />
+                <Input type="time" value={workEnd} onChange={e => setWorkEnd(e.target.value)} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Длительность шага слота (мин)</Label>
               <Select value={String(slotDuration)} onValueChange={v => setSlotDuration(Number(v))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {[15, 30, 45, 60, 90, 120].map(m => <SelectItem key={m} value={String(m)}>{m} мин</SelectItem>)}
+                  {[15, 30, 45, 60].map(m => <SelectItem key={m} value={String(m)}>{m} мин</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -597,7 +621,22 @@ const UniversalSchedule = ({ config }: Props) => {
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={() => { setIsSettingsOpen(false); toast({ title: 'Настройки сохранены' }); }} className="w-full">Сохранить</Button>
+            <Button
+              onClick={() => {
+                if (timeToMinutes(workEnd) <= timeToMinutes(workStart)) {
+                  toast({ title: 'Ошибка', description: 'Время окончания должно быть позже начала', variant: 'destructive' });
+                  return;
+                }
+                if (user) {
+                  localStorage.setItem(`schedule_settings_${user.id}`, JSON.stringify({ slotDuration, breakDuration, workStart, workEnd }));
+                }
+                setIsSettingsOpen(false);
+                toast({ title: 'Настройки сохранены' });
+              }}
+              className="w-full"
+            >
+              Сохранить
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

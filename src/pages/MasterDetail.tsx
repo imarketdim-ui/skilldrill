@@ -45,6 +45,11 @@ const MasterDetail = () => {
   const [isFavorite, setIsFavorite] = useState(false);
   const [bookingService, setBookingService] = useState<string | null>(null);
   const [messageOpen, setMessageOpen] = useState(false);
+  const [messageText, setMessageText] = useState('');
+  const [bookingData, setBookingData] = useState({ name: '', phone: '', date: '', time: '', comment: '' });
+  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [sendingBooking, setSendingBooking] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
@@ -97,6 +102,23 @@ const MasterDetail = () => {
     fetchData();
   }, [masterId, user]);
 
+  useEffect(() => {
+    if (!bookingService) return;
+    const initialName = [user?.user_metadata?.first_name, user?.user_metadata?.last_name].filter(Boolean).join(' ').trim();
+    setBookingData(prev => ({
+      ...prev,
+      name: prev.name || initialName,
+      phone: prev.phone || '',
+      date: prev.date || new Date().toISOString().slice(0, 10),
+    }));
+  }, [bookingService, user]);
+
+  useEffect(() => {
+    if (bookingService && bookingData.date) {
+      loadAvailableSlots(bookingService, bookingData.date);
+    }
+  }, [bookingService, bookingData.date, services, master]);
+
   // Map dialog
   useEffect(() => {
     if (!mapOpen || !mapRef.current || !master?.latitude || !master?.longitude) return;
@@ -124,28 +146,169 @@ const MasterDetail = () => {
   const handleShare = (platform: string) => {
     const url = window.location.href;
     const name = `${master?.profiles?.first_name || ''} ${master?.profiles?.last_name || ''}`.trim();
-    const text = `${name} — ${master?.service_categories?.name || 'мастер'} на SkillSpot`;
+    const cover = services.find(s => Array.isArray(s.work_photos) && s.work_photos.length > 0)?.work_photos?.[0] || allPhotos[0] || '';
+    const teaser = services[0]?.description || master?.description || 'Проверенный специалист на SkillSpot';
+    const text = `Я нашёл(а) специалиста: ${name}. ${teaser}${cover ? ` Фото: ${cover}` : ''} ${url}`;
     const links: Record<string, string> = {
       vk: `https://vk.com/share.php?url=${encodeURIComponent(url)}&title=${encodeURIComponent(text)}`,
       telegram: `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`,
-      whatsapp: `https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`,
+      whatsapp: `https://wa.me/?text=${encodeURIComponent(text)}`,
     };
     if (platform === 'copy') {
-      navigator.clipboard.writeText(url);
-      toast({ title: 'Ссылка скопирована' });
+      navigator.clipboard.writeText(text);
+      toast({ title: 'Текст для шаринга скопирован' });
     } else {
       window.open(links[platform], '_blank');
     }
   };
 
-  const handleBook = (serviceId: string) => {
-    toast({ title: 'Заявка отправлена!', description: 'Мастер свяжется с вами для подтверждения записи.' });
-    setBookingService(null);
+  const toMinutes = (time: string) => {
+    const [h, m] = time.split(':').map(Number);
+    return h * 60 + m;
   };
 
-  const handleMessage = () => {
-    toast({ title: 'Сообщение отправлено!', description: 'Мастер ответит вам в ближайшее время.' });
-    setMessageOpen(false);
+  const toTime = (minutes: number) => `${Math.floor(minutes / 60).toString().padStart(2, '0')}:${(minutes % 60).toString().padStart(2, '0')}`;
+
+  const loadAvailableSlots = async (serviceId: string, date: string) => {
+    if (!master || !date) return setAvailableSlots([]);
+    const selectedService = services.find(s => s.id === serviceId);
+    if (!selectedService) return setAvailableSlots([]);
+
+    const { data: dayLessons } = await supabase
+      .from('lessons')
+      .select('start_time, end_time')
+      .eq('teacher_id', master.user_id)
+      .eq('lesson_date', date)
+      .neq('status', 'cancelled');
+
+    const blocked = (dayLessons || []).map((l: any) => ({
+      start: toMinutes((l.start_time || '00:00').slice(0, 5)),
+      end: toMinutes((l.end_time || '00:00').slice(0, 5)),
+    }));
+
+    const serviceDurations = services.map(s => Number(s.duration_minutes) || 30).filter(Boolean);
+    const minStep = Math.max(15, Math.min(...serviceDurations));
+    const duration = Number(selectedService.duration_minutes) || 60;
+
+    const dayStart = toMinutes('06:00');
+    const dayEnd = toMinutes('23:00');
+    const slots: string[] = [];
+
+    for (let t = dayStart; t + duration <= dayEnd; t += minStep) {
+      const start = t;
+      const end = t + duration;
+      const overlap = blocked.some(b => start < b.end && end > b.start);
+      if (!overlap) slots.push(toTime(t));
+    }
+
+    setAvailableSlots(slots);
+  };
+
+  const handleBook = async (serviceId: string) => {
+    if (!user || !master) {
+      toast({ title: 'Нужно войти в аккаунт', description: 'Авторизуйтесь, чтобы записаться', variant: 'destructive' });
+      return;
+    }
+
+    const service = services.find(s => s.id === serviceId);
+    if (!service || !bookingData.date || !bookingData.time) {
+      toast({ title: 'Заполните дату и время', variant: 'destructive' });
+      return;
+    }
+
+    if (!availableSlots.includes(bookingData.time)) {
+      toast({ title: 'Слот недоступен', description: 'Выберите время из доступных слотов', variant: 'destructive' });
+      return;
+    }
+
+    setSendingBooking(true);
+    try {
+      const startM = toMinutes(bookingData.time);
+      const duration = Number(service.duration_minutes) || 60;
+      const endTime = toTime(startM + duration);
+
+      const { data: lesson, error: lessonError } = await supabase
+        .from('lessons')
+        .insert({
+          teacher_id: master.user_id,
+          title: service.name,
+          description: bookingData.comment || null,
+          lesson_date: bookingData.date,
+          start_time: bookingData.time,
+          end_time: endTime,
+          lesson_type: 'individual',
+          max_participants: 1,
+          price: Number(service.price) || 0,
+          status: 'scheduled',
+        })
+        .select('id')
+        .single();
+
+      if (lessonError) throw lessonError;
+
+      const { error: bookingError } = await supabase.from('lesson_bookings').insert({
+        lesson_id: lesson.id,
+        student_id: user.id,
+        status: 'confirmed',
+      });
+      if (bookingError) throw bookingError;
+
+      await supabase.from('chat_messages').insert({
+        sender_id: user.id,
+        recipient_id: master.user_id,
+        message: `Новая запись: ${service.name} на ${bookingData.date} в ${bookingData.time}. ${bookingData.comment ? `Комментарий: ${bookingData.comment}` : ''}`,
+        chat_type: 'direct',
+      });
+
+      toast({ title: 'Запись отправлена', description: 'Мастер получит уведомление и сообщение в чате' });
+      setBookingService(null);
+      setBookingData({ name: '', phone: '', date: '', time: '', comment: '' });
+      setAvailableSlots([]);
+    } catch (err: any) {
+      toast({ title: 'Ошибка', description: err.message, variant: 'destructive' });
+    } finally {
+      setSendingBooking(false);
+    }
+  };
+
+  const handleMessage = async () => {
+    if (!user || !master) {
+      toast({ title: 'Нужно войти в аккаунт', variant: 'destructive' });
+      return;
+    }
+    if (!messageText.trim()) return;
+
+    setSendingMessage(true);
+    try {
+      const { data: blocked } = await supabase
+        .from('blacklists')
+        .select('id')
+        .eq('blocker_id', master.user_id)
+        .eq('blocked_id', user.id)
+        .maybeSingle();
+
+      if (blocked) {
+        toast({ title: 'Чат недоступен', description: 'Клиент заблокирован у мастера', variant: 'destructive' });
+        return;
+      }
+
+      const { error } = await supabase.from('chat_messages').insert({
+        sender_id: user.id,
+        recipient_id: master.user_id,
+        message: messageText.trim(),
+        chat_type: 'direct',
+      });
+
+      if (error) throw error;
+
+      toast({ title: 'Сообщение отправлено' });
+      setMessageText('');
+      setMessageOpen(false);
+    } catch (err: any) {
+      toast({ title: 'Ошибка', description: err.message, variant: 'destructive' });
+    } finally {
+      setSendingMessage(false);
+    }
   };
 
   if (loading) return (
@@ -238,7 +401,13 @@ const MasterDetail = () => {
                     {master.address && (
                       <button
                         className="flex items-center gap-1 hover:text-foreground transition-colors"
-                        onClick={() => master.latitude ? setMapOpen(true) : null}
+                        onClick={() => {
+                          if (master.latitude && master.longitude) {
+                            setMapOpen(true);
+                          } else if (master.address) {
+                            window.open(`https://yandex.ru/maps/?text=${encodeURIComponent(master.address)}`, '_blank');
+                          }
+                        }}
                       >
                         <MapPin className="w-4 h-4" />{master.address}
                       </button>
@@ -301,14 +470,36 @@ const MasterDetail = () => {
                                 <div className="space-y-4">
                                   <p className="text-sm text-muted-foreground">Мастер: {masterName}</p>
                                   <p className="text-sm text-muted-foreground">{Number(service.price).toLocaleString()} ₽ · {service.duration_minutes} мин</p>
-                                  <Input type="text" placeholder="Ваше имя" />
-                                  <Input type="tel" placeholder="Телефон" />
-                                  <div className="grid grid-cols-2 gap-3">
-                                    <div className="space-y-1"><label className="text-sm font-medium">Дата</label><Input type="date" /></div>
-                                    <div className="space-y-1"><label className="text-sm font-medium">Время</label><Input type="time" /></div>
+                                  <Input type="text" placeholder="Ваше имя" value={bookingData.name} onChange={(e) => setBookingData(p => ({ ...p, name: e.target.value }))} />
+                                  <Input type="tel" placeholder="Телефон" value={bookingData.phone} onChange={(e) => setBookingData(p => ({ ...p, phone: e.target.value }))} />
+                                  <div className="space-y-1">
+                                    <label className="text-sm font-medium">Дата</label>
+                                    <Input type="date" value={bookingData.date} onChange={(e) => setBookingData(p => ({ ...p, date: e.target.value, time: '' }))} />
                                   </div>
-                                  <Textarea placeholder="Комментарий (необязательно)" />
-                                  <Button onClick={() => handleBook(service.id)} className="w-full">Подтвердить запись</Button>
+                                  <div className="space-y-1">
+                                    <label className="text-sm font-medium">Доступные слоты</label>
+                                    {availableSlots.length === 0 ? (
+                                      <p className="text-sm text-muted-foreground">Нет доступного времени на выбранную дату</p>
+                                    ) : (
+                                      <div className="grid grid-cols-4 gap-2">
+                                        {availableSlots.map(slot => (
+                                          <Button
+                                            key={slot}
+                                            type="button"
+                                            size="sm"
+                                            variant={bookingData.time === slot ? 'default' : 'outline'}
+                                            onClick={() => setBookingData(p => ({ ...p, time: slot }))}
+                                          >
+                                            {slot}
+                                          </Button>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <Textarea placeholder="Комментарий (необязательно)" value={bookingData.comment} onChange={(e) => setBookingData(p => ({ ...p, comment: e.target.value }))} />
+                                  <Button onClick={() => handleBook(service.id)} className="w-full" disabled={sendingBooking || !bookingData.date || !bookingData.time}>
+                                    {sendingBooking ? 'Отправка...' : 'Подтвердить запись'}
+                                  </Button>
                                 </div>
                               </DialogContent>
                             </Dialog>
@@ -378,8 +569,8 @@ const MasterDetail = () => {
                       </DialogTrigger>
                       <DialogContent>
                         <DialogHeader><DialogTitle>Написать {masterName}</DialogTitle></DialogHeader>
-                        <Textarea placeholder="Ваше сообщение..." className="min-h-[100px]" />
-                        <Button onClick={handleMessage} className="w-full">Отправить</Button>
+                        <Textarea placeholder="Ваше сообщение..." className="min-h-[100px]" value={messageText} onChange={(e) => setMessageText(e.target.value)} />
+                        <Button onClick={handleMessage} className="w-full" disabled={sendingMessage || !messageText.trim()}>{sendingMessage ? 'Отправка...' : 'Отправить'}</Button>
                       </DialogContent>
                     </Dialog>
                     {master.address && (

@@ -8,10 +8,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Pencil, Trash2, Clock, Tag, Package } from 'lucide-react';
 import { CategoryConfig } from './categoryConfig';
+import PhotoUploader from '@/components/marketplace/PhotoUploader';
 
 interface ServiceItem {
   id: string;
@@ -35,7 +36,7 @@ const UniversalServices = ({ config }: Props) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: '', description: '', price: 0, duration_minutes: 60,
-    hashtags: '', is_active: true,
+    hashtags: '', is_active: true, work_photos: [] as string[],
   });
 
   useEffect(() => { if (user) fetchServices(); }, [user]);
@@ -55,7 +56,7 @@ const UniversalServices = ({ config }: Props) => {
 
   const openCreate = () => {
     setEditingId(null);
-    setForm({ name: '', description: '', price: 0, duration_minutes: 60, hashtags: '', is_active: true });
+    setForm({ name: '', description: '', price: 0, duration_minutes: 60, hashtags: '', is_active: true, work_photos: [] });
     setIsOpen(true);
   };
 
@@ -64,7 +65,7 @@ const UniversalServices = ({ config }: Props) => {
     setForm({
       name: s.name, description: s.description || '',
       price: s.price || 0, duration_minutes: s.duration_minutes || 60,
-      hashtags: s.hashtags.join(', '), is_active: s.is_active,
+      hashtags: s.hashtags.join(', '), is_active: s.is_active, work_photos: s.work_photos || [],
     });
     setIsOpen(true);
   };
@@ -80,6 +81,7 @@ const UniversalServices = ({ config }: Props) => {
       hashtags: tags,
       is_active: form.is_active,
       master_id: user.id,
+      work_photos: form.work_photos,
     };
     try {
       if (editingId) {
@@ -200,6 +202,19 @@ const UniversalServices = ({ config }: Props) => {
             <div className="space-y-2">
               <Label>Хештеги (через запятую)</Label>
               <Input value={form.hashtags} onChange={e => setForm(p => ({ ...p, hashtags: e.target.value }))} placeholder="красота, стрижка, барбер" />
+            </div>
+            <div className="space-y-2">
+              <Label>Фото работ</Label>
+              <PhotoUploader
+                label=""
+                photos={form.work_photos}
+                onPhotosChange={(photos) => setForm(p => ({ ...p, work_photos: photos }))}
+                bucket="portfolio"
+                storagePath={`${user?.id || 'user'}/services/${editingId || 'new'}`}
+                maxPhotos={12}
+                maxSizeMb={8}
+                supabase={supabase}
+              />
             </div>
             <div className="flex items-center justify-between">
               <Label>Активна</Label>
