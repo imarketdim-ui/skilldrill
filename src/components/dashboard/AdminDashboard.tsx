@@ -9,11 +9,12 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { 
   Users, Shield, MessageSquare, 
-  CheckCircle, XCircle, AlertTriangle, Tag, ShieldBan, Eye, Loader2
+  CheckCircle, XCircle, AlertTriangle, Tag, ShieldBan, Eye, Loader2, Flag
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AdminUserList from './admin/AdminUserList';
 import RevocationRequests from './admin/RevocationRequests';
+import FraudFlagsPanel from './admin/FraudFlagsPanel';
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -176,6 +177,7 @@ const AdminDashboard = () => {
           <TabsTrigger value="role_requests"><Shield className="h-4 w-4 mr-1" /> Заявки на роли</TabsTrigger>
           <TabsTrigger value="revocations"><ShieldBan className="h-4 w-4 mr-1" /> Аннулирование</TabsTrigger>
           <TabsTrigger value="category_requests"><Tag className="h-4 w-4 mr-1" /> Категории</TabsTrigger>
+          <TabsTrigger value="fraud_flags"><Flag className="h-4 w-4 mr-1" /> Антифрод</TabsTrigger>
           <TabsTrigger value="disputes"><AlertTriangle className="h-4 w-4 mr-1" /> Споры</TabsTrigger>
           <TabsTrigger value="support"><MessageSquare className="h-4 w-4 mr-1" /> Поддержка</TabsTrigger>
         </TabsList>
@@ -360,6 +362,10 @@ const AdminDashboard = () => {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="fraud_flags">
+          <FraudFlagsPanel />
         </TabsContent>
 
         <TabsContent value="disputes">

@@ -99,7 +99,7 @@ export default function ClientStats({ userId }: Props) {
   }
 
   const totalBookings = score.completed_visits + score.total_cancellations + score.no_show_count;
-  const isNewUser = score.account_age_days < 90 && score.completed_visits < 10;
+  const isNewUser = score.account_age_days < 90 && score.completed_visits < 20;
 
   const noShowPct = pctVal(score.no_show_count, totalBookings);
   const cancel1hPct = pctVal(score.cancel_under_1h, totalBookings);
@@ -180,7 +180,7 @@ export default function ClientStats({ userId }: Props) {
           {isNewUser && (
             <div className="p-3 rounded-lg bg-muted border border-border mb-4">
               <p className="text-sm text-muted-foreground">
-                📊 Пока мало данных — статистика станет информативнее после 10 посещений и 3 месяцев на платформе. Продолжайте использовать сервис!
+                📊 Пока мало данных — статистика станет информативнее после 20 посещений и 3 месяцев на платформе. Продолжайте использовать сервис!
               </p>
             </div>
           )}

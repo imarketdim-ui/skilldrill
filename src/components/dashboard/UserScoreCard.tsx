@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Shield, User, Activity, AlertTriangle, Heart, Info, Loader2, RefreshCw } from "lucide-react";
+import { Shield, User, Activity, AlertTriangle, Heart, Info, Loader2, RefreshCw, BadgeCheck, Flag } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -30,6 +30,7 @@ interface ScoreData {
   top_partner_pct: number;
   has_full_name: boolean;
   has_photo: boolean;
+  kyc_verified: boolean;
   status: string;
   account_age_days: number;
   last_calculated_at: string | null;
@@ -129,6 +130,13 @@ export default function UserScoreCard({ userId, viewMode }: UserScoreCardProps) 
     : score.reputation_score <= -10
       ? { text: "Конфликтность", color: "text-destructive" }
       : { text: "Стабильность", color: "text-foreground" };
+  
+  const profileStatus = score.kyc_verified 
+    ? "KYC подтверждён" 
+    : (score.has_full_name && score.has_photo ? "Частично" : "Нет");
+  const profileColor = score.kyc_verified 
+    ? "text-primary" 
+    : (score.has_full_name && score.has_photo ? "text-accent" : "text-muted-foreground");
 
   // === CLIENT VIEW ===
   if (viewMode === "client") {
@@ -172,6 +180,12 @@ export default function UserScoreCard({ userId, viewMode }: UserScoreCardProps) 
       <div className="flex items-center justify-between">
         <h3 className="font-semibold text-foreground flex items-center gap-2">
           <Shield className="w-5 h-5 text-primary" /> Рейтинг клиента
+          <Tooltip>
+            <TooltipTrigger><Info className="w-3.5 h-3.5 text-muted-foreground" /></TooltipTrigger>
+            <TooltipContent className="max-w-xs text-xs">
+              Баллы начисляются по внутренним алгоритмам и не являются оценкой личности. Учитываются только завершённые визиты и подтверждённые действия.
+            </TooltipContent>
+          </Tooltip>
         </h3>
         <div className="flex items-center gap-2">
           <span className={`text-xs font-medium ${statusInfo.color}`}>{statusInfo.label}</span>
@@ -209,8 +223,8 @@ export default function UserScoreCard({ userId, viewMode }: UserScoreCardProps) 
 
           {/* Block breakdown */}
           <div className="grid grid-cols-2 gap-3">
-            <BlockCard icon={User} label="Профиль" status={score.has_full_name && score.has_photo ? "Верифицирован" : score.has_full_name ? "Частично" : "Нет"}
-              statusColor={score.has_full_name && score.has_photo ? "text-primary" : "text-accent"}
+            <BlockCard icon={score.kyc_verified ? BadgeCheck : User} label="Профиль" status={profileStatus}
+              statusColor={profileColor}
               score={score.profile_score} max={20} />
             <BlockCard icon={Activity} label="Активность" status={activityBlock.text} statusColor={activityBlock.color}
               score={score.activity_score} max={15} />
