@@ -39,7 +39,7 @@ const BusinessCard = ({
           alt={name}
           className="w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+        <div className="absolute inset-0 bg-black/40" />
         <div className="absolute bottom-3 left-4 right-4">
           <span className="inline-block px-2 py-1 rounded-md bg-white/20 backdrop-blur-sm text-white text-xs font-medium">
             {category}

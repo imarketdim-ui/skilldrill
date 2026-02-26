@@ -71,7 +71,7 @@ const PopularServices = () => {
             >
               <div className="relative h-40 overflow-hidden">
                 <img src={biz.image} alt={biz.name} className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                <div className="absolute inset-0 bg-black/40" />
                 <div className="absolute bottom-3 left-4"><span className="px-2 py-1 rounded-md bg-white/20 backdrop-blur-sm text-white text-xs font-medium">{biz.categoryName}</span></div>
               </div>
               <div className="p-5">
