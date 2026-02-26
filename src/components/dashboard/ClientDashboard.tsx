@@ -8,12 +8,15 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Search, Heart, Calendar, Wallet, Users, MessageSquare,
-  Copy, Check, Gift, ArrowUpRight, Building2, Shield, Loader2,
+  Copy, Check, Gift, Building2, Shield, Loader2,
   LayoutDashboard, Star, Settings, BarChart3
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import UserScoreCard from '@/components/dashboard/UserScoreCard';
 import TeachingChats from '@/components/dashboard/teaching/TeachingChats';
+import ClientRequests from '@/components/dashboard/client/ClientRequests';
+import ClientWallet from '@/components/dashboard/client/ClientWallet';
+import ClientReferral from '@/components/dashboard/client/ClientReferral';
+import ClientStats from '@/components/dashboard/client/ClientStats';
 
 const menuItems = [
   { key: 'overview', label: 'Обзор', icon: LayoutDashboard },
@@ -22,25 +25,27 @@ const menuItems = [
   { key: 'chats', label: 'Чаты', icon: MessageSquare },
   { key: 'stats', label: 'Статистика', icon: BarChart3 },
   { key: 'wallet', label: 'Баланс', icon: Wallet },
+  { key: 'referral', label: 'Рефералы', icon: Gift },
   { key: 'requests', label: 'Запросы', icon: Shield },
 ];
 
 const ClientDashboard = () => {
-  const { user, profile, roles } = useAuth();
+  const { user, profile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [activeSection, setActiveSection] = useState('overview');
   const [copied, setCopied] = useState(false);
   const [balance, setBalance] = useState({ main_balance: 0, referral_balance: 0 });
-  const [referralCode, setReferralCode] = useState<string | null>(null);
-  const [creatingCode, setCreatingCode] = useState(false);
+  const [pendingInvites, setPendingInvites] = useState(0);
 
   useEffect(() => {
     if (user) {
       supabase.from('user_balances').select('main_balance, referral_balance').eq('user_id', user.id).maybeSingle()
         .then(({ data }) => { if (data) setBalance(data); });
-      supabase.from('referral_codes').select('code').eq('user_id', user.id).eq('is_active', true).maybeSingle()
-        .then(({ data }) => { if (data) setReferralCode(data.code); });
+      // Check pending admin invites
+      supabase.from('admin_assignments').select('id', { count: 'exact', head: true })
+        .eq('assignee_id', user.id).eq('status', 'pending')
+        .then(({ count }) => { setPendingInvites(count || 0); });
     }
   }, [user]);
 
@@ -51,28 +56,6 @@ const ClientDashboard = () => {
       toast({ title: 'ID скопирован' });
       setTimeout(() => setCopied(false), 2000);
     }
-  };
-
-  const handleCopyReferral = () => {
-    if (referralCode) {
-      navigator.clipboard.writeText(referralCode);
-      toast({ title: 'Код скопирован' });
-    }
-  };
-
-  const handleCreateReferralCode = async () => {
-    if (!user) return;
-    setCreatingCode(true);
-    try {
-      const code = 'REF-' + profile?.skillspot_id + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
-      const { data, error } = await supabase.from('referral_codes').insert({ user_id: user.id, code, is_active: true }).select('code').single();
-      if (error) throw error;
-      setReferralCode(data.code);
-      toast({ title: 'Реферальный код создан', description: `Ваш код: ${data.code}` });
-    } catch (err: any) {
-      toast({ title: 'Ошибка', description: err.message, variant: 'destructive' });
-    }
-    setCreatingCode(false);
   };
 
   const getInitials = () =>
@@ -86,6 +69,9 @@ const ClientDashboard = () => {
     >
       <item.icon className="h-4 w-4" />
       <span>{item.label}</span>
+      {item.key === 'requests' && pendingInvites > 0 && (
+        <Badge variant="destructive" className="ml-auto h-5 px-1.5 text-[10px]">{pendingInvites}</Badge>
+      )}
     </Button>
   );
 
@@ -128,57 +114,37 @@ const ClientDashboard = () => {
         return <TeachingChats />;
 
       case 'stats':
-        return (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold">Ваша статистика</h2>
-            {user && <UserScoreCard userId={user.id} viewMode="client" />}
-          </div>
-        );
+        return user ? <ClientStats userId={user.id} /> : null;
 
       case 'wallet':
-        return (
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-              <CardHeader><CardTitle>Основной баланс</CardTitle></CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold mb-4">{Number(balance.main_balance).toFixed(0)} ₽</p>
-                <div className="space-y-2">
-                  <Button className="w-full">Пополнить баланс</Button>
-                  <Button variant="outline" className="w-full">Вывести на карту</Button>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader><CardTitle>Реферальный баланс</CardTitle></CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold mb-4">{Number(balance.referral_balance).toFixed(0)} ₽</p>
-                <Button variant="outline" className="w-full">
-                  <ArrowUpRight className="h-4 w-4 mr-2" /> Перевести на основной
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        );
+        return <ClientWallet />;
+
+      case 'referral':
+        return <ClientReferral />;
 
       case 'requests':
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle>Мои запросы</CardTitle>
-              <CardDescription>Запросы на изменение ролей</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-12 text-muted-foreground">
-                <Shield className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Нет активных запросов</p>
-              </div>
-            </CardContent>
-          </Card>
-        );
+        return <ClientRequests />;
 
       default: // overview
         return (
           <div className="space-y-6">
+            {pendingInvites > 0 && (
+              <Card className="border-primary/50 bg-primary/5">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Shield className="h-5 w-5 text-primary" />
+                      <div>
+                        <p className="font-medium">У вас {pendingInvites} входящ{pendingInvites === 1 ? 'ее' : 'их'} назначени{pendingInvites === 1 ? 'е' : 'й'}</p>
+                        <p className="text-sm text-muted-foreground">Перейдите в раздел «Запросы» для подтверждения</p>
+                      </div>
+                    </div>
+                    <Button size="sm" onClick={() => setActiveSection('requests')}>Перейти</Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-start gap-4">
@@ -211,13 +177,13 @@ const ClientDashboard = () => {
             </Card>
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <Card>
+              <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setActiveSection('wallet')}>
                 <CardContent className="pt-6">
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="text-sm text-muted-foreground">Баланс</p>
-                      <p className="text-3xl font-bold mt-1">{Number(balance.main_balance).toFixed(0)} ₽</p>
-                      <p className="text-xs text-muted-foreground mt-1">Реферальный: {Number(balance.referral_balance).toFixed(0)} ₽</p>
+                      <p className="text-3xl font-bold mt-1">{Number(balance.main_balance).toLocaleString()} ₽</p>
+                      <p className="text-xs text-muted-foreground mt-1">Реферальный: {Number(balance.referral_balance).toLocaleString()} ₽</p>
                     </div>
                     <Wallet className="h-5 w-5 text-muted-foreground" />
                   </div>
@@ -238,22 +204,13 @@ const ClientDashboard = () => {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setActiveSection('referral')}>
                 <CardContent className="pt-6">
                   <p className="text-sm text-muted-foreground mb-2">Реферальная программа</p>
-                  {referralCode ? (
-                    <div className="flex items-center gap-2 p-2 rounded-lg bg-muted">
-                      <code className="text-sm font-mono flex-1 truncate">{referralCode}</code>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={handleCopyReferral}>
-                        <Copy className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button variant="outline" className="w-full gap-2" onClick={handleCreateReferralCode} disabled={creatingCode}>
-                      {creatingCode ? <Loader2 className="h-4 w-4 animate-spin" /> : <Gift className="h-4 w-4" />}
-                      Создать реферальный код
-                    </Button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    <Gift className="h-5 w-5 text-primary" />
+                    <span className="text-sm">Приглашайте друзей и зарабатывайте</span>
+                  </div>
                 </CardContent>
               </Card>
             </div>

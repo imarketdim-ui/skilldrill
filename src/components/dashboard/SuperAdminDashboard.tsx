@@ -68,6 +68,13 @@ const SuperAdminDashboard = () => {
         assignee_id: userId,
         role: 'platform_admin',
       });
+      // Send notification to assignee
+      await supabase.from('notifications').insert({
+        user_id: userId,
+        type: 'admin_invite',
+        title: 'Приглашение стать администратором',
+        message: 'Супер-администратор назначил вас администратором платформы. Перейдите в раздел «Запросы» в личном кабинете для подтверждения или отклонения.',
+      });
       toast({ title: 'Приглашение отправлено' });
       loadData();
     } catch (err: any) {
