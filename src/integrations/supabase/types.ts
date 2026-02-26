@@ -755,6 +755,60 @@ export type Database = {
           },
         ]
       }
+      fraud_flags: {
+        Row: {
+          created_at: string
+          description: string
+          flag_type: string
+          id: string
+          is_resolved: boolean
+          metadata: Json
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          flag_type: string
+          id?: string
+          is_resolved?: boolean
+          metadata?: Json
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          flag_type?: string
+          id?: string
+          is_resolved?: boolean
+          metadata?: Json
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fraud_flags_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fraud_flags_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lesson_bookings: {
         Row: {
           booked_at: string
@@ -1441,6 +1495,8 @@ export type Database = {
           email: string | null
           first_name: string | null
           id: string
+          kyc_verified: boolean
+          kyc_verified_at: string | null
           last_name: string | null
           phone: string | null
           platform_role: Database["public"]["Enums"]["platform_role"]
@@ -1454,6 +1510,8 @@ export type Database = {
           email?: string | null
           first_name?: string | null
           id: string
+          kyc_verified?: boolean
+          kyc_verified_at?: string | null
           last_name?: string | null
           phone?: string | null
           platform_role?: Database["public"]["Enums"]["platform_role"]
@@ -1467,6 +1525,8 @@ export type Database = {
           email?: string | null
           first_name?: string | null
           id?: string
+          kyc_verified?: boolean
+          kyc_verified_at?: string | null
           last_name?: string | null
           phone?: string | null
           platform_role?: Database["public"]["Enums"]["platform_role"]
@@ -2686,6 +2746,7 @@ export type Database = {
           has_full_name: boolean
           has_photo: boolean
           id: string
+          kyc_verified: boolean
           last_calculated_at: string | null
           no_show_count: number
           profile_score: number
@@ -2714,6 +2775,7 @@ export type Database = {
           has_full_name?: boolean
           has_photo?: boolean
           id?: string
+          kyc_verified?: boolean
           last_calculated_at?: string | null
           no_show_count?: number
           profile_score?: number
@@ -2742,6 +2804,7 @@ export type Database = {
           has_full_name?: boolean
           has_photo?: boolean
           id?: string
+          kyc_verified?: boolean
           last_calculated_at?: string | null
           no_show_count?: number
           profile_score?: number
@@ -2779,6 +2842,7 @@ export type Database = {
         Returns: undefined
       }
       calculate_user_score: { Args: { _user_id: string }; Returns: Json }
+      check_fraud_indicators: { Args: { _user_id: string }; Returns: Json }
       generate_skillspot_id: { Args: never; Returns: string }
       get_user_org_role: {
         Args: { org_id: string; user_id: string }
