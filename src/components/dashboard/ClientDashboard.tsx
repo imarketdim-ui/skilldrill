@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Search, Heart, Calendar, Wallet, Users, MessageSquare,
-  Copy, Check, Gift, Building2, Shield, Loader2,
+  Copy, Check, Gift, Building2, Shield, Loader2, Bell,
   LayoutDashboard, Star, Settings, BarChart3
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -27,6 +27,7 @@ const menuItems = [
   { key: 'wallet', label: 'Баланс', icon: Wallet },
   { key: 'referral', label: 'Рефералы', icon: Gift },
   { key: 'requests', label: 'Запросы', icon: Shield },
+  { key: 'notifications', label: 'Уведомления', icon: Bell },
 ];
 
 const ClientDashboard = () => {
@@ -37,16 +38,23 @@ const ClientDashboard = () => {
   const [copied, setCopied] = useState(false);
   const [balance, setBalance] = useState({ main_balance: 0, referral_balance: 0 });
   const [pendingInvites, setPendingInvites] = useState(0);
+  const [clientBookings, setClientBookings] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
 
   useEffect(() => {
-    if (user) {
-      supabase.from('user_balances').select('main_balance, referral_balance').eq('user_id', user.id).maybeSingle()
-        .then(({ data }) => { if (data) setBalance(data); });
-      // Check pending admin invites
-      supabase.from('admin_assignments').select('id', { count: 'exact', head: true })
-        .eq('assignee_id', user.id).eq('status', 'pending')
-        .then(({ count }) => { setPendingInvites(count || 0); });
-    }
+    if (!user) return;
+
+    Promise.all([
+      supabase.from('user_balances').select('main_balance, referral_balance').eq('user_id', user.id).maybeSingle(),
+      supabase.from('admin_assignments').select('id', { count: 'exact', head: true }).eq('assignee_id', user.id).eq('status', 'pending'),
+      supabase.from('lesson_bookings').select('id, status, lesson_id, lessons!inner(id, title, lesson_date, start_time, end_time, teacher_id), teacher:lessons!inner(profiles!lessons_teacher_id_fkey(first_name, last_name))').eq('student_id', user.id).order('created_at', { ascending: false }).limit(50),
+      supabase.from('notifications').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(30),
+    ]).then(([balanceRes, invitesRes, bookingsRes, notificationsRes]) => {
+      if (balanceRes.data) setBalance(balanceRes.data);
+      setPendingInvites(invitesRes.count || 0);
+      setClientBookings(bookingsRes.data || []);
+      setNotifications(notificationsRes.data || []);
+    });
   }, [user]);
 
   const handleCopyId = () => {
@@ -82,14 +90,30 @@ const ClientDashboard = () => {
           <Card>
             <CardHeader>
               <CardTitle>Мои записи</CardTitle>
-              <CardDescription>История записей на услуги</CardDescription>
+              <CardDescription>Полный список ваших записей</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-12 text-muted-foreground">
-                <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>У вас пока нет записей</p>
-                <Button className="mt-4" onClick={() => navigate('/')}>Найти услугу</Button>
-              </div>
+              {clientBookings.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>У вас пока нет записей</p>
+                  <Button className="mt-4" onClick={() => navigate('/catalog')}>Найти услугу</Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {clientBookings.map((booking) => (
+                    <div key={booking.id} className="p-4 rounded-lg border flex items-center justify-between gap-3">
+                      <div>
+                        <p className="font-medium">{(booking.lessons as any)?.title || 'Запись'}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {(booking.lessons as any)?.lesson_date} · {(booking.lessons as any)?.start_time?.slice(0, 5)}
+                        </p>
+                      </div>
+                      <Badge variant={booking.status === 'cancelled' ? 'destructive' : 'secondary'}>{booking.status}</Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         );
@@ -124,6 +148,31 @@ const ClientDashboard = () => {
 
       case 'requests':
         return <ClientRequests />;
+
+      case 'notifications':
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Уведомления</CardTitle>
+              <CardDescription>Последние уведомления по аккаунту</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {notifications.length === 0 ? (
+                <p className="text-center py-10 text-muted-foreground">Уведомлений пока нет</p>
+              ) : (
+                <div className="space-y-3">
+                  {notifications.map((n) => (
+                    <div key={n.id} className="p-3 rounded-lg border">
+                      <p className="font-medium text-sm">{n.title}</p>
+                      <p className="text-sm text-muted-foreground mt-1">{n.message}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{new Date(n.created_at).toLocaleString('ru-RU')}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        );
 
       default: // overview
         return (
@@ -176,7 +225,23 @@ const ClientDashboard = () => {
               </CardContent>
             </Card>
 
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setActiveSection('bookings')}>
+                <CardContent className="pt-6">
+                  <p className="text-sm text-muted-foreground">Ближайшие записи</p>
+                  <div className="mt-3 space-y-2">
+                    {clientBookings.slice(0, 3).map((b) => (
+                      <div key={b.id} className="text-sm p-2 rounded-md bg-muted/50">
+                        <p className="font-medium truncate">{(b.lessons as any)?.title || 'Запись'}</p>
+                        <p className="text-xs text-muted-foreground">{(b.lessons as any)?.lesson_date} · {(b.lessons as any)?.start_time?.slice(0, 5)}</p>
+                      </div>
+                    ))}
+                    {clientBookings.length === 0 && <p className="text-sm text-muted-foreground">Нет предстоящих записей</p>}
+                  </div>
+                  <Button variant="outline" size="sm" className="w-full mt-3">Открыть полный список</Button>
+                </CardContent>
+              </Card>
+
               <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setActiveSection('wallet')}>
                 <CardContent className="pt-6">
                   <div className="flex items-start justify-between">
@@ -190,30 +255,32 @@ const ClientDashboard = () => {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setActiveSection('notifications')}>
                 <CardContent className="pt-6">
-                  <p className="text-sm text-muted-foreground mb-3">Быстрые действия</p>
-                  <div className="space-y-2">
-                    <Button variant="outline" className="w-full justify-start gap-2" size="sm" onClick={() => navigate('/')}>
-                      <Search className="h-4 w-4" /> Найти услугу
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start gap-2" size="sm" onClick={() => navigate('/settings')}>
-                      <Star className="h-4 w-4" /> Настройки профиля
-                    </Button>
-                  </div>
+                  <p className="text-sm text-muted-foreground">Уведомления</p>
+                  <p className="text-3xl font-bold mt-1">{notifications.filter(n => !n.is_read).length}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Непрочитанных</p>
                 </CardContent>
               </Card>
 
-              <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setActiveSection('referral')}>
+              <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => navigate('/catalog')}>
                 <CardContent className="pt-6">
-                  <p className="text-sm text-muted-foreground mb-2">Реферальная программа</p>
-                  <div className="flex items-center gap-2">
-                    <Gift className="h-5 w-5 text-primary" />
-                    <span className="text-sm">Приглашайте друзей и зарабатывайте</span>
-                  </div>
+                  <p className="text-sm text-muted-foreground mb-3">Поиск услуги</p>
+                  <Button variant="outline" className="w-full justify-start gap-2" size="sm">
+                    <Search className="h-4 w-4" /> Перейти в маркетплейс
+                  </Button>
                 </CardContent>
               </Card>
             </div>
+
+            <Card>
+              <CardContent className="pt-6">
+                <p className="text-sm text-muted-foreground mb-3">Быстрое действие</p>
+                <Button variant="outline" className="w-full justify-start gap-2" size="sm" onClick={() => navigate('/catalog')}>
+                  <Search className="h-4 w-4" /> Найти услугу в маркетплейсе
+                </Button>
+              </CardContent>
+            </Card>
 
             <Card className="border-dashed cursor-pointer hover:border-primary transition-colors" onClick={() => navigate('/create-account')}>
               <CardContent className="pt-6 text-center">
