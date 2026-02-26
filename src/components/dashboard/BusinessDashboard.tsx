@@ -203,7 +203,7 @@ const BusinessDashboard = () => {
             trialStartDate={selectedBusiness?.trial_start_date}
             trialDays={14}
             lastPaymentDate={selectedBusiness?.last_payment_date}
-            basePrice={3000}
+            basePrice={2490}
             parentManaged={selectedBusiness?.subscription_status === 'in_network'}
             parentLabel="Управляется сетью"
           />

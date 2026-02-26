@@ -3,36 +3,82 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Gift, Copy, Users, Wallet, Loader2, QrCode, ExternalLink } from 'lucide-react';
+import { Gift, Copy, Users, UserCheck, Wallet, Loader2, QrCode, ExternalLink } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
+import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { format, subDays, subMonths, startOfWeek, startOfMonth, startOfYear } from 'date-fns';
+import { ru } from 'date-fns/locale';
 
 const ClientReferral = () => {
   const { user, profile } = useAuth();
   const { toast } = useToast();
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [creatingCode, setCreatingCode] = useState(false);
-  const [stats, setStats] = useState({ earnings: 0, referrals: 0, referralBalance: 0 });
+  const [stats, setStats] = useState({ totalEarnings: 0, totalReferrals: 0, activeReferrals: 0, referralBalance: 0 });
   const [showQr, setShowQr] = useState(false);
+  const [earningsPeriod, setEarningsPeriod] = useState<'week' | 'month' | 'year'>('month');
+  const [earningsData, setEarningsData] = useState<any[]>([]);
 
   const baseUrl = window.location.origin;
 
-  useEffect(() => {
-    if (user) loadData();
-  }, [user]);
+  useEffect(() => { if (user) loadData(); }, [user]);
+  useEffect(() => { if (user) loadEarningsChart(); }, [user, earningsPeriod]);
 
   const loadData = async () => {
     const [codeRes, earningsRes, balRes] = await Promise.all([
       supabase.from('referral_codes').select('code').eq('user_id', user!.id).eq('is_active', true).maybeSingle(),
-      supabase.from('referral_earnings').select('amount').eq('referrer_id', user!.id),
+      supabase.from('referral_earnings').select('amount, referred_id').eq('referrer_id', user!.id),
       supabase.from('user_balances').select('referral_balance').eq('user_id', user!.id).maybeSingle(),
     ]);
     if (codeRes.data) setReferralCode(codeRes.data.code);
     const earnings = earningsRes.data || [];
+    const referredIds = [...new Set(earnings.map(e => e.referred_id))];
+    
+    let activeCount = 0;
+    if (referredIds.length > 0) {
+      const { data: masters } = await supabase
+        .from('master_profiles')
+        .select('user_id, subscription_status')
+        .in('user_id', referredIds)
+        .in('subscription_status', ['active', 'trial', 'in_business']);
+      activeCount = masters?.length || 0;
+    }
+
     setStats({
-      earnings: earnings.reduce((s, e) => s + Number(e.amount), 0),
-      referrals: earnings.length,
+      totalEarnings: earnings.reduce((s: number, e: any) => s + Number(e.amount), 0),
+      totalReferrals: referredIds.length,
+      activeReferrals: activeCount,
       referralBalance: balRes.data?.referral_balance || 0,
     });
+  };
+
+  const loadEarningsChart = async () => {
+    if (!user) return;
+    let startDate: Date;
+    if (earningsPeriod === 'week') startDate = startOfWeek(new Date(), { weekStartsOn: 1 });
+    else if (earningsPeriod === 'month') startDate = startOfMonth(new Date());
+    else startDate = startOfYear(new Date());
+
+    const { data } = await supabase
+      .from('referral_earnings')
+      .select('amount, created_at')
+      .eq('referrer_id', user.id)
+      .gte('created_at', startDate.toISOString())
+      .order('created_at');
+
+    if (!data || data.length === 0) {
+      setEarningsData([]);
+      return;
+    }
+
+    // Group by date
+    const grouped: Record<string, number> = {};
+    data.forEach(e => {
+      const key = format(new Date(e.created_at), earningsPeriod === 'year' ? 'MMM' : 'd MMM', { locale: ru });
+      grouped[key] = (grouped[key] || 0) + Number(e.amount);
+    });
+    setEarningsData(Object.entries(grouped).map(([date, amount]) => ({ date, amount })));
   };
 
   const handleCreateCode = async () => {
@@ -79,15 +125,21 @@ const ClientReferral = () => {
             </ol>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div className="p-3 rounded-lg border text-center">
               <Users className="h-5 w-5 mx-auto mb-1 text-primary" />
-              <p className="text-2xl font-bold">{stats.referrals}</p>
+              <p className="text-2xl font-bold">{stats.totalReferrals}</p>
               <p className="text-xs text-muted-foreground">Приглашённых</p>
             </div>
             <div className="p-3 rounded-lg border text-center">
+              <UserCheck className="h-5 w-5 mx-auto mb-1 text-primary" />
+              <p className="text-2xl font-bold">{stats.activeReferrals}</p>
+              <p className="text-xs text-muted-foreground">Активных</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">С действующей подпиской</p>
+            </div>
+            <div className="p-3 rounded-lg border text-center">
               <Gift className="h-5 w-5 mx-auto mb-1 text-primary" />
-              <p className="text-2xl font-bold">{stats.earnings.toLocaleString()} ₽</p>
+              <p className="text-2xl font-bold">{stats.totalEarnings.toLocaleString()} ₽</p>
               <p className="text-xs text-muted-foreground">Заработано</p>
             </div>
             <div className="p-3 rounded-lg border text-center">
@@ -99,10 +151,39 @@ const ClientReferral = () => {
         </CardContent>
       </Card>
 
+      {/* Earnings chart */}
       <Card>
-        <CardHeader>
-          <CardTitle>Ваш реферальный код</CardTitle>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">Заработано</CardTitle>
+            <Tabs value={earningsPeriod} onValueChange={(v) => setEarningsPeriod(v as any)}>
+              <TabsList className="h-8">
+                <TabsTrigger value="week" className="text-xs px-2 h-6">Неделя</TabsTrigger>
+                <TabsTrigger value="month" className="text-xs px-2 h-6">Месяц</TabsTrigger>
+                <TabsTrigger value="year" className="text-xs px-2 h-6">Год</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
         </CardHeader>
+        <CardContent>
+          {earningsData.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground text-sm">Нет данных за выбранный период</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={earningsData}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} className="text-muted-foreground" />
+                <YAxis tick={{ fontSize: 11 }} className="text-muted-foreground" />
+                <RechartsTooltip formatter={(v: number) => [`${v.toLocaleString()} ₽`, 'Сумма']} />
+                <Bar dataKey="amount" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle>Ваш реферальный код</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           {referralCode ? (
             <>
@@ -112,7 +193,6 @@ const ClientReferral = () => {
                   <Copy className="h-4 w-4" />
                 </Button>
               </div>
-
               <div className="space-y-2">
                 <p className="text-sm font-medium">Ссылка для регистрации</p>
                 <div className="flex items-center gap-2 p-3 rounded-lg bg-muted">
@@ -125,13 +205,12 @@ const ClientReferral = () => {
                   </Button>
                 </div>
               </div>
-
               <div className="space-y-2">
                 <Button variant="outline" className="gap-2" onClick={() => setShowQr(!showQr)}>
                   <QrCode className="h-4 w-4" /> {showQr ? 'Скрыть' : 'Показать'} QR-код
                 </Button>
                 {showQr && (
-                  <div className="flex justify-center p-4 bg-white rounded-lg border">
+                  <div className="flex justify-center p-4 bg-background rounded-lg border">
                     <img src={qrUrl} alt="QR код реферальной ссылки" className="w-48 h-48" />
                   </div>
                 )}
