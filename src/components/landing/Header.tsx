@@ -25,7 +25,7 @@ const Header = () => {
         <div className="flex items-center justify-between h-16 md:h-20">
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <Link to="/" className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-emerald-dark flex items-center justify-center">
+              <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
                 <span className="text-primary-foreground font-bold text-lg">S</span>
               </div>
               <span className="font-display font-bold text-xl text-foreground">SkillSpot</span>
