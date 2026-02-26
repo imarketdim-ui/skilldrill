@@ -2523,6 +2523,7 @@ export type Database = {
           organization_id: string | null
           price: number | null
           updated_at: string
+          work_photos: Json | null
         }
         Insert: {
           category_id?: string | null
@@ -2537,6 +2538,7 @@ export type Database = {
           organization_id?: string | null
           price?: number | null
           updated_at?: string
+          work_photos?: Json | null
         }
         Update: {
           category_id?: string | null
@@ -2551,6 +2553,7 @@ export type Database = {
           organization_id?: string | null
           price?: number | null
           updated_at?: string
+          work_photos?: Json | null
         }
         Relationships: [
           {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -33,6 +33,24 @@ const statusColors: Record<string, string> = {
 
 interface Props { config: CategoryConfig; }
 
+interface ServiceOption {
+  id: string; name: string; duration_minutes: number; price: number;
+}
+
+// Helper: add minutes to HH:MM
+const addMinutesToTime = (time: string, minutes: number): string => {
+  const [h, m] = time.split(':').map(Number);
+  const total = h * 60 + m + minutes;
+  const nh = Math.floor(total / 60);
+  const nm = total % 60;
+  return `${nh.toString().padStart(2, '0')}:${nm.toString().padStart(2, '0')}`;
+};
+
+const timeToMinutes = (t: string) => {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+};
+
 const UniversalSchedule = ({ config }: Props) => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -44,11 +62,14 @@ const UniversalSchedule = ({ config }: Props) => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [slotDuration, setSlotDuration] = useState(60);
   const [breakDuration, setBreakDuration] = useState(15);
+  const [services, setServices] = useState<ServiceOption[]>([]);
+  const [workStart] = useState('09:00');
+  const [workEnd] = useState('18:00');
 
   const [formData, setFormData] = useState({
-    title: '', description: '',
+    service_id: '', title: '', description: '',
     lesson_date: format(new Date(), 'yyyy-MM-dd'),
-    start_time: '10:00', end_time: '11:00',
+    start_time: '', end_time: '',
     lesson_type: 'individual' as 'individual' | 'group',
     max_participants: 1, price: 0,
     recurrence: 'none', recurrence_end: '', day_of_week: 1,
@@ -59,6 +80,16 @@ const UniversalSchedule = ({ config }: Props) => {
     date: format(new Date(), 'yyyy-MM-dd'),
     start_time: '12:00', end_time: '13:00',
   });
+
+  // Fetch services for dropdown
+  useEffect(() => {
+    if (!user) return;
+    supabase.from('services').select('id, name, duration_minutes, price')
+      .eq('master_id', user.id).eq('is_active', true)
+      .then(({ data }) => setServices((data || []).map(s => ({
+        id: s.id, name: s.name, duration_minutes: s.duration_minutes || 60, price: Number(s.price) || 0,
+      }))));
+  }, [user]);
 
   const fetchItems = useCallback(async () => {
     if (!user) return;
@@ -82,6 +113,59 @@ const UniversalSchedule = ({ config }: Props) => {
     else setCurrentDate(prev => dir > 0 ? addMonths(prev, 1) : subMonths(prev, 1));
   };
 
+  // Compute available slots for a given date and service duration
+  const getAvailableSlots = useMemo(() => {
+    const selectedService = services.find(s => s.id === formData.service_id);
+    if (!selectedService || !formData.lesson_date) return [];
+
+    const duration = selectedService.duration_minutes;
+    const minSlot = Math.min(...services.map(s => s.duration_minutes), 30);
+    const slotStep = minSlot; // Generate slots by minimum service duration
+
+    const dayItems = items.filter(w => w.lesson_date === formData.lesson_date);
+    // Blocked intervals: existing lessons + breaks
+    const blocked: { start: number; end: number }[] = dayItems.map(w => ({
+      start: timeToMinutes(w.start_time?.slice(0, 5) || '00:00'),
+      end: timeToMinutes(w.end_time?.slice(0, 5) || '00:00'),
+    }));
+
+    const wsMin = timeToMinutes(workStart);
+    const weMin = timeToMinutes(workEnd);
+    const slots: string[] = [];
+
+    for (let t = wsMin; t + duration <= weMin; t += slotStep) {
+      const slotStart = t;
+      const slotEnd = t + duration;
+      // Check if this slot overlaps any blocked interval
+      const overlaps = blocked.some(b => slotStart < b.end && slotEnd > b.start);
+      if (!overlaps) {
+        const hh = Math.floor(t / 60).toString().padStart(2, '0');
+        const mm = (t % 60).toString().padStart(2, '0');
+        slots.push(`${hh}:${mm}`);
+      }
+    }
+    return slots;
+  }, [formData.service_id, formData.lesson_date, services, items, workStart, workEnd]);
+
+  const onServiceChange = (serviceId: string) => {
+    const svc = services.find(s => s.id === serviceId);
+    if (svc) {
+      setFormData(p => ({
+        ...p, service_id: serviceId, title: svc.name, price: svc.price,
+        start_time: '', end_time: '',
+      }));
+    }
+  };
+
+  const onSlotSelect = (slot: string) => {
+    const svc = services.find(s => s.id === formData.service_id);
+    if (!svc) return;
+    setFormData(p => ({
+      ...p, start_time: slot,
+      end_time: addMinutesToTime(slot, svc.duration_minutes),
+    }));
+  };
+
   const checkConflicts = async (date: string, startTime: string, endTime: string, excludeId?: string) => {
     if (!user) return false;
     let query = supabase.from('lessons').select('id')
@@ -93,9 +177,8 @@ const UniversalSchedule = ({ config }: Props) => {
   };
 
   const handleCreate = async () => {
-    if (!user || !formData.title) return;
+    if (!user || !formData.title || !formData.start_time || !formData.end_time) return;
     try {
-      // Check conflicts
       const hasConflict = await checkConflicts(formData.lesson_date, formData.start_time, formData.end_time);
       if (hasConflict) {
         toast({ title: 'Конфликт', description: 'На это время уже есть запись', variant: 'destructive' });
@@ -132,7 +215,6 @@ const UniversalSchedule = ({ config }: Props) => {
           }
           d = addDays(d, formData.recurrence === 'weekly' ? 7 : formData.recurrence === 'monthly' ? 30 : interval);
         }
-        // Check for conflicts in batch
         let conflictCount = 0;
         const safeBatch = [];
         for (const item of batch) {
@@ -154,7 +236,7 @@ const UniversalSchedule = ({ config }: Props) => {
         toast({ title: 'Запись создана' });
       }
       setIsCreateOpen(false);
-      setFormData({ title: '', description: '', lesson_date: format(new Date(), 'yyyy-MM-dd'), start_time: '10:00', end_time: '11:00', lesson_type: 'individual', max_participants: 1, price: 0, recurrence: 'none', recurrence_end: '', day_of_week: 1, recurrence_interval: 7 });
+      setFormData({ service_id: '', title: '', description: '', lesson_date: format(new Date(), 'yyyy-MM-dd'), start_time: '', end_time: '', lesson_type: 'individual', max_participants: 1, price: 0, recurrence: 'none', recurrence_end: '', day_of_week: 1, recurrence_interval: 7 });
       fetchItems();
     } catch (err: any) {
       toast({ title: 'Ошибка', description: err.message, variant: 'destructive' });
@@ -238,9 +320,7 @@ const UniversalSchedule = ({ config }: Props) => {
               <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleDelete(w.id)}><Trash2 className="h-3 w-3" /></Button>
             </div>
           )}
-          {brk && (
-            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleDelete(w.id)}><Trash2 className="h-3 w-3" /></Button>
-          )}
+          {brk && <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleDelete(w.id)}><Trash2 className="h-3 w-3" /></Button>}
         </div>
       </div>
     );
@@ -255,9 +335,7 @@ const UniversalSchedule = ({ config }: Props) => {
           return (
             <div key={slot} className="flex gap-2 min-h-[40px]">
               <div className="w-14 shrink-0 text-xs text-muted-foreground pt-1 text-right pr-2 border-r">{slot}</div>
-              <div className="flex-1 space-y-1">
-                {slotItems.length > 0 ? slotItems.map(renderCard) : null}
-              </div>
+              <div className="flex-1 space-y-1">{slotItems.length > 0 ? slotItems.map(renderCard) : null}</div>
             </div>
           );
         })}
@@ -318,6 +396,8 @@ const UniversalSchedule = ({ config }: Props) => {
     </div>
   );
 
+  const selectedService = services.find(s => s.id === formData.service_id);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -342,9 +422,7 @@ const UniversalSchedule = ({ config }: Props) => {
 
           <Dialog open={isBreakOpen} onOpenChange={setIsBreakOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 gap-1">
-                <Coffee className="h-3.5 w-3.5" /> Перерыв
-              </Button>
+              <Button variant="outline" size="sm" className="h-8 gap-1"><Coffee className="h-3.5 w-3.5" /> Перерыв</Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader><DialogTitle>Добавить перерыв</DialogTitle></DialogHeader>
@@ -354,7 +432,7 @@ const UniversalSchedule = ({ config }: Props) => {
                   <div className="space-y-2"><Label>Начало</Label><Input type="time" value={breakData.start_time} onChange={e => setBreakData(p => ({ ...p, start_time: e.target.value }))} /></div>
                   <div className="space-y-2"><Label>Конец</Label><Input type="time" value={breakData.end_time} onChange={e => setBreakData(p => ({ ...p, end_time: e.target.value }))} /></div>
                 </div>
-                <p className="text-xs text-muted-foreground">Перерыв блокирует тайм-слот и делает его недоступным для записи</p>
+                <p className="text-xs text-muted-foreground">Перерыв блокирует тайм-слот</p>
                 <Button className="w-full" onClick={handleAddBreak}>Добавить перерыв</Button>
               </div>
             </DialogContent>
@@ -367,12 +445,34 @@ const UniversalSchedule = ({ config }: Props) => {
             <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader><DialogTitle>Создать запись</DialogTitle></DialogHeader>
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Название *</Label>
-                  <Input value={formData.title} onChange={e => setFormData(p => ({ ...p, title: e.target.value }))} placeholder="Название услуги или занятия" />
-                </div>
+                {/* Service selection */}
+                {services.length > 0 ? (
+                  <div className="space-y-2">
+                    <Label>Услуга *</Label>
+                    <Select value={formData.service_id} onValueChange={onServiceChange}>
+                      <SelectTrigger><SelectValue placeholder="Выберите услугу" /></SelectTrigger>
+                      <SelectContent>
+                        {services.map(s => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.name} · {s.duration_minutes} мин · {s.price.toLocaleString()} ₽
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Label>Название *</Label>
+                    <Input value={formData.title} onChange={e => setFormData(p => ({ ...p, title: e.target.value }))} placeholder="Название услуги" />
+                  </div>
+                )}
+
+                {/* Date */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2"><Label>Дата</Label><Input type="date" value={formData.lesson_date} onChange={e => setFormData(p => ({ ...p, lesson_date: e.target.value }))} /></div>
+                  <div className="space-y-2">
+                    <Label>Дата</Label>
+                    <Input type="date" value={formData.lesson_date} onChange={e => setFormData(p => ({ ...p, lesson_date: e.target.value, start_time: '', end_time: '' }))} />
+                  </div>
                   <div className="space-y-2">
                     <Label>Тип</Label>
                     <Select value={formData.lesson_type} onValueChange={v => setFormData(p => ({ ...p, lesson_type: v as any }))}>
@@ -384,16 +484,56 @@ const UniversalSchedule = ({ config }: Props) => {
                     </Select>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2"><Label>Начало</Label><Input type="time" value={formData.start_time} onChange={e => setFormData(p => ({ ...p, start_time: e.target.value }))} /></div>
-                  <div className="space-y-2"><Label>Конец</Label><Input type="time" value={formData.end_time} onChange={e => setFormData(p => ({ ...p, end_time: e.target.value }))} /></div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2"><Label>Цена (₽)</Label><Input type="number" value={formData.price} onChange={e => setFormData(p => ({ ...p, price: Number(e.target.value) }))} /></div>
-                  {formData.lesson_type === 'group' && (
-                    <div className="space-y-2"><Label>Макс. участников</Label><Input type="number" min={2} value={formData.max_participants} onChange={e => setFormData(p => ({ ...p, max_participants: Number(e.target.value) }))} /></div>
-                  )}
-                </div>
+
+                {/* Smart time slots */}
+                {formData.service_id && formData.lesson_date ? (
+                  <div className="space-y-2">
+                    <Label>Доступное время <span className="text-muted-foreground font-normal">({selectedService?.duration_minutes} мин)</span></Label>
+                    {getAvailableSlots.length === 0 ? (
+                      <p className="text-sm text-muted-foreground py-2">Нет доступных слотов на эту дату</p>
+                    ) : (
+                      <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5">
+                        {getAvailableSlots.map(slot => (
+                          <Button
+                            key={slot}
+                            variant={formData.start_time === slot ? 'default' : 'outline'}
+                            size="sm"
+                            className="h-9 text-xs"
+                            onClick={() => onSlotSelect(slot)}
+                          >
+                            {slot}
+                          </Button>
+                        ))}
+                      </div>
+                    )}
+                    {formData.start_time && (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {formData.start_time} – {formData.end_time}
+                      </p>
+                    )}
+                  </div>
+                ) : !formData.service_id ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2"><Label>Начало</Label><Input type="time" value={formData.start_time} onChange={e => setFormData(p => ({ ...p, start_time: e.target.value }))} /></div>
+                    <div className="space-y-2"><Label>Конец</Label><Input type="time" value={formData.end_time} onChange={e => setFormData(p => ({ ...p, end_time: e.target.value }))} /></div>
+                  </div>
+                ) : null}
+
+                {!formData.service_id && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2"><Label>Цена (₽)</Label><Input type="number" value={formData.price} onChange={e => setFormData(p => ({ ...p, price: Number(e.target.value) }))} /></div>
+                    {formData.lesson_type === 'group' && (
+                      <div className="space-y-2"><Label>Макс. участников</Label><Input type="number" min={2} value={formData.max_participants} onChange={e => setFormData(p => ({ ...p, max_participants: Number(e.target.value) }))} /></div>
+                    )}
+                  </div>
+                )}
+
+                {formData.lesson_type === 'group' && formData.service_id && (
+                  <div className="space-y-2"><Label>Макс. участников</Label><Input type="number" min={2} value={formData.max_participants} onChange={e => setFormData(p => ({ ...p, max_participants: Number(e.target.value) }))} /></div>
+                )}
+
+                {/* Recurrence */}
                 <div className="space-y-2">
                   <Label>Повторение</Label>
                   <Select value={formData.recurrence} onValueChange={v => setFormData(p => ({ ...p, recurrence: v }))}>
@@ -423,11 +563,11 @@ const UniversalSchedule = ({ config }: Props) => {
                 {formData.recurrence !== 'none' && (
                   <>
                     <div className="space-y-2"><Label>Повторять до</Label><Input type="date" value={formData.recurrence_end} onChange={e => setFormData(p => ({ ...p, recurrence_end: e.target.value }))} /></div>
-                    <p className="text-xs text-muted-foreground">⚠️ Система проверит конфликты с существующими записями и пропустит занятые слоты</p>
+                    <p className="text-xs text-muted-foreground">⚠️ Система проверит конфликты и пропустит занятые слоты</p>
                   </>
                 )}
                 <div className="space-y-2"><Label>Описание</Label><Textarea value={formData.description} onChange={e => setFormData(p => ({ ...p, description: e.target.value }))} /></div>
-                <Button className="w-full" onClick={handleCreate}>Создать</Button>
+                <Button className="w-full" onClick={handleCreate} disabled={!formData.start_time}>Создать</Button>
               </div>
             </DialogContent>
           </Dialog>

@@ -2,16 +2,14 @@ import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { AlertTriangle, LayoutDashboard, Calendar, Users, CreditCard, Banknote, MessageSquare, BarChart3, Ban, Settings } from 'lucide-react';
+import { AlertTriangle, LayoutDashboard, Calendar, Users, MessageSquare, BarChart3, Wallet, Package } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import SubscriptionManager from '../SubscriptionManager';
 import UniversalDashboardHome from './UniversalDashboardHome';
 import UniversalSchedule from './UniversalSchedule';
 import UniversalClients from './UniversalClients';
-import UniversalPayments from './UniversalPayments';
-import UniversalExpenses from './UniversalExpenses';
+import UniversalFinances from './UniversalFinances';
+import UniversalServices from './UniversalServices';
 import UniversalStats from './UniversalStats';
-import TeachingBlacklist from '../teaching/TeachingBlacklist';
 import TeachingChats from '../teaching/TeachingChats';
 import { CategoryConfig } from './categoryConfig';
 
@@ -24,16 +22,14 @@ interface Props {
 const menuItems = [
   { key: 'home', label: 'Главная', icon: LayoutDashboard },
   { key: 'schedule', label: 'Расписание', icon: Calendar },
+  { key: 'services', label: 'Услуги', icon: Package },
   { key: 'clients', label: 'Клиенты', icon: Users },
   { key: 'chats', label: 'Чаты', icon: MessageSquare },
-  { key: 'payments', label: 'Оплаты', icon: CreditCard },
-  { key: 'expenses', label: 'Расходы', icon: Banknote },
+  { key: 'finances', label: 'Финансы', icon: Wallet },
 ];
 
 const managementItems = [
   { key: 'stats', label: 'Статистика', icon: BarChart3 },
-  { key: 'blacklist', label: 'Чёрный список', icon: Ban },
-  { key: 'subscription', label: 'Подписка', icon: CreditCard },
 ];
 
 const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config }: Props) => {
@@ -49,7 +45,7 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
           <p className="text-muted-foreground mb-4">
             Ваши данные сохранены, но интерфейс мастера недоступен. Оплатите подписку (650 ₽/мес) для продолжения работы.
           </p>
-          <Button onClick={() => setActiveSection('subscription')}>Оплатить подписку</Button>
+          <Button onClick={() => setActiveSection('finances')}>Оплатить подписку</Button>
         </CardContent>
       </Card>
     );
@@ -58,24 +54,11 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
   const renderContent = () => {
     switch (activeSection) {
       case 'schedule': return <UniversalSchedule config={config} />;
+      case 'services': return <UniversalServices config={config} />;
       case 'clients': return <UniversalClients config={config} />;
-      case 'payments': return <UniversalPayments />;
-      case 'expenses': return <UniversalExpenses config={config} />;
+      case 'finances': return <UniversalFinances config={config} masterProfile={masterProfile} />;
       case 'chats': return <TeachingChats />;
       case 'stats': return <UniversalStats config={config} />;
-      case 'blacklist': return <TeachingBlacklist />;
-      case 'subscription': return (
-        <SubscriptionManager
-          entityType="master"
-          subscriptionStatus={masterProfile?.subscription_status || 'inactive'}
-          trialStartDate={masterProfile?.trial_start_date}
-          trialDays={masterProfile?.trial_days || 14}
-          lastPaymentDate={masterProfile?.last_payment_date}
-          basePrice={650}
-          parentManaged={masterProfile?.subscription_status === 'in_business'}
-          parentLabel="Управляется бизнесом"
-        />
-      );
       default: return <UniversalDashboardHome config={config} />;
     }
   };
@@ -85,7 +68,6 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
 
   const IconComponent = config.icon;
 
-  // Adapt client label for sidebar
   const adaptedMenuItems = menuItems.map(item =>
     item.key === 'clients' ? { ...item, label: config.clientNamePlural } : item
   );
