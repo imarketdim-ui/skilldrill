@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -310,20 +311,46 @@ const UniversalClients = ({ config }: Props) => {
                 </div>
               </div>
 
+              {/* Status picker */}
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Статус клиента</Label>
+                <div className="flex gap-1.5 flex-wrap">
+                  {(['vip', 'regular', 'new', 'sleeping', 'inactive', 'blacklisted'] as ClientStatus[]).map(s => {
+                    const cfg = statusConfig[s];
+                    const current = getClientStatus(selectedClient);
+                    const isActive = current === s;
+                    return (
+                      <Button key={s} size="sm" variant={isActive ? 'default' : 'outline'} className={`h-7 text-xs gap-1 ${!isActive ? cfg.color : ''}`}
+                        onClick={async () => {
+                          if (!user || !selectedClient) return;
+                          if (s === 'blacklisted' && !selectedClient.isBlacklisted) {
+                            setBlacklistTarget(selectedClient); return;
+                          }
+                          if (s === 'blacklisted' && selectedClient.isBlacklisted) {
+                            handleUnblacklist(selectedClient.id); return;
+                          }
+                          if (s === 'vip') {
+                            if (selectedClient.vipByCount > 0) {
+                              await supabase.from('client_tags').delete().eq('client_id', selectedClient.id).eq('tagger_id', user.id).eq('tag', 'vip');
+                            } else {
+                              await supabase.from('client_tags').insert({ client_id: selectedClient.id, tagger_id: user.id, tag: 'vip' });
+                            }
+                            fetchClients(); setSelectedClient(null);
+                          }
+                        }}
+                      >
+                        <cfg.icon className="h-3 w-3" /> {cfg.label}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Actions */}
               <div className="flex gap-2 flex-wrap">
-                {!selectedClient.isBlacklisted ? (
-                  <>
-                    <Button size="sm" variant="outline" className="gap-1" onClick={() => startChat(selectedClient)}>
-                      <MessageSquare className="h-3.5 w-3.5" /> Написать
-                    </Button>
-                    <Button size="sm" variant="outline" className="gap-1 text-destructive" onClick={() => setBlacklistTarget(selectedClient)}>
-                      <Ban className="h-3.5 w-3.5" /> В ЧС
-                    </Button>
-                  </>
-                ) : (
-                  <Button size="sm" variant="outline" onClick={() => { handleUnblacklist(selectedClient.id); setSelectedClient(null); }}>
-                    Убрать из ЧС
+                {!selectedClient.isBlacklisted && (
+                  <Button size="sm" variant="outline" className="gap-1" onClick={() => startChat(selectedClient)}>
+                    <MessageSquare className="h-3.5 w-3.5" /> Написать
                   </Button>
                 )}
               </div>
