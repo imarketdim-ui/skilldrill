@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { AlertTriangle, LayoutDashboard, Calendar, Users, MessageSquare, BarChart3, Wallet, Package } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { AlertTriangle, LayoutDashboard, Calendar, Users, MessageSquare, BarChart3, Wallet, Package, Bell, ClipboardList } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import UniversalDashboardHome from './UniversalDashboardHome';
 import UniversalSchedule from './UniversalSchedule';
 import UniversalClients from './UniversalClients';
@@ -12,6 +14,111 @@ import UniversalServices from './UniversalServices';
 import UniversalStats from './UniversalStats';
 import TeachingChats from '../teaching/TeachingChats';
 import { CategoryConfig } from './categoryConfig';
+
+// Inline notifications component for master dashboard
+const MasterNotifications = () => {
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [showArchive, setShowArchive] = useState(false);
+
+  useEffect(() => {
+    supabase.from('notifications').select('*')
+      .eq('user_id', (supabase as any).auth?.getUser ? '' : '')
+      .order('created_at', { ascending: false }).limit(30)
+      .then(async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data } = await supabase.from('notifications').select('*')
+          .eq('user_id', user.id).order('created_at', { ascending: false }).limit(30);
+        setNotifications(data || []);
+      });
+  }, []);
+
+  const displayed = showArchive ? notifications : notifications.slice(0, 10);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">Уведомления</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {displayed.length === 0 ? (
+          <p className="text-center py-10 text-muted-foreground">Уведомлений пока нет</p>
+        ) : (
+          <div className="space-y-3">
+            {displayed.map((n: any) => (
+              <div key={n.id} className={`p-3 rounded-lg border ${n.is_read ? '' : 'border-primary/30 bg-primary/5'}`}>
+                <p className="font-medium text-sm">{n.title}</p>
+                <p className="text-sm text-muted-foreground mt-1">{n.message}</p>
+                <p className="text-xs text-muted-foreground mt-1">{new Date(n.created_at).toLocaleString('ru-RU')}</p>
+              </div>
+            ))}
+            {!showArchive && notifications.length > 10 && (
+              <Button variant="outline" size="sm" className="w-full" onClick={() => setShowArchive(true)}>
+                Показать архив ({notifications.length - 10})
+              </Button>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+// Inline requests component - shows pending lesson bookings
+const MasterRequests = () => {
+  const [requests, setRequests] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetch = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase.from('lesson_bookings')
+        .select('*, lessons!inner(title, lesson_date, start_time, end_time, price, teacher_id), profiles:student_id(first_name, last_name)')
+        .eq('lessons.teacher_id', user.id).eq('status', 'pending')
+        .order('created_at', { ascending: false });
+      setRequests(data || []);
+    };
+    fetch();
+  }, []);
+
+  const handleAction = async (id: string, status: 'confirmed' | 'cancelled') => {
+    await supabase.from('lesson_bookings').update({ status, confirmed_at: status === 'confirmed' ? new Date().toISOString() : null }).eq('id', id);
+    setRequests(prev => prev.filter(r => r.id !== id));
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">Заявки на запись</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {requests.length === 0 ? (
+          <p className="text-center py-10 text-muted-foreground">Нет ожидающих заявок</p>
+        ) : (
+          <div className="space-y-3">
+            {requests.map((r: any) => (
+              <div key={r.id} className="p-4 rounded-lg border">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="font-medium">{(r.profiles as any)?.first_name} {(r.profiles as any)?.last_name}</p>
+                    <p className="text-sm text-muted-foreground">{(r.lessons as any)?.title}</p>
+                    <p className="text-sm text-muted-foreground">{(r.lessons as any)?.lesson_date} · {(r.lessons as any)?.start_time?.slice(0, 5)}</p>
+                    <p className="text-sm font-medium mt-1">{Number((r.lessons as any)?.price).toLocaleString()} ₽</p>
+                  </div>
+                  <Badge variant="secondary">Ожидает</Badge>
+                </div>
+                <div className="flex gap-2 mt-3">
+                  <Button size="sm" onClick={() => handleAction(r.id, 'confirmed')}>Подтвердить</Button>
+                  <Button size="sm" variant="outline" onClick={() => handleAction(r.id, 'cancelled')}>Отклонить</Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
 
 interface Props {
   masterProfile: any;
@@ -26,6 +133,8 @@ const menuItems = [
   { key: 'clients', label: 'Клиенты', icon: Users },
   { key: 'chats', label: 'Чаты', icon: MessageSquare },
   { key: 'finances', label: 'Финансы', icon: Wallet },
+  { key: 'requests', label: 'Заявки', icon: ClipboardList },
+  { key: 'notifications', label: 'Уведомления', icon: Bell },
 ];
 
 const managementItems = [
@@ -59,6 +168,8 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
       case 'finances': return <UniversalFinances config={config} masterProfile={masterProfile} />;
       case 'chats': return <TeachingChats />;
       case 'stats': return <UniversalStats config={config} />;
+      case 'requests': return <MasterRequests />;
+      case 'notifications': return <MasterNotifications />;
       default: return <UniversalDashboardHome config={config} />;
     }
   };

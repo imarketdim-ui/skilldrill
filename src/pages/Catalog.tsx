@@ -83,7 +83,7 @@ const Catalog = () => {
 
   const [searchQuery, setSearchQuery] = useState(initial.searchQuery);
   const [categoryFilter, setCategoryFilter] = useState(initial.categoryFilter);
-  const [tab, setTab] = useState(initial.tab);
+  const [tab, setTab] = useState<"masters" | "businesses" | "services">(initial.tab as any || "masters");
   const [priceRange, setPriceRange] = useState<[number, number]>([initial.priceMin, initial.priceMax]);
   const [sortBy, setSortBy] = useState(initial.sortBy);
   const [selectedTags, setSelectedTags] = useState<string[]>(initial.hashtags);
@@ -333,7 +333,7 @@ const Catalog = () => {
           {/* Header */}
           <div className="text-center max-w-2xl mx-auto mb-10">
             <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
-              Каталог услуг
+              Поиск услуг
             </h1>
             <p className="text-lg text-muted-foreground">
               Найдите нужную услугу среди мастеров и организаций Абакана
@@ -515,19 +515,14 @@ const Catalog = () => {
 
           {/* Tab Toggle */}
           <div className="flex gap-2 mb-6">
-            <Button
-              variant={tab === "masters" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setTab("masters")}
-            >
+            <Button variant={tab === "masters" ? "default" : "outline"} size="sm" onClick={() => setTab("masters")}>
               Мастера ({filteredMasters.length})
             </Button>
-            <Button
-              variant={tab === "businesses" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setTab("businesses")}
-            >
+            <Button variant={tab === "businesses" ? "default" : "outline"} size="sm" onClick={() => setTab("businesses")}>
               Организации ({filteredBusinesses.length})
+            </Button>
+            <Button variant={tab === "services" ? "default" : "outline"} size="sm" onClick={() => setTab("services" as any)}>
+              Услуги
             </Button>
           </div>
 

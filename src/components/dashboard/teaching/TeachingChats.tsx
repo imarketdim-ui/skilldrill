@@ -5,9 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { MessageSquare, Send, Search, Paperclip, Image } from 'lucide-react';
+import { MessageSquare, Send, Search, Paperclip, Image, Smile, UserPlus, ShieldBan, Check, CheckCheck, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import { useToast } from '@/hooks/use-toast';
+
+const EMOJI_LIST = ['😀','😂','🥰','😎','👍','❤️','🔥','✨','🎉','👏','🙏','💪','😊','🤔','😅','🥳','💯','⭐','🌟','😍'];
 
 interface ChatContact {
   id: string;
@@ -21,13 +24,18 @@ interface ChatContact {
 
 const TeachingChats = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [contacts, setContacts] = useState<ChatContact[]>([]);
   const [selectedContact, setSelectedContact] = useState<ChatContact | null>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [showEmoji, setShowEmoji] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { if (user) fetchContacts(); }, [user]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
@@ -36,11 +44,7 @@ const TeachingChats = () => {
     if (!user) return;
     const channel = supabase
       .channel(`teaching-chat-${user.id}`)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'chat_messages',
-      }, (payload) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, (payload) => {
         const msg = payload.new as any;
         const isMine = msg.sender_id === user.id || msg.recipient_id === user.id;
         if (!isMine) return;
@@ -51,11 +55,14 @@ const TeachingChats = () => {
         )) {
           setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);
           if (msg.sender_id === selectedContact.id) {
-            supabase.from('chat_messages').update({ is_read: true }).eq('id', msg.id);
+            supabase.from('chat_messages').update({ is_read: true, is_delivered: true }).eq('id', msg.id);
           }
         }
-
         fetchContacts();
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chat_messages' }, (payload) => {
+        const updated = payload.new as any;
+        setMessages(prev => prev.map(m => m.id === updated.id ? { ...m, ...updated } : m));
       })
       .subscribe();
 
@@ -92,7 +99,8 @@ const TeachingChats = () => {
       const lastMsg = contactMsgs[0];
       return {
         id: p.id, first_name: p.first_name, last_name: p.last_name, email: p.email,
-        lastMessage: lastMsg?.message, lastMessageAt: lastMsg?.created_at,
+        lastMessage: lastMsg?.attachment_url ? '📎 Вложение' : lastMsg?.message,
+        lastMessageAt: lastMsg?.created_at,
         unread: contactMsgs.filter(m => m.recipient_id === user.id && !m.is_read).length,
       };
     });
@@ -102,29 +110,84 @@ const TeachingChats = () => {
 
   const openChat = async (contact: ChatContact) => {
     setSelectedContact(contact);
+    setShowEmoji(false);
     if (!user) return;
     const { data } = await supabase.from('chat_messages').select('*')
       .or(`and(sender_id.eq.${user.id},recipient_id.eq.${contact.id}),and(sender_id.eq.${contact.id},recipient_id.eq.${user.id})`)
       .order('created_at', { ascending: true });
     setMessages(data || []);
-    await supabase.from('chat_messages').update({ is_read: true }).eq('sender_id', contact.id).eq('recipient_id', user.id).eq('is_read', false);
+    // Mark as read + delivered
+    await supabase.from('chat_messages').update({ is_read: true, is_delivered: true }).eq('sender_id', contact.id).eq('recipient_id', user.id).eq('is_read', false);
     setContacts(prev => prev.map(c => c.id === contact.id ? { ...c, unread: 0 } : c));
   };
 
-  const sendMessage = async () => {
-    if (!user || !selectedContact || !newMessage.trim()) return;
+  const sendMessage = async (attachmentUrl?: string, attachmentType?: string) => {
+    if (!user || !selectedContact) return;
+    if (!newMessage.trim() && !attachmentUrl) return;
 
     const { data: blocked } = await supabase.from('blacklists').select('id').eq('blocker_id', selectedContact.id).eq('blocked_id', user.id).maybeSingle();
-    if (blocked) return;
+    if (blocked) { toast({ title: 'Чат заблокирован собеседником', variant: 'destructive' }); return; }
 
     const { error } = await supabase.from('chat_messages').insert({
-      sender_id: user.id, recipient_id: selectedContact.id, message: newMessage.trim(), chat_type: 'direct',
+      sender_id: user.id, recipient_id: selectedContact.id,
+      message: newMessage.trim() || (attachmentType === 'image' ? '📷 Фото' : '📎 Файл'),
+      chat_type: 'direct',
+      attachment_url: attachmentUrl || null,
+      attachment_type: attachmentType || null,
     });
 
     if (!error) {
       setNewMessage('');
-      openChat(selectedContact);
-      fetchContacts();
+      setShowEmoji(false);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'file') => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: 'Файл слишком большой', description: 'Максимум 10 МБ', variant: 'destructive' });
+      return;
+    }
+
+    setUploadingFile(true);
+    try {
+      const ext = file.name.split('.').pop();
+      const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error } = await supabase.storage.from('portfolio').upload(path, file);
+      if (error) throw error;
+      const { data: urlData } = supabase.storage.from('portfolio').getPublicUrl(path);
+      await sendMessage(urlData.publicUrl, type);
+    } catch (err: any) {
+      toast({ title: 'Ошибка загрузки', description: err.message, variant: 'destructive' });
+    } finally {
+      setUploadingFile(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleAddToClients = async () => {
+    if (!user || !selectedContact) return;
+    const { error } = await supabase.from('client_tags').insert({
+      client_id: selectedContact.id, tagger_id: user.id, tag: 'new', note: 'Добавлен из чата',
+    });
+    if (error && error.code !== '23505') {
+      toast({ title: 'Ошибка', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Добавлен в клиенты', description: `${selectedContact.first_name || ''} добавлен со статусом «Новый»` });
+    }
+  };
+
+  const handleBlockInChat = async () => {
+    if (!user || !selectedContact) return;
+    const { error } = await supabase.from('blacklists').insert({
+      blocker_id: user.id, blocked_id: selectedContact.id, reason: 'Заблокирован в чате',
+    });
+    if (error) toast({ title: 'Ошибка', description: error.message, variant: 'destructive' });
+    else {
+      toast({ title: 'Собеседник заблокирован' });
+      setSelectedContact(null);
     }
   };
 
@@ -142,8 +205,15 @@ const TeachingChats = () => {
     const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000);
     if (diffDays === 0) return format(d, 'HH:mm');
     if (diffDays === 1) return 'Вчера';
-    if (diffDays < 7) return `${diffDays} дня назад`;
+    if (diffDays < 7) return `${diffDays} дн. назад`;
     return format(d, 'd MMM', { locale: ru });
+  };
+
+  const getMessageStatus = (msg: any) => {
+    if (msg.sender_id !== user?.id) return null;
+    if (msg.is_read) return <CheckCheck className="h-3 w-3 text-primary" />;
+    if (msg.is_delivered) return <CheckCheck className="h-3 w-3 text-primary-foreground/60" />;
+    return <Check className="h-3 w-3 text-primary-foreground/60" />;
   };
 
   const filteredContacts = contacts.filter(c => {
@@ -218,16 +288,23 @@ const TeachingChats = () => {
         ) : (
           <>
             {/* Chat Header */}
-            <div className="p-4 border-b flex items-center gap-3">
-              <Button variant="ghost" size="sm" className="md:hidden" onClick={() => setSelectedContact(null)}>←</Button>
-              <Avatar className="h-9 w-9">
-                <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                  {getInitials(selectedContact.first_name, selectedContact.last_name)}
-                </AvatarFallback>
-              </Avatar>
-              <div>
+            <div className="p-4 border-b flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Button variant="ghost" size="sm" className="md:hidden" onClick={() => setSelectedContact(null)}>←</Button>
+                <Avatar className="h-9 w-9">
+                  <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                    {getInitials(selectedContact.first_name, selectedContact.last_name)}
+                  </AvatarFallback>
+                </Avatar>
                 <p className="font-medium text-sm">{selectedContact.first_name} {selectedContact.last_name}</p>
-                <p className="text-xs text-emerald-600">В сети</p>
+              </div>
+              <div className="flex gap-1">
+                <Button size="icon" variant="ghost" className="h-8 w-8" title="Добавить в клиенты" onClick={handleAddToClients}>
+                  <UserPlus className="h-4 w-4" />
+                </Button>
+                <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" title="Заблокировать" onClick={handleBlockInChat}>
+                  <ShieldBan className="h-4 w-4" />
+                </Button>
               </div>
             </div>
 
@@ -241,12 +318,21 @@ const TeachingChats = () => {
                         ? 'bg-primary text-primary-foreground rounded-br-sm'
                         : 'bg-muted rounded-bl-sm'
                     }`}>
+                      {msg.attachment_url && msg.attachment_type === 'image' && (
+                        <img src={msg.attachment_url} alt="" className="max-w-full rounded-lg mb-2 max-h-60 object-cover" />
+                      )}
+                      {msg.attachment_url && msg.attachment_type === 'file' && (
+                        <a href={msg.attachment_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2 rounded-lg bg-background/10 mb-2 hover:bg-background/20 transition-colors">
+                          <Paperclip className="h-4 w-4" />
+                          <span className="text-xs underline">Открыть файл</span>
+                        </a>
+                      )}
                       <p className="whitespace-pre-wrap">{msg.message}</p>
                       <div className={`flex items-center gap-1 mt-1 ${msg.sender_id === user?.id ? 'justify-end' : ''}`}>
                         <p className={`text-[10px] ${msg.sender_id === user?.id ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>
                           {format(new Date(msg.created_at), 'HH:mm')}
                         </p>
-                        {msg.sender_id === user?.id && <span className="text-[10px] text-primary-foreground/60">✓</span>}
+                        {getMessageStatus(msg)}
                       </div>
                     </div>
                   </div>
@@ -255,17 +341,35 @@ const TeachingChats = () => {
               </div>
             </ScrollArea>
 
+            {/* Emoji picker */}
+            {showEmoji && (
+              <div className="border-t p-2 flex flex-wrap gap-1 max-w-full">
+                {EMOJI_LIST.map(e => (
+                  <button key={e} className="text-xl hover:scale-125 transition-transform p-1" onClick={() => { setNewMessage(prev => prev + e); setShowEmoji(false); }}>{e}</button>
+                ))}
+              </div>
+            )}
+
             {/* Input */}
             <div className="p-3 border-t flex items-center gap-2">
-              <Button size="icon" variant="ghost" className="text-muted-foreground shrink-0"><Paperclip className="h-4 w-4" /></Button>
-              <Button size="icon" variant="ghost" className="text-muted-foreground shrink-0"><Image className="h-4 w-4" /></Button>
+              <Button size="icon" variant="ghost" className="text-muted-foreground shrink-0" onClick={() => fileInputRef.current?.click()} disabled={uploadingFile}>
+                <Paperclip className="h-4 w-4" />
+              </Button>
+              <Button size="icon" variant="ghost" className="text-muted-foreground shrink-0" onClick={() => imageInputRef.current?.click()} disabled={uploadingFile}>
+                <Image className="h-4 w-4" />
+              </Button>
+              <Button size="icon" variant="ghost" className={`shrink-0 ${showEmoji ? 'text-primary' : 'text-muted-foreground'}`} onClick={() => setShowEmoji(!showEmoji)}>
+                <Smile className="h-4 w-4" />
+              </Button>
               <Input
                 value={newMessage} onChange={e => setNewMessage(e.target.value)} onKeyDown={handleKeyDown}
                 placeholder="Написать сообщение..." className="flex-1"
               />
-              <Button size="icon" onClick={sendMessage} disabled={!newMessage.trim()} className="shrink-0">
+              <Button size="icon" onClick={() => sendMessage()} disabled={!newMessage.trim() && !uploadingFile} className="shrink-0">
                 <Send className="h-4 w-4" />
               </Button>
+              <input ref={fileInputRef} type="file" className="hidden" onChange={e => handleFileUpload(e, 'file')} />
+              <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={e => handleFileUpload(e, 'image')} />
             </div>
           </>
         )}
