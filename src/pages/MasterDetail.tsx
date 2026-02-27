@@ -119,21 +119,25 @@ const MasterDetail = () => {
     }
   }, [bookingService, bookingData.date, services, master]);
 
-  // Map dialog
+  // Map dialog - use requestAnimationFrame to ensure container is rendered
   useEffect(() => {
     if (!mapOpen || !mapRef.current || !master?.latitude || !master?.longitude) return;
-    const map = new maplibregl.Map({
-      container: mapRef.current,
-      style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
-      center: [master.longitude, master.latitude],
-      zoom: 15,
+    let map: maplibregl.Map | null = null;
+    const frame = requestAnimationFrame(() => {
+      if (!mapRef.current) return;
+      map = new maplibregl.Map({
+        container: mapRef.current,
+        style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+        center: [master.longitude!, master.latitude!],
+        zoom: 15,
+      });
+      new maplibregl.Marker({ color: '#4F46E5' }).setLngLat([master.longitude!, master.latitude!]).addTo(map);
     });
-    new maplibregl.Marker({ color: '#4F46E5' }).setLngLat([master.longitude, master.latitude]).addTo(map);
-    return () => map.remove();
+    return () => { cancelAnimationFrame(frame); map?.remove(); };
   }, [mapOpen, master]);
 
   const toggleFavorite = async () => {
-    if (!user || !master) { toast({ title: 'Войдите, чтобы добавить в избранное' }); return; }
+    if (!user || !master) { toast({ title: 'Войдите, чтобы добавить в избранное', variant: 'destructive' }); navigate('/auth'); return; }
     if (isFavorite) {
       await supabase.from('favorites').delete().eq('user_id', user.id).eq('target_id', master.user_id).eq('favorite_type', 'master');
       setIsFavorite(false);
@@ -338,7 +342,7 @@ const MasterDetail = () => {
         <div className="container-wide max-w-5xl mx-auto">
           {/* Breadcrumbs */}
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-            <Link to="/catalog" className="hover:text-foreground transition-colors">Каталог</Link>
+            <Link to="/catalog" className="hover:text-foreground transition-colors">Поиск услуг</Link>
             <span>/</span>
             {master.service_categories && (
               <>

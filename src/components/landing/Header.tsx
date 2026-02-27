@@ -7,7 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const navLinks = [
-  { label: "Каталог", href: "/catalog", isRoute: true },
+  { label: "Поиск услуг", href: "/catalog", isRoute: true },
   { label: "О платформе", href: "/about", isRoute: true },
   { label: "Для бизнеса", href: "/for-business", isRoute: true },
   { label: "Тарифы", href: "/subscription", isRoute: true },

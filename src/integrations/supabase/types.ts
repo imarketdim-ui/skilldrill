@@ -551,9 +551,12 @@ export type Database = {
       }
       chat_messages: {
         Row: {
+          attachment_type: string | null
+          attachment_url: string | null
           chat_type: string
           created_at: string
           id: string
+          is_delivered: boolean
           is_read: boolean
           message: string
           recipient_id: string
@@ -561,9 +564,12 @@ export type Database = {
           sender_id: string
         }
         Insert: {
+          attachment_type?: string | null
+          attachment_url?: string | null
           chat_type?: string
           created_at?: string
           id?: string
+          is_delivered?: boolean
           is_read?: boolean
           message: string
           recipient_id: string
@@ -571,9 +577,12 @@ export type Database = {
           sender_id: string
         }
         Update: {
+          attachment_type?: string | null
+          attachment_url?: string | null
           chat_type?: string
           created_at?: string
           id?: string
+          is_delivered?: boolean
           is_read?: boolean
           message?: string
           recipient_id?: string
@@ -821,6 +830,8 @@ export type Database = {
           no_show_category:
             | Database["public"]["Enums"]["no_show_category"]
             | null
+          reminder_minutes: number | null
+          reschedule_reason: string | null
           status: Database["public"]["Enums"]["booking_status"]
           student_id: string
           updated_at: string
@@ -836,6 +847,8 @@ export type Database = {
           no_show_category?:
             | Database["public"]["Enums"]["no_show_category"]
             | null
+          reminder_minutes?: number | null
+          reschedule_reason?: string | null
           status?: Database["public"]["Enums"]["booking_status"]
           student_id: string
           updated_at?: string
@@ -851,6 +864,8 @@ export type Database = {
           no_show_category?:
             | Database["public"]["Enums"]["no_show_category"]
             | null
+          reminder_minutes?: number | null
+          reschedule_reason?: string | null
           status?: Database["public"]["Enums"]["booking_status"]
           student_id?: string
           updated_at?: string
@@ -950,6 +965,7 @@ export type Database = {
       master_profiles: {
         Row: {
           address: string | null
+          auto_booking_policy: string | null
           business_id: string | null
           category_id: string | null
           certificate_photos: Json | null
@@ -968,6 +984,7 @@ export type Database = {
           moderation_comment: string | null
           moderation_status: string
           promo_code_used: string | null
+          social_links: Json | null
           subscription_price: number
           subscription_status: string
           suspended_at: string | null
@@ -980,6 +997,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          auto_booking_policy?: string | null
           business_id?: string | null
           category_id?: string | null
           certificate_photos?: Json | null
@@ -998,6 +1016,7 @@ export type Database = {
           moderation_comment?: string | null
           moderation_status?: string
           promo_code_used?: string | null
+          social_links?: Json | null
           subscription_price?: number
           subscription_status?: string
           suspended_at?: string | null
@@ -1010,6 +1029,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          auto_booking_policy?: string | null
           business_id?: string | null
           category_id?: string | null
           certificate_photos?: Json | null
@@ -1028,6 +1048,7 @@ export type Database = {
           moderation_comment?: string | null
           moderation_status?: string
           promo_code_used?: string | null
+          social_links?: Json | null
           subscription_price?: number
           subscription_status?: string
           suspended_at?: string | null
@@ -1500,6 +1521,7 @@ export type Database = {
           last_name: string | null
           phone: string | null
           platform_role: Database["public"]["Enums"]["platform_role"]
+          reminder_minutes: number | null
           skillspot_id: string
           updated_at: string
         }
@@ -1515,6 +1537,7 @@ export type Database = {
           last_name?: string | null
           phone?: string | null
           platform_role?: Database["public"]["Enums"]["platform_role"]
+          reminder_minutes?: number | null
           skillspot_id: string
           updated_at?: string
         }
@@ -1530,6 +1553,7 @@ export type Database = {
           last_name?: string | null
           phone?: string | null
           platform_role?: Database["public"]["Enums"]["platform_role"]
+          reminder_minutes?: number | null
           skillspot_id?: string
           updated_at?: string
         }

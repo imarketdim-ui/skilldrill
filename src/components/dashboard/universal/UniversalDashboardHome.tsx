@@ -156,7 +156,7 @@ const UniversalDashboardHome = ({ config }: Props) => {
                     {masterProfile?.description || 'Добавьте описание в настройках профиля'}
                   </p>
                 </div>
-                <Button variant="outline" size="sm">Редактировать</Button>
+                <Button variant="outline" size="sm" onClick={() => window.location.href = '/settings'}>Редактировать</Button>
               </div>
               {masterProfile?.service_categories?.name && (
                 <div className="flex flex-wrap gap-2 mt-3">
