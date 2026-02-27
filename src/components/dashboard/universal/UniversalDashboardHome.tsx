@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Calendar, Users, Banknote, AlertTriangle, Clock, CheckCircle, MessageSquare, Plus, User } from 'lucide-react';
+import { Calendar, Users, Banknote, AlertTriangle, Clock, CheckCircle, MessageSquare, Plus, User, ExternalLink } from 'lucide-react';
 import { format, isToday, formatDistanceToNow } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { CategoryConfig } from './categoryConfig';
@@ -164,6 +164,23 @@ const UniversalDashboardHome = ({ config }: Props) => {
                     <IconComponent className="h-3 w-3" />
                     {masterProfile.service_categories.name}
                   </Badge>
+                </div>
+              )}
+              {/* Social links */}
+              {masterProfile?.social_links && Object.values(masterProfile.social_links).some(Boolean) && (
+                <div className="flex gap-2 mt-2 flex-wrap">
+                  {masterProfile.social_links.telegram && (
+                    <a href={`https://t.me/${masterProfile.social_links.telegram}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1"><ExternalLink className="h-3 w-3" /> Telegram</a>
+                  )}
+                  {masterProfile.social_links.vk && (
+                    <a href={`https://vk.com/${masterProfile.social_links.vk}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1"><ExternalLink className="h-3 w-3" /> VK</a>
+                  )}
+                  {masterProfile.social_links.instagram && (
+                    <a href={`https://instagram.com/${masterProfile.social_links.instagram}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1"><ExternalLink className="h-3 w-3" /> Instagram</a>
+                  )}
+                  {masterProfile.social_links.youtube && (
+                    <a href={masterProfile.social_links.youtube} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1"><ExternalLink className="h-3 w-3" /> YouTube</a>
+                  )}
                 </div>
               )}
             </div>
