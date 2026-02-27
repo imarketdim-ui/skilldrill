@@ -1,205 +1,180 @@
 
 
-# Plan: Rating System with Integrated Anti-Fraud and Anti-Abuse
+# Plan: Polishing & Bug Fixes — Full Audit and Improvements
 
-## Current State Analysis
+## Gap Analysis: Current State vs Requirements
 
-The platform already has a solid foundation:
-- **`user_scores` table** with all needed columns (total_score, profile_score, activity_score, risk_score, reputation_score, completed_visits, no_show_count, cancel_under_1h, cancel_under_3h, disputes_*, vip_by_count, blacklist_by_count, unique_partners, top_partner_pct, etc.)
-- **`calculate_user_score` RPC function** implementing the 4-block model (Profile, Activity, Risk, Reputation) with base score 60
-- **`UserScoreCard` component** with master/client view modes
-- **`ClientStats` component** with color-coded metric cards
-- Supporting tables: `bookings`, `disputes`, `ratings`, `blacklists`, `client_tags`
-
-**What's missing from the spec:**
-1. `fraud_flags` table does not exist
-2. `profiles` table lacks `kyc_verified` column
-3. No anti-fraud logic (concentration check, VIP spike detection, clone detection, cluster filtering)
-4. No verification filtering in the scoring function (events between non-verified users still count)
-5. No automatic triggers on booking/VIP/blacklist changes
-6. Threshold is 10 visits in current code, spec says 20
-7. No `restricted` status handling (40-50 range)
-8. No automatic moderation actions (blocking bookings for <40 scores)
-9. Frontend `ClientStats` uses `isNewUser = account_age_days < 90 && completed_visits < 10` instead of `< 20`
-10. `UserScoreCard` master view lacks KYC status display
-
----
-
-## Implementation Plan
-
-### Phase 1: Database Schema Changes (Migration)
-
-**1.1 Add `kyc_verified` to `profiles`**
-```sql
-ALTER TABLE profiles ADD COLUMN kyc_verified boolean NOT NULL DEFAULT false;
-ALTER TABLE profiles ADD COLUMN kyc_verified_at timestamptz;
-```
-
-**1.2 Create `fraud_flags` table**
-```text
-fraud_flags
-├── id (uuid PK)
-├── user_id (uuid, FK -> profiles)
-├── flag_type (text): 'vip_spike' | 'concentration' | 'clone_suspect' | 'cluster' | 'low_score_moderation'
-├── description (text)
-├── severity (text): 'info' | 'warning' | 'critical'
-├── is_resolved (boolean, default false)
-├── resolved_by (uuid, nullable)
-├── resolved_at (timestamptz, nullable)
-├── metadata (jsonb, default '{}')
-├── created_at (timestamptz)
-```
-
-RLS: admins SELECT/ALL; user SELECT own flags (read-only).
-
-**1.3 Add `is_verified` helper column to `user_scores`**
-```sql
-ALTER TABLE user_scores ADD COLUMN kyc_verified boolean NOT NULL DEFAULT false;
-```
-
-### Phase 2: Rewrite `calculate_user_score` Function
-
-The existing function will be replaced with the full spec logic:
-
-**Profile Block (max +20):**
-- FIO + real photo: +5
-- KYC verified: +15
-
-**Activity Block (max +15):**
-- >=50 completed visits: +5
-- >=100 completed visits: +10
-- Registration >3 months: +5
-
-**Risk Block (min -80, only when >=20 visits):**
-- No-show rate: 0 / -3 / -7 / -15 / -30 (thresholds: 2%, 5%, 10%, 20%)
-- Cancel <1h rate: 0 / -3 / -8 / -15 (thresholds: 3%, 7%, 15%)
-- Lost disputes rate: -5 / -15 / -30 (thresholds: 10%, 20%)
-- Blacklist: -5 per unique, cap -25
-
-**Reputation Block (min -25, max +40):**
-- VIP 20-39%: +5, >=40%: +10 (only if top_partner_pct < 70%)
-- No disputes: +10; WinRate >90%: +5; LoseRate >90%: -10
-- Blacklist penalty: cap -25
-
-**Anti-fraud checks integrated into calculation:**
-1. **Verification filter**: Only count bookings/ratings/blacklists between verified users (kyc_verified = true)
-2. **Concentration check**: If top_partner_pct >= 70%, VIP and reputation bonuses are suppressed
-3. **VIP spike detection**: Count VIP additions in last 7 days; if >30% of total VIP count, insert fraud_flag with type `vip_spike`
-4. **Blacklist anti-abuse**: Ignore blacklists from users with score <50; ignore blacklists where blocker has 0 completed visits with blocked user
-5. **Cluster detection**: If >70% of interactions are within a closed set of <5 users, those interactions are excluded from reputation
-
-**Status determination:**
-- <20 visits OR <90 days: `insufficient_data`
-- score <40: `blocked`
-- score 40-50: `flagged` (auto-flag for moderation)
-- score <=50: `restricted`
-- score >50: `active`
-
-### Phase 3: Database Triggers
-
-**3.1 Trigger on `bookings` status change:**
-```sql
-CREATE TRIGGER trg_recalc_score_on_booking
-AFTER UPDATE OF status ON bookings
-FOR EACH ROW
-WHEN (NEW.status IN ('completed', 'cancelled', 'no_show'))
-EXECUTE FUNCTION recalc_user_score_async();
-```
-The trigger function will call `calculate_user_score(NEW.client_id)`.
-
-**3.2 Trigger on `blacklists` INSERT/DELETE:**
-Recalculate score for `blocked_id`.
-
-**3.3 Trigger on `ratings` INSERT (VIP detection):**
-Recalculate score for `rated_id`.
-
-**3.4 Trigger on `disputes` status change:**
-Recalculate scores for both `initiator_id` and `respondent_id`.
-
-### Phase 4: Frontend Updates
-
-**4.1 Update `ClientStats.tsx`**
-- Change threshold from `completed_visits < 10` to `< 20`
-- Add "disputes" metric card with color coding
-- Add monthly trend mini-chart (sparkline) using existing recharts
-- Update tooltip text per spec (soft, non-judgmental language)
-
-**4.2 Update `UserScoreCard.tsx` (Master View)**
-- Add KYC verification badge in profile block
-- Show `restricted` status (40-50 range) with appropriate styling
-- Add tooltip: "Баллы начисляются по внутренним алгоритмам, не являются оценкой личности"
-- Show anti-fraud flags count if any exist (for admin visibility)
-
-**4.3 Admin Dashboard: Fraud Flags Panel**
-- New component `FraudFlagsPanel.tsx` in admin dashboard
-- Lists unresolved fraud flags with user info, flag type, severity
-- Admin can resolve flags with comment
-- Filter by severity, type, date range
-
-**4.4 Automatic Restrictions UI**
-- In booking flow: check client score before allowing booking
-- If score <40: show "Бронирование временно недоступно" message
-- If score 40-50: require prepayment, disable auto-booking
-
-### Phase 5: Migration with Anti-Fraud Seed Data
-
-Create a migration that:
-1. Creates `fraud_flags` table with RLS
-2. Adds `kyc_verified` to profiles
-3. Replaces `calculate_user_score` function with the full spec version
-4. Creates all 4 triggers
-5. Creates helper function `check_fraud_indicators(user_id)` that runs anti-fraud checks separately
+| # | Requirement | Current State | Action |
+|---|-------------|---------------|--------|
+| 1a | Chat: no photo/video/file upload | Buttons exist but do nothing | Implement real file upload via Supabase Storage |
+| 1b | Chat: no voice messages/emoji | Not implemented | Add emoji picker; voice recording is complex (defer) |
+| 1c | Chat: shows "В сети" incorrectly | Hardcoded `<p className="text-xs text-emerald-600">В сети</p>` line 230 | Remove completely |
+| 1d | Chat: Telegram-style statuses (sent/delivered/read) | Only single `✓` for own messages | Add `is_delivered` column to `chat_messages`; show ✓/✓✓/blue ✓✓ |
+| 2 | SEO-friendly links for master/service/business | Routes exist (`/master/:id`, `/business/:id`) but no service route | Add `/master/:masterId/service/:serviceId` route; add "copy link" buttons |
+| 3 | Notifications: history 1 month, last 10, archive | Shows last 30 flat | Limit display to 10, add "Show archive" expand; admin sees full history |
+| 4a | Calendar Day: completed sessions get status choice (attended/no-show + reason), 24h review window | Only ✓/⊘ buttons, no reason selection | Add reason dialog for no-show; add "Leave review" button within 24h |
+| 4b | Calendar Week: vertical day list, click → day view | Grid layout, no click-to-day | Redesign week view as vertical list; click navigates to day |
+| 4c | Calendar Month: day cells with count, click → day | Currently same grid pattern | Show count badges; click sets day view |
+| 5a | Rename "Каталог"/"Маркетплейс" → "Поиск услуг" everywhere | `h1: "Каталог услуг"`, breadcrumbs say "Каталог", menu items | Global rename in Catalog.tsx, Header, ClientDashboard, links |
+| 5b | Service card opens full details on click | Services listed inline in MasterDetail, no standalone service card view | Add service detail dialog/page |
+| 5c | Popular services card style in search | Landing has PopularServices component | Reuse card style in search results |
+| 5d | Map hangs on address click in master/business | Map dialog uses `useEffect` with `mapOpen` dependency — may fire before container mounts | Add `setTimeout` or `requestAnimationFrame` delay for map init |
+| 5e | Add "Услуги" tab alongside Мастера/Организации | Only masters/businesses tabs | Add third tab that searches `services` table directly |
+| 6a | Client: profile photo upload broken | Settings.tsx line 154: `<Button disabled>` | Enable button, add PhotoUploader for avatar upload to `avatars` bucket |
+| 6b | Client: phone 8→+7 auto-replace | No transformation in Settings.tsx | Add `onBlur`/`onChange` handler to normalize phone |
+| 6c | Favorites don't show saved items | ClientDashboard favorites section is a static placeholder | Fetch from `favorites` table and display actual items |
+| 6d | "Перейти в маркетплейс" text overflows | Full text button in overview card | Replace with icon-only Search button |
+| 6e | Reminder settings per booking | Not implemented | Add `reminder_minutes` to profiles + booking override (DB + UI) |
+| 7a | Master: social media links | Not in master_profiles | Add `social_links` jsonb column; UI in profile editor |
+| 7b | Chat: add to clients / block from chat header | No action buttons on chat contact header | Add "Add to clients" and "Block chat" buttons |
+| 7c | Auto-booking settings (who can auto-book) | Not implemented | Add `auto_booking_policy` to master_profiles; check on booking |
+| 7d | Booking: confirm/reject/reschedule flow | Bookings created as `confirmed` immediately | Change to `pending`; add confirm/reject/reschedule actions with notifications |
+| 7e | "Записать клиента" dialog redesign | Current dialog: title/date/time/type fields | Redesign: client search (list/ID/manual), service+price select, timeslot grid, comment field |
+| 7f | Master stats blocks clickable with detail pages | Static stat cards | Make cards clickable with drill-down panels |
+| 7g | "Редактировать" button on master home doesn't work | `<Button>Редактировать</Button>` with no onClick | Wire to master profile editor section |
+| 7h | Master settings photo upload broken | Same Settings.tsx issue as client | Fix avatar upload (shared fix) |
+| 7i | Missing "Уведомления" and "Заявки" tabs in master dashboard | `menuItems` in UniversalMasterDashboard lacks these | Add notification + requests menu items |
+| 7j | Client card: status picker (VIP/regular/blacklist etc.) | Only blacklist toggle exists | Add status dropdown in client detail dialog |
+| 8 | Org creation: map picker clears form data | Form state likely reset when MapPicker component mounts/unmounts | Preserve form state across map interaction |
 
 ---
 
-## Technical Details
+## Implementation Plan (Prioritized)
 
-### Anti-Fraud Implementation in SQL
+### Phase 1: Critical Bug Fixes (6 files)
 
-The `calculate_user_score` function will include inline anti-fraud checks:
+**1.1 Fix avatar photo upload** — `Settings.tsx`
+- Create `avatars` storage bucket (migration)
+- Enable camera button, integrate `PhotoUploader` for single avatar
+- On upload, update `profiles.avatar_url`
+- Add phone 8→+7 auto-normalization on blur
 
-```text
--- Verification filter
-SELECT COUNT(*) INTO _completed
-FROM bookings b
-JOIN profiles p_client ON p_client.id = b.client_id
-JOIN profiles p_exec ON p_exec.id = b.executor_id
-WHERE b.client_id = _user_id
-  AND b.status = 'completed'
-  AND p_client.kyc_verified = true
-  AND p_exec.kyc_verified = true;
+**1.2 Fix map hang** — `MasterDetail.tsx`
+- Wrap map initialization in `requestAnimationFrame` to ensure container is rendered
+- Guard against null container ref
 
--- Concentration check (already exists, will enforce 70% cap)
--- VIP spike: compare last-7-day VIP count to total
--- Blacklist abuse: filter by blocker score >= 50 AND blocker has >=1 completed visit with user
--- Cluster: identify groups of <5 users sharing >70% interactions
-```
+**1.3 Fix favorites display** — `ClientDashboard.tsx`
+- Fetch `favorites` with joined `master_profiles`/`business_locations` data
+- Render actual favorite cards instead of placeholder
 
-### Fraud Flag Types
+**1.4 Fix "Редактировать" button** — `UniversalDashboardHome.tsx`
+- Wire button to switch active section to profile editor (or navigate to settings)
 
-| Type | Trigger | Severity |
-|------|---------|----------|
-| `vip_spike` | >30% VIP growth in 7 days | warning |
-| `concentration` | >70% visits with 1 partner | info |
-| `clone_suspect` | Same IP/device for multiple accounts | critical |
-| `cluster` | >70% interactions within closed group of <5 | warning |
-| `low_score_moderation` | Score drops <=50 | warning |
-| `auto_blocked` | Score drops <40 | critical |
+**1.5 Add missing master dashboard tabs** — `UniversalMasterDashboard.tsx`
+- Add "Уведомления" and "Заявки" menu items
+- Render notifications list and client requests components
 
-### Files to Create/Modify
+**1.6 Fix org creation form reset** — `CreateOrganization.tsx` / `CreateBusinessAccount.tsx`
+- Store form state in ref/parent before map picker opens
+- Restore after map closes
+
+### Phase 2: Chat Improvements (2 files + 1 migration)
+
+**2.1 DB Migration:**
+- Add `is_delivered` boolean to `chat_messages` (default false)
+- Add `attachment_url` text nullable, `attachment_type` text nullable
+- Create `avatars` storage bucket if not exists
+
+**2.2 TeachingChats.tsx overhaul:**
+- Remove "В сети" indicator entirely
+- Implement ✓ (sent) / ✓✓ (delivered) / blue ✓✓ (read) using `is_read` + `is_delivered`
+- Enable file/image upload via `PhotoUploader` component integration (attach to message)
+- Add emoji picker (simple grid of common emojis)
+- Add "Add to clients" and "Block in chat" action buttons in chat header
+- Mark messages as delivered when recipient opens chat
+
+### Phase 3: Naming & Navigation (5+ files)
+
+**3.1 Global rename "Каталог"/"Маркетплейс" → "Поиск услуг"**
+- `Catalog.tsx`: h1, subtitle, breadcrumbs
+- `Header.tsx`: nav link text
+- `ClientDashboard.tsx`: all button labels "Перейти в маркетплейс" → icon-only search
+- `MasterDetail.tsx`: breadcrumb "Каталог" → "Поиск услуг"
+- Quick action card: replace text with `<Search />` icon only
+
+**3.2 Add "Услуги" tab in search** — `Catalog.tsx`
+- Add third tab fetching from `services` table with master join
+- Display service cards with name, price, duration, master name
+- Click opens service detail
+
+**3.3 SEO links**
+- Add route `/master/:masterId/service/:serviceId` — shows master page scrolled to service
+- Add "Copy link" icon on each service card in `MasterDetail.tsx`
+- Add "Copy link" in master header and business detail
+
+### Phase 4: Calendar Redesign (1 file)
+
+**4.1 UniversalSchedule.tsx:**
+- **Day view**: After session end time + 24h, show "Оценить" button; completed sessions show status choice dialog (attended/no-show with reason picker)
+- **Week view**: Redesign as vertical list of days with summary info; click on day → switch to day view
+- **Month view**: Show day cells with booking count badge; click → switch to day view
+
+### Phase 5: Booking Flow Improvements (2 files + 1 migration)
+
+**5.1 DB Migration:**
+- Add `social_links` jsonb to `master_profiles`
+- Add `auto_booking_policy` text to `master_profiles` (values: 'all', 'clients_only', 'high_rating', 'selected', 'none')
+- Add `reminder_minutes` integer to `profiles` (default 60)
+- Add `reminder_minutes` integer to `lesson_bookings` (nullable, override)
+- Add `reschedule_reason` text to `lesson_bookings`
+
+**5.2 Booking status flow** — `UniversalSchedule.tsx` + `MasterDetail.tsx`
+- New bookings from clients → status `pending` (not `confirmed`)
+- Master dashboard: show pending bookings with Confirm/Reject/Reschedule actions
+- Confirm → sends notification to client
+- Reject → reason picker, notification without reason shown to client
+- Reschedule → pick new slot, notify client, client confirms/cancels in their bookings
+- Auto-booking check: if client meets policy → auto-confirm
+
+**5.3 "Записать клиента" dialog redesign** — `UniversalSchedule.tsx`
+- Client selection: dropdown from client list + search by SkillSpot ID + manual name/phone entry
+- Service selection with auto-filled price (editable)
+- Available timeslots grid (existing logic)
+- Comment field (renamed from "Описание")
+
+### Phase 6: Notifications & Client Status (3 files)
+
+**6.1 Notifications:**
+- Display last 10 in dashboard, "Показать архив" button loads more
+- Archive: older than 1 month hidden by default
+- Admin: full history in client card view
+
+**6.2 Client card status picker** — `UniversalClients.tsx`
+- Replace simple blacklist toggle with status dropdown (VIP/Regular/New/Sleeping/Inactive/Blacklisted)
+- Save via `client_tags` table
+
+**6.3 Master social links** — `UniversalDashboardHome.tsx` or profile editor
+- Add social media inputs (Telegram, VK, Instagram, YouTube)
+- Display links on master public profile
+
+### Phase 7: Service Detail View (2 files)
+
+**7.1 Service card view** — New component or dialog
+- Full service card: photo gallery, description, price, duration, hashtags, reviews
+- Accessible from search results and master profile
+
+**7.2 Popular services in search** — `Catalog.tsx`
+- Match card design from landing `PopularServices` component
+
+---
+
+## Files to Create/Modify
 
 | File | Action |
 |------|--------|
-| `supabase/migrations/XXXXXX_rating_antifraud.sql` | Create: fraud_flags table, update profiles, rewrite calculate_user_score, create triggers |
-| `src/components/dashboard/client/ClientStats.tsx` | Modify: threshold 20, disputes card, trend chart, updated language |
-| `src/components/dashboard/UserScoreCard.tsx` | Modify: KYC badge, restricted status, tooltip, fraud flag indicator |
-| `src/components/dashboard/admin/FraudFlagsPanel.tsx` | Create: admin panel for fraud flag management |
-| `src/components/dashboard/AdminDashboard.tsx` | Modify: add fraud flags menu item |
-| `src/integrations/supabase/types.ts` | Modify: add fraud_flags type, kyc_verified to profiles |
+| `supabase/migrations/XXXXX_chat_and_booking_improvements.sql` | Create: avatars bucket, add chat_messages columns, add master_profiles columns, add profiles.reminder_minutes |
+| `src/pages/Settings.tsx` | Modify: avatar upload, phone normalization |
+| `src/components/dashboard/teaching/TeachingChats.tsx` | Major rewrite: statuses, file upload, emoji, remove online indicator, chat actions |
+| `src/pages/Catalog.tsx` | Modify: rename, add services tab |
+| `src/components/dashboard/ClientDashboard.tsx` | Modify: favorites fetch, icon-only search, overview cards |
+| `src/pages/MasterDetail.tsx` | Modify: fix map, copy link buttons, booking flow to pending |
+| `src/components/dashboard/universal/UniversalMasterDashboard.tsx` | Modify: add notifications/requests tabs |
+| `src/components/dashboard/universal/UniversalSchedule.tsx` | Major: calendar redesign, booking flow, dialog redesign |
+| `src/components/dashboard/universal/UniversalDashboardHome.tsx` | Modify: wire edit button, social links |
+| `src/components/dashboard/universal/UniversalClients.tsx` | Modify: status picker in client detail |
+| `src/components/landing/Header.tsx` | Modify: rename catalog link |
+| `src/App.tsx` | Modify: add service detail route |
+| `src/pages/CreateBusinessAccount.tsx` | Modify: preserve form on map interaction |
 
-### Estimated Scope
-- 1 large migration (schema + function + triggers)
-- 4 frontend files modified
-- 1 new component created
-- No new dependencies needed (recharts already installed for sparklines)
+Total: ~1 migration, ~13 files modified/created. No new dependencies needed.
 
