@@ -3,8 +3,8 @@ import { motion } from "framer-motion";
 
 const footerLinks = {
   product: [
-    { label: "Каталог услуг", href: "/catalog" },
-    { label: "Тарифы", href: "/subscription" },
+    { label: "Поиск услуг", href: "/" },
+    { label: "Тарифы", href: "/for-business#pricing" },
     { label: "Для специалистов", href: "/request-role?type=master" },
   ],
   company: [
@@ -34,7 +34,7 @@ const Footer = () => {
               </Link>
             </motion.div>
             <p className="text-white/60 max-w-sm mb-4">
-              Маркетплейс услуг. Объединяем клиентов и специалистов на одной платформе.
+              Платформа услуг. Объединяем клиентов и специалистов на одной платформе.
             </p>
             <div className="text-white/40 text-xs space-y-1">
               <p>ООО «СКИЛЛ СПОТ» · ИНН 1901142926 · ОГРН 1191901004272</p>

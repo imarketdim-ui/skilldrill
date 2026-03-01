@@ -277,8 +277,8 @@ const ProfileCompletionCheck = ({ entityType, entityData, onProfileUpdated }: Pr
             <p className="text-sm text-destructive mt-1">Причина: {entityData.moderation_comment}</p>
           )}
           {moderationStatus === 'draft' && (
-            <p className="text-sm text-muted-foreground">
-              Заполните необходимые поля и отправьте на модерацию. После одобрения ваш профиль станет доступен в каталоге.
+             <p className="text-sm text-muted-foreground">
+              Заполните необходимые поля и отправьте на модерацию. После одобрения ваш профиль станет доступен в поиске.
             </p>
           )}
         </CardHeader>

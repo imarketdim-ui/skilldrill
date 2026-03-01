@@ -123,7 +123,7 @@ const Auth = () => {
             </div>
             <span className="text-2xl font-bold text-foreground">SkillSpot</span>
           </div>
-          <p className="text-muted-foreground">Маркетплейс услуг для вашего бизнеса</p>
+          <p className="text-muted-foreground">Платформа услуг для вашего бизнеса</p>
         </div>
 
         <Card>

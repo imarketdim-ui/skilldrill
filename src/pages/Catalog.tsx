@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
 import { Card, CardContent } from "@/components/ui/card";
 import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
@@ -16,6 +15,7 @@ import CatalogMap, { type MapMaster } from "@/components/marketplace/CatalogMap"
 import MasterCardItem from "@/components/marketplace/MasterCardItem";
 import BusinessCardItem from "@/components/marketplace/BusinessCardItem";
 import ServiceCardItem, { type ServiceCardData } from "@/components/marketplace/ServiceCardItem";
+import ServiceDetailDialog from "@/components/marketplace/ServiceDetailDialog";
 import { supabase } from "@/integrations/supabase/client";
 
 // Categories from DB
@@ -69,7 +69,7 @@ const stemRu = (word: string) =>
 const parseFiltersFromURL = (params: URLSearchParams) => ({
   searchQuery: params.get("q") || "",
   categoryFilter: params.get("category") || CATEGORY_ALL,
-  tab: (params.get("tab") || "masters") as "masters" | "businesses",
+  tab: (params.get("tab") || "masters") as "masters" | "businesses" | "services",
   priceMin: parseInt(params.get("priceMin") || "0") || 0,
   priceMax: parseInt(params.get("priceMax") || "50000") || 50000,
   sortBy: params.get("sort") || "popular",
@@ -97,6 +97,7 @@ const Catalog = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [showAllTags, setShowAllTags] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "map">("grid");
+  const [selectedService, setSelectedService] = useState<ServiceCardData | null>(null);
 
   // Sync filters → URL
   const syncURL = useCallback(() => {
@@ -278,7 +279,7 @@ const Catalog = () => {
 
   const toggleTag = (tag: string) => {
     setSelectedTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : prev.length >= 5 ? prev : [...prev, tag]
     );
   };
 
@@ -320,11 +321,16 @@ const Catalog = () => {
     return businesses.filter((b) => {
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        return b.name.toLowerCase().includes(q) || (b.description || "").toLowerCase().includes(q);
+        const stem = stemRu(searchQuery);
+        const match = b.name.toLowerCase().includes(q) || stemRu(b.name).includes(stem) || (b.description || "").toLowerCase().includes(q) || (b.address || "").toLowerCase().includes(q);
+        if (!match) return false;
+      }
+      if (categoryFilter !== CATEGORY_ALL && b.category_name) {
+        // Business doesn't have category_id directly, skip category filter for now
       }
       return true;
     });
-  }, [businesses, searchQuery]);
+  }, [businesses, searchQuery, categoryFilter]);
 
   // Filter services
   const filteredServices = useMemo(() => {
@@ -337,11 +343,20 @@ const Catalog = () => {
             s.name.toLowerCase().includes(q) ||
             stemRu(s.name).includes(stem) ||
             s.master_name.toLowerCase().includes(q) ||
-            (s.category_name || "").toLowerCase().includes(q);
+            (s.category_name || "").toLowerCase().includes(q) ||
+            (s.master_location || "").toLowerCase().includes(q);
           if (!match) return false;
         }
         if (s.price != null) {
           if (s.price < priceRange[0] || s.price > priceRange[1]) return false;
+        }
+        if (categoryFilter !== CATEGORY_ALL && s.category_name) {
+          // category filter applied via category_name match
+          const cat = categories.find(c => c.id === categoryFilter);
+          if (cat && s.category_name !== cat.name) return false;
+        }
+        if (selectedTags.length > 0) {
+          // Services don't have hashtags directly in ServiceCardData yet, skip
         }
         return true;
       })
@@ -352,7 +367,7 @@ const Catalog = () => {
           default: return 0;
         }
       });
-  }, [services, searchQuery, priceRange, sortBy]);
+  }, [services, searchQuery, priceRange, sortBy, categoryFilter, categories, selectedTags]);
 
   const activeFiltersCount = [
     priceRange[0] > 0 || priceRange[1] < 50000,
@@ -473,19 +488,34 @@ const Catalog = () => {
                   </Select>
                 </div>
 
-                {/* Price Range */}
+                {/* Price Range - inputs */}
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">
-                    Цена: {priceRange[0].toLocaleString("ru-RU")} – {priceRange[1].toLocaleString("ru-RU")} ₽
-                  </label>
-                  <Slider
-                    value={priceRange}
-                    onValueChange={(v) => setPriceRange(v as [number, number])}
-                    min={0}
-                    max={50000}
-                    step={500}
-                    className="mt-3"
-                  />
+                  <label className="text-sm font-medium text-muted-foreground">Цена (₽)</label>
+                  <div className="flex gap-2 items-center">
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="от"
+                      value={priceRange[0] > 0 ? String(priceRange[0]) : ''}
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value.replace(/\D/g, '')) || 0;
+                        setPriceRange([v, priceRange[1]]);
+                      }}
+                      className="h-10"
+                    />
+                    <span className="text-muted-foreground">—</span>
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="до"
+                      value={priceRange[1] < 50000 ? String(priceRange[1]) : ''}
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value.replace(/\D/g, '')) || 50000;
+                        setPriceRange([priceRange[0], v]);
+                      }}
+                      className="h-10"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -717,7 +747,7 @@ const Catalog = () => {
                     <ServiceCardItem
                       key={s.id}
                       service={s}
-                      onClick={() => navigate(`/master/${s.master_id}`)}
+                      onClick={() => setSelectedService(s)}
                     />
                   ))}
             </div>
@@ -738,6 +768,27 @@ const Catalog = () => {
         </div>
       </main>
       <Footer />
+
+      {/* Service Detail Dialog */}
+      <ServiceDetailDialog
+        service={selectedService ? {
+          id: selectedService.id,
+          name: selectedService.name,
+          price: selectedService.price,
+          duration_minutes: selectedService.duration_minutes,
+          work_photos: selectedService.work_photos,
+          description: null,
+          hashtags: [],
+        } : null}
+        masterName={selectedService?.master_name}
+        masterId={selectedService?.master_id}
+        open={!!selectedService}
+        onOpenChange={(open) => { if (!open) setSelectedService(null); }}
+        onBook={() => {
+          setSelectedService(null);
+          if (selectedService) navigate(`/master/${selectedService.master_id}`);
+        }}
+      />
     </div>
   );
 };

@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Pencil, Trash2, Clock, Tag, Package } from 'lucide-react';
+import { Plus, Pencil, Trash2, Clock, Tag, Package, X } from 'lucide-react';
 import { CategoryConfig } from './categoryConfig';
 import PhotoUploader from '@/components/marketplace/PhotoUploader';
 
@@ -35,8 +35,8 @@ const UniversalServices = ({ config }: Props) => {
   const [isOpen, setIsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({
-    name: '', description: '', price: 0, duration_minutes: 60,
-    hashtags: '', is_active: true, work_photos: [] as string[],
+    name: '', description: '', price: '', duration_minutes: '',
+    hashtags: [] as string[], hashtagInput: '', is_active: true, work_photos: [] as string[],
   });
 
   useEffect(() => { if (user) fetchServices(); }, [user]);
@@ -56,7 +56,7 @@ const UniversalServices = ({ config }: Props) => {
 
   const openCreate = () => {
     setEditingId(null);
-    setForm({ name: '', description: '', price: 0, duration_minutes: 60, hashtags: '', is_active: true, work_photos: [] });
+    setForm({ name: '', description: '', price: '', duration_minutes: '', hashtags: [], hashtagInput: '', is_active: true, work_photos: [] });
     setIsOpen(true);
   };
 
@@ -64,21 +64,20 @@ const UniversalServices = ({ config }: Props) => {
     setEditingId(s.id);
     setForm({
       name: s.name, description: s.description || '',
-      price: s.price || 0, duration_minutes: s.duration_minutes || 60,
-      hashtags: s.hashtags.join(', '), is_active: s.is_active, work_photos: s.work_photos || [],
+      price: s.price != null ? String(s.price) : '', duration_minutes: s.duration_minutes != null ? String(s.duration_minutes) : '',
+      hashtags: s.hashtags || [], hashtagInput: '', is_active: s.is_active, work_photos: s.work_photos || [],
     });
     setIsOpen(true);
   };
 
   const handleSave = async () => {
     if (!user || !form.name.trim()) return;
-    const tags = form.hashtags.split(',').map(t => t.trim()).filter(Boolean);
     const payload = {
       name: form.name.trim(),
       description: form.description.trim() || null,
-      price: form.price,
-      duration_minutes: form.duration_minutes,
-      hashtags: tags,
+      price: form.price ? Number(form.price) : 0,
+      duration_minutes: form.duration_minutes ? Number(form.duration_minutes) : 60,
+      hashtags: form.hashtags,
       is_active: form.is_active,
       master_id: user.id,
       work_photos: form.work_photos,
@@ -176,7 +175,7 @@ const UniversalServices = ({ config }: Props) => {
       )}
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingId ? 'Редактировать услугу' : 'Новая услуга'}</DialogTitle>
           </DialogHeader>
@@ -192,16 +191,69 @@ const UniversalServices = ({ config }: Props) => {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Цена (₽) *</Label>
-                <Input type="number" value={form.price} onChange={e => setForm(p => ({ ...p, price: Number(e.target.value) }))} />
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  value={form.price}
+                  onChange={e => {
+                    const v = e.target.value.replace(/[^\d]/g, '');
+                    setForm(p => ({ ...p, price: v }));
+                  }}
+                  placeholder="0"
+                />
               </div>
               <div className="space-y-2">
                 <Label>Длительность (мин) *</Label>
-                <Input type="number" value={form.duration_minutes} onChange={e => setForm(p => ({ ...p, duration_minutes: Number(e.target.value) }))} />
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  value={form.duration_minutes}
+                  onChange={e => {
+                    const v = e.target.value.replace(/[^\d]/g, '');
+                    setForm(p => ({ ...p, duration_minutes: v }));
+                  }}
+                  placeholder="60"
+                />
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Хештеги (через запятую)</Label>
-              <Input value={form.hashtags} onChange={e => setForm(p => ({ ...p, hashtags: e.target.value }))} placeholder="красота, стрижка, барбер" />
+              <Label>Хештеги</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={form.hashtagInput}
+                  onChange={e => setForm(p => ({ ...p, hashtagInput: e.target.value }))}
+                  placeholder="Введите хештег"
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const tag = form.hashtagInput.trim().replace(/^#/, '');
+                      if (tag && !form.hashtags.includes(tag)) {
+                        setForm(p => ({ ...p, hashtags: [...p.hashtags, tag], hashtagInput: '' }));
+                      }
+                    }
+                  }}
+                />
+                <Button type="button" variant="outline" size="sm" onClick={() => {
+                  const tag = form.hashtagInput.trim().replace(/^#/, '');
+                  if (tag && !form.hashtags.includes(tag)) {
+                    setForm(p => ({ ...p, hashtags: [...p.hashtags, tag], hashtagInput: '' }));
+                  }
+                }}>
+                  Добавить
+                </Button>
+              </div>
+              {form.hashtags.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {form.hashtags.map(t => (
+                    <Badge key={t} variant="secondary" className="text-xs gap-1">
+                      #{t}
+                      <button onClick={() => setForm(p => ({ ...p, hashtags: p.hashtags.filter(h => h !== t) }))} className="ml-0.5 hover:text-destructive">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Фото работ</Label>

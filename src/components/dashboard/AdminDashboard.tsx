@@ -186,7 +186,7 @@ const AdminDashboard = () => {
           <Card>
             <CardHeader>
               <CardTitle>Модерация профилей</CardTitle>
-              <CardDescription>Проверка и одобрение мастеров, бизнесов и сетей для публикации в каталоге</CardDescription>
+              <CardDescription>Проверка и одобрение мастеров, бизнесов и сетей для публикации в поиске</CardDescription>
             </CardHeader>
             <CardContent>
               {moderationItems.length === 0 ? (

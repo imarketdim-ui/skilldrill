@@ -156,7 +156,7 @@ const UniversalDashboardHome = ({ config }: Props) => {
                     {masterProfile?.description || 'Добавьте описание в настройках профиля'}
                   </p>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => window.location.href = '/settings'}>Редактировать</Button>
+                <Button variant="outline" size="sm" onClick={() => { const ev = new CustomEvent('navigate-dashboard', { detail: 'profile' }); window.dispatchEvent(ev); }}>Редактировать профиль</Button>
               </div>
               {masterProfile?.service_categories?.name && (
                 <div className="flex flex-wrap gap-2 mt-3">

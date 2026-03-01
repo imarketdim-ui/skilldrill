@@ -68,7 +68,7 @@ const BusinessDashboard = () => {
         </div>
         <div className="flex items-center gap-2">
           {getSubscriptionBadge()}
-          {selectedBusiness?.moderation_status === 'approved' && <Badge variant="outline">В каталоге</Badge>}
+          {selectedBusiness?.moderation_status === 'approved' && <Badge variant="outline">Опубликован</Badge>}
           {selectedBusiness?.moderation_status === 'pending' && <Badge>На модерации</Badge>}
           {selectedBusiness?.moderation_status === 'draft' && <Badge variant="secondary">Черновик</Badge>}
         </div>

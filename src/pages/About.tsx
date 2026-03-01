@@ -39,8 +39,8 @@ const About = () => {
                   Зарегистрироваться бесплатно
                   <ArrowRight className="w-5 h-5" />
                 </Button>
-                <Button variant="outline" size="lg" onClick={() => navigate('/catalog')}>
-                  Перейти в каталог
+                <Button variant="outline" size="lg" onClick={() => navigate('/')}>
+                  Найти услугу
                 </Button>
               </div>
             </motion.div>
@@ -111,7 +111,7 @@ const About = () => {
                 Для бизнеса и мастеров
                 <ArrowRight className="w-5 h-5" />
               </Button>
-              <Button variant="outline" size="lg" onClick={() => navigate('/subscription')}>
+              <Button variant="outline" size="lg" onClick={() => navigate('/for-business#pricing')}>
                 Тарифы
               </Button>
             </div>

@@ -40,7 +40,7 @@ const UniversalFinances = ({ config, masterProfile }: Props) => {
             trialStartDate={masterProfile?.trial_start_date}
             trialDays={masterProfile?.trial_days || 14}
             lastPaymentDate={masterProfile?.last_payment_date}
-            basePrice={650}
+            basePrice={690}
             parentManaged={masterProfile?.subscription_status === 'in_business'}
             parentLabel="Управляется бизнесом"
           />

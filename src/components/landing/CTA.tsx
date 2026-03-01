@@ -42,9 +42,9 @@ const CTA = () => {
                 <Button 
                   size="xl" 
                   className="bg-white/10 text-white border border-white/20 hover:bg-white/20 backdrop-blur-sm"
-                  onClick={() => navigate('/catalog')}
+                  onClick={() => navigate('/')}
                 >
-                  Посмотреть каталог
+                  Найти услугу
                 </Button>
               </div>
             </motion.div>
