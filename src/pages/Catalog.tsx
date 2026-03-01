@@ -49,6 +49,7 @@ type BusinessItem = {
   address: string | null;
   description: string | null;
   category_name: string | null;
+  category_id: string | null;
   specialist_count: number;
   service_count: number;
   latitude: number | null;
@@ -88,6 +89,8 @@ const Catalog = () => {
   const [priceRange, setPriceRange] = useState<[number, number]>([initial.priceMin, initial.priceMax]);
   const [sortBy, setSortBy] = useState(initial.sortBy);
   const [selectedTags, setSelectedTags] = useState<string[]>(initial.hashtags);
+  const [locationFilter, setLocationFilter] = useState(searchParams.get("city") || "");
+  const [locationOpen, setLocationOpen] = useState(false);
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [masters, setMasters] = useState<MasterItem[]>([]);
@@ -99,6 +102,23 @@ const Catalog = () => {
   const [viewMode, setViewMode] = useState<"grid" | "map">("grid");
   const [selectedService, setSelectedService] = useState<ServiceCardData | null>(null);
 
+  // Extract unique cities from addresses
+  const availableCities = useMemo(() => {
+    const cities = new Set<string>();
+    const extractCity = (addr: string | null) => {
+      if (!addr) return;
+      // Extract city from patterns like "г. Абакан, ..." or "..., Абакан"
+      const gMatch = addr.match(/г\.\s*([^,]+)/);
+      if (gMatch) { cities.add(gMatch[1].trim()); return; }
+      // Try last known city patterns
+      const parts = addr.split(",").map(s => s.trim());
+      if (parts.length >= 2) cities.add(parts[parts.length - 2] || parts[0]);
+    };
+    masters.forEach(m => extractCity(m.location));
+    businesses.forEach(b => extractCity(b.address));
+    return Array.from(cities).sort();
+  }, [masters, businesses]);
+
   // Sync filters → URL
   const syncURL = useCallback(() => {
     const p = new URLSearchParams();
@@ -109,8 +129,9 @@ const Catalog = () => {
     if (priceRange[1] < 50000) p.set("priceMax", String(priceRange[1]));
     if (sortBy !== "popular") p.set("sort", sortBy);
     if (selectedTags.length > 0) p.set("tags", selectedTags.join(","));
+    if (locationFilter) p.set("city", locationFilter);
     setSearchParams(p, { replace: true });
-  }, [searchQuery, categoryFilter, tab, priceRange, sortBy, selectedTags, setSearchParams]);
+  }, [searchQuery, categoryFilter, tab, priceRange, sortBy, selectedTags, locationFilter, setSearchParams]);
 
   useEffect(() => { syncURL(); }, [syncURL]);
 
@@ -186,7 +207,7 @@ const Catalog = () => {
     fetchMasters();
   }, [categoryFilter]);
 
-  // Fetch businesses
+  // Fetch businesses (with category + counts)
   useEffect(() => {
     const fetchBusinesses = async () => {
       const { data } = await supabase
@@ -199,8 +220,42 @@ const Catalog = () => {
         .eq("moderation_status", "approved")
         .limit(100);
 
-      const mapped: BusinessItem[] = (data || []).map((bl: any) => {
+      if (!data || data.length === 0) { setBusinesses([]); return; }
+
+      const bizIds = data.map((bl: any) => bl.id);
+
+      // Fetch master counts + category per business via business_masters -> master_profiles
+      const { data: bmData } = await supabase
+        .from("business_masters")
+        .select("business_id, master_id, master_profiles!business_masters_master_id_fkey(category_id, service_categories!master_profiles_category_id_fkey(id, name))")
+        .in("business_id", bizIds)
+        .eq("status", "accepted");
+
+      // Fetch service counts per business
+      const { data: svcCountData } = await supabase
+        .from("services")
+        .select("organization_id")
+        .in("organization_id", bizIds)
+        .eq("is_active", true);
+
+      const masterCountMap: Record<string, number> = {};
+      const bizCategoryMap: Record<string, { id: string; name: string } | null> = {};
+      const serviceCountMap: Record<string, number> = {};
+
+      (bmData || []).forEach((bm: any) => {
+        masterCountMap[bm.business_id] = (masterCountMap[bm.business_id] || 0) + 1;
+        if (!bizCategoryMap[bm.business_id] && bm.master_profiles?.service_categories) {
+          bizCategoryMap[bm.business_id] = bm.master_profiles.service_categories;
+        }
+      });
+
+      (svcCountData || []).forEach((s: any) => {
+        serviceCountMap[s.organization_id] = (serviceCountMap[s.organization_id] || 0) + 1;
+      });
+
+      const mapped: BusinessItem[] = data.map((bl: any) => {
         const photos = [...(bl.interior_photos || []), ...(bl.exterior_photos || [])];
+        const cat = bizCategoryMap[bl.id];
         return {
           id: bl.id,
           name: bl.name,
@@ -209,9 +264,10 @@ const Catalog = () => {
           review_count: 0,
           address: bl.address || "Абакан",
           description: bl.description,
-          category_name: null,
-          specialist_count: 0,
-          service_count: 0,
+          category_name: cat?.name || null,
+          category_id: cat?.id || null,
+          specialist_count: masterCountMap[bl.id] || 0,
+          service_count: serviceCountMap[bl.id] || 0,
           latitude: bl.latitude,
           longitude: bl.longitude,
         };
@@ -304,6 +360,9 @@ const Catalog = () => {
           const mTags = (m.hashtags || []).map((t) => t.toLowerCase());
           if (!selectedTags.every((st) => mTags.some((mt) => mt.includes(st.toLowerCase())))) return false;
         }
+        if (locationFilter) {
+          if (!(m.location || "").toLowerCase().includes(locationFilter.toLowerCase())) return false;
+        }
         return true;
       })
       .sort((a, b) => {
@@ -314,7 +373,7 @@ const Catalog = () => {
           default: return 0;
         }
       });
-  }, [masters, searchQuery, priceRange, selectedTags, sortBy]);
+  }, [masters, searchQuery, priceRange, selectedTags, sortBy, locationFilter]);
 
   // Filter businesses
   const filteredBusinesses = useMemo(() => {
@@ -325,12 +384,16 @@ const Catalog = () => {
         const match = b.name.toLowerCase().includes(q) || stemRu(b.name).includes(stem) || (b.description || "").toLowerCase().includes(q) || (b.address || "").toLowerCase().includes(q);
         if (!match) return false;
       }
-      if (categoryFilter !== CATEGORY_ALL && b.category_name) {
-        // Business doesn't have category_id directly, skip category filter for now
+      if (categoryFilter !== CATEGORY_ALL && b.category_id) {
+        if (b.category_id !== categoryFilter) return false;
+      }
+      if (categoryFilter !== CATEGORY_ALL && !b.category_id) return false;
+      if (locationFilter) {
+        if (!(b.address || "").toLowerCase().includes(locationFilter.toLowerCase())) return false;
       }
       return true;
     });
-  }, [businesses, searchQuery, categoryFilter]);
+  }, [businesses, searchQuery, categoryFilter, locationFilter]);
 
   // Filter services
   const filteredServices = useMemo(() => {
@@ -358,6 +421,9 @@ const Catalog = () => {
         if (selectedTags.length > 0) {
           // Services don't have hashtags directly in ServiceCardData yet, skip
         }
+        if (locationFilter) {
+          if (!(s.master_location || "").toLowerCase().includes(locationFilter.toLowerCase())) return false;
+        }
         return true;
       })
       .sort((a, b) => {
@@ -367,11 +433,12 @@ const Catalog = () => {
           default: return 0;
         }
       });
-  }, [services, searchQuery, priceRange, sortBy, categoryFilter, categories, selectedTags]);
+  }, [services, searchQuery, priceRange, sortBy, categoryFilter, categories, selectedTags, locationFilter]);
 
   const activeFiltersCount = [
     priceRange[0] > 0 || priceRange[1] < 50000,
     selectedTags.length > 0,
+    !!locationFilter,
   ].filter(Boolean).length;
 
   const resetFilters = () => {
@@ -380,6 +447,7 @@ const Catalog = () => {
     setSortBy("popular");
     setSearchQuery("");
     setCategoryFilter(CATEGORY_ALL);
+    setLocationFilter("");
   };
 
   // Map items
@@ -444,6 +512,61 @@ const Catalog = () => {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-12 h-12 text-base"
                 />
+              </div>
+              {/* Location picker */}
+              <div className="relative">
+                <button
+                  onClick={() => setLocationOpen(!locationOpen)}
+                  className="h-12 px-4 flex items-center gap-2 rounded-md border border-input bg-background text-sm hover:bg-accent transition-colors min-w-[160px]"
+                >
+                  <MapPin className="w-4 h-4 text-primary shrink-0" />
+                  <span className={locationFilter ? "text-foreground" : "text-muted-foreground"}>
+                    {locationFilter || "Все города"}
+                  </span>
+                  {locationFilter && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setLocationFilter(""); setLocationOpen(false); }}
+                      className="ml-auto text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </button>
+                {locationOpen && (
+                  <div className="absolute top-full mt-1 left-0 z-50 w-64 bg-popover border border-border rounded-lg shadow-lg overflow-hidden">
+                    <div className="p-2 border-b border-border">
+                      <Input
+                        placeholder="Введите город..."
+                        autoFocus
+                        className="h-9 text-sm"
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (!v) return;
+                        }}
+                      />
+                    </div>
+                    <div className="max-h-48 overflow-y-auto p-1">
+                      <button
+                        onClick={() => { setLocationFilter(""); setLocationOpen(false); }}
+                        className={`w-full text-left px-3 py-2 text-sm rounded-md hover:bg-accent transition-colors ${!locationFilter ? "bg-accent font-medium" : ""}`}
+                      >
+                        Все города
+                      </button>
+                      {availableCities.map((city) => (
+                        <button
+                          key={city}
+                          onClick={() => { setLocationFilter(city); setLocationOpen(false); }}
+                          className={`w-full text-left px-3 py-2 text-sm rounded-md hover:bg-accent transition-colors ${locationFilter === city ? "bg-accent font-medium" : ""}`}
+                        >
+                          {city}
+                        </button>
+                      ))}
+                      {availableCities.length === 0 && (
+                        <p className="px-3 py-2 text-sm text-muted-foreground">Нет данных</p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
               <Button
                 variant={showFilters ? "default" : "outline"}
