@@ -15,6 +15,7 @@ import Footer from "@/components/landing/Footer";
 import CatalogMap, { type MapMaster } from "@/components/marketplace/CatalogMap";
 import MasterCardItem from "@/components/marketplace/MasterCardItem";
 import BusinessCardItem from "@/components/marketplace/BusinessCardItem";
+import ServiceCardItem, { type ServiceCardData } from "@/components/marketplace/ServiceCardItem";
 import { supabase } from "@/integrations/supabase/client";
 
 // Categories from DB
@@ -91,6 +92,7 @@ const Catalog = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [masters, setMasters] = useState<MasterItem[]>([]);
   const [businesses, setBusinesses] = useState<BusinessItem[]>([]);
+  const [services, setServices] = useState<ServiceCardData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [showAllTags, setShowAllTags] = useState(false);
@@ -219,6 +221,54 @@ const Catalog = () => {
     fetchBusinesses();
   }, []);
 
+  // Fetch services
+  useEffect(() => {
+    const fetchServices = async () => {
+      // services.master_id -> profiles.id
+      const { data } = await supabase
+        .from("services")
+        .select(`
+          id, name, price, duration_minutes, work_photos, hashtags, is_active, master_id,
+          profiles!services_master_id_fkey(first_name, last_name, avatar_url)
+        `)
+        .eq("is_active", true)
+        .limit(200);
+
+      if (!data || data.length === 0) { setServices([]); return; }
+
+      // Get master_profiles for address + category
+      const masterIds = [...new Set((data as any[]).map((s: any) => s.master_id))];
+      const { data: mpData } = await supabase
+        .from("master_profiles")
+        .select("user_id, address, category_id, service_categories!master_profiles_category_id_fkey(name)")
+        .in("user_id", masterIds);
+
+      const mpMap: Record<string, any> = {};
+      (mpData || []).forEach((mp: any) => { mpMap[mp.user_id] = mp; });
+
+      const mapped: ServiceCardData[] = (data as any[]).map((s: any) => {
+        const profile = s.profiles;
+        const mp = mpMap[s.master_id];
+        return {
+          id: s.id,
+          name: s.name,
+          price: s.price,
+          duration_minutes: s.duration_minutes,
+          work_photos: (s.work_photos as string[]) || [],
+          master_id: s.master_id,
+          master_name: [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "Мастер",
+          master_avatar: profile?.avatar_url || null,
+          master_location: mp?.address || "Абакан",
+          master_rating: null,
+          master_review_count: 0,
+          category_name: mp?.service_categories?.name || null,
+        };
+      });
+      setServices(mapped);
+    };
+    fetchServices();
+  }, []);
+
   // Available hashtags
   const availableTags = useMemo(() => {
     const counts = new Map<string, number>();
@@ -276,6 +326,34 @@ const Catalog = () => {
     });
   }, [businesses, searchQuery]);
 
+  // Filter services
+  const filteredServices = useMemo(() => {
+    return services
+      .filter((s) => {
+        if (searchQuery) {
+          const q = searchQuery.toLowerCase();
+          const stem = stemRu(searchQuery);
+          const match =
+            s.name.toLowerCase().includes(q) ||
+            stemRu(s.name).includes(stem) ||
+            s.master_name.toLowerCase().includes(q) ||
+            (s.category_name || "").toLowerCase().includes(q);
+          if (!match) return false;
+        }
+        if (s.price != null) {
+          if (s.price < priceRange[0] || s.price > priceRange[1]) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        switch (sortBy) {
+          case "price_asc": return (a.price || 0) - (b.price || 0);
+          case "price_desc": return (b.price || 0) - (a.price || 0);
+          default: return 0;
+        }
+      });
+  }, [services, searchQuery, priceRange, sortBy]);
+
   const activeFiltersCount = [
     priceRange[0] > 0 || priceRange[1] < 50000,
     selectedTags.length > 0,
@@ -322,7 +400,7 @@ const Catalog = () => {
       }));
   }, [tab, filteredMasters, filteredBusinesses]);
 
-  const currentItems = tab === "masters" ? filteredMasters : filteredBusinesses;
+  const currentItems = tab === "masters" ? filteredMasters : tab === "businesses" ? filteredBusinesses : filteredServices;
   const currentCount = currentItems.length;
 
   return (
@@ -521,8 +599,8 @@ const Catalog = () => {
             <Button variant={tab === "businesses" ? "default" : "outline"} size="sm" onClick={() => setTab("businesses")}>
               Организации ({filteredBusinesses.length})
             </Button>
-            <Button variant={tab === "services" ? "default" : "outline"} size="sm" onClick={() => setTab("services" as any)}>
-              Услуги
+            <Button variant={tab === "services" ? "default" : "outline"} size="sm" onClick={() => setTab("services")}>
+              Услуги ({filteredServices.length})
             </Button>
           </div>
 
@@ -618,7 +696,8 @@ const Catalog = () => {
                       onClick={() => navigate(`/master/${m.user_id}`)}
                     />
                   ))
-                : filteredBusinesses.map((b) => (
+                : tab === "businesses"
+                ? filteredBusinesses.map((b) => (
                     <BusinessCardItem
                       key={b.id}
                       id={b.id}
@@ -632,6 +711,13 @@ const Catalog = () => {
                       specialist_count={b.specialist_count}
                       service_count={b.service_count}
                       onClick={() => navigate(`/business/${b.id}`)}
+                    />
+                  ))
+                : filteredServices.map((s) => (
+                    <ServiceCardItem
+                      key={s.id}
+                      service={s}
+                      onClick={() => navigate(`/master/${s.master_id}`)}
                     />
                   ))}
             </div>
