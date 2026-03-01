@@ -8,6 +8,7 @@ import {
 import { Button } from '@/components/ui/button';
 import Header from '@/components/landing/Header';
 import Footer from '@/components/landing/Footer';
+import { usePlatformPricing } from '@/hooks/usePlatformPricing';
 
 const masterFeatures = [
   { icon: Calendar, title: 'Личное расписание', description: 'Управляйте рабочим временем, выходными и перерывами. Клиенты видят только свободные слоты.' },
@@ -29,33 +30,34 @@ const businessFeatures = [
   { icon: Bell, title: 'Оповещения', description: 'Уведомления в Telegram, SMS и email. Ни одна запись не потеряется.' },
 ];
 
-const plans = [
-  {
-    name: 'Мастер',
-    price: '690',
-    description: 'Для самозанятых специалистов',
-    features: ['До 10 услуг', 'До 100 записей/мес', 'Расписание и клиенты', 'Аналитика и отчёты'],
-    link: '/request-role?type=master',
-  },
-  {
-    name: 'Бизнес',
-    price: 'от 2 490',
-    description: 'Для организаций с одной точкой',
-    popular: true,
-    features: ['До 5 мастеров бесплатно', '+500 ₽/мес за доп. мастера', 'CRM + ERP + Финансы', 'Менеджеры и роли'],
-    link: '/request-role?type=business',
-  },
-  {
-    name: 'Сеть',
-    price: 'от 6 490',
-    description: 'Для сетей с несколькими точками',
-    features: ['До 3 точек бесплатно', '+1 000 ₽/мес за точку', 'Единый дашборд', 'Централизованная CRM'],
-    link: '/request-role?type=network',
-  },
-];
-
 const ForBusiness = () => {
   const navigate = useNavigate();
+  const pricing = usePlatformPricing();
+
+  const plans = [
+    {
+      name: 'Мастер',
+      price: pricing.master.toLocaleString(),
+      description: 'Для самозанятых специалистов',
+      features: ['До 10 услуг', 'До 100 записей/мес', 'Расписание и клиенты', 'Аналитика и отчёты'],
+      link: '/request-role?type=master',
+    },
+    {
+      name: 'Бизнес',
+      price: `от ${pricing.business.toLocaleString()}`,
+      description: 'Для организаций с одной точкой',
+      popular: true,
+      features: ['До 5 мастеров бесплатно', '+500 ₽/мес за доп. мастера', 'CRM + ERP + Финансы', 'Менеджеры и роли'],
+      link: '/request-role?type=business',
+    },
+    {
+      name: 'Сеть',
+      price: `от ${pricing.network.toLocaleString()}`,
+      description: 'Для сетей с несколькими точками',
+      features: ['До 3 точек бесплатно', '+1 000 ₽/мес за точку', 'Единый дашборд', 'Централизованная CRM'],
+      link: '/request-role?type=network',
+    },
+  ];
 
   return (
     <div className="min-h-screen">
