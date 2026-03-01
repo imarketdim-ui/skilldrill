@@ -96,7 +96,9 @@ const Auth = () => {
     e.preventDefault();
     if (!validateForm(true)) return;
     setIsLoading(true);
-    const { error } = await signUp(email.trim(), password, firstName.trim(), lastName.trim());
+    // Pass referral code from URL
+    const refCode = searchParams.get('ref') || '';
+    const { error } = await signUp(email.trim(), password, firstName.trim(), lastName.trim(), refCode || undefined);
     if (error) {
       toast({ title: 'Ошибка регистрации', description: error.message, variant: 'destructive' });
     } else {

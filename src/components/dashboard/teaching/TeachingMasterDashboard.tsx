@@ -47,7 +47,7 @@ const TeachingMasterDashboard = ({ masterProfile, isSubscriptionActive }: Props)
           <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-destructive" />
           <h2 className="text-xl font-bold mb-2">Подписка неактивна</h2>
           <p className="text-muted-foreground mb-4">
-            Ваши данные сохранены, но интерфейс мастера недоступен. Оплатите подписку (690 ₽/мес) для продолжения работы.
+            Ваши данные сохранены, но интерфейс мастера недоступен. Оплатите подписку для продолжения работы.
           </p>
           <Button>Оплатить подписку</Button>
         </CardContent>

@@ -287,7 +287,9 @@ export type Database = {
       business_locations: {
         Row: {
           address: string | null
+          category_id: string | null
           certificate_photos: Json | null
+          city: string | null
           contact_email: string | null
           contact_phone: string | null
           created_at: string
@@ -320,7 +322,9 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          category_id?: string | null
           certificate_photos?: Json | null
+          city?: string | null
           contact_email?: string | null
           contact_phone?: string | null
           created_at?: string
@@ -353,7 +357,9 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          category_id?: string | null
           certificate_photos?: Json | null
+          city?: string | null
           contact_email?: string | null
           contact_phone?: string | null
           created_at?: string
@@ -385,6 +391,13 @@ export type Database = {
           work_photos?: Json | null
         }
         Relationships: [
+          {
+            foreignKeyName: "business_locations_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "service_categories"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "business_locations_network_id_fkey"
             columns: ["network_id"]
@@ -969,6 +982,7 @@ export type Database = {
           business_id: string | null
           category_id: string | null
           certificate_photos: Json | null
+          city: string | null
           created_at: string
           description: string | null
           grace_start_date: string | null
@@ -1001,6 +1015,7 @@ export type Database = {
           business_id?: string | null
           category_id?: string | null
           certificate_photos?: Json | null
+          city?: string | null
           created_at?: string
           description?: string | null
           grace_start_date?: string | null
@@ -1033,6 +1048,7 @@ export type Database = {
           business_id?: string | null
           category_id?: string | null
           certificate_photos?: Json | null
+          city?: string | null
           created_at?: string
           description?: string | null
           grace_start_date?: string | null
@@ -1508,6 +1524,24 @@ export type Database = {
         }
         Relationships: []
       }
+      platform_settings: {
+        Row: {
+          key: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -1521,6 +1555,7 @@ export type Database = {
           last_name: string | null
           phone: string | null
           platform_role: Database["public"]["Enums"]["platform_role"]
+          referred_by: string | null
           reminder_minutes: number | null
           skillspot_id: string
           updated_at: string
@@ -1537,6 +1572,7 @@ export type Database = {
           last_name?: string | null
           phone?: string | null
           platform_role?: Database["public"]["Enums"]["platform_role"]
+          referred_by?: string | null
           reminder_minutes?: number | null
           skillspot_id: string
           updated_at?: string
@@ -1553,6 +1589,7 @@ export type Database = {
           last_name?: string | null
           phone?: string | null
           platform_role?: Database["public"]["Enums"]["platform_role"]
+          referred_by?: string | null
           reminder_minutes?: number | null
           skillspot_id?: string
           updated_at?: string

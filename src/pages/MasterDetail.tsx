@@ -119,11 +119,11 @@ const MasterDetail = () => {
     }
   }, [bookingService, bookingData.date, services, master]);
 
-  // Map dialog - use requestAnimationFrame to ensure container is rendered
+  // Map dialog - use setTimeout to ensure dialog DOM is ready
   useEffect(() => {
-    if (!mapOpen || !mapRef.current || !master?.latitude || !master?.longitude) return;
+    if (!mapOpen || !master?.latitude || !master?.longitude) return;
     let map: maplibregl.Map | null = null;
-    const frame = requestAnimationFrame(() => {
+    const timeout = setTimeout(() => {
       if (!mapRef.current) return;
       map = new maplibregl.Map({
         container: mapRef.current,
@@ -131,9 +131,11 @@ const MasterDetail = () => {
         center: [master.longitude!, master.latitude!],
         zoom: 15,
       });
-      new maplibregl.Marker({ color: '#4F46E5' }).setLngLat([master.longitude!, master.latitude!]).addTo(map);
-    });
-    return () => { cancelAnimationFrame(frame); map?.remove(); };
+      map.on('load', () => {
+        new maplibregl.Marker({ color: '#4F46E5' }).setLngLat([master.longitude!, master.latitude!]).addTo(map!);
+      });
+    }, 100);
+    return () => { clearTimeout(timeout); map?.remove(); };
   }, [mapOpen, master]);
 
   const toggleFavorite = async () => {
@@ -469,7 +471,7 @@ const MasterDetail = () => {
                               <DialogTrigger asChild>
                                 <Button>Записаться</Button>
                               </DialogTrigger>
-                              <DialogContent>
+                              <DialogContent className="max-h-[85vh] overflow-y-auto">
                                 <DialogHeader><DialogTitle>Запись на «{service.name}»</DialogTitle></DialogHeader>
                                 <div className="space-y-4">
                                   <p className="text-sm text-muted-foreground">Мастер: {masterName}</p>
@@ -565,8 +567,30 @@ const MasterDetail = () => {
             {/* Sticky Sidebar */}
             <div className="lg:w-80 shrink-0">
               <div className="lg:sticky lg:top-24 space-y-4">
+                {/* Address card */}
+                {master.address && (
+                  <Card>
+                    <CardContent className="pt-6">
+                      <p className="font-medium text-foreground mb-1">Адрес</p>
+                      <button
+                        className="text-sm text-muted-foreground flex items-center gap-1 hover:text-foreground transition-colors"
+                        onClick={() => {
+                          if (master.latitude && master.longitude) {
+                            setMapOpen(true);
+                          } else {
+                            window.open(`https://yandex.ru/maps/?text=${encodeURIComponent(master.address!)}`, '_blank');
+                          }
+                        }}
+                      >
+                        <MapPin className="w-3 h-3" />{master.address}
+                      </button>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Chat card */}
                 <Card>
-                  <CardContent className="pt-6 space-y-3">
+                  <CardContent className="pt-6">
                     <Dialog open={messageOpen} onOpenChange={setMessageOpen}>
                       <DialogTrigger asChild>
                         <Button variant="outline" className="w-full"><MessageSquare className="h-4 w-4 mr-2" /> Написать</Button>
@@ -577,12 +601,6 @@ const MasterDetail = () => {
                         <Button onClick={handleMessage} className="w-full" disabled={sendingMessage || !messageText.trim()}>{sendingMessage ? 'Отправка...' : 'Отправить'}</Button>
                       </DialogContent>
                     </Dialog>
-                    {master.address && (
-                      <div className="text-sm text-muted-foreground">
-                        <p className="font-medium text-foreground mb-1">Адрес</p>
-                        <p className="flex items-center gap-1"><MapPin className="w-3 h-3" />{master.address}</p>
-                      </div>
-                    )}
                   </CardContent>
                 </Card>
               </div>
@@ -603,7 +621,7 @@ const MasterDetail = () => {
       <Dialog open={mapOpen} onOpenChange={setMapOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader><DialogTitle>Расположение</DialogTitle></DialogHeader>
-          <div ref={mapRef} className="w-full h-80 rounded-lg" />
+          <div ref={mapRef} className="w-full rounded-lg" style={{ height: 320 }} />
         </DialogContent>
       </Dialog>
     </div>

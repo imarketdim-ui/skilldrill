@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { usePlatformPricing } from '@/hooks/usePlatformPricing';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Wallet, CreditCard, Banknote } from 'lucide-react';
 import UniversalPayments from './UniversalPayments';
@@ -13,6 +14,7 @@ interface Props {
 
 const UniversalFinances = ({ config, masterProfile }: Props) => {
   const [tab, setTab] = useState('payments');
+  const pricing = usePlatformPricing();
 
   return (
     <div className="space-y-4">
@@ -40,7 +42,7 @@ const UniversalFinances = ({ config, masterProfile }: Props) => {
             trialStartDate={masterProfile?.trial_start_date}
             trialDays={masterProfile?.trial_days || 14}
             lastPaymentDate={masterProfile?.last_payment_date}
-            basePrice={690}
+            basePrice={pricing.master}
             parentManaged={masterProfile?.subscription_status === 'in_business'}
             parentLabel="Управляется бизнесом"
           />
