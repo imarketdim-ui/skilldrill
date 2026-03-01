@@ -114,7 +114,7 @@ const CreateBusinessAccount = () => {
 
         toast({
           title: 'Аккаунт мастера создан!',
-          description: 'Заполните профиль, чтобы пройти модерацию и появиться в каталоге.',
+          description: 'Заполните профиль, чтобы пройти модерацию и появиться в поиске.',
         });
 
       } else if (accountType === 'business') {
@@ -191,7 +191,7 @@ const CreateBusinessAccount = () => {
       type: 'master' as const,
       icon: Wrench,
       title: 'Мастер',
-      desc: 'Индивидуальный специалист · 900 ₽/мес',
+      desc: 'Индивидуальный специалист · 690 ₽/мес',
       disabled: hasPendingRequest('master'),
       disabledText: 'Заявка обрабатывается',
       note: isMaster ? 'Добавить категорию' : null,
@@ -200,7 +200,7 @@ const CreateBusinessAccount = () => {
       type: 'business' as const,
       icon: Building2,
       title: 'Бизнес',
-      desc: 'Салон, студия, точка · 3 000 ₽/мес',
+      desc: 'Салон, студия, точка · 2 490 ₽/мес',
       disabled: hasPendingRequest('business'),
       disabledText: 'Заявка обрабатывается',
     },
@@ -208,7 +208,7 @@ const CreateBusinessAccount = () => {
       type: 'network' as const,
       icon: Globe,
       title: 'Сеть',
-      desc: 'Несколько точек · 3 000 ₽/мес + 1 200 ₽/точка',
+      desc: 'Несколько точек · 6 490 ₽/мес',
       disabled: hasPendingRequest('network'),
       disabledText: 'Заявка обрабатывается',
     },
@@ -223,7 +223,7 @@ const CreateBusinessAccount = () => {
 
         <h1 className="text-2xl font-bold mb-2">Создать бизнес-аккаунт</h1>
         <p className="text-muted-foreground mb-6">
-          Аккаунт создаётся мгновенно. После заполнения профиля он пройдёт модерацию и станет доступен в каталоге.
+          Аккаунт создаётся мгновенно. После заполнения профиля он пройдёт модерацию и станет доступен в поиске.
         </p>
 
         {/* Step 1: Choose account type */}

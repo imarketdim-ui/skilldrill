@@ -32,14 +32,14 @@ const businessFeatures = [
 const plans = [
   {
     name: 'Мастер',
-    price: '900',
+    price: '690',
     description: 'Для самозанятых специалистов',
     features: ['До 10 услуг', 'До 100 записей/мес', 'Расписание и клиенты', 'Аналитика и отчёты'],
     link: '/request-role?type=master',
   },
   {
     name: 'Бизнес',
-    price: 'от 2 500',
+    price: 'от 2 490',
     description: 'Для организаций с одной точкой',
     popular: true,
     features: ['До 5 мастеров бесплатно', '+500 ₽/мес за доп. мастера', 'CRM + ERP + Финансы', 'Менеджеры и роли'],
@@ -47,7 +47,7 @@ const plans = [
   },
   {
     name: 'Сеть',
-    price: 'от 4 500',
+    price: 'от 6 490',
     description: 'Для сетей с несколькими точками',
     features: ['До 3 точек бесплатно', '+1 000 ₽/мес за точку', 'Единый дашборд', 'Централизованная CRM'],
     link: '/request-role?type=network',
@@ -159,7 +159,7 @@ const ForBusiness = () => {
         </section>
 
         {/* Pricing */}
-        <section className="py-16 bg-background">
+        <section id="pricing" className="py-16 bg-background">
           <div className="container-wide max-w-4xl mx-auto">
             <h2 className="text-3xl font-bold text-center mb-12">Тарифы</h2>
             <div className="grid md:grid-cols-3 gap-6">

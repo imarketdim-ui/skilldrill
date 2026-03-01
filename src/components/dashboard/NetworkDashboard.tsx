@@ -63,7 +63,7 @@ const NetworkDashboard = () => {
           <p className="text-muted-foreground">{locations.length} точек</p>
         </div>
         <div className="flex items-center gap-2">
-          {selectedNetwork?.moderation_status === 'approved' && <Badge variant="outline">В каталоге</Badge>}
+          {selectedNetwork?.moderation_status === 'approved' && <Badge variant="outline">Опубликован</Badge>}
           {selectedNetwork?.moderation_status === 'pending' && <Badge>На модерации</Badge>}
           {selectedNetwork?.moderation_status === 'draft' && <Badge variant="secondary">Черновик</Badge>}
           <Badge variant="outline">Про · 6 490 ₽/мес</Badge>

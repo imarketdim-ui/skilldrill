@@ -20,7 +20,7 @@ const Hero = () => {
   const [searchQuery, setSearchQuery] = useState("");
 
   const handleSearch = () => {
-    navigate(`/catalog?q=${encodeURIComponent(searchQuery)}`);
+    navigate(`/?q=${encodeURIComponent(searchQuery)}`);
   };
 
   return (
@@ -42,7 +42,7 @@ const Hero = () => {
               className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium"
             >
               <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-              Маркетплейс услуг · г. Абакан
+              Платформа услуг · г. Абакан
             </motion.div>
             
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
@@ -91,7 +91,7 @@ const Hero = () => {
             {quickCategories.map((cat) => (
               <button
                 key={cat.id}
-                onClick={() => navigate(`/catalog?category=${cat.id}`)}
+                onClick={() => navigate(`/?category=${cat.id}`)}
                 className="flex items-center gap-2 px-4 py-2 rounded-full border border-border/50 bg-card hover:bg-surface hover:border-primary/30 transition-all text-sm text-muted-foreground hover:text-foreground"
               >
                 <cat.icon className="w-4 h-4" />

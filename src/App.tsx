@@ -35,13 +35,13 @@ const App = () => (
         <BrowserRouter>
           <ScrollToTop />
           <Routes>
-            <Route path="/" element={<Index />} />
+            <Route path="/" element={<Catalog />} />
+            <Route path="/catalog" element={<Catalog />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/request-role" element={<RequestRole />} />
             <Route path="/create-account" element={<CreateBusinessAccount />} />
-            <Route path="/catalog" element={<Catalog />} />
             <Route path="/master/:masterId" element={<MasterDetail />} />
             <Route path="/business/:businessId" element={<BusinessDetail />} />
             <Route path="/subscription" element={<Subscription />} />

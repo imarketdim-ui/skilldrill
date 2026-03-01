@@ -111,7 +111,7 @@ const BusinessDetail = () => {
         <div className="container-wide max-w-5xl mx-auto">
           {/* Breadcrumbs */}
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-            <Link to="/catalog" className="hover:text-foreground transition-colors">Каталог</Link>
+            <Link to="/" className="hover:text-foreground transition-colors">Поиск услуг</Link>
             <span>/</span>
             <span className="text-foreground">{business.name}</span>
           </div>
