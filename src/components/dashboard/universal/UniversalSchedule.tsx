@@ -675,7 +675,7 @@ const UniversalSchedule = ({ config }: Props) => {
                     {formData.service_id && (
                       <div className="space-y-2">
                         <Label>Цена (₽)</Label>
-                        <Input type="number" value={formData.price} onChange={e => setFormData(p => ({ ...p, price: Number(e.target.value) }))} className="h-8" />
+                        <Input type="text" inputMode="numeric" value={formData.price || ''} onChange={e => setFormData(p => ({ ...p, price: Number(e.target.value.replace(/[^\d]/g, '')) }))} className="h-8" />
                       </div>
                     )}
                   </div>
@@ -726,7 +726,7 @@ const UniversalSchedule = ({ config }: Props) => {
                 )}
 
                 {formData.lesson_type === 'group' && formData.service_id && (
-                  <div className="space-y-2"><Label>Макс. участников</Label><Input type="number" min={2} value={formData.max_participants} onChange={e => setFormData(p => ({ ...p, max_participants: Number(e.target.value) }))} /></div>
+                  <div className="space-y-2"><Label>Макс. участников</Label><Input type="text" inputMode="numeric" value={formData.max_participants || ''} onChange={e => setFormData(p => ({ ...p, max_participants: Number(e.target.value.replace(/[^\d]/g, '')) || 1 }))} /></div>
                 )}
 
                 <div className="space-y-2">
@@ -750,7 +750,7 @@ const UniversalSchedule = ({ config }: Props) => {
                   </div>
                 )}
                 {formData.recurrence === 'custom' && (
-                  <div className="space-y-2"><Label>Каждые (дней)</Label><Input type="number" min={1} value={formData.recurrence_interval} onChange={e => setFormData(p => ({ ...p, recurrence_interval: Number(e.target.value) }))} /></div>
+                  <div className="space-y-2"><Label>Каждые (дней)</Label><Input type="text" inputMode="numeric" value={formData.recurrence_interval || ''} onChange={e => setFormData(p => ({ ...p, recurrence_interval: Number(e.target.value.replace(/[^\d]/g, '')) || 1 }))} /></div>
                 )}
                 {formData.recurrence !== 'none' && (
                   <div className="space-y-2"><Label>Повторять до</Label><Input type="date" value={formData.recurrence_end} onChange={e => setFormData(p => ({ ...p, recurrence_end: e.target.value }))} /></div>

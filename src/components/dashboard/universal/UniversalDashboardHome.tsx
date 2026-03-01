@@ -17,6 +17,7 @@ interface Props {
 const UniversalDashboardHome = ({ config }: Props) => {
   const { user, profile } = useAuth();
   const [masterProfile, setMasterProfile] = useState<any>(null);
+  const [serviceCount, setServiceCount] = useState<number | null>(null);
   const [stats, setStats] = useState({
     todaySessions: 0, todayIndividual: 0, todayGroup: 0,
     totalClients: 0,
@@ -39,6 +40,9 @@ const UniversalDashboardHome = ({ config }: Props) => {
       .maybeSingle()
       .then(({ data }) => setMasterProfile(data));
 
+    supabase.from('services').select('id', { count: 'exact' })
+      .eq('master_id', user.id).eq('is_active', true)
+      .then(({ count }) => setServiceCount(count || 0));
     supabase.from('lessons')
       .select('*')
       .eq('teacher_id', user.id)
@@ -129,6 +133,21 @@ const UniversalDashboardHome = ({ config }: Props) => {
 
   return (
     <div className="space-y-6">
+      {serviceCount === 0 && (
+        <Card className="border-destructive/50 bg-destructive/5">
+          <CardContent className="pt-6 flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+            <div>
+              <p className="font-medium text-sm">Нет услуг</p>
+              <p className="text-xs text-muted-foreground">Добавьте хотя бы одну услугу, чтобы стать видимым в поиске и принимать записи.</p>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => { const ev = new CustomEvent('navigate-dashboard', { detail: 'services' }); window.dispatchEvent(ev); }} className="ml-auto shrink-0">
+              Добавить
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="flex items-start justify-between">
         <div>
           <h2 className="text-2xl font-bold">Добро пожаловать! {config.welcomeEmoji}</h2>

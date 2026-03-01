@@ -21,7 +21,7 @@ const FitnessExpenses = () => {
   const [expenses, setExpenses] = useState<any[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ category: '', amount: 0, description: '', expense_date: format(new Date(), 'yyyy-MM-dd') });
+  const [form, setForm] = useState({ category: '', amount: '', description: '', expense_date: format(new Date(), 'yyyy-MM-dd') });
 
   useEffect(() => { if (user) fetchExpenses(); }, [user]);
 
@@ -32,10 +32,10 @@ const FitnessExpenses = () => {
   };
 
   const handleCreate = async () => {
-    if (!user || !form.category || !form.amount) return;
-    const { error } = await supabase.from('teaching_expenses').insert({ teacher_id: user.id, category: form.category, amount: form.amount, description: form.description || null, expense_date: form.expense_date });
+    if (!user || !form.category || !Number(form.amount)) return;
+    const { error } = await supabase.from('teaching_expenses').insert({ teacher_id: user.id, category: form.category, amount: Number(form.amount), description: form.description || null, expense_date: form.expense_date });
     if (error) toast({ title: 'Ошибка', description: error.message, variant: 'destructive' });
-    else { toast({ title: 'Расход добавлен' }); setIsOpen(false); setForm({ category: '', amount: 0, description: '', expense_date: format(new Date(), 'yyyy-MM-dd') }); fetchExpenses(); }
+    else { toast({ title: 'Расход добавлен' }); setIsOpen(false); setForm({ category: '', amount: '', description: '', expense_date: format(new Date(), 'yyyy-MM-dd') }); fetchExpenses(); }
   };
 
   const handleDelete = async (id: string) => { await supabase.from('teaching_expenses').delete().eq('id', id); toast({ title: 'Расход удалён' }); fetchExpenses(); };
@@ -55,7 +55,7 @@ const FitnessExpenses = () => {
             <div className="space-y-4">
               <div className="space-y-2"><Label>Категория *</Label><Select value={form.category} onValueChange={v => setForm(p => ({ ...p, category: v }))}><SelectTrigger><SelectValue placeholder="Выберите категорию" /></SelectTrigger><SelectContent>{categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2"><Label>Сумма (₽) *</Label><Input type="number" value={form.amount} onChange={e => setForm(p => ({ ...p, amount: Number(e.target.value) }))} /></div>
+                <div className="space-y-2"><Label>Сумма (₽) *</Label><Input type="text" inputMode="numeric" value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value.replace(/[^\d.]/g, '') }))} /></div>
                 <div className="space-y-2"><Label>Дата</Label><Input type="date" value={form.expense_date} onChange={e => setForm(p => ({ ...p, expense_date: e.target.value }))} /></div>
               </div>
               <div className="space-y-2"><Label>Описание</Label><Textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} /></div>

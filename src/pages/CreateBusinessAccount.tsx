@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Loader2, Wrench, Building2, Globe, Info, CheckCircle } from 'lucide-react';
 import MapPicker from '@/components/marketplace/MapPicker';
+import { usePlatformPricing } from '@/hooks/usePlatformPricing';
 
 const legalForms = [
   { value: 'ip', label: 'ИП' },
@@ -26,6 +27,7 @@ type AccountType = 'master' | 'business' | 'network';
 
 const CreateBusinessAccount = () => {
   const { user, profile, roles, loading, refreshProfile } = useAuth();
+  const pricing = usePlatformPricing();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -130,6 +132,7 @@ const CreateBusinessAccount = () => {
           inn: form.business_inn,
           legal_form: form.business_legal_form,
           address: form.business_address,
+          city: form.business_city || null,
           description: form.business_description || null,
           contact_email: form.business_contact_email,
           contact_phone: form.business_contact_phone,
@@ -191,7 +194,7 @@ const CreateBusinessAccount = () => {
       type: 'master' as const,
       icon: Wrench,
       title: 'Мастер',
-      desc: 'Индивидуальный специалист · 690 ₽/мес',
+      desc: `Индивидуальный специалист · ${pricing.master.toLocaleString()} ₽/мес`,
       disabled: hasPendingRequest('master'),
       disabledText: 'Заявка обрабатывается',
       note: isMaster ? 'Добавить категорию' : null,
@@ -200,7 +203,7 @@ const CreateBusinessAccount = () => {
       type: 'business' as const,
       icon: Building2,
       title: 'Бизнес',
-      desc: 'Салон, студия, точка · 2 490 ₽/мес',
+      desc: `Салон, студия, точка · ${pricing.business.toLocaleString()} ₽/мес`,
       disabled: hasPendingRequest('business'),
       disabledText: 'Заявка обрабатывается',
     },
@@ -208,7 +211,7 @@ const CreateBusinessAccount = () => {
       type: 'network' as const,
       icon: Globe,
       title: 'Сеть',
-      desc: 'Несколько точек · 6 490 ₽/мес',
+      desc: `Несколько точек · ${pricing.network.toLocaleString()} ₽/мес`,
       disabled: hasPendingRequest('network'),
       disabledText: 'Заявка обрабатывается',
     },
@@ -350,6 +353,10 @@ const CreateBusinessAccount = () => {
                       <Input required value={form.director_name || ''} onChange={(e) => setForm({ ...form, director_name: e.target.value })} />
                     </div>
                     <div className="space-y-2">
+                      <Label>Город</Label>
+                      <Input value={form.business_city || ''} onChange={(e) => setForm({ ...form, business_city: e.target.value })} placeholder="Москва" />
+                    </div>
+                    <div className="space-y-2">
                       <Label>Адрес *</Label>
                       <MapPicker
                         latitude={53.7151}
@@ -357,6 +364,7 @@ const CreateBusinessAccount = () => {
                         address={form.business_address || ''}
                         onLocationChange={(lat, lng, address) => setForm({ ...form, business_address: address, business_lat: lat, business_lng: lng })}
                       />
+                      <Input value={form.business_address || ''} onChange={(e) => setForm({ ...form, business_address: e.target.value })} placeholder="Можно ввести адрес вручную" className="mt-2" />
                     </div>
                     <div className="space-y-2">
                       <Label>Описание</Label>
@@ -406,6 +414,7 @@ const CreateBusinessAccount = () => {
                         address={form.network_address || ''}
                         onLocationChange={(lat, lng, address) => setForm({ ...form, network_address: address })}
                       />
+                      <Input value={form.network_address || ''} onChange={(e) => setForm({ ...form, network_address: e.target.value })} placeholder="Можно ввести адрес вручную" className="mt-2" />
                     </div>
                     <div className="space-y-2">
                       <Label>Описание</Label>

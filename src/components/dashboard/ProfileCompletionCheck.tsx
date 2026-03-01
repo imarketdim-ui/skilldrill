@@ -350,8 +350,8 @@ const ProfileCompletionCheck = ({ entityType, entityData, onProfileUpdated }: Pr
                       <div className="space-y-2">
                         <Input placeholder="Название услуги" value={newService.name} onChange={e => setNewService({ ...newService, name: e.target.value })} />
                         <div className="grid grid-cols-2 gap-2">
-                          <Input placeholder="Цена ₽" type="number" value={newService.price} onChange={e => setNewService({ ...newService, price: e.target.value })} />
-                          <Input placeholder="Длительность (мин)" type="number" value={newService.duration_minutes} onChange={e => setNewService({ ...newService, duration_minutes: e.target.value })} />
+                          <Input placeholder="Цена ₽" type="text" inputMode="numeric" value={newService.price} onChange={e => setNewService({ ...newService, price: e.target.value.replace(/[^\d]/g, '') })} />
+                          <Input placeholder="Длительность (мин)" type="text" inputMode="numeric" value={newService.duration_minutes} onChange={e => setNewService({ ...newService, duration_minutes: e.target.value.replace(/[^\d]/g, '') })} />
                         </div>
                       </div>
                       <Button className="w-full" onClick={handleAddService} disabled={saving}>

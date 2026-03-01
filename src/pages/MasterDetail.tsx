@@ -14,6 +14,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import Header from '@/components/landing/Header';
 import Footer from '@/components/landing/Footer';
+import ServiceDetailDialog from '@/components/marketplace/ServiceDetailDialog';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -52,6 +53,7 @@ const MasterDetail = () => {
   const [sendingBooking, setSendingBooking] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [selectedServiceForDetail, setSelectedServiceForDetail] = useState<any>(null);
   const mapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -456,7 +458,7 @@ const MasterDetail = () => {
                 <TabsContent value="services">
                   <div className="grid gap-4">
                     {services.map(service => (
-                      <Card key={service.id}>
+                      <Card key={service.id} className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setSelectedServiceForDetail(service)}>
                         <CardContent className="flex flex-col md:flex-row gap-4 p-4">
                           <div className="flex-1">
                             <h3 className="font-semibold text-lg mb-1">{service.name}</h3>
@@ -469,7 +471,7 @@ const MasterDetail = () => {
                             <p className="text-2xl font-bold">{Number(service.price).toLocaleString()} ₽</p>
                             <Dialog open={bookingService === service.id} onOpenChange={open => setBookingService(open ? service.id : null)}>
                               <DialogTrigger asChild>
-                                <Button>Записаться</Button>
+                                <Button onClick={(e) => e.stopPropagation()}>Записаться</Button>
                               </DialogTrigger>
                               <DialogContent className="max-h-[85vh] overflow-y-auto">
                                 <DialogHeader><DialogTitle>Запись на «{service.name}»</DialogTitle></DialogHeader>
@@ -624,6 +626,16 @@ const MasterDetail = () => {
           <div ref={mapRef} className="w-full rounded-lg" style={{ height: 320 }} />
         </DialogContent>
       </Dialog>
+
+      {/* Service Detail Dialog */}
+      <ServiceDetailDialog
+        service={selectedServiceForDetail}
+        masterName={masterName}
+        masterId={master.id}
+        open={!!selectedServiceForDetail}
+        onOpenChange={(open) => { if (!open) setSelectedServiceForDetail(null); }}
+        onBook={() => { setBookingService(selectedServiceForDetail?.id); setSelectedServiceForDetail(null); }}
+      />
     </div>
   );
 };

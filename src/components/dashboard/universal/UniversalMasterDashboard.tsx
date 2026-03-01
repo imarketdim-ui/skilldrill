@@ -15,6 +15,7 @@ import UniversalServices from './UniversalServices';
 import UniversalStats from './UniversalStats';
 import TeachingChats from '../teaching/TeachingChats';
 import { CategoryConfig } from './categoryConfig';
+import MasterProfileEditor from './MasterProfileEditor';
 
 // Inline notifications component for master dashboard
 const MasterNotifications = () => {
