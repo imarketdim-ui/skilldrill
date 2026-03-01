@@ -1,150 +1,133 @@
-# Plan: Site Polishing — Pricing, Routing, Filters, UI Fixes
-
-## Current State vs Requirements — Gap Analysis
 
 
-| #                    | Issue                                                              | Current                                                                                                                                                  | Fix                                                                                    |
-| -------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| **Pricing**          | &nbsp;                                                             | &nbsp;                                                                                                                                                   | &nbsp;                                                                                 |
-| 1                    | Master price                                                       | 900 in Subscription.tsx, ForBusiness.tsx, CreateBusinessAccount.tsx; 650 in UniversalFinances.tsx; 900 in TeachingMasterDashboard/FitnessMasterDashboard | → 690 everywhere                                                                       |
-| 2                    | Business price                                                     | "от 2 500" in Subscription/ForBusiness; "3 000" in CreateBusinessAccount; 2490 in BusinessDashboard                                                      | → 2490 everywhere                                                                      |
-| 3                    | Network price                                                      | "от 4 500" in Subscription/ForBusiness; "3 000 + 1 200/точка" in CreateBusinessAccount; 6490 in NetworkDashboard                                         | → 6490 everywhere                                                                      |
-| **Scroll**           | &nbsp;                                                             | &nbsp;                                                                                                                                                   | &nbsp;                                                                                 |
-| 4                    | Dialog content cut off (service create, booking)                   | `DialogContent` has no `max-h` or `overflow-y-auto`                                                                                                      | Add `max-h-[85vh] overflow-y-auto` to all dialog forms                                 |
-| 5                    | Page loads at bottom                                               | ScrollToTop exists but `search` dep triggers on URL param changes during filtering                                                                       | Remove `search` from ScrollToTop deps — only scroll on `pathname` change               |
-| **Routing**          | &nbsp;                                                             | &nbsp;                                                                                                                                                   | &nbsp;                                                                                 |
-| 6                    | Make `/catalog` the landing page                                   | `/` = Index (Hero+PopularServices), `/catalog` = search                                                                                                  | Swap: `/` → Catalog, old Index content → merge into About                              |
-| 7                    | Merge Home + About into one "О платформе"                          | Two separate pages                                                                                                                                       | Combine Hero section + PopularServices + About benefits into one `/about` page         |
-| 8                    | Move Subscription content into ForBusiness                         | Separate `/subscription` page                                                                                                                            | Add pricing section to ForBusiness, redirect `/subscription` → `/for-business#pricing` |
-| **Naming**           | &nbsp;                                                             | &nbsp;                                                                                                                                                   | &nbsp;                                                                                 |
-| 9                    | "Каталог услуг" still in Footer                                    | Footer line 6                                                                                                                                            | → "Поиск услуг"                                                                        |
-| 10                   | "Маркетплейс" in Hero, Auth, Footer, Offer                         | Multiple files                                                                                                                                           | → "Платформа услуг" or remove                                                          |
-| 11                   | "Перейти в каталог" in About, CTA                                  | About line 43, CTA line 47                                                                                                                               | → "Найти услугу"                                                                       |
-| 12                   | "В каталоге" badge in NetworkDashboard                             | Line 66                                                                                                                                                  | → "Опубликован"                                                                        |
-| 13                   | "каталоге" in CreateBusinessAccount, ProfileCompletionCheck        | Toast messages                                                                                                                                           | → "поиске"                                                                             |
-| 14                   | "Каталог" breadcrumb in BusinessDetail                             | Line 114                                                                                                                                                 | → "Поиск услуг"                                                                        |
-| **Filters**          | &nbsp;                                                             | &nbsp;                                                                                                                                                   | &nbsp;                                                                                 |
-| 15                   | Businesses/services ignore category, price, tag filters            | `filteredBusinesses` only checks `searchQuery`; `filteredServices` doesn't check tags or category                                                        | Apply all filters to all tabs                                                          |
-| 16                   | Price filter is slider (inconvenient)                              | Slider component                                                                                                                                         | Replace with two Input fields (min/max)                                                |
-| 17                   | Service click → master page, services not clickable                | `onClick={() => navigate('/master/${s.master_id}')`                                                                                                      | Open ServiceDetailDialog instead                                                       |
-| 18                   | No location filter                                                 | Not implemented                                                                                                                                          | Add location text input with autocomplete (populated from master addresses)            |
-| 19                   | Hashtag limit                                                      | No limit                                                                                                                                                 | Cap at 5 selected                                                                      |
-| **Number fields**    | &nbsp;                                                             | &nbsp;                                                                                                                                                   | &nbsp;                                                                                 |
-| 20                   | `type="number"` with default 0 that won't delete                   | Price=0, duration=60 as numbers                                                                                                                          | Use string state for numeric inputs, parse on save; empty string = empty field         |
-| **Master dashboard** | &nbsp;                                                             | &nbsp;                                                                                                                                                   | &nbsp;                                                                                 |
-| 21                   | "Редактировать" goes to client settings                            | Navigates to `/settings` which edits client profile                                                                                                      | Navigate to master profile edit section in dashboard                                   |
-| 22                   | Master can be active with 0 services                               | No check                                                                                                                                                 | Add guard: if services.length === 0, disable "Active" toggle with tooltip              |
-| 23                   | Hashtag input UX                                                   | Comma-separated text input                                                                                                                               | Add individual input + "Добавить" button, show as removable badges                     |
-| **Master creation**  | &nbsp;                                                             | &nbsp;                                                                                                                                                   | &nbsp;                                                                                 |
-| 24                   | Address field: can't type manually, map shows random business name | MapPicker doesn't allow manual text override                                                                                                             | Allow manual text input alongside map; make address field editable after map pick      |
-| 25                   | No short/full description split                                    | Single `description` field                                                                                                                               | Add `short_description` field (for search cards) and keep `description` (full)         |
-| 26                   | Service creation during master creation                            | Exists in form                                                                                                                                           | Remove — will be done in master dashboard                                              |
+# Plan: Map Clustering, Centralized Pricing, Photo Carousels, and Multiple Fixes
 
+## Issues Identified
+
+| # | Issue | Root Cause | Fix |
+|---|-------|-----------|-----|
+| **Map** | | | |
+| 1 | No clustering when markers overlap | CatalogMap uses individual markers, no clustering logic | Implement MapLibre cluster layer using GeoJSON source with `cluster: true` |
+| **Pricing** | | | |
+| 2 | Prices hardcoded in ~8 files | Each file has its own price constants | Create `platform_settings` DB table; create shared `usePlatformPricing()` hook; replace all hardcoded prices |
+| **Search Cards** | | | |
+| 3 | Photos don't scroll in cards | ServiceCardItem/MasterCardItem/BusinessCardItem show single static image | Add Embla carousel to card cover images |
+| 4 | Services not clickable in master card detail page | Services listed as plain cards without click handler | Make each service card open ServiceDetailDialog |
+| 5 | Address shown in chat sidebar block of MasterDetail | Address `<div>` is inside the chat Card (lines 580-585) | Move address block outside/above the chat card or remove from sidebar |
+| 6 | Map doesn't load in MasterDetail address click | Map dialog uses `mapRef` but `requestAnimationFrame` may fire before dialog DOM is ready | Add `map.on('load')` guard + ensure container has explicit height |
+| 7 | Organizations only show when "Все" category selected | `filteredBusinesses` logic at line 387-390: when category selected AND `b.category_id` is null, it returns false. Barbershop has no linked masters → no category_id | Also add `category_id` to `business_locations` directly (new column), OR fix filter to match via ANY master's category |
+| 8 | City list has junk values (numbers, indices) | `extractCity` regex is too broad — `parts[parts.length-2]` catches postal codes, region names | Add `city` column to `master_profiles` and `business_locations`; populate from addresses; use that for location filter |
+| 9 | Booking dialog has no scroll | DialogContent in MasterDetail booking dialog (line 472) missing `max-h-[85vh] overflow-y-auto` | Add scroll classes |
+| **Master Dashboard** | | | |
+| 10 | "Редактировать профиль" doesn't work | Line 159: dispatches custom event `navigate-dashboard` with detail `'profile'` but UniversalMasterDashboard doesn't listen for this event or have a 'profile' section | Add event listener in UniversalMasterDashboard + add 'profile' section rendering (a profile edit form) |
+| **Referrals** | | | |
+| 11 | Referral count always 0 | `totalReferrals` counts unique `referred_id` from `referral_earnings`, but no one has earnings yet. Also Auth.tsx doesn't save which referral code was used during signup — no `referred_by` column in profiles | Add `referred_by` to profiles; save ref code during signup; count referrals from profiles table |
+| **Client avatar** | | | |
+| 12 | Avatar crops badly, no area selector | Direct upload → full image stretched into circle | Out of scope for this iteration (requires a crop library like react-easy-crop). Note in plan. |
+| **Business roles** | | | |
+| 13 | No master/manager/leader/owner sub-roles inside business dashboard | BusinessDashboard exists but doesn't differentiate internal roles | Complex feature — note for future. Already has `organization_users` + `roles` tables. |
 
 ---
 
 ## Implementation Steps
 
-### Step 1: Fix all pricing (8 files)
+### Step 1: DB Migration — `platform_settings` table + `city` column
+```sql
+CREATE TABLE platform_settings (
+  key TEXT PRIMARY KEY,
+  value JSONB NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+INSERT INTO platform_settings VALUES
+  ('pricing', '{"master": 690, "business": 2490, "network": 6490}'),
+  ('trial_days', '{"master": 14, "business": 14, "network": 14}');
 
-- `Subscription.tsx`: Master 690, Business "от 2 490", Network "от 6 490"
-- `ForBusiness.tsx`: Same prices in plans array
-- `CreateBusinessAccount.tsx`: typeCards desc — Master 690, Business 2490, Network 6490
-- `UniversalFinances.tsx`: basePrice 650 → 690
-- `TeachingMasterDashboard.tsx`: basePrice 900 → 690
-- `FitnessMasterDashboard.tsx`: basePrice 900 → 690
-- `BusinessDashboard.tsx`: basePrice 2490 (already correct)
-- `NetworkDashboard.tsx`: basePrice 6490 (already correct)
+ALTER TABLE master_profiles ADD COLUMN IF NOT EXISTS city TEXT;
+ALTER TABLE business_locations ADD COLUMN IF NOT EXISTS city TEXT;
+ALTER TABLE business_locations ADD COLUMN IF NOT EXISTS category_id UUID REFERENCES service_categories(id);
 
-### Step 2: Fix ScrollToTop + dialog scroll (2 files + scan all dialogs)
+-- Populate city from existing addresses
+UPDATE master_profiles SET city = ... extracted from address;
+UPDATE business_locations SET city = ... extracted from address;
+```
 
-- `ScrollToTop.tsx`: Remove `search` from useEffect deps, only trigger on `pathname`
-- `UniversalServices.tsx` DialogContent: add `max-h-[85vh] overflow-y-auto`
-- `UniversalSchedule.tsx` all DialogContent: same fix
-- Scan all other Dialog usages for same issue
+### Step 2: Map Clustering (CatalogMap.tsx)
+- Replace individual markers with a GeoJSON source + cluster layers
+- Use MapLibre's built-in `cluster: true, clusterMaxZoom: 14, clusterRadius: 50`
+- Render cluster circles with count labels
+- On cluster click: `map.getSource('items').getClusterExpansionZoom(clusterId)` → zoom in
+- Individual markers still show popups on click
 
-### Step 3: Route restructure (4 files)
+### Step 3: Centralized Pricing Hook
+- Create `src/hooks/usePlatformPricing.ts` — fetches from `platform_settings` table, caches in React Query
+- Replace all hardcoded prices in: `Subscription.tsx`, `ForBusiness.tsx`, `CreateBusinessAccount.tsx`, `UniversalFinances.tsx`, `UniversalMasterDashboard.tsx` (line 156: "650 ₽"), `TeachingMasterDashboard.tsx`, `FitnessMasterDashboard.tsx`
 
-- `App.tsx`: `/` → Catalog, `/about` → merged About+Home, `/subscription` renders redirect to `/for-business#pricing`
-- `Index.tsx` → delete or repurpose
-- `About.tsx` → merge in Hero search box, PopularServices, existing benefits
-- `ForBusiness.tsx` → add id="pricing" to pricing section
-- `Header.tsx` navLinks: remove "Тарифы" (now in ForBusiness), adjust links
-- `Footer.tsx`: "Тарифы" link → `/for-business#pricing`
+### Step 4: Photo Carousel in Cards
+- Update `ServiceCardItem.tsx`: replace single `<img>` with Embla mini-carousel (dot indicators, swipe)
+- Update `MasterCardItem.tsx`: if work_photos available, add carousel
+- Update `BusinessCardItem.tsx`: carousel for interior/exterior photos
+- Use existing `embla-carousel-react` dependency
 
-### Step 4: Global rename remaining "Каталог"/"Маркетплейс" (8+ files)
+### Step 5: Clickable Services in MasterDetail
+- In `MasterDetail.tsx` services tab (line 456): wrap each service card in a click handler
+- On click: open `ServiceDetailDialog` with the service data
+- Add state `selectedServiceId` + render `ServiceDetailDialog`
 
-- Footer.tsx, Hero.tsx, Auth.tsx, CTA.tsx, About.tsx, BusinessDetail.tsx, Offer.tsx, NetworkDashboard.tsx, CreateBusinessAccount.tsx, ProfileCompletionCheck.tsx, AdminDashboard.tsx
+### Step 6: Fix MasterDetail Sidebar
+- Move address block (lines 580-585) outside the chat `<Card>` — place it as its own card above
+- Fix map dialog: add explicit `style={{ height: 320 }}` to map container + use `setTimeout` after dialog open
 
-### Step 5: Fix search filters (Catalog.tsx)
+### Step 7: Fix Organization Category Filtering
+- Add `category_id` column to `business_locations` (migration)
+- In `fetchBusinesses`: populate `category_id` from the first linked master's category
+- Fix `filteredBusinesses` filter: when category selected, check `b.category_id === categoryFilter` (already there) but don't exclude businesses with null category_id if they have no masters
 
-- Apply category, price range, and tag filters to `filteredBusinesses` and `filteredServices`
-- Replace price Slider with two Input fields (от / до)
-- Add location text filter (search across master/business addresses)
-- Limit tag selection to max 5
-- Service card click → open ServiceDetailDialog (not navigate to master)
+### Step 8: Fix City Filter
+- Use new `city` column from `master_profiles` / `business_locations`
+- Update `availableCities` memo to read from `city` field instead of regex parsing
+- Update `CreateBusinessAccount.tsx` to include a `city` text input during creation
+- Update master profile editing to include `city`
 
-### Step 6: Fix number input fields (UniversalServices.tsx, UniversalSchedule.tsx, CreateBusinessAccount.tsx)
+### Step 9: Fix Booking Dialog Scroll
+- `MasterDetail.tsx` line 472: `<DialogContent>` → add `className="max-h-[85vh] overflow-y-auto"`
 
-- Change numeric form fields from `value={form.price}` (number) to string-based state
-- Use `value={form.price === 0 ? '' : String(form.price)}` pattern or store as string
-- Parse to number only on save
-- Add duration unit selector (minutes/hours/days) for service duration
+### Step 10: Fix Master Dashboard "Edit Profile"
+- In `UniversalMasterDashboard.tsx`: add `useEffect` listener for `navigate-dashboard` custom event → `setActiveSection(e.detail)`
+- Add `'profile'` case in `renderContent()` → render a `MasterProfileEditor` component
+- Create inline `MasterProfileEditor` that loads `master_profiles` data and allows editing name, description, address, city, hashtags, photos
 
-### Step 7: Hashtag UX improvement (UniversalServices.tsx, CreateBusinessAccount.tsx)
+### Step 11: Fix Referral Counting
+- Add `referred_by` column to `profiles` table (migration)
+- In `Auth.tsx` signup: read `ref` param, pass as metadata; in `handle_new_user` trigger: save to `profiles.referred_by`
+- In `ClientReferral.tsx`: count referrals from `profiles` where `referred_by` matches user's referral code
 
-- Replace comma-separated input with: text input + "Добавить" button
-- Display added tags as removable badges below
-- Same pattern in master creation form
+### Step 12: Avatar Crop (deferred)
+- Note: requires `react-easy-crop` or similar library. Will add in a future iteration as it's a significant UX feature requiring a modal crop interface.
 
-### Step 8: Master dashboard fixes
-
-- `UniversalDashboardHome.tsx`: "Редактировать" onClick → switch dashboard section to profile editor (not `/settings`)
-- Add service count check: if 0 services, show warning and prevent activation
-- `CreateBusinessAccount.tsx`: Make address input editable after map selection; add short_description field; remove service creation step
-
-## Step 9: **Test Listings Completion Requirement**
-
-
-
-All test listings must be fully completed and properly structured. Each business profile must include: full address details, business photos, and interior images.
-
-Each service card must contain: a detailed description, relevant images of completed work, and all required service information.
-
-Additionally, every business profile must include a photo of the specialist (master).
-
-Test listings should visually and structurally reflect real, fully operational marketplace entries.
+### Step 13: Business Internal Roles (deferred)
+- The `organization_users` + `roles` + `role_permissions` tables already exist. Implementing role-based views inside BusinessDashboard is a major feature — flagged for next iteration.
 
 ---
 
-## Files to Modify
+## Files to Create/Modify
 
+| File | Action |
+|------|--------|
+| `supabase/migrations/...` | Create `platform_settings` table; add `city` to master_profiles & business_locations; add `category_id` to business_locations; add `referred_by` to profiles |
+| `src/hooks/usePlatformPricing.ts` | **Create**: hook to fetch/cache pricing from DB |
+| `src/components/marketplace/CatalogMap.tsx` | Rewrite with GeoJSON cluster source |
+| `src/components/marketplace/ServiceCardItem.tsx` | Add photo carousel |
+| `src/components/marketplace/MasterCardItem.tsx` | Add photo carousel (optional) |
+| `src/components/marketplace/BusinessCardItem.tsx` | Add photo carousel |
+| `src/pages/MasterDetail.tsx` | Clickable services → ServiceDetailDialog; fix sidebar address; fix map; fix booking scroll |
+| `src/pages/Catalog.tsx` | Fix business category filter; fix city filter using `city` column |
+| `src/components/dashboard/universal/UniversalMasterDashboard.tsx` | Add event listener + profile section |
+| `src/components/dashboard/universal/UniversalDashboardHome.tsx` | No changes needed (event dispatch already works) |
+| `src/pages/Auth.tsx` | Save referral code during signup |
+| `src/components/dashboard/client/ClientReferral.tsx` | Count referrals from profiles.referred_by |
+| `src/pages/Subscription.tsx` | Use `usePlatformPricing()` |
+| `src/pages/ForBusiness.tsx` | Use `usePlatformPricing()` |
+| `src/pages/CreateBusinessAccount.tsx` | Use pricing hook; add city field |
 
-| File                          | Changes                                                                        |
-| ----------------------------- | ------------------------------------------------------------------------------ |
-| `Subscription.tsx`            | Prices → 690/2490/6490; redirect to ForBusiness                                |
-| `ForBusiness.tsx`             | Prices → 690/2490/6490; add `id="pricing"`                                     |
-| `CreateBusinessAccount.tsx`   | Prices; address UX; remove services step; hashtag UX                           |
-| `UniversalFinances.tsx`       | basePrice 650 → 690                                                            |
-| `TeachingMasterDashboard.tsx` | basePrice 900 → 690                                                            |
-| `FitnessMasterDashboard.tsx`  | basePrice 900 → 690                                                            |
-| `ScrollToTop.tsx`             | Remove `search` from deps                                                      |
-| `App.tsx`                     | Route restructure: `/` → Catalog                                               |
-| `About.tsx`                   | Merge Home content (Hero, PopularServices)                                     |
-| `Header.tsx`                  | Remove Тарифы link, adjust nav                                                 |
-| `Footer.tsx`                  | Rename "Каталог" → "Поиск услуг", Тарифы → link to for-business#pricing        |
-| `Hero.tsx`                    | Remove "Маркетплейс" text                                                      |
-| `Auth.tsx`                    | Remove "Маркетплейс"                                                           |
-| `CTA.tsx`                     | "Посмотреть каталог" → "Найти услугу"                                          |
-| `BusinessDetail.tsx`          | Breadcrumb "Каталог" → "Поиск услуг"                                           |
-| `Offer.tsx`                   | Replace "маркетплейсу"                                                         |
-| `NetworkDashboard.tsx`        | "В каталоге" → "Опубликован"                                                   |
-| `AdminDashboard.tsx`          | "каталоге" → "поиске"                                                          |
-| `ProfileCompletionCheck.tsx`  | "каталоге" → "поиске"                                                          |
-| `Catalog.tsx`                 | Filter fixes, price inputs, location filter, tag limit, service click → dialog |
-| `UniversalServices.tsx`       | Dialog scroll, number fields, hashtag UX                                       |
-| `UniversalSchedule.tsx`       | Dialog scroll, number fields                                                   |
-| `UniversalDashboardHome.tsx`  | "Редактировать" → master profile edit, service count guard                     |
+Total: ~15 files, 1 migration. Dependencies: none new (Embla already installed).
 
-
-Total: ~23 files modified. No new dependencies or migrations needed.
