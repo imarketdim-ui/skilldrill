@@ -26,7 +26,7 @@ interface AuthContextType {
   activeRole: UserRoleType;
   setActiveRole: (role: UserRoleType) => void;
   loading: boolean;
-  signUp: (email: string, password: string, firstName?: string, lastName?: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, firstName?: string, lastName?: string, referredBy?: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -138,17 +138,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const signUp = async (email: string, password: string, firstName?: string, lastName?: string) => {
+  const signUp = async (email: string, password: string, firstName?: string, lastName?: string, referredBy?: string) => {
     try {
+      const metaData: Record<string, string | undefined> = {
+        first_name: firstName,
+        last_name: lastName,
+      };
+      if (referredBy) metaData.referred_by = referredBy;
+
       const { error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           emailRedirectTo: 'https://skilldrill.lovable.app/dashboard',
-          data: {
-            first_name: firstName,
-            last_name: lastName,
-          },
+          data: metaData,
         },
       });
 

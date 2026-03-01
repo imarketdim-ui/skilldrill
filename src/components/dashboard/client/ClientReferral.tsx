@@ -35,19 +35,40 @@ const ClientReferral = () => {
     const earnings = earningsRes.data || [];
     const referredIds = [...new Set(earnings.map(e => e.referred_id))];
     
+    // Also count referrals from profiles.referred_by matching any of user's referral codes
+    let profileReferralCount = 0;
+    if (codeRes.data?.code) {
+      const { count } = await supabase
+        .from('profiles')
+        .select('id', { count: 'exact', head: true })
+        .eq('referred_by', codeRes.data.code);
+      profileReferralCount = count || 0;
+    }
+
     let activeCount = 0;
-    if (referredIds.length > 0) {
+    const allReferredIds = [...referredIds];
+    if (profileReferralCount > 0 && codeRes.data?.code) {
+      const { data: refProfiles } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('referred_by', codeRes.data.code);
+      (refProfiles || []).forEach(p => { if (!allReferredIds.includes(p.id)) allReferredIds.push(p.id); });
+    }
+
+    if (allReferredIds.length > 0) {
       const { data: masters } = await supabase
         .from('master_profiles')
         .select('user_id, subscription_status')
-        .in('user_id', referredIds)
+        .in('user_id', allReferredIds)
         .in('subscription_status', ['active', 'trial', 'in_business']);
       activeCount = masters?.length || 0;
     }
 
+    const totalReferrals = Math.max(referredIds.length, profileReferralCount);
+
     setStats({
       totalEarnings: earnings.reduce((s: number, e: any) => s + Number(e.amount), 0),
-      totalReferrals: referredIds.length,
+      totalReferrals,
       activeReferrals: activeCount,
       referralBalance: balRes.data?.referral_balance || 0,
     });

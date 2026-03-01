@@ -32,10 +32,12 @@ type MasterItem = {
   rating: number | null;
   review_count: number;
   location: string | null;
+  city: string | null;
   category_id: string | null;
   category_name: string | null;
   min_price: number | null;
   hashtags: string[] | null;
+  work_photos: string[] | null;
   latitude: number | null;
   longitude: number | null;
 };
@@ -44,9 +46,11 @@ type BusinessItem = {
   id: string;
   name: string;
   image: string | null;
+  images: string[];
   rating: number | null;
   review_count: number;
   address: string | null;
+  city: string | null;
   description: string | null;
   category_name: string | null;
   category_id: string | null;
@@ -102,20 +106,11 @@ const Catalog = () => {
   const [viewMode, setViewMode] = useState<"grid" | "map">("grid");
   const [selectedService, setSelectedService] = useState<ServiceCardData | null>(null);
 
-  // Extract unique cities from addresses
+  // Extract unique cities from dedicated city column
   const availableCities = useMemo(() => {
     const cities = new Set<string>();
-    const extractCity = (addr: string | null) => {
-      if (!addr) return;
-      // Extract city from patterns like "г. Абакан, ..." or "..., Абакан"
-      const gMatch = addr.match(/г\.\s*([^,]+)/);
-      if (gMatch) { cities.add(gMatch[1].trim()); return; }
-      // Try last known city patterns
-      const parts = addr.split(",").map(s => s.trim());
-      if (parts.length >= 2) cities.add(parts[parts.length - 2] || parts[0]);
-    };
-    masters.forEach(m => extractCity(m.location));
-    businesses.forEach(b => extractCity(b.address));
+    masters.forEach(m => { if (m.city) cities.add(m.city); });
+    businesses.forEach(b => { if (b.city) cities.add(b.city); });
     return Array.from(cities).sort();
   }, [masters, businesses]);
 
@@ -152,7 +147,7 @@ const Catalog = () => {
       let query = supabase
         .from("master_profiles")
         .select(`
-          id, user_id, description, address, category_id, hashtags, latitude, longitude, is_active,
+          id, user_id, description, address, city, category_id, hashtags, latitude, longitude, is_active, work_photos,
           profiles!master_profiles_user_id_fkey(first_name, last_name, avatar_url, bio),
           service_categories!master_profiles_category_id_fkey(name)
         `)
@@ -192,10 +187,12 @@ const Catalog = () => {
           rating: null,
           review_count: 0,
           location: mp.address || "Абакан",
+          city: mp.city || null,
           category_id: mp.category_id,
           category_name: mp.service_categories?.name || null,
           min_price: prices.length > 0 ? Math.min(...prices) : null,
           hashtags: mp.hashtags,
+          work_photos: (mp.work_photos as string[]) || null,
           latitude: mp.latitude,
           longitude: mp.longitude,
         };
@@ -213,7 +210,7 @@ const Catalog = () => {
       const { data } = await supabase
         .from("business_locations")
         .select(`
-          id, name, address, description, hashtags, latitude, longitude, is_active,
+          id, name, address, city, category_id, description, hashtags, latitude, longitude, is_active,
           interior_photos, exterior_photos
         `)
         .eq("is_active", true)
@@ -260,12 +257,14 @@ const Catalog = () => {
           id: bl.id,
           name: bl.name,
           image: photos[0] || null,
+          images: photos,
           rating: null,
           review_count: 0,
           address: bl.address || "Абакан",
+          city: bl.city || null,
           description: bl.description,
-          category_name: cat?.name || null,
-          category_id: cat?.id || null,
+          category_name: cat?.name || bl.category_id ? categories.find(c => c.id === bl.category_id)?.name || null : null,
+          category_id: bl.category_id || cat?.id || null,
           specialist_count: masterCountMap[bl.id] || 0,
           service_count: serviceCountMap[bl.id] || 0,
           latitude: bl.latitude,
@@ -276,7 +275,7 @@ const Catalog = () => {
       setBusinesses(mapped);
     };
     fetchBusinesses();
-  }, []);
+  }, [categories]);
 
   // Fetch services
   useEffect(() => {
@@ -361,7 +360,8 @@ const Catalog = () => {
           if (!selectedTags.every((st) => mTags.some((mt) => mt.includes(st.toLowerCase())))) return false;
         }
         if (locationFilter) {
-          if (!(m.location || "").toLowerCase().includes(locationFilter.toLowerCase())) return false;
+          if (m.city && m.city.toLowerCase() === locationFilter.toLowerCase()) { /* match */ }
+          else if (!(m.location || "").toLowerCase().includes(locationFilter.toLowerCase())) return false;
         }
         return true;
       })
@@ -384,12 +384,12 @@ const Catalog = () => {
         const match = b.name.toLowerCase().includes(q) || stemRu(b.name).includes(stem) || (b.description || "").toLowerCase().includes(q) || (b.address || "").toLowerCase().includes(q);
         if (!match) return false;
       }
-      if (categoryFilter !== CATEGORY_ALL && b.category_id) {
-        if (b.category_id !== categoryFilter) return false;
+      if (categoryFilter !== CATEGORY_ALL) {
+        if (!b.category_id || b.category_id !== categoryFilter) return false;
       }
-      if (categoryFilter !== CATEGORY_ALL && !b.category_id) return false;
       if (locationFilter) {
-        if (!(b.address || "").toLowerCase().includes(locationFilter.toLowerCase())) return false;
+        if (b.city && b.city.toLowerCase() === locationFilter.toLowerCase()) { /* match */ }
+        else if (!(b.address || "").toLowerCase().includes(locationFilter.toLowerCase())) return false;
       }
       return true;
     });
@@ -846,6 +846,7 @@ const Catalog = () => {
                       category_name={m.category_name}
                       min_price={m.min_price}
                       hashtags={m.hashtags}
+                      work_photos={m.work_photos}
                       onClick={() => navigate(`/master/${m.user_id}`)}
                     />
                   ))
@@ -856,6 +857,7 @@ const Catalog = () => {
                       id={b.id}
                       name={b.name}
                       image={b.image}
+                      images={b.images}
                       rating={b.rating}
                       review_count={b.review_count}
                       address={b.address}

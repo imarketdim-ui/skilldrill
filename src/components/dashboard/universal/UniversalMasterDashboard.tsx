@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { usePlatformPricing } from '@/hooks/usePlatformPricing';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, LayoutDashboard, Calendar, Users, MessageSquare, BarChart3, Wallet, Package, Bell, ClipboardList } from 'lucide-react';
+import { AlertTriangle, LayoutDashboard, Calendar, Users, MessageSquare, BarChart3, Wallet, Package, Bell, ClipboardList, UserCog } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import UniversalDashboardHome from './UniversalDashboardHome';
 import UniversalSchedule from './UniversalSchedule';
@@ -128,6 +129,7 @@ interface Props {
 
 const menuItems = [
   { key: 'home', label: 'Главная', icon: LayoutDashboard },
+  { key: 'profile', label: 'Профиль', icon: UserCog },
   { key: 'schedule', label: 'Расписание', icon: Calendar },
   { key: 'services', label: 'Услуги', icon: Package },
   { key: 'clients', label: 'Клиенты', icon: Users },
@@ -143,7 +145,17 @@ const managementItems = [
 
 const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config }: Props) => {
   const { profile } = useAuth();
+  const pricing = usePlatformPricing();
   const [activeSection, setActiveSection] = useState('home');
+
+  // Listen for navigate-dashboard custom events
+  useEffect(() => {
+    const handler = (e: CustomEvent) => {
+      if (e.detail) setActiveSection(e.detail);
+    };
+    window.addEventListener('navigate-dashboard', handler as EventListener);
+    return () => window.removeEventListener('navigate-dashboard', handler as EventListener);
+  }, []);
 
   if (!isSubscriptionActive && masterProfile) {
     return (
@@ -152,7 +164,7 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
           <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-destructive" />
           <h2 className="text-xl font-bold mb-2">Подписка неактивна</h2>
           <p className="text-muted-foreground mb-4">
-            Ваши данные сохранены, но интерфейс мастера недоступен. Оплатите подписку (650 ₽/мес) для продолжения работы.
+            Ваши данные сохранены, но интерфейс мастера недоступен. Оплатите подписку ({pricing.master} ₽/мес) для продолжения работы.
           </p>
           <Button onClick={() => setActiveSection('finances')}>Оплатить подписку</Button>
         </CardContent>
@@ -162,6 +174,7 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
 
   const renderContent = () => {
     switch (activeSection) {
+      case 'profile': return <MasterProfileEditor masterProfile={masterProfile} config={config} />;
       case 'schedule': return <UniversalSchedule config={config} />;
       case 'services': return <UniversalServices config={config} />;
       case 'clients': return <UniversalClients config={config} />;

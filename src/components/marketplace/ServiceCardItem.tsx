@@ -1,6 +1,8 @@
+import { useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Star, MapPin, Clock } from "lucide-react";
+import { Star, MapPin, Clock, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import useEmblaCarousel from "embla-carousel-react";
 
 export interface ServiceCardData {
   id: string;
@@ -23,7 +25,24 @@ interface Props {
 }
 
 const ServiceCardItem = ({ service, onClick }: Props) => {
-  const coverImage = service.work_photos?.[0] || "/placeholder.svg";
+  const photos = service.work_photos?.length > 0 ? service.work_photos : ["/placeholder.svg"];
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  const onSelect = useCallback(() => {
+    if (!emblaApi) return;
+    setCurrentSlide(emblaApi.selectedScrollSnap());
+  }, [emblaApi]);
+
+  useCallback(() => {
+    if (!emblaApi) return;
+    emblaApi.on("select", onSelect);
+  }, [emblaApi, onSelect]);
+
+  // Attach listener via effect-like pattern
+  if (emblaApi) {
+    emblaApi.on("select", onSelect);
+  }
 
   return (
     <motion.div
@@ -35,14 +54,50 @@ const ServiceCardItem = ({ service, onClick }: Props) => {
       className="bg-card rounded-2xl overflow-hidden border border-border/50 shadow-md hover:shadow-xl transition-all cursor-pointer"
       onClick={onClick}
     >
-      {/* Cover image */}
+      {/* Cover carousel */}
       <div className="relative h-48 overflow-hidden bg-secondary">
-        <img
-          src={coverImage}
-          alt={service.name}
-          className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-          onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder.svg"; }}
-        />
+        {photos.length > 1 ? (
+          <div ref={emblaRef} className="overflow-hidden h-full">
+            <div className="flex h-full">
+              {photos.map((src, i) => (
+                <div key={i} className="flex-[0_0_100%] min-w-0 h-full">
+                  <img
+                    src={src}
+                    alt={service.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder.svg"; }}
+                  />
+                </div>
+              ))}
+            </div>
+            {/* Nav arrows */}
+            <button
+              className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-card/80 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity"
+              onClick={(e) => { e.stopPropagation(); emblaApi?.scrollPrev(); }}
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-card/80 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity"
+              onClick={(e) => { e.stopPropagation(); emblaApi?.scrollNext(); }}
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+            {/* Dots */}
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+              {photos.slice(0, 5).map((_, i) => (
+                <div key={i} className={`w-1.5 h-1.5 rounded-full transition-colors ${i === currentSlide ? 'bg-card' : 'bg-card/50'}`} />
+              ))}
+            </div>
+          </div>
+        ) : (
+          <img
+            src={photos[0]}
+            alt={service.name}
+            className="w-full h-full object-cover"
+            onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder.svg"; }}
+          />
+        )}
         {service.master_rating != null && service.master_rating > 0 && (
           <div className="absolute top-3 right-3 px-3 py-1 rounded-full bg-card/90 backdrop-blur-sm flex items-center gap-1">
             <Star className="w-4 h-4 text-amber fill-amber" />
