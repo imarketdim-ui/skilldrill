@@ -1,0 +1,1 @@
+ALTER TABLE public.master_profiles ADD COLUMN IF NOT EXISTS short_description TEXT;
