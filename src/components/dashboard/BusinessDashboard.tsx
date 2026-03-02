@@ -5,8 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
-  Building2, Users, ClipboardList, Calendar, DollarSign, Settings, ArrowRightLeft, UserPlus
+  Building2, Users, ClipboardList, Calendar, DollarSign, Settings, ArrowRightLeft, UserPlus, AlertTriangle
 } from 'lucide-react';
 import ProfileCompletionCheck from './ProfileCompletionCheck';
 import SubscriptionManager from './SubscriptionManager';
@@ -22,16 +23,29 @@ const BusinessDashboard = () => {
   const [businesses, setBusinesses] = useState<any[]>([]);
   const [selectedBusiness, setSelectedBusiness] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [masterCount, setMasterCount] = useState(0);
+  const [serviceCount, setServiceCount] = useState(0);
 
   const fetchBusinesses = useCallback(async () => {
     if (!user) return;
     const { data } = await supabase.from('business_locations').select('*').eq('owner_id', user.id);
     setBusinesses(data || []);
-    if (data && data.length > 0) setSelectedBusiness(data[0]);
+    if (data && data.length > 0) {
+      setSelectedBusiness(data[0]);
+      // Fetch counts for activation guard
+      const [mRes, sRes] = await Promise.all([
+        supabase.from('business_masters').select('id', { count: 'exact', head: true }).eq('business_id', data[0].id).eq('status', 'accepted'),
+        supabase.from('services').select('id', { count: 'exact', head: true }).eq('business_id', data[0].id).eq('is_active', true),
+      ]);
+      setMasterCount(mRes.count || 0);
+      setServiceCount(sRes.count || 0);
+    }
     setLoading(false);
   }, [user]);
 
   useEffect(() => { fetchBusinesses(); }, [fetchBusinesses]);
+
+  const canActivate = masterCount >= 1 && serviceCount >= 1;
 
   const getSubscriptionBadge = () => {
     if (!selectedBusiness) return null;
@@ -58,6 +72,16 @@ const BusinessDashboard = () => {
 
   return (
     <div className="space-y-6">
+      {!canActivate && selectedBusiness && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            Для активации бизнеса необходимо: минимум 1 принятый мастер ({masterCount}/1) и 1 активная услуга ({serviceCount}/1). 
+            Пока условия не выполнены, бизнес не будет виден в каталоге.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {showCompletion && selectedBusiness && (
         <ProfileCompletionCheck entityType="business" entityData={selectedBusiness} onProfileUpdated={fetchBusinesses} />
       )}
@@ -116,11 +140,7 @@ const BusinessDashboard = () => {
 
         <TabsContent value="masters">
           {selectedBusiness && (
-            <BusinessMasters
-              businessId={selectedBusiness.id}
-              freeMasters={selectedBusiness.free_masters || 3}
-              extraMasterPrice={selectedBusiness.extra_master_price || 500}
-            />
+            <BusinessMasters businessId={selectedBusiness.id} freeMasters={selectedBusiness.free_masters || 3} extraMasterPrice={selectedBusiness.extra_master_price || 500} />
           )}
         </TabsContent>
 
