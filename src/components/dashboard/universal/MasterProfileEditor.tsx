@@ -28,6 +28,7 @@ const MasterProfileEditor = ({ masterProfile, config }: Props) => {
 
   const [form, setForm] = useState({
     description: '',
+    short_description: '',
     workplace_description: '',
     address: '',
     city: '',
@@ -43,6 +44,7 @@ const MasterProfileEditor = ({ masterProfile, config }: Props) => {
     const sl = (masterProfile.social_links as any) || {};
     setForm({
       description: masterProfile.description || '',
+      short_description: (masterProfile as any).short_description || '',
       workplace_description: masterProfile.workplace_description || '',
       address: masterProfile.address || '',
       city: masterProfile.city || '',
@@ -64,6 +66,7 @@ const MasterProfileEditor = ({ masterProfile, config }: Props) => {
     try {
       const { error } = await supabase.from('master_profiles').update({
         description: form.description || null,
+        short_description: form.short_description || null,
         workplace_description: form.workplace_description || null,
         address: form.address || null,
         city: form.city || null,
@@ -179,6 +182,11 @@ const MasterProfileEditor = ({ masterProfile, config }: Props) => {
         <Card>
           <CardHeader><CardTitle className="text-lg">Описание</CardTitle></CardHeader>
           <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Краткое описание</Label>
+              <Input value={form.short_description} onChange={e => setForm(p => ({ ...p, short_description: e.target.value }))} placeholder="Кратко о себе (1-2 предложения для карточки)" maxLength={200} />
+              <p className="text-xs text-muted-foreground">{form.short_description.length}/200</p>
+            </div>
             <div className="space-y-2">
               <Label>О себе</Label>
               <Textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="Расскажите о своём опыте и специализации..." rows={4} />

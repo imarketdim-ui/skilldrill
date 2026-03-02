@@ -66,15 +66,21 @@ const ProfileCompletionCheck = ({ entityType, entityData, onProfileUpdated }: Pr
   }, [entityData]);
 
   const getCompletionItems = (): CompletionItem[] => {
-    return [
+    const items: CompletionItem[] = [
       { key: 'address', label: 'Адрес', required: true, completed: !!entityData?.address, icon: MapPin },
-      { key: 'services', label: 'Услуги (мин. 1)', required: true, completed: services.length > 0, icon: FileText },
+    ];
+    // Services only for masters — businesses add services in their dashboard
+    if (entityType !== 'business') {
+      items.push({ key: 'services', label: 'Услуги (мин. 1)', required: true, completed: services.length > 0, icon: FileText });
+    }
+    items.push(
       { key: 'description', label: 'Описание', required: false, completed: !!entityData?.description, icon: FileText },
       { key: 'interior_photos', label: 'Фото интерьера/экстерьера', required: false, completed: (entityData?.interior_photos?.length || 0) > 0, icon: Camera },
       { key: 'work_photos', label: 'Фото работ', required: false, completed: (entityData?.work_photos?.length || 0) > 0, icon: Image },
       { key: 'certificates', label: 'Сертификаты и референсы', required: false, completed: (entityData?.certificate_photos?.length || 0) > 0, icon: Award },
       { key: 'hashtags', label: 'Хэштеги', required: false, completed: (entityData?.hashtags?.length || 0) > 0, icon: Hash },
-    ];
+    );
+    return items;
   };
 
   const items = getCompletionItems();

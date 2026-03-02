@@ -344,9 +344,9 @@ const TeachingSchedule = () => {
                 <div className="space-y-2"><Label>Конец</Label><Input type="time" value={formData.end_time} onChange={e => setFormData(p => ({ ...p, end_time: e.target.value }))} /></div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2"><Label>Цена (₽)</Label><Input type="number" value={formData.price} onChange={e => setFormData(p => ({ ...p, price: Number(e.target.value) }))} /></div>
+                <div className="space-y-2"><Label>Цена (₽)</Label><Input type="text" inputMode="numeric" value={formData.price || ''} onChange={e => setFormData(p => ({ ...p, price: Number(e.target.value.replace(/[^\d]/g, '')) || 0 }))} /></div>
                 {formData.lesson_type === 'group' && (
-                  <div className="space-y-2"><Label>Макс. участников</Label><Input type="number" min={2} value={formData.max_participants} onChange={e => setFormData(p => ({ ...p, max_participants: Number(e.target.value) }))} /></div>
+                  <div className="space-y-2"><Label>Макс. участников</Label><Input type="text" inputMode="numeric" value={formData.max_participants || ''} onChange={e => setFormData(p => ({ ...p, max_participants: Number(e.target.value.replace(/[^\d]/g, '')) || 1 }))} /></div>
                 )}
               </div>
               <div className="space-y-2">

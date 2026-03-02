@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { Pencil, Settings, Percent, Save, Loader2, Plus, Trash2, X } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Pencil, Settings, Percent, Save, Loader2, Plus, Trash2, X, Tag } from 'lucide-react';
 
 const legalForms = [
   { value: 'ip', label: 'ИП' },
@@ -47,6 +48,12 @@ const BusinessSettings = ({ business, onUpdated }: Props) => {
   const [services, setServices] = useState<any[]>([]);
   const [ruleForm, setRuleForm] = useState<any>({ name: '', rule_type: 'default', commission_percent: '', master_id: '', category_id: '', service_id: '', is_active: true });
   const [addRuleOpen, setAddRuleOpen] = useState(false);
+
+  // Category management
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+  const [allCategories, setAllCategories] = useState<any[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [savingCategory, setSavingCategory] = useState(false);
 
   useEffect(() => {
     if (business) {
@@ -161,6 +168,21 @@ const BusinessSettings = ({ business, onUpdated }: Props) => {
     return 'destructive' as const;
   };
 
+  const openCategories = async () => {
+    const { data } = await supabase.from('service_categories').select('id, name').eq('is_active', true).order('name');
+    setAllCategories(data || []);
+    setSelectedCategoryId(business.category_id || null);
+    setCategoryDialogOpen(true);
+  };
+
+  const handleSaveCategory = async () => {
+    setSavingCategory(true);
+    const { error } = await supabase.from('business_locations').update({ category_id: selectedCategoryId }).eq('id', business.id);
+    setSavingCategory(false);
+    if (error) toast({ title: 'Ошибка', description: error.message, variant: 'destructive' });
+    else { toast({ title: 'Категория обновлена' }); setCategoryDialogOpen(false); onUpdated(); }
+  };
+
   return (
     <div className="space-y-4">
       <Card>
@@ -168,6 +190,10 @@ const BusinessSettings = ({ business, onUpdated }: Props) => {
         <CardContent className="space-y-2">
           <Button variant="outline" className="w-full justify-start gap-2" onClick={() => setEditOpen(true)}>
             <Pencil className="h-4 w-4" /> Редактировать информацию
+          </Button>
+          <Button variant="outline" className="w-full justify-start gap-2" onClick={openCategories}>
+            <Tag className="h-4 w-4" /> Категория бизнеса
+            {business.category_id && <Badge variant="secondary" className="ml-auto text-xs">{allCategories.find(c => c.id === business.category_id)?.name || 'Выбрана'}</Badge>}
           </Button>
           <Button variant="outline" className="w-full justify-start gap-2" onClick={openCommissions}>
             <Percent className="h-4 w-4" /> Настройки комиссий
@@ -337,6 +363,30 @@ const BusinessSettings = ({ business, onUpdated }: Props) => {
             <Button className="w-full" onClick={handleAddRule} disabled={saving}>
               {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
               Добавить правило
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      {/* Category Dialog */}
+      <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Категория бизнеса</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">Выберите основную категорию вашего бизнеса. Это поможет клиентам найти вас в каталоге.</p>
+            <div className="max-h-[50vh] overflow-y-auto space-y-1">
+              {allCategories.map(cat => (
+                <button
+                  key={cat.id}
+                  className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors ${selectedCategoryId === cat.id ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
+                  onClick={() => setSelectedCategoryId(cat.id)}
+                >
+                  {cat.name}
+                </button>
+              ))}
+            </div>
+            <Button className="w-full" onClick={handleSaveCategory} disabled={savingCategory}>
+              {savingCategory ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+              Сохранить
             </Button>
           </div>
         </DialogContent>

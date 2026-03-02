@@ -136,7 +136,7 @@ const ClientWallet = () => {
                   <div className="space-y-4 pt-2">
                     <div className="space-y-2">
                       <Label>Сумма пополнения (₽)</Label>
-                      <Input type="number" min="1" placeholder="1000" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} />
+                      <Input type="text" inputMode="numeric" placeholder="1000" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value.replace(/[^\d]/g, ''))} />
                     </div>
                     <div className="grid grid-cols-4 gap-2">
                       {[500, 1000, 2000, 5000].map(v => (
@@ -164,7 +164,7 @@ const ClientWallet = () => {
                     <p className="text-sm text-muted-foreground">Доступно: {Number(balance.main_balance).toLocaleString()} ₽</p>
                     <div className="space-y-2">
                       <Label>Сумма вывода (₽)</Label>
-                      <Input type="number" min="1" max={balance.main_balance} placeholder="1000" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} />
+                      <Input type="text" inputMode="numeric" placeholder="1000" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value.replace(/[^\d]/g, ''))} />
                     </div>
                     <Button className="w-full" onClick={handleWithdraw} disabled={processing}>
                       {processing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
@@ -193,7 +193,7 @@ const ClientWallet = () => {
                   <p className="text-sm text-muted-foreground">Реферальный баланс: {Number(balance.referral_balance).toLocaleString()} ₽</p>
                   <div className="space-y-2">
                     <Label>Сумма перевода (₽)</Label>
-                    <Input type="number" min="1" max={balance.referral_balance} placeholder="500" value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)} />
+                    <Input type="text" inputMode="numeric" placeholder="500" value={transferAmount} onChange={(e) => setTransferAmount(e.target.value.replace(/[^\d]/g, ''))} />
                   </div>
                   <Button className="w-full" onClick={handleTransferReferral} disabled={processing}>
                     {processing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}

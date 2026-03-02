@@ -1078,6 +1078,7 @@ export type Database = {
           moderation_comment: string | null
           moderation_status: string
           promo_code_used: string | null
+          short_description: string | null
           social_links: Json | null
           subscription_price: number
           subscription_status: string
@@ -1111,6 +1112,7 @@ export type Database = {
           moderation_comment?: string | null
           moderation_status?: string
           promo_code_used?: string | null
+          short_description?: string | null
           social_links?: Json | null
           subscription_price?: number
           subscription_status?: string
@@ -1144,6 +1146,7 @@ export type Database = {
           moderation_comment?: string | null
           moderation_status?: string
           promo_code_used?: string | null
+          short_description?: string | null
           social_links?: Json | null
           subscription_price?: number
           subscription_status?: string
