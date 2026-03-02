@@ -2572,6 +2572,7 @@ export type Database = {
       }
       services: {
         Row: {
+          business_id: string | null
           category_id: string | null
           created_at: string
           description: string | null
@@ -2587,6 +2588,7 @@ export type Database = {
           work_photos: Json | null
         }
         Insert: {
+          business_id?: string | null
           category_id?: string | null
           created_at?: string
           description?: string | null
@@ -2602,6 +2604,7 @@ export type Database = {
           work_photos?: Json | null
         }
         Update: {
+          business_id?: string | null
           category_id?: string | null
           created_at?: string
           description?: string | null
@@ -2617,6 +2620,13 @@ export type Database = {
           work_photos?: Json | null
         }
         Relationships: [
+          {
+            foreignKeyName: "services_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "business_locations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "services_category_id_fkey"
             columns: ["category_id"]
