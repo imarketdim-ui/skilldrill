@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -25,6 +25,12 @@ const legalForms = [
 
 type AccountType = 'master' | 'business' | 'network';
 
+const formatPhone = (value: string) => {
+  let v = value.replace(/[^\d+]/g, '');
+  if (v.startsWith('8') && v.length > 1) v = '+7' + v.slice(1);
+  return v;
+};
+
 const CreateBusinessAccount = () => {
   const { user, profile, roles, loading, refreshProfile } = useAuth();
   const pricing = usePlatformPricing();
@@ -37,7 +43,16 @@ const CreateBusinessAccount = () => {
   const [existingBusinesses, setExistingBusinesses] = useState<any[]>([]);
   const [existingNetworks, setExistingNetworks] = useState<any[]>([]);
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
+  // Use useRef-backed form to avoid stale closures from map callbacks
   const [form, setForm] = useState<any>({});
+  const formRef = useRef<any>({});
+  const updateForm = (updates: any) => {
+    setForm((prev: any) => {
+      const next = { ...prev, ...updates };
+      formRef.current = next;
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (!loading && !user) navigate('/auth');
@@ -50,20 +65,15 @@ const CreateBusinessAccount = () => {
       supabase.from('master_profiles').select('*, service_categories(name)').eq('user_id', user.id),
       supabase.from('business_locations').select('*').eq('owner_id', user.id),
       supabase.from('networks').select('*').eq('owner_id', user.id),
-      supabase.from('role_requests').select('*').eq('requester_id', user.id).eq('status', 'pending' as any),
-    ]).then(([cats, masters, biz, nets, reqs]) => {
+    ]).then(([cats, masters, biz, nets]) => {
       setCategories(cats.data || []);
       setExistingMasterProfiles(masters.data || []);
       setExistingBusinesses(biz.data || []);
       setExistingNetworks(nets.data || []);
-      setPendingRequests(reqs.data || []);
     });
   }, [user]);
 
-  const hasPendingRequest = (type: string) => pendingRequests.some(r => r.request_type === type);
   const isMaster = roles.includes('master');
-  const isBusinessOwner = roles.includes('business_owner');
-  const isNetworkOwner = roles.includes('network_owner');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,114 +83,61 @@ const CreateBusinessAccount = () => {
       toast({ title: 'Выберите категорию', variant: 'destructive' });
       return;
     }
-    if (accountType === 'business' && (!form.business_name || !form.business_inn || !form.business_legal_form || !form.business_address || !form.director_name || !form.business_contact_email || !form.business_contact_phone)) {
-      toast({ title: 'Заполните все обязательные поля', variant: 'destructive' });
-      return;
+    if (accountType === 'business') {
+      if (!form.business_name || !form.business_inn || !form.business_legal_form || !form.business_address || !form.director_name || !form.business_contact_email || !form.business_contact_phone) {
+        toast({ title: 'Заполните все обязательные поля', variant: 'destructive' });
+        return;
+      }
     }
-    if (accountType === 'network' && (!form.network_name || !form.network_inn || !form.network_legal_form || !form.network_address || !form.director_name || !form.network_contact_email || !form.network_contact_phone)) {
-      toast({ title: 'Заполните все обязательные поля', variant: 'destructive' });
-      return;
+    if (accountType === 'network') {
+      if (!form.network_name || !form.network_inn || !form.network_legal_form || !form.network_address || !form.director_name || !form.network_contact_email || !form.network_contact_phone) {
+        toast({ title: 'Заполните все обязательные поля', variant: 'destructive' });
+        return;
+      }
     }
 
     setIsSubmitting(true);
     try {
       if (accountType === 'master') {
-        // Auto-create master profile + role via security definer function
-        const { error: roleError } = await supabase.rpc('assign_role_on_account_creation', {
-          _user_id: user.id,
-          _role: 'master',
-        });
-        if (roleError) {
-          console.error('Role assignment error:', roleError);
-          throw new Error('Не удалось назначить роль мастера');
-        }
-
-        // Check if master already has this category
+        const { error: roleError } = await supabase.rpc('assign_role_on_account_creation', { _user_id: user.id, _role: 'master' });
+        if (roleError) throw new Error('Не удалось назначить роль мастера');
         const existingCat = existingMasterProfiles.find(mp => mp.category_id === form.category_id);
-        if (existingCat) {
-          toast({ title: 'У вас уже есть профиль в этой категории', variant: 'destructive' });
-          setIsSubmitting(false);
-          return;
-        }
-
+        if (existingCat) { toast({ title: 'У вас уже есть профиль в этой категории', variant: 'destructive' }); setIsSubmitting(false); return; }
         await supabase.from('master_profiles').insert({
-          user_id: user.id,
-          category_id: form.category_id,
-          subscription_status: 'trial',
-          trial_start_date: new Date().toISOString(),
-          trial_days: form.promo_code ? 45 : 14,
-          promo_code_used: form.promo_code || null,
-          moderation_status: 'draft',
-          is_active: true,
+          user_id: user.id, category_id: form.category_id,
+          subscription_status: 'trial', trial_start_date: new Date().toISOString(),
+          trial_days: form.promo_code ? 45 : 14, promo_code_used: form.promo_code || null,
+          moderation_status: 'draft', is_active: true,
         });
-
-        toast({
-          title: 'Аккаунт мастера создан!',
-          description: 'Заполните профиль, чтобы пройти модерацию и появиться в поиске.',
-        });
-
+        toast({ title: 'Аккаунт мастера создан!', description: 'Заполните профиль для прохождения модерации.' });
       } else if (accountType === 'business') {
-        const { error: roleError } = await supabase.rpc('assign_role_on_account_creation', {
-          _user_id: user.id,
-          _role: 'business_owner',
-        });
+        const { error: roleError } = await supabase.rpc('assign_role_on_account_creation', { _user_id: user.id, _role: 'business_owner' });
         if (roleError) throw new Error('Не удалось назначить роль владельца бизнеса');
-
         await supabase.from('business_locations').insert({
-          owner_id: user.id,
-          name: form.business_name,
-          inn: form.business_inn,
-          legal_form: form.business_legal_form,
-          address: form.business_address,
-          city: form.business_city || null,
-          description: form.business_description || null,
-          contact_email: form.business_contact_email,
-          contact_phone: form.business_contact_phone,
-          director_name: form.director_name,
-          moderation_status: 'draft',
+          owner_id: user.id, name: form.business_name, inn: form.business_inn,
+          legal_form: form.business_legal_form, address: form.business_address,
+          city: form.business_city || null, description: form.business_description || null,
+          contact_email: form.business_contact_email, contact_phone: form.business_contact_phone,
+          director_name: form.director_name, moderation_status: 'draft',
+          latitude: form.business_lat || null, longitude: form.business_lng || null,
         });
-
-        toast({
-          title: 'Бизнес-аккаунт создан!',
-          description: 'Заполните профиль и добавьте услуги для прохождения модерации.',
-        });
-
+        toast({ title: 'Бизнес-аккаунт создан!', description: 'Заполните профиль и добавьте услуги.' });
       } else if (accountType === 'network') {
-        const { error: roleError } = await supabase.rpc('assign_role_on_account_creation', {
-          _user_id: user.id,
-          _role: 'network_owner',
-        });
+        const { error: roleError } = await supabase.rpc('assign_role_on_account_creation', { _user_id: user.id, _role: 'network_owner' });
         if (roleError) throw new Error('Не удалось назначить роль владельца сети');
-
         await supabase.from('networks').insert({
-          owner_id: user.id,
-          name: form.network_name,
-          description: form.network_description || null,
-          inn: form.network_inn,
-          legal_form: form.network_legal_form,
-          address: form.network_address,
-          contact_email: form.network_contact_email,
-          contact_phone: form.network_contact_phone,
-          director_name: form.director_name,
-          moderation_status: 'draft',
+          owner_id: user.id, name: form.network_name, description: form.network_description || null,
+          inn: form.network_inn, legal_form: form.network_legal_form, address: form.network_address,
+          contact_email: form.network_contact_email, contact_phone: form.network_contact_phone,
+          director_name: form.director_name, moderation_status: 'draft',
         });
-
-        toast({
-          title: 'Сеть создана!',
-          description: 'Заполните профиль и добавьте точки для прохождения модерации.',
-        });
+        toast({ title: 'Сеть создана!', description: 'Заполните профиль и добавьте точки.' });
       }
 
       await refreshProfile();
-      // Set active role to the newly created role
-      if (accountType === 'master') {
-        localStorage.setItem('skillspot_active_role', 'master');
-      } else if (accountType === 'business') {
-        localStorage.setItem('skillspot_active_role', 'business_owner');
-      } else if (accountType === 'network') {
-        localStorage.setItem('skillspot_active_role', 'network_owner');
-      }
-      // Force page reload to pick up new role
+      if (accountType === 'master') localStorage.setItem('skillspot_active_role', 'master');
+      else if (accountType === 'business') localStorage.setItem('skillspot_active_role', 'business_owner');
+      else if (accountType === 'network') localStorage.setItem('skillspot_active_role', 'network_owner');
       window.location.href = '/dashboard';
     } catch (err: any) {
       toast({ title: 'Ошибка', description: err.message, variant: 'destructive' });
@@ -190,31 +147,9 @@ const CreateBusinessAccount = () => {
   };
 
   const typeCards = [
-    {
-      type: 'master' as const,
-      icon: Wrench,
-      title: 'Мастер',
-      desc: `Индивидуальный специалист · ${pricing.master.toLocaleString()} ₽/мес`,
-      disabled: hasPendingRequest('master'),
-      disabledText: 'Заявка обрабатывается',
-      note: isMaster ? 'Добавить категорию' : null,
-    },
-    {
-      type: 'business' as const,
-      icon: Building2,
-      title: 'Бизнес',
-      desc: `Салон, студия, точка · ${pricing.business.toLocaleString()} ₽/мес`,
-      disabled: hasPendingRequest('business'),
-      disabledText: 'Заявка обрабатывается',
-    },
-    {
-      type: 'network' as const,
-      icon: Globe,
-      title: 'Сеть',
-      desc: `Несколько точек · ${pricing.network.toLocaleString()} ₽/мес`,
-      disabled: hasPendingRequest('network'),
-      disabledText: 'Заявка обрабатывается',
-    },
+    { type: 'master' as const, icon: Wrench, title: 'Мастер', desc: `Индивидуальный специалист · ${pricing.master.toLocaleString()} ₽/мес`, note: isMaster ? 'Добавить категорию' : null },
+    { type: 'business' as const, icon: Building2, title: 'Бизнес', desc: `Салон, студия, точка · ${pricing.business.toLocaleString()} ₽/мес` },
+    { type: 'network' as const, icon: Globe, title: 'Сеть', desc: `Несколько точек · ${pricing.network.toLocaleString()} ₽/мес` },
   ];
 
   return (
@@ -223,51 +158,34 @@ const CreateBusinessAccount = () => {
         <Button variant="ghost" onClick={() => navigate('/dashboard')} className="mb-6">
           <ArrowLeft className="h-4 w-4 mr-2" /> Назад
         </Button>
-
         <h1 className="text-2xl font-bold mb-2">Создать бизнес-аккаунт</h1>
-        <p className="text-muted-foreground mb-6">
-          Аккаунт создаётся мгновенно. После заполнения профиля он пройдёт модерацию и станет доступен в поиске.
-        </p>
+        <p className="text-muted-foreground mb-6">Аккаунт создаётся мгновенно. После заполнения профиля он пройдёт модерацию.</p>
 
-        {/* Step 1: Choose account type */}
         {!accountType && (
           <div className="grid gap-4">
-            {typeCards.map((card) => (
-              <Card
-                key={card.type}
-                className={`cursor-pointer transition-colors hover:border-primary ${card.disabled ? 'opacity-60 pointer-events-none' : ''}`}
-                onClick={() => !card.disabled && setAccountType(card.type)}
-              >
+            {typeCards.map(card => (
+              <Card key={card.type} className="cursor-pointer transition-colors hover:border-primary" onClick={() => setAccountType(card.type)}>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">
-                    <div className="p-3 bg-primary/10 rounded-xl">
-                      <card.icon className="h-8 w-8 text-primary" />
-                    </div>
+                    <div className="p-3 bg-primary/10 rounded-xl"><card.icon className="h-8 w-8 text-primary" /></div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold text-lg">{card.title}</h3>
                         {card.note && <Badge variant="secondary">{card.note}</Badge>}
                       </div>
                       <p className="text-sm text-muted-foreground">{card.desc}</p>
-                      {card.disabled && (
-                        <p className="text-sm text-destructive mt-1">{card.disabledText}</p>
-                      )}
                     </div>
                   </div>
                 </CardContent>
               </Card>
             ))}
-
             {existingMasterProfiles.length > 0 && (
               <Card className="border-dashed">
                 <CardContent className="pt-6">
                   <p className="text-sm text-muted-foreground mb-2">Ваши существующие профили мастера:</p>
                   <div className="flex flex-wrap gap-2">
                     {existingMasterProfiles.map(mp => (
-                      <Badge key={mp.id} variant="outline">
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        {mp.service_categories?.name || 'Без категории'}
-                      </Badge>
+                      <Badge key={mp.id} variant="outline"><CheckCircle className="h-3 w-3 mr-1" />{mp.service_categories?.name || 'Без категории'}</Badge>
                     ))}
                   </div>
                 </CardContent>
@@ -276,12 +194,11 @@ const CreateBusinessAccount = () => {
           </div>
         )}
 
-        {/* Step 2: Fill form */}
         {accountType && (
           <Card>
             <CardHeader>
               <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm" onClick={() => setAccountType(null)}>
+                <Button variant="ghost" size="sm" onClick={() => { setAccountType(null); updateForm({}); }}>
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <CardTitle>
@@ -289,9 +206,7 @@ const CreateBusinessAccount = () => {
                 </CardTitle>
               </div>
               <CardDescription>
-                {accountType === 'master'
-                  ? 'Выберите категорию. Позже в ЛК можно добавить дополнительные категории.'
-                  : 'Заполните реквизиты организации. Все поля со * обязательны.'}
+                {accountType === 'master' ? 'Выберите категорию.' : 'Заполните реквизиты. Все поля со * обязательны.'}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -301,29 +216,23 @@ const CreateBusinessAccount = () => {
                     <div className="p-3 rounded-lg bg-muted border">
                       <div className="flex gap-2 items-start">
                         <Info className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                        <p className="text-sm text-muted-foreground">
-                          Сейчас можно выбрать только одну категорию. Дополнительные категории можно добавить позже в личном кабинете мастера.
-                        </p>
+                        <p className="text-sm text-muted-foreground">Дополнительные категории можно добавить позже в ЛК.</p>
                       </div>
                     </div>
                     <div className="space-y-2">
                       <Label>Категория *</Label>
-                      <Select onValueChange={(v) => setForm({ ...form, category_id: v })}>
+                      <Select value={form.category_id || ''} onValueChange={v => updateForm({ category_id: v })}>
                         <SelectTrigger><SelectValue placeholder="Выберите категорию" /></SelectTrigger>
                         <SelectContent>
-                          {categories
-                            .filter(c => !existingMasterProfiles.some(mp => mp.category_id === c.id))
-                            .map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                          {categories.filter(c => !existingMasterProfiles.some(mp => mp.category_id === c.id)).map(c => (
+                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2">
                       <Label>Промокод (необязательно)</Label>
-                      <Input
-                        placeholder="Промокод для расширенного тестового периода"
-                        value={form.promo_code || ''}
-                        onChange={(e) => setForm({ ...form, promo_code: e.target.value })}
-                      />
+                      <Input placeholder="Промокод для расширенного тестового периода" value={form.promo_code || ''} onChange={e => updateForm({ promo_code: e.target.value })} />
                       <p className="text-xs text-muted-foreground">14 дней бесплатно, с промокодом — 45 дней</p>
                     </div>
                   </>
@@ -333,16 +242,16 @@ const CreateBusinessAccount = () => {
                   <>
                     <div className="space-y-2">
                       <Label>Название организации *</Label>
-                      <Input required value={form.business_name || ''} onChange={(e) => setForm({ ...form, business_name: e.target.value })} />
+                      <Input required value={form.business_name || ''} onChange={e => updateForm({ business_name: e.target.value })} />
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
                         <Label>ИНН *</Label>
-                        <Input required value={form.business_inn || ''} onChange={(e) => setForm({ ...form, business_inn: e.target.value.replace(/\D/g, '') })} maxLength={12} />
+                        <Input required value={form.business_inn || ''} onChange={e => updateForm({ business_inn: e.target.value.replace(/\D/g, '') })} maxLength={12} />
                       </div>
                       <div className="space-y-2">
                         <Label>Правовая форма *</Label>
-                        <Select onValueChange={(v) => setForm({ ...form, business_legal_form: v })}>
+                        <Select value={form.business_legal_form || ''} onValueChange={v => updateForm({ business_legal_form: v })}>
                           <SelectTrigger><SelectValue placeholder="Выберите" /></SelectTrigger>
                           <SelectContent>{legalForms.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}</SelectContent>
                         </Select>
@@ -350,34 +259,39 @@ const CreateBusinessAccount = () => {
                     </div>
                     <div className="space-y-2">
                       <Label>ФИО директора *</Label>
-                      <Input required value={form.director_name || ''} onChange={(e) => setForm({ ...form, director_name: e.target.value })} />
+                      <Input required value={form.director_name || ''} onChange={e => updateForm({ director_name: e.target.value })} />
                     </div>
                     <div className="space-y-2">
                       <Label>Город</Label>
-                      <Input value={form.business_city || ''} onChange={(e) => setForm({ ...form, business_city: e.target.value })} placeholder="Москва" />
+                      <Input value={form.business_city || ''} onChange={e => updateForm({ business_city: e.target.value })} placeholder="Москва" />
                     </div>
                     <div className="space-y-2">
                       <Label>Адрес *</Label>
                       <MapPicker
-                        latitude={53.7151}
-                        longitude={91.4292}
+                        latitude={form.business_lat || null}
+                        longitude={form.business_lng || null}
                         address={form.business_address || ''}
-                        onLocationChange={(lat, lng, address) => setForm({ ...form, business_address: address, business_lat: lat, business_lng: lng })}
+                        onLocationChange={(lat, lng, address) => updateForm({ business_address: address, business_lat: lat, business_lng: lng })}
                       />
-                      <Input value={form.business_address || ''} onChange={(e) => setForm({ ...form, business_address: e.target.value })} placeholder="Можно ввести адрес вручную" className="mt-2" />
+                      <Input
+                        value={form.business_address || ''}
+                        onChange={e => updateForm({ business_address: e.target.value })}
+                        placeholder="Можно ввести или скорректировать адрес вручную"
+                        className="mt-2"
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label>Описание</Label>
-                      <Textarea value={form.business_description || ''} onChange={(e) => setForm({ ...form, business_description: e.target.value })} />
+                      <Textarea value={form.business_description || ''} onChange={e => updateForm({ business_description: e.target.value })} />
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
                         <Label>Email *</Label>
-                        <Input type="email" required value={form.business_contact_email || ''} onChange={(e) => setForm({ ...form, business_contact_email: e.target.value })} />
+                        <Input type="email" required value={form.business_contact_email || ''} onChange={e => updateForm({ business_contact_email: e.target.value })} />
                       </div>
                       <div className="space-y-2">
                         <Label>Телефон *</Label>
-                        <Input required value={form.business_contact_phone || ''} onChange={(e) => setForm({ ...form, business_contact_phone: e.target.value })} />
+                        <Input required value={form.business_contact_phone || ''} onChange={e => updateForm({ business_contact_phone: formatPhone(e.target.value) })} placeholder="+7..." />
                       </div>
                     </div>
                   </>
@@ -387,16 +301,16 @@ const CreateBusinessAccount = () => {
                   <>
                     <div className="space-y-2">
                       <Label>Название сети *</Label>
-                      <Input required value={form.network_name || ''} onChange={(e) => setForm({ ...form, network_name: e.target.value })} />
+                      <Input required value={form.network_name || ''} onChange={e => updateForm({ network_name: e.target.value })} />
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
                         <Label>ИНН *</Label>
-                        <Input required value={form.network_inn || ''} onChange={(e) => setForm({ ...form, network_inn: e.target.value.replace(/\D/g, '') })} maxLength={12} />
+                        <Input required value={form.network_inn || ''} onChange={e => updateForm({ network_inn: e.target.value.replace(/\D/g, '') })} maxLength={12} />
                       </div>
                       <div className="space-y-2">
                         <Label>Правовая форма *</Label>
-                        <Select onValueChange={(v) => setForm({ ...form, network_legal_form: v })}>
+                        <Select value={form.network_legal_form || ''} onValueChange={v => updateForm({ network_legal_form: v })}>
                           <SelectTrigger><SelectValue placeholder="Выберите" /></SelectTrigger>
                           <SelectContent>{legalForms.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}</SelectContent>
                         </Select>
@@ -404,37 +318,37 @@ const CreateBusinessAccount = () => {
                     </div>
                     <div className="space-y-2">
                       <Label>ФИО директора *</Label>
-                      <Input required value={form.director_name || ''} onChange={(e) => setForm({ ...form, director_name: e.target.value })} />
+                      <Input required value={form.director_name || ''} onChange={e => updateForm({ director_name: e.target.value })} />
                     </div>
                     <div className="space-y-2">
                       <Label>Адрес *</Label>
                       <MapPicker
-                        latitude={53.7151}
-                        longitude={91.4292}
+                        latitude={null}
+                        longitude={null}
                         address={form.network_address || ''}
-                        onLocationChange={(lat, lng, address) => setForm({ ...form, network_address: address })}
+                        onLocationChange={(lat, lng, address) => updateForm({ network_address: address })}
                       />
-                      <Input value={form.network_address || ''} onChange={(e) => setForm({ ...form, network_address: e.target.value })} placeholder="Можно ввести адрес вручную" className="mt-2" />
+                      <Input value={form.network_address || ''} onChange={e => updateForm({ network_address: e.target.value })} placeholder="Можно ввести или скорректировать адрес вручную" className="mt-2" />
                     </div>
                     <div className="space-y-2">
                       <Label>Описание</Label>
-                      <Textarea value={form.network_description || ''} onChange={(e) => setForm({ ...form, network_description: e.target.value })} />
+                      <Textarea value={form.network_description || ''} onChange={e => updateForm({ network_description: e.target.value })} />
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
                         <Label>Email *</Label>
-                        <Input type="email" required value={form.network_contact_email || ''} onChange={(e) => setForm({ ...form, network_contact_email: e.target.value })} />
+                        <Input type="email" required value={form.network_contact_email || ''} onChange={e => updateForm({ network_contact_email: e.target.value })} />
                       </div>
                       <div className="space-y-2">
                         <Label>Телефон *</Label>
-                        <Input required value={form.network_contact_phone || ''} onChange={(e) => setForm({ ...form, network_contact_phone: e.target.value })} />
+                        <Input required value={form.network_contact_phone || ''} onChange={e => updateForm({ network_contact_phone: formatPhone(e.target.value) })} placeholder="+7..." />
                       </div>
                     </div>
                   </>
                 )}
 
                 <div className="flex gap-4 pt-4">
-                  <Button type="button" variant="outline" onClick={() => setAccountType(null)} className="flex-1">Назад</Button>
+                  <Button type="button" variant="outline" onClick={() => { setAccountType(null); updateForm({}); }} className="flex-1">Назад</Button>
                   <Button type="submit" disabled={isSubmitting} className="flex-1">
                     {isSubmitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Создание...</> : 'Создать аккаунт'}
                   </Button>

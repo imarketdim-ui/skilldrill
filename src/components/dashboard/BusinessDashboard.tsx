@@ -6,14 +6,19 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
-  Building2, Users, ClipboardList, Calendar, BarChart3, Percent, 
-  DollarSign, Tag, UserPlus, Plus, Settings, ArrowRightLeft
+  Building2, Users, ClipboardList, Calendar, DollarSign, Settings, ArrowRightLeft, UserPlus
 } from 'lucide-react';
 import ProfileCompletionCheck from './ProfileCompletionCheck';
 import SubscriptionManager from './SubscriptionManager';
+import { usePlatformPricing } from '@/hooks/usePlatformPricing';
+import BusinessMasters from './business/BusinessMasters';
+import BusinessServices from './business/BusinessServices';
+import BusinessSettings from './business/BusinessSettings';
+import BusinessFinances from './business/BusinessFinances';
 
 const BusinessDashboard = () => {
   const { user } = useAuth();
+  const pricing = usePlatformPricing();
   const [businesses, setBusinesses] = useState<any[]>([]);
   const [selectedBusiness, setSelectedBusiness] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -54,11 +59,7 @@ const BusinessDashboard = () => {
   return (
     <div className="space-y-6">
       {showCompletion && selectedBusiness && (
-        <ProfileCompletionCheck
-          entityType="business"
-          entityData={selectedBusiness}
-          onProfileUpdated={fetchBusinesses}
-        />
+        <ProfileCompletionCheck entityType="business" entityData={selectedBusiness} onProfileUpdated={fetchBusinesses} />
       )}
 
       <div className="flex items-center justify-between">
@@ -80,7 +81,6 @@ const BusinessDashboard = () => {
           <TabsTrigger value="masters"><Users className="h-4 w-4 mr-1" /> Мастера</TabsTrigger>
           <TabsTrigger value="services"><ClipboardList className="h-4 w-4 mr-1" /> Услуги</TabsTrigger>
           <TabsTrigger value="schedule"><Calendar className="h-4 w-4 mr-1" /> Расписание</TabsTrigger>
-          <TabsTrigger value="clients"><Users className="h-4 w-4 mr-1" /> Клиенты</TabsTrigger>
           <TabsTrigger value="finance"><DollarSign className="h-4 w-4 mr-1" /> Финансы</TabsTrigger>
           <TabsTrigger value="subscription">Подписка</TabsTrigger>
           <TabsTrigger value="settings"><Settings className="h-4 w-4 mr-1" /> Настройки</TabsTrigger>
@@ -94,6 +94,7 @@ const BusinessDashboard = () => {
                 <div><span className="text-muted-foreground">Название:</span> {selectedBusiness?.name}</div>
                 <div><span className="text-muted-foreground">ИНН:</span> {selectedBusiness?.inn}</div>
                 <div><span className="text-muted-foreground">Адрес:</span> {selectedBusiness?.address || '—'}</div>
+                <div><span className="text-muted-foreground">Город:</span> {selectedBusiness?.city || '—'}</div>
                 <div><span className="text-muted-foreground">ФИО директора:</span> {selectedBusiness?.director_name || '—'}</div>
                 <div><span className="text-muted-foreground">Email:</span> {selectedBusiness?.contact_email || '—'}</div>
                 <div><span className="text-muted-foreground">Телефон:</span> {selectedBusiness?.contact_phone || '—'}</div>
@@ -113,42 +114,18 @@ const BusinessDashboard = () => {
           </div>
         </TabsContent>
 
-        
         <TabsContent value="masters">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Мастера</CardTitle>
-                  <CardDescription>3 бесплатных, каждый доп. +500 ₽/мес</CardDescription>
-                </div>
-                <Button size="sm"><UserPlus className="h-4 w-4 mr-1" /> Пригласить по ID</Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                <Users className="h-10 w-10 mx-auto mb-3 opacity-50" />
-                <p>Пригласите мастеров по их SkillSpot ID</p>
-              </div>
-            </CardContent>
-          </Card>
+          {selectedBusiness && (
+            <BusinessMasters
+              businessId={selectedBusiness.id}
+              freeMasters={selectedBusiness.free_masters || 3}
+              extraMasterPrice={selectedBusiness.extra_master_price || 500}
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="services">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Каталог услуг</CardTitle>
-                <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Добавить</Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                <ClipboardList className="h-10 w-10 mx-auto mb-3 opacity-50" />
-                <p>Нет услуг</p>
-              </div>
-            </CardContent>
-          </Card>
+          {selectedBusiness && <BusinessServices businessId={selectedBusiness.id} />}
         </TabsContent>
 
         <TabsContent value="schedule">
@@ -166,34 +143,8 @@ const BusinessDashboard = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="clients">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Клиентская база</CardTitle>
-                <Button size="sm" variant="outline"><Tag className="h-4 w-4 mr-1" /> Теги</Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                <Users className="h-10 w-10 mx-auto mb-3 opacity-50" />
-                <p>Клиентская база пуста</p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
         <TabsContent value="finance">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {['Доход', 'Расход', 'Комиссия', 'Прибыль'].map(label => (
-              <Card key={label}>
-                <CardContent className="pt-6 text-center">
-                  <p className="text-2xl font-bold">0 ₽</p>
-                  <p className="text-sm text-muted-foreground">{label}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          {selectedBusiness && <BusinessFinances businessId={selectedBusiness.id} />}
         </TabsContent>
 
         <TabsContent value="subscription">
@@ -203,20 +154,14 @@ const BusinessDashboard = () => {
             trialStartDate={selectedBusiness?.trial_start_date}
             trialDays={14}
             lastPaymentDate={selectedBusiness?.last_payment_date}
-            basePrice={2490}
+            basePrice={pricing.business}
             parentManaged={selectedBusiness?.subscription_status === 'in_network'}
             parentLabel="Управляется сетью"
           />
         </TabsContent>
 
         <TabsContent value="settings">
-          <Card>
-            <CardHeader><CardTitle>Настройки бизнеса</CardTitle></CardHeader>
-            <CardContent className="space-y-2">
-              <Button variant="outline" className="w-full justify-start">Редактировать информацию</Button>
-              <Button variant="outline" className="w-full justify-start">Настройки комиссий</Button>
-            </CardContent>
-          </Card>
+          {selectedBusiness && <BusinessSettings business={selectedBusiness} onUpdated={fetchBusinesses} />}
         </TabsContent>
       </Tabs>
     </div>
