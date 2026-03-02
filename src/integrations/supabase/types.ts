@@ -233,6 +233,80 @@ export type Database = {
           },
         ]
       }
+      business_commission_rules: {
+        Row: {
+          business_id: string
+          category_id: string | null
+          commission_percent: number
+          created_at: string
+          id: string
+          is_active: boolean
+          master_id: string | null
+          name: string
+          priority: number
+          rule_type: string
+          service_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          category_id?: string | null
+          commission_percent?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          master_id?: string | null
+          name: string
+          priority?: number
+          rule_type?: string
+          service_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          category_id?: string | null
+          commission_percent?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          master_id?: string | null
+          name?: string
+          priority?: number
+          rule_type?: string
+          service_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_commission_rules_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "business_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_commission_rules_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "service_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_commission_rules_master_id_fkey"
+            columns: ["master_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_commission_rules_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_finances: {
         Row: {
           amount: number
@@ -243,6 +317,7 @@ export type Database = {
           description: string | null
           id: string
           master_id: string | null
+          sub_type: string | null
           type: string
         }
         Insert: {
@@ -254,6 +329,7 @@ export type Database = {
           description?: string | null
           id?: string
           master_id?: string | null
+          sub_type?: string | null
           type: string
         }
         Update: {
@@ -265,6 +341,7 @@ export type Database = {
           description?: string | null
           id?: string
           master_id?: string | null
+          sub_type?: string | null
           type?: string
         }
         Relationships: [
@@ -287,6 +364,7 @@ export type Database = {
       business_locations: {
         Row: {
           address: string | null
+          cash_balance: number
           category_id: string | null
           certificate_photos: Json | null
           city: string | null
@@ -322,6 +400,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          cash_balance?: number
           category_id?: string | null
           certificate_photos?: Json | null
           city?: string | null
@@ -357,6 +436,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          cash_balance?: number
           category_id?: string | null
           certificate_photos?: Json | null
           city?: string | null
