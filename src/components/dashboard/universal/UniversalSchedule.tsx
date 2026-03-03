@@ -56,6 +56,12 @@ const timeToMinutes = (t: string) => {
   return h * 60 + m;
 };
 
+const DAY_LABELS = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
+const DAY_NUMS = [1, 2, 3, 4, 5, 6, 0]; // Mon=1..Sun=0
+
+interface WorkHoursEntry { start: string; end: string; }
+interface BreakEntry { start: string; end: string; }
+
 const UniversalSchedule = ({ config }: Props) => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -72,6 +78,12 @@ const UniversalSchedule = ({ config }: Props) => {
   const [workEnd, setWorkEnd] = useState('18:00');
   const [clients, setClients] = useState<any[]>([]);
   const [clientSearch, setClientSearch] = useState('');
+  
+  // DB-backed schedule settings
+  const [workDays, setWorkDays] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [workHoursConfig, setWorkHoursConfig] = useState<Record<string, WorkHoursEntry>>({});
+  const [breakConfig, setBreakConfig] = useState<Record<string, BreakEntry[]>>({});
+  const [usePerDayHours, setUsePerDayHours] = useState(false);
   
   // Status/review dialogs
   const [statusDialog, setStatusDialog] = useState<{ id: string; action: 'no_show' | 'reject' | 'reschedule' } | null>(null);
@@ -116,20 +128,22 @@ const UniversalSchedule = ({ config }: Props) => {
         });
         setClients(Array.from(unique.values()));
       });
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) return;
-    const key = `schedule_settings_${user.id}`;
-    const raw = localStorage.getItem(key);
-    if (!raw) return;
-    try {
-      const parsed = JSON.parse(raw);
-      if (parsed.slotDuration) setSlotDuration(parsed.slotDuration);
-      if (parsed.breakDuration !== undefined) setBreakDuration(parsed.breakDuration);
-      if (parsed.workStart) setWorkStart(parsed.workStart);
-      if (parsed.workEnd) setWorkEnd(parsed.workEnd);
-    } catch { /* ignore */ }
+    // Load schedule settings from DB
+    supabase.from('master_profiles').select('work_days, work_hours_config, break_config')
+      .eq('user_id', user.id).maybeSingle()
+      .then(({ data }) => {
+        if (!data) return;
+        if (Array.isArray(data.work_days) && data.work_days.length > 0) setWorkDays(data.work_days);
+        const whc = data.work_hours_config as any;
+        if (whc && typeof whc === 'object') {
+          if (whc.default) { setWorkStart(whc.default.start || '09:00'); setWorkEnd(whc.default.end || '18:00'); }
+          if (whc.perDay && Object.keys(whc.perDay).length > 0) { setWorkHoursConfig(whc.perDay); setUsePerDayHours(true); }
+          if (whc.slotDuration) setSlotDuration(whc.slotDuration);
+          if (whc.breakDuration !== undefined) setBreakDuration(whc.breakDuration);
+        }
+        const bc = data.break_config as any;
+        if (bc && typeof bc === 'object' && !Array.isArray(bc)) setBreakConfig(bc);
+      });
   }, [user]);
 
   const fetchItems = useCallback(async () => {
@@ -765,31 +779,115 @@ const UniversalSchedule = ({ config }: Props) => {
 
       {/* Settings dialog */}
       <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Настройки расписания</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2"><Label>Рабочее время</Label>
+          <div className="space-y-5">
+            {/* Work days */}
+            <div className="space-y-2">
+              <Label>Рабочие дни</Label>
+              <div className="flex flex-wrap gap-2">
+                {DAY_NUMS.map((dayNum, idx) => (
+                  <button key={dayNum} type="button"
+                    className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-colors ${workDays.includes(dayNum) ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted text-muted-foreground border-border hover:border-primary/50'}`}
+                    onClick={() => setWorkDays(prev => prev.includes(dayNum) ? prev.filter(d => d !== dayNum) : [...prev, dayNum].sort((a, b) => DAY_NUMS.indexOf(a) - DAY_NUMS.indexOf(b)))}
+                  >{DAY_LABELS[idx].slice(0, 2)}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* Default work hours */}
+            <div className="space-y-2">
+              <Label>Рабочее время (по умолчанию)</Label>
               <div className="grid grid-cols-2 gap-3">
                 <Input type="time" value={workStart} onChange={e => setWorkStart(e.target.value)} />
                 <Input type="time" value={workEnd} onChange={e => setWorkEnd(e.target.value)} />
               </div>
             </div>
+
+            {/* Per-day hours toggle */}
+            <div className="flex items-center justify-between">
+              <Label className="cursor-pointer">Индивидуальные часы для каждого дня</Label>
+              <button type="button" className={`w-10 h-5 rounded-full transition-colors ${usePerDayHours ? 'bg-primary' : 'bg-muted'}`} onClick={() => setUsePerDayHours(!usePerDayHours)}>
+                <div className={`w-4 h-4 rounded-full bg-background shadow transition-transform ${usePerDayHours ? 'translate-x-5' : 'translate-x-0.5'}`} />
+              </button>
+            </div>
+            {usePerDayHours && (
+              <div className="space-y-2 pl-2 border-l-2 border-primary/20">
+                {DAY_NUMS.filter(d => workDays.includes(d)).map((dayNum, idx) => {
+                  const dayKey = String(dayNum);
+                  const entry = workHoursConfig[dayKey] || { start: workStart, end: workEnd };
+                  return (
+                    <div key={dayNum} className="flex items-center gap-2">
+                      <span className="text-xs font-medium w-8">{DAY_LABELS[DAY_NUMS.indexOf(dayNum)].slice(0, 2)}</span>
+                      <Input type="time" value={entry.start} onChange={e => setWorkHoursConfig(prev => ({ ...prev, [dayKey]: { ...entry, start: e.target.value } }))} className="h-8 text-xs" />
+                      <span className="text-xs text-muted-foreground">–</span>
+                      <Input type="time" value={entry.end} onChange={e => setWorkHoursConfig(prev => ({ ...prev, [dayKey]: { ...entry, end: e.target.value } }))} className="h-8 text-xs" />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Breaks */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Перерывы (обед и др.)</Label>
+                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => {
+                  const key = 'all';
+                  setBreakConfig(prev => ({
+                    ...prev,
+                    [key]: [...(prev[key] || []), { start: '13:00', end: '14:00' }],
+                  }));
+                }}>+ Добавить</Button>
+              </div>
+              {(breakConfig['all'] || []).map((brk, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <Input type="time" value={brk.start} onChange={e => {
+                    const arr = [...(breakConfig['all'] || [])];
+                    arr[i] = { ...arr[i], start: e.target.value };
+                    setBreakConfig(prev => ({ ...prev, all: arr }));
+                  }} className="h-8 text-xs" />
+                  <span className="text-xs text-muted-foreground">–</span>
+                  <Input type="time" value={brk.end} onChange={e => {
+                    const arr = [...(breakConfig['all'] || [])];
+                    arr[i] = { ...arr[i], end: e.target.value };
+                    setBreakConfig(prev => ({ ...prev, all: arr }));
+                  }} className="h-8 text-xs" />
+                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => {
+                    const arr = (breakConfig['all'] || []).filter((_, j) => j !== i);
+                    setBreakConfig(prev => ({ ...prev, all: arr }));
+                  }}><Trash2 className="h-3 w-3" /></Button>
+                </div>
+              ))}
+            </div>
+
             <div className="space-y-2"><Label>Длительность шага слота (мин)</Label>
               <Select value={String(slotDuration)} onValueChange={v => setSlotDuration(Number(v))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>{[15, 30, 45, 60].map(m => <SelectItem key={m} value={String(m)}>{m} мин</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div className="space-y-2"><Label>Перерыв между записями (мин)</Label>
+            <div className="space-y-2"><Label>Буфер между записями (мин)</Label>
               <Select value={String(breakDuration)} onValueChange={v => setBreakDuration(Number(v))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{[0, 5, 10, 15, 20, 30].map(m => <SelectItem key={m} value={String(m)}>{m === 0 ? 'Без перерыва' : `${m} мин`}</SelectItem>)}</SelectContent>
+                <SelectContent>{[0, 5, 10, 15, 20, 30].map(m => <SelectItem key={m} value={String(m)}>{m === 0 ? 'Без буфера' : `${m} мин`}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <Button onClick={() => {
+            <Button onClick={async () => {
               if (timeToMinutes(workEnd) <= timeToMinutes(workStart)) { toast({ title: 'Ошибка', description: 'Время окончания должно быть позже начала', variant: 'destructive' }); return; }
-              if (user) localStorage.setItem(`schedule_settings_${user.id}`, JSON.stringify({ slotDuration, breakDuration, workStart, workEnd }));
-              setIsSettingsOpen(false); toast({ title: 'Настройки сохранены' });
+              if (!user) return;
+              const whc: Record<string, unknown> = { default: { start: workStart, end: workEnd }, slotDuration, breakDuration };
+              if (usePerDayHours) whc.perDay = workHoursConfig;
+              // Serialize break config to plain objects for JSON compatibility
+              const bcPlain: Record<string, Array<{start: string; end: string}>> = {};
+              for (const [k, v] of Object.entries(breakConfig)) { bcPlain[k] = v.map(b => ({ start: b.start, end: b.end })); }
+              const { error } = await supabase.from('master_profiles').update({
+                work_days: workDays,
+                work_hours_config: whc as any,
+                break_config: bcPlain as any,
+              }).eq('user_id', user.id);
+              if (error) { toast({ title: 'Ошибка', description: error.message, variant: 'destructive' }); return; }
+              setIsSettingsOpen(false); toast({ title: 'Настройки сохранены в профиль' });
             }} className="w-full">Сохранить</Button>
           </div>
         </DialogContent>

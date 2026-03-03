@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { Star, MapPin, Clock, ArrowLeft, MessageSquare, Camera, Heart, Share2, ExternalLink } from 'lucide-react';
+import { Star, MapPin, Clock, ArrowLeft, MessageSquare, Camera, Heart, Share2, ExternalLink, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -30,9 +31,22 @@ interface MasterData {
   interior_photos: string[] | null;
   certificate_photos: string[] | null;
   category_id: string | null;
+  work_days: number[] | null;
+  work_hours_config: any;
+  break_config: any;
+  auto_booking_policy: string | null;
   profiles: { first_name: string | null; last_name: string | null; avatar_url: string | null; email: string | null } | null;
   service_categories: { name: string } | null;
 }
+
+const REMINDER_OPTIONS = [
+  { value: '0', label: 'Не напоминать' },
+  { value: '15', label: 'За 15 минут' },
+  { value: '30', label: 'За 30 минут' },
+  { value: '60', label: 'За 1 час' },
+  { value: '180', label: 'За 3 часа' },
+  { value: '1440', label: 'За сутки' },
+];
 
 const MasterDetail = () => {
   const { masterId } = useParams();
@@ -47,7 +61,7 @@ const MasterDetail = () => {
   const [bookingService, setBookingService] = useState<string | null>(null);
   const [messageOpen, setMessageOpen] = useState(false);
   const [messageText, setMessageText] = useState('');
-  const [bookingData, setBookingData] = useState({ name: '', phone: '', date: '', time: '', comment: '' });
+  const [bookingData, setBookingData] = useState({ name: '', phone: '', date: '', time: '', comment: '', reminder: '60' });
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [sendingMessage, setSendingMessage] = useState(false);
   const [sendingBooking, setSendingBooking] = useState(false);
@@ -63,7 +77,7 @@ const MasterDetail = () => {
       const { data: mp } = await supabase
         .from('master_profiles')
         .select('*, profiles!master_profiles_user_id_fkey(first_name, last_name, avatar_url, email), service_categories(name)')
-        .eq('id', masterId)
+        .eq('id', masterId as string)
         .maybeSingle();
 
       if (!mp) {
@@ -182,6 +196,37 @@ const MasterDetail = () => {
     const selectedService = services.find(s => s.id === serviceId);
     if (!selectedService) return setAvailableSlots([]);
 
+    // Check if this day is a work day
+    const dateObj = new Date(date);
+    const jsDay = dateObj.getDay(); // 0=Sun, 1=Mon..6=Sat
+    const masterWorkDays = master.work_days || [1, 2, 3, 4, 5];
+    if (!masterWorkDays.includes(jsDay)) return setAvailableSlots([]);
+
+    // Get work hours for this day
+    const whc = master.work_hours_config as any;
+    let dayStart = toMinutes('09:00');
+    let dayEnd = toMinutes('18:00');
+    if (whc) {
+      if (whc.perDay && whc.perDay[String(jsDay)]) {
+        dayStart = toMinutes(whc.perDay[String(jsDay)].start);
+        dayEnd = toMinutes(whc.perDay[String(jsDay)].end);
+      } else if (whc.default) {
+        dayStart = toMinutes(whc.default.start);
+        dayEnd = toMinutes(whc.default.end);
+      }
+    }
+
+    // Get breaks for this day
+    const bc = master.break_config as any;
+    const breakBlocks: { start: number; end: number }[] = [];
+    if (bc) {
+      const allBreaks = bc['all'] || [];
+      const dayBreaks = bc[String(jsDay)] || [];
+      [...allBreaks, ...dayBreaks].forEach((b: any) => {
+        breakBlocks.push({ start: toMinutes(b.start), end: toMinutes(b.end) });
+      });
+    }
+
     const { data: dayLessons } = await supabase
       .from('lessons')
       .select('start_time, end_time')
@@ -189,23 +234,27 @@ const MasterDetail = () => {
       .eq('lesson_date', date)
       .neq('status', 'cancelled');
 
-    const blocked = (dayLessons || []).map((l: any) => ({
-      start: toMinutes((l.start_time || '00:00').slice(0, 5)),
-      end: toMinutes((l.end_time || '00:00').slice(0, 5)),
-    }));
+    const blocked = [
+      ...(dayLessons || []).map((l: any) => ({
+        start: toMinutes((l.start_time || '00:00').slice(0, 5)),
+        end: toMinutes((l.end_time || '00:00').slice(0, 5)),
+      })),
+      ...breakBlocks,
+    ];
 
-    const serviceDurations = services.map(s => Number(s.duration_minutes) || 30).filter(Boolean);
-    const minStep = Math.max(15, Math.min(...serviceDurations));
+    const bufferMin = (whc?.breakDuration) || 0;
     const duration = Number(selectedService.duration_minutes) || 60;
-
-    const dayStart = toMinutes('06:00');
-    const dayEnd = toMinutes('23:00');
+    const slotStep = Math.max(15, whc?.slotDuration || 30);
     const slots: string[] = [];
 
-    for (let t = dayStart; t + duration <= dayEnd; t += minStep) {
-      const start = t;
-      const end = t + duration;
-      const overlap = blocked.some(b => start < b.end && end > b.start);
+    // Filter out past slots for today
+    const now = new Date();
+    const isToday = dateObj.toDateString() === now.toDateString();
+    const nowMinutes = isToday ? now.getHours() * 60 + now.getMinutes() : 0;
+
+    for (let t = dayStart; t + duration <= dayEnd; t += slotStep) {
+      if (isToday && t < nowMinutes) continue;
+      const overlap = blocked.some(b => t < (b.end + bufferMin) && (t + duration) > b.start);
       if (!overlap) slots.push(toTime(t));
     }
 
@@ -217,6 +266,8 @@ const MasterDetail = () => {
       toast({ title: 'Нужно войти в аккаунт', description: 'Авторизуйтесь, чтобы записаться', variant: 'destructive' });
       return;
     }
+
+    if (sendingBooking) return; // double-click guard
 
     const service = services.find(s => s.id === serviceId);
     if (!service || !bookingData.date || !bookingData.time) {
@@ -231,9 +282,31 @@ const MasterDetail = () => {
 
     setSendingBooking(true);
     try {
+      // Check blacklist
+      const { data: blocked } = await supabase.from('blacklists').select('id')
+        .eq('blocker_id', master.user_id).eq('blocked_id', user.id).maybeSingle();
+      if (blocked) {
+        toast({ title: 'Запись невозможна', description: 'Вы не можете записаться к этому мастеру', variant: 'destructive' });
+        return;
+      }
+
       const startM = toMinutes(bookingData.time);
       const duration = Number(service.duration_minutes) || 60;
       const endTime = toTime(startM + duration);
+
+      // Determine booking status based on auto_booking_policy
+      const policy = master.auto_booking_policy || 'all';
+      let bookingStatus: 'confirmed' | 'pending' = 'pending';
+      if (policy === 'all') bookingStatus = 'confirmed';
+      else if (policy === 'known') {
+        // Check if client has previous bookings with this master
+        const { count } = await supabase.from('lesson_bookings')
+          .select('id', { count: 'exact', head: true })
+          .eq('student_id', user.id)
+          .in('status', ['confirmed', 'completed'] as any);
+        if ((count || 0) > 0) bookingStatus = 'confirmed';
+      }
+      // policy === 'none' stays pending
 
       const { data: lesson, error: lessonError } = await supabase
         .from('lessons')
@@ -247,20 +320,33 @@ const MasterDetail = () => {
           lesson_type: 'individual',
           max_participants: 1,
           price: Number(service.price) || 0,
-          status: 'scheduled',
+          status: bookingStatus === 'confirmed' ? 'scheduled' : 'scheduled',
         })
         .select('id')
         .single();
 
       if (lessonError) throw lessonError;
 
+      const reminderMinutes = bookingData.reminder !== '0' ? Number(bookingData.reminder) : null;
+
       const { error: bookingError } = await supabase.from('lesson_bookings').insert({
         lesson_id: lesson.id,
         student_id: user.id,
-        status: 'confirmed',
+        status: bookingStatus,
+        reminder_minutes: reminderMinutes,
       });
       if (bookingError) throw bookingError;
 
+      // Send notification to master
+      await supabase.from('notifications').insert({
+        user_id: master.user_id,
+        type: 'new_booking',
+        title: 'Новая запись',
+        message: `${user.user_metadata?.first_name || 'Клиент'} записался на «${service.name}» ${bookingData.date} в ${bookingData.time}`,
+        related_id: lesson.id,
+      });
+
+      // Create chat contact
       await supabase.from('chat_messages').insert({
         sender_id: user.id,
         recipient_id: master.user_id,
@@ -268,10 +354,16 @@ const MasterDetail = () => {
         chat_type: 'direct',
       });
 
-      toast({ title: 'Запись отправлена', description: 'Мастер получит уведомление и сообщение в чате' });
+      if (bookingStatus === 'confirmed') {
+        toast({ title: 'Запись подтверждена!', description: 'Вы записаны. Мастер получит уведомление.' });
+      } else {
+        toast({ title: 'Запись отправлена', description: 'Ожидаем подтверждения мастера. Вы получите уведомление.' });
+      }
+
       setBookingService(null);
-      setBookingData({ name: '', phone: '', date: '', time: '', comment: '' });
+      setBookingData({ name: '', phone: '', date: '', time: '', comment: '', reminder: '60' });
       setAvailableSlots([]);
+      navigate('/dashboard');
     } catch (err: any) {
       toast({ title: 'Ошибка', description: err.message, variant: 'destructive' });
     } finally {
@@ -505,6 +597,15 @@ const MasterDetail = () => {
                                     )}
                                   </div>
                                   <Textarea placeholder="Комментарий (необязательно)" value={bookingData.comment} onChange={(e) => setBookingData(p => ({ ...p, comment: e.target.value }))} />
+                                  <div className="space-y-1">
+                                    <label className="text-sm font-medium flex items-center gap-1"><Bell className="w-3.5 h-3.5" /> Напоминание</label>
+                                    <Select value={bookingData.reminder} onValueChange={v => setBookingData(p => ({ ...p, reminder: v }))}>
+                                      <SelectTrigger><SelectValue /></SelectTrigger>
+                                      <SelectContent>
+                                        {REMINDER_OPTIONS.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
                                   <Button onClick={() => handleBook(service.id)} className="w-full" disabled={sendingBooking || !bookingData.date || !bookingData.time}>
                                     {sendingBooking ? 'Отправка...' : 'Подтвердить запись'}
                                   </Button>
