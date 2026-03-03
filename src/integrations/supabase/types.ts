@@ -1055,10 +1055,60 @@ export type Database = {
           },
         ]
       }
+      manager_clients: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          client_id: string
+          id: string
+          is_active: boolean
+          manager_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          client_id: string
+          id?: string
+          is_active?: boolean
+          manager_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          client_id?: string
+          id?: string
+          is_active?: boolean
+          manager_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manager_clients_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manager_clients_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manager_clients_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       master_profiles: {
         Row: {
           address: string | null
           auto_booking_policy: string | null
+          break_config: Json | null
           business_id: string | null
           category_id: string | null
           certificate_photos: Json | null
@@ -1087,12 +1137,15 @@ export type Database = {
           trial_start_date: string | null
           updated_at: string
           user_id: string
+          work_days: number[] | null
+          work_hours_config: Json | null
           work_photos: Json | null
           workplace_description: string | null
         }
         Insert: {
           address?: string | null
           auto_booking_policy?: string | null
+          break_config?: Json | null
           business_id?: string | null
           category_id?: string | null
           certificate_photos?: Json | null
@@ -1121,12 +1174,15 @@ export type Database = {
           trial_start_date?: string | null
           updated_at?: string
           user_id: string
+          work_days?: number[] | null
+          work_hours_config?: Json | null
           work_photos?: Json | null
           workplace_description?: string | null
         }
         Update: {
           address?: string | null
           auto_booking_policy?: string | null
+          break_config?: Json | null
           business_id?: string | null
           category_id?: string | null
           certificate_photos?: Json | null
@@ -1155,6 +1211,8 @@ export type Database = {
           trial_start_date?: string | null
           updated_at?: string
           user_id?: string
+          work_days?: number[] | null
+          work_hours_config?: Json | null
           work_photos?: Json | null
           workplace_description?: string | null
         }
@@ -2991,6 +3049,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_admin_assignment: {
+        Args: { _assignment_id: string }
+        Returns: undefined
+      }
       assign_role_on_account_creation: {
         Args: {
           _role: Database["public"]["Enums"]["user_role"]
@@ -3041,6 +3103,10 @@ export type Database = {
         Args: { _student_id: string; _teacher_id: string }
         Returns: boolean
       }
+      reject_admin_assignment: {
+        Args: { _assignment_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       booking_status: "pending" | "confirmed" | "cancelled" | "completed"
@@ -3067,6 +3133,7 @@ export type Database = {
         | "network_owner"
         | "platform_admin"
         | "super_admin"
+        | "platform_manager"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3219,6 +3286,7 @@ export const Constants = {
         "network_owner",
         "platform_admin",
         "super_admin",
+        "platform_manager",
       ],
     },
   },

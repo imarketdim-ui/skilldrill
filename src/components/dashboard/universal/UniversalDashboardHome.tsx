@@ -153,9 +153,7 @@ const UniversalDashboardHome = ({ config }: Props) => {
           <h2 className="text-2xl font-bold">Добро пожаловать! {config.welcomeEmoji}</h2>
           <p className="text-muted-foreground">Вот что происходит сегодня</p>
         </div>
-        <Button className="gap-2">
-          <Plus className="h-4 w-4" /> {config.newSessionLabel}
-        </Button>
+        {/* Button removed — bookings created from schedule */}
       </div>
 
       <Card>

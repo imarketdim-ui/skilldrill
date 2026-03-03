@@ -8,13 +8,14 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Crown, Users, BarChart3, Shield, UserPlus, Search,
-  Loader2, TrendingUp, CreditCard, UserCheck, ShieldBan, FolderTree, ListChecks
+  Loader2, TrendingUp, CreditCard, UserCheck, ShieldBan, FolderTree, ListChecks, MessageSquare
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AdminUserList from './admin/AdminUserList';
 import RevocationRequests from './admin/RevocationRequests';
 import CategoryManager from './admin/CategoryManager';
 import ReasonManager from './admin/ReasonManager';
+import SupportChat from './SupportChat';
 
 const SuperAdminDashboard = () => {
   const { user } = useAuth();
@@ -103,6 +104,7 @@ const SuperAdminDashboard = () => {
           <TabsTrigger value="categories"><FolderTree className="h-4 w-4 mr-1" /> Категории</TabsTrigger>
           <TabsTrigger value="reasons"><ListChecks className="h-4 w-4 mr-1" /> Причины</TabsTrigger>
           <TabsTrigger value="admins"><Shield className="h-4 w-4 mr-1" /> Администраторы</TabsTrigger>
+          <TabsTrigger value="support"><MessageSquare className="h-4 w-4 mr-1" /> Поддержка</TabsTrigger>
           <TabsTrigger value="platform"><BarChart3 className="h-4 w-4 mr-1" /> Дашборд</TabsTrigger>
           <TabsTrigger value="subscriptions"><CreditCard className="h-4 w-4 mr-1" /> Подписки</TabsTrigger>
         </TabsList>
@@ -172,6 +174,10 @@ const SuperAdminDashboard = () => {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="support">
+          <SupportChat isAdmin />
         </TabsContent>
 
         <TabsContent value="platform">

@@ -16,9 +16,10 @@ import { CategoryConfig } from './categoryConfig';
 interface Props {
   masterProfile: any;
   config: CategoryConfig;
+  onPhotosChanged?: () => void;
 }
 
-const MasterProfileEditor = ({ masterProfile, config }: Props) => {
+const MasterProfileEditor = ({ masterProfile, config, onPhotosChanged }: Props) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
@@ -39,10 +40,12 @@ const MasterProfileEditor = ({ masterProfile, config }: Props) => {
   });
   const [hashtagInput, setHashtagInput] = useState('');
 
+  const [initialFormJson, setInitialFormJson] = useState('');
+
   useEffect(() => {
-    if (!masterProfile) return;
+    if (!masterProfile?.id) return;
     const sl = (masterProfile.social_links as any) || {};
-    setForm({
+    const newForm = {
       description: masterProfile.description || '',
       short_description: (masterProfile as any).short_description || '',
       workplace_description: masterProfile.workplace_description || '',
@@ -57,8 +60,20 @@ const MasterProfileEditor = ({ masterProfile, config }: Props) => {
         instagram: sl.instagram || '',
         youtube: sl.youtube || '',
       },
-    });
-  }, [masterProfile]);
+    };
+    setForm(newForm);
+    setInitialFormJson(JSON.stringify(newForm));
+  }, [masterProfile?.id]);
+
+  // Warn on unsaved changes
+  useEffect(() => {
+    const isDirty = JSON.stringify(form) !== initialFormJson;
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isDirty) { e.preventDefault(); e.returnValue = ''; }
+    };
+    if (isDirty) window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [form, initialFormJson]);
 
   const handleSave = async () => {
     if (!user) return;
@@ -115,8 +130,7 @@ const MasterProfileEditor = ({ masterProfile, config }: Props) => {
         }
         await supabase.from('master_profiles').update({ [field]: urls }).eq('user_id', user.id);
         toast({ title: 'Фото загружены' });
-        // Trigger refresh
-        window.location.reload();
+        onPhotosChanged?.();
       } catch (err: any) {
         toast({ title: 'Ошибка загрузки', description: err.message, variant: 'destructive' });
       }
@@ -130,7 +144,7 @@ const MasterProfileEditor = ({ masterProfile, config }: Props) => {
     const updated = (masterProfile?.[field] || []).filter((u: string) => u !== url);
     await supabase.from('master_profiles').update({ [field]: updated }).eq('user_id', user.id);
     toast({ title: 'Фото удалено' });
-    window.location.reload();
+    onPhotosChanged?.();
   };
 
   const PhotoGrid = ({ field, bucket, label }: { field: 'work_photos' | 'interior_photos'; bucket: string; label: string }) => {

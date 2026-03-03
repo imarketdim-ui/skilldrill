@@ -40,39 +40,22 @@ const ClientRequests = () => {
   const handleAdminInvite = async (assignmentId: string, accept: boolean) => {
     setProcessing(assignmentId);
     try {
-      const newStatus = accept ? 'accepted' : 'rejected';
-      const { error } = await supabase
-        .from('admin_assignments')
-        .update({ status: newStatus, resolved_at: new Date().toISOString() })
-        .eq('id', assignmentId);
-      if (error) throw error;
-
       if (accept) {
-        // Add admin role
-        const { error: roleError } = await supabase.from('user_roles').insert({
+        const { error } = await supabase.rpc('accept_admin_assignment', { _assignment_id: assignmentId });
+        if (error) throw error;
+        await supabase.from('notifications').insert({
           user_id: user!.id,
-          role: 'platform_admin' as any,
-          is_active: true,
+          type: 'role_granted',
+          title: 'Роль администратора получена',
+          message: 'Вы приняли назначение администратором платформы. Перезайдите для активации.',
         });
-        if (roleError && !roleError.message.includes('duplicate')) throw roleError;
-
-        // Send notification back to assigner
-        const invite = adminInvites.find(a => a.id === assignmentId);
-        if (invite) {
-          await supabase.from('notifications').insert({
-            user_id: user!.id,
-            type: 'role_granted',
-            title: 'Роль администратора получена',
-            message: 'Вы приняли назначение администратором платформы. Перезайдите для активации.',
-          });
-        }
-
         await refreshProfile();
         toast({ title: 'Вы стали администратором платформы' });
       } else {
+        const { error } = await supabase.rpc('reject_admin_assignment', { _assignment_id: assignmentId });
+        if (error) throw error;
         toast({ title: 'Приглашение отклонено' });
       }
-
       loadRequests();
     } catch (err: any) {
       toast({ title: 'Ошибка', description: err.message, variant: 'destructive' });

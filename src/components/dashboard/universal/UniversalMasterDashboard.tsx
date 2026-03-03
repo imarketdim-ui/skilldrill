@@ -14,6 +14,7 @@ import UniversalFinances from './UniversalFinances';
 import UniversalServices from './UniversalServices';
 import UniversalStats from './UniversalStats';
 import TeachingChats from '../teaching/TeachingChats';
+import SupportChat from '../SupportChat';
 import { CategoryConfig } from './categoryConfig';
 import MasterProfileEditor from './MasterProfileEditor';
 
@@ -137,6 +138,7 @@ const menuItems = [
   { key: 'chats', label: 'Чаты', icon: MessageSquare },
   { key: 'finances', label: 'Финансы', icon: Wallet },
   { key: 'requests', label: 'Заявки', icon: ClipboardList },
+  { key: 'support', label: 'Техподдержка', icon: MessageSquare },
   { key: 'notifications', label: 'Уведомления', icon: Bell },
 ];
 
@@ -181,6 +183,7 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
       case 'clients': return <UniversalClients config={config} />;
       case 'finances': return <UniversalFinances config={config} masterProfile={masterProfile} />;
       case 'chats': return <TeachingChats />;
+      case 'support': return <SupportChat />;
       case 'stats': return <UniversalStats config={config} />;
       case 'requests': return <MasterRequests />;
       case 'notifications': return <MasterNotifications />;

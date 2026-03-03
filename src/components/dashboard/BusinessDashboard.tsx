@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
-  Building2, Users, ClipboardList, Calendar, DollarSign, Settings, ArrowRightLeft, UserPlus, AlertTriangle
+  Building2, Users, ClipboardList, Calendar, DollarSign, Settings, ArrowRightLeft, UserPlus, AlertTriangle, MessageSquare
 } from 'lucide-react';
 import ProfileCompletionCheck from './ProfileCompletionCheck';
 import SubscriptionManager from './SubscriptionManager';
@@ -16,6 +16,7 @@ import BusinessMasters from './business/BusinessMasters';
 import BusinessServices from './business/BusinessServices';
 import BusinessSettings from './business/BusinessSettings';
 import BusinessFinances from './business/BusinessFinances';
+import SupportChat from './SupportChat';
 
 const BusinessDashboard = () => {
   const { user } = useAuth();
@@ -107,6 +108,7 @@ const BusinessDashboard = () => {
           <TabsTrigger value="schedule"><Calendar className="h-4 w-4 mr-1" /> Расписание</TabsTrigger>
           <TabsTrigger value="finance"><DollarSign className="h-4 w-4 mr-1" /> Финансы</TabsTrigger>
           <TabsTrigger value="subscription">Подписка</TabsTrigger>
+          <TabsTrigger value="support"><MessageSquare className="h-4 w-4 mr-1" /> Поддержка</TabsTrigger>
           <TabsTrigger value="settings"><Settings className="h-4 w-4 mr-1" /> Настройки</TabsTrigger>
         </TabsList>
 
@@ -178,6 +180,10 @@ const BusinessDashboard = () => {
             parentManaged={selectedBusiness?.subscription_status === 'in_network'}
             parentLabel="Управляется сетью"
           />
+        </TabsContent>
+
+        <TabsContent value="support">
+          <SupportChat />
         </TabsContent>
 
         <TabsContent value="settings">
