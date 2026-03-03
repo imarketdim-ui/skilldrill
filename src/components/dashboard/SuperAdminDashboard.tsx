@@ -16,6 +16,7 @@ import RevocationRequests from './admin/RevocationRequests';
 import CategoryManager from './admin/CategoryManager';
 import ReasonManager from './admin/ReasonManager';
 import SupportChat from './SupportChat';
+import BonusSubscriptionPanel from './admin/BonusSubscriptionPanel';
 
 const SuperAdminDashboard = () => {
   const { user } = useAuth();
@@ -206,16 +207,7 @@ const SuperAdminDashboard = () => {
         </TabsContent>
 
         <TabsContent value="subscriptions">
-          <Card>
-            <CardHeader><CardTitle>Подписки</CardTitle></CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="p-4 rounded-lg border"><p className="font-medium">Мастера</p><p className="text-sm text-muted-foreground">900 ₽/мес</p><p className="text-2xl font-bold mt-2">{stats.masters}</p></div>
-                <div className="p-4 rounded-lg border"><p className="font-medium">Бизнесы</p><p className="text-sm text-muted-foreground">от 2 500 ₽/мес</p><p className="text-2xl font-bold mt-2">{stats.businesses}</p></div>
-                <div className="p-4 rounded-lg border"><p className="font-medium">Сети</p><p className="text-sm text-muted-foreground">от 4 500 ₽/мес</p><p className="text-2xl font-bold mt-2">{stats.networks}</p></div>
-              </div>
-            </CardContent>
-          </Card>
+          <BonusSubscriptionPanel stats={stats} />
         </TabsContent>
       </Tabs>
     </div>
