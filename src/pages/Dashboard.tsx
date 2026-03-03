@@ -9,6 +9,7 @@ import BusinessDashboard from '@/components/dashboard/BusinessDashboard';
 import NetworkDashboard from '@/components/dashboard/NetworkDashboard';
 import AdminDashboard from '@/components/dashboard/AdminDashboard';
 import SuperAdminDashboard from '@/components/dashboard/SuperAdminDashboard';
+import ManagerDashboard from '@/components/dashboard/ManagerDashboard';
 
 const Dashboard = () => {
   const { user, loading, activeRole, roles } = useAuth();
@@ -46,6 +47,8 @@ const Dashboard = () => {
         return roles.includes('platform_admin') ? <AdminDashboard /> : <ClientDashboard />;
       case 'super_admin': 
         return roles.includes('super_admin') ? <SuperAdminDashboard /> : <ClientDashboard />;
+      case 'platform_manager':
+        return roles.includes('platform_manager') ? <ManagerDashboard /> : <ClientDashboard />;
       default: return <ClientDashboard />;
     }
   };

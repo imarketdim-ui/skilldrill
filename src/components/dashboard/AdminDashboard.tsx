@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import AdminUserList from './admin/AdminUserList';
 import RevocationRequests from './admin/RevocationRequests';
 import FraudFlagsPanel from './admin/FraudFlagsPanel';
+import SupportChat from './SupportChat';
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -381,15 +382,7 @@ const AdminDashboard = () => {
         </TabsContent>
 
         <TabsContent value="support">
-          <Card>
-            <CardHeader><CardTitle>Техническая поддержка</CardTitle></CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                <MessageSquare className="h-10 w-10 mx-auto mb-3 opacity-50" />
-                <p>Чат поддержки</p>
-              </div>
-            </CardContent>
-          </Card>
+          <SupportChat isAdmin />
         </TabsContent>
       </Tabs>
     </div>

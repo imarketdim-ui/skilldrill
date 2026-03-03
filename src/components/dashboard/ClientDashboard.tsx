@@ -17,6 +17,7 @@ import ClientRequests from '@/components/dashboard/client/ClientRequests';
 import ClientWallet from '@/components/dashboard/client/ClientWallet';
 import ClientReferral from '@/components/dashboard/client/ClientReferral';
 import ClientStats from '@/components/dashboard/client/ClientStats';
+import SupportChat from '@/components/dashboard/SupportChat';
 
 // Favorites section component
 const FavoritesSection = ({ userId, navigate }: { userId?: string; navigate: (path: string) => void }) => {
@@ -101,6 +102,7 @@ const menuItems = [
   { key: 'wallet', label: 'Баланс', icon: Wallet },
   { key: 'referral', label: 'Рефералы', icon: Gift },
   { key: 'requests', label: 'Запросы', icon: Shield },
+  { key: 'support', label: 'Техподдержка', icon: MessageSquare },
   { key: 'notifications', label: 'Уведомления', icon: Bell },
 ];
 
@@ -209,6 +211,9 @@ const ClientDashboard = () => {
 
       case 'requests':
         return <ClientRequests />;
+
+      case 'support':
+        return <SupportChat />;
 
       case 'notifications':
         return (

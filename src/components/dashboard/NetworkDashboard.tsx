@@ -7,10 +7,11 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Globe, Building2, Users, BarChart3, DollarSign, Heart, 
-  Plus, Settings
+  Plus, Settings, MessageSquare
 } from 'lucide-react';
 import ProfileCompletionCheck from './ProfileCompletionCheck';
 import SubscriptionManager from './SubscriptionManager';
+import SupportChat from './SupportChat';
 
 const NetworkDashboard = () => {
   const { user } = useAuth();
@@ -77,6 +78,7 @@ const NetworkDashboard = () => {
           <TabsTrigger value="clients"><Heart className="h-4 w-4 mr-1" /> CRM</TabsTrigger>
           <TabsTrigger value="finance"><DollarSign className="h-4 w-4 mr-1" /> Финансы</TabsTrigger>
           <TabsTrigger value="subscription">Подписка</TabsTrigger>
+          <TabsTrigger value="support"><MessageSquare className="h-4 w-4 mr-1" /> Поддержка</TabsTrigger>
           <TabsTrigger value="dashboard"><BarChart3 className="h-4 w-4 mr-1" /> Дашборд</TabsTrigger>
           <TabsTrigger value="settings"><Settings className="h-4 w-4 mr-1" /> Настройки</TabsTrigger>
         </TabsList>
@@ -168,6 +170,10 @@ const NetworkDashboard = () => {
             parentManaged={false}
             parentLabel=""
           />
+        </TabsContent>
+
+        <TabsContent value="support">
+          <SupportChat />
         </TabsContent>
 
         <TabsContent value="dashboard">

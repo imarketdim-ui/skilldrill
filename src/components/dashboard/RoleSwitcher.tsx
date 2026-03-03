@@ -11,6 +11,7 @@ const roleLabels: Record<UserRoleType, string> = {
   network_owner: 'Владелец сети',
   platform_admin: 'Администратор',
   super_admin: 'Супер администратор',
+  platform_manager: 'Менеджер площадки',
 };
 
 const roleIcons: Record<UserRoleType, React.ReactNode> = {
@@ -22,6 +23,7 @@ const roleIcons: Record<UserRoleType, React.ReactNode> = {
   network_owner: <Globe className="h-4 w-4" />,
   platform_admin: <Shield className="h-4 w-4" />,
   super_admin: <Crown className="h-4 w-4" />,
+  platform_manager: <User className="h-4 w-4" />,
 };
 
 const RoleSwitcher = () => {
