@@ -16,6 +16,7 @@ import AdminUserList from './admin/AdminUserList';
 import RevocationRequests from './admin/RevocationRequests';
 import FraudFlagsPanel from './admin/FraudFlagsPanel';
 import SupportChat from './SupportChat';
+import SignedImage from '@/components/ui/signed-image';
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -244,8 +245,11 @@ const AdminDashboard = () => {
                         )}
                         {(item.work_photos?.length > 0 || item.interior_photos?.length > 0 || item.certificate_photos?.length > 0) && (
                           <div className="flex flex-wrap gap-2 mt-1">
-                            {[...(item.work_photos || []), ...(item.interior_photos || []), ...(item.certificate_photos || [])].map((url: string, i: number) => (
-                              <img key={i} src={url} alt="" className="w-16 h-16 rounded object-cover border" />
+                            {[...(item.work_photos || []), ...(item.interior_photos || [])].map((url: string, i: number) => (
+                              <img key={`pub-${i}`} src={url} alt="" className="w-16 h-16 rounded object-cover border" />
+                            ))}
+                            {(item.certificate_photos || []).map((url: string, i: number) => (
+                              <SignedImage key={`cert-${i}`} bucket="certificates" storageSrc={url} alt="" className="w-16 h-16 rounded object-cover border" />
                             ))}
                           </div>
                         )}
