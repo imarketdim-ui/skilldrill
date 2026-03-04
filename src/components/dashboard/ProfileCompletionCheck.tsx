@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { getStorageReference, resolveStorageUrls } from '@/lib/storage';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +17,7 @@ import {
 } from 'lucide-react';
 import MapPicker from '@/components/marketplace/MapPicker';
 import TagDropdown from '@/components/marketplace/TagDropdown';
+import SignedImage from '@/components/ui/signed-image';
 
 interface ProfileCompletionCheckProps {
   entityType: 'master' | 'business' | 'network';
@@ -189,8 +191,8 @@ const ProfileCompletionCheck = ({ entityType, entityData, onProfileUpdated }: Pr
           const path = `${user?.id}/${Date.now()}-${Math.random().toString(36).substring(2)}.${ext}`;
           const { error } = await supabase.storage.from(bucket).upload(path, file);
           if (error) throw error;
-          const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
-          urls.push(urlData.publicUrl);
+          const ref = getStorageReference(bucket, path);
+          urls.push(ref);
         }
         await handleSaveField(field, urls);
       } catch (err: any) {
@@ -440,7 +442,7 @@ const ProfileCompletionCheck = ({ entityType, entityData, onProfileUpdated }: Pr
               <div className="flex flex-wrap gap-2 mt-2 pl-7">
                 {(entityData.certificate_photos || []).map((url: string, i: number) => (
                   <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden border group">
-                    <img src={url} alt="" className="w-full h-full object-cover cursor-pointer" onClick={() => setLightboxUrl(url)} />
+                    <SignedImage bucket="certificates" storageSrc={url} alt="" className="w-full h-full object-cover cursor-pointer" onClick={() => setLightboxUrl(url)} />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
                       <button onClick={() => setLightboxUrl(url)} className="p-1 rounded bg-white/20"><Eye className="h-3 w-3 text-white" /></button>
                       <button onClick={() => handleRemovePhoto('certificate_photos', url)} className="p-1 rounded bg-destructive/80"><X className="h-3 w-3 text-white" /></button>

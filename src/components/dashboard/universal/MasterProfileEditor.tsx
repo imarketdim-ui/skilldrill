@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { getStorageReference, resolveStorageUrls } from '@/lib/storage';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -125,8 +126,8 @@ const MasterProfileEditor = ({ masterProfile, config, onPhotosChanged }: Props) 
           const path = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(2)}.${ext}`;
           const { error } = await supabase.storage.from(bucket).upload(path, file);
           if (error) throw error;
-          const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
-          urls.push(urlData.publicUrl);
+          const ref = getStorageReference(bucket, path);
+          urls.push(ref);
         }
         await supabase.from('master_profiles').update({ [field]: urls }).eq('user_id', user.id);
         toast({ title: 'Фото загружены' });
