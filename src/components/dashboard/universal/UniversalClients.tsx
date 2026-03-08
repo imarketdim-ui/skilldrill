@@ -22,7 +22,7 @@ interface ClientInfo {
   email: string | null; phone: string | null; skillspot_id: string;
   totalSessions: number; completedSessions: number; noShows: number;
   cancellations: number; firstVisit: string | null; lastVisit: string | null;
-  isBlacklisted: boolean; vipByCount: number;
+  isBlacklisted: boolean; vipByCount: number; ltv: number;
 }
 
 type ClientStatus = 'all' | 'vip' | 'regular' | 'new' | 'sleeping' | 'inactive' | 'blacklisted';
