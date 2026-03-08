@@ -4,10 +4,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
-  Building2, Users, ClipboardList, Calendar, DollarSign, Settings, ArrowRightLeft, UserPlus, AlertTriangle, MessageSquare
+  Building2, Users, ClipboardList, Calendar, DollarSign, Settings, 
+  ArrowRightLeft, UserPlus, AlertTriangle, MessageSquare, LayoutDashboard, CreditCard
 } from 'lucide-react';
 import ProfileCompletionCheck from './ProfileCompletionCheck';
 import SubscriptionManager from './SubscriptionManager';
@@ -18,14 +19,26 @@ import BusinessSettings from './business/BusinessSettings';
 import BusinessFinances from './business/BusinessFinances';
 import SupportChat from './SupportChat';
 
+const menuItems = [
+  { key: 'overview', label: 'Главная', icon: LayoutDashboard },
+  { key: 'masters', label: 'Мастера', icon: Users },
+  { key: 'services', label: 'Услуги', icon: ClipboardList },
+  { key: 'schedule', label: 'Расписание', icon: Calendar },
+  { key: 'finance', label: 'Финансы', icon: DollarSign },
+  { key: 'subscription', label: 'Подписка', icon: CreditCard },
+  { key: 'support', label: 'Поддержка', icon: MessageSquare },
+  { key: 'settings', label: 'Настройки', icon: Settings },
+];
+
 const BusinessDashboard = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const pricing = usePlatformPricing();
   const [businesses, setBusinesses] = useState<any[]>([]);
   const [selectedBusiness, setSelectedBusiness] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [masterCount, setMasterCount] = useState(0);
   const [serviceCount, setServiceCount] = useState(0);
+  const [activeSection, setActiveSection] = useState('overview');
 
   const fetchBusinesses = useCallback(async () => {
     if (!user) return;
@@ -33,7 +46,6 @@ const BusinessDashboard = () => {
     setBusinesses(data || []);
     if (data && data.length > 0) {
       setSelectedBusiness(data[0]);
-      // Fetch counts for activation guard
       const [mRes, sRes] = await Promise.all([
         supabase.from('business_masters').select('id', { count: 'exact', head: true }).eq('business_id', data[0].id).eq('status', 'accepted'),
         supabase.from('services').select('id', { count: 'exact', head: true }).eq('business_id', data[0].id).eq('is_active', true),
@@ -71,86 +83,84 @@ const BusinessDashboard = () => {
 
   const showCompletion = selectedBusiness?.moderation_status !== 'approved';
 
-  return (
-    <div className="space-y-6">
-      {!canActivate && selectedBusiness && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>
-            Для активации бизнеса необходимо: минимум 1 принятый мастер ({masterCount}/1) и 1 активная услуга ({serviceCount}/1). 
-            Пока условия не выполнены, бизнес не будет виден в каталоге.
-          </AlertDescription>
-        </Alert>
-      )}
+  const getInitials = () =>
+    `${(profile?.first_name || '')[0] || ''}${(profile?.last_name || '')[0] || ''}`.toUpperCase() || '?';
 
-      {showCompletion && selectedBusiness && (
-        <ProfileCompletionCheck entityType="business" entityData={selectedBusiness} onProfileUpdated={fetchBusinesses} />
-      )}
+  const NavButton = ({ item }: { item: typeof menuItems[0] }) => (
+    <Button
+      variant={activeSection === item.key ? 'default' : 'ghost'}
+      className={`w-full justify-start gap-3 ${activeSection === item.key ? '' : 'text-muted-foreground'}`}
+      onClick={() => setActiveSection(item.key)}
+    >
+      <item.icon className="h-4 w-4" />
+      <span>{item.label}</span>
+    </Button>
+  );
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">{selectedBusiness?.name || 'Бизнес'}</h2>
-          <p className="text-muted-foreground">{selectedBusiness?.address || 'Адрес не указан'}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {getSubscriptionBadge()}
-          {selectedBusiness?.moderation_status === 'approved' && <Badge variant="outline">Опубликован</Badge>}
-          {selectedBusiness?.moderation_status === 'pending' && <Badge>На модерации</Badge>}
-          {selectedBusiness?.moderation_status === 'draft' && <Badge variant="secondary">Черновик</Badge>}
-        </div>
-      </div>
-
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="flex-wrap">
-          <TabsTrigger value="overview"><Building2 className="h-4 w-4 mr-1" /> Точка</TabsTrigger>
-          <TabsTrigger value="masters"><Users className="h-4 w-4 mr-1" /> Мастера</TabsTrigger>
-          <TabsTrigger value="services"><ClipboardList className="h-4 w-4 mr-1" /> Услуги</TabsTrigger>
-          <TabsTrigger value="schedule"><Calendar className="h-4 w-4 mr-1" /> Расписание</TabsTrigger>
-          <TabsTrigger value="finance"><DollarSign className="h-4 w-4 mr-1" /> Финансы</TabsTrigger>
-          <TabsTrigger value="subscription">Подписка</TabsTrigger>
-          <TabsTrigger value="support"><MessageSquare className="h-4 w-4 mr-1" /> Поддержка</TabsTrigger>
-          <TabsTrigger value="settings"><Settings className="h-4 w-4 mr-1" /> Настройки</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-              <CardHeader><CardTitle>Информация о точке</CardTitle></CardHeader>
-              <CardContent className="space-y-3">
-                <div><span className="text-muted-foreground">Название:</span> {selectedBusiness?.name}</div>
-                <div><span className="text-muted-foreground">ИНН:</span> {selectedBusiness?.inn}</div>
-                <div><span className="text-muted-foreground">Адрес:</span> {selectedBusiness?.address || '—'}</div>
-                <div><span className="text-muted-foreground">Город:</span> {selectedBusiness?.city || '—'}</div>
-                <div><span className="text-muted-foreground">ФИО директора:</span> {selectedBusiness?.director_name || '—'}</div>
-                <div><span className="text-muted-foreground">Email:</span> {selectedBusiness?.contact_email || '—'}</div>
-                <div><span className="text-muted-foreground">Телефон:</span> {selectedBusiness?.contact_phone || '—'}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader><CardTitle>Управление</CardTitle></CardHeader>
-              <CardContent className="space-y-2">
-                <Button variant="outline" className="w-full justify-start gap-2">
-                  <ArrowRightLeft className="h-4 w-4" /> Передать управление
-                </Button>
-                <Button variant="outline" className="w-full justify-start gap-2">
-                  <UserPlus className="h-4 w-4" /> Назначить менеджера
-                </Button>
-              </CardContent>
-            </Card>
+  const renderContent = () => {
+    switch (activeSection) {
+      case 'overview':
+        return (
+          <div className="space-y-6">
+            {!canActivate && selectedBusiness && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  Для активации бизнеса необходимо: минимум 1 принятый мастер ({masterCount}/1) и 1 активная услуга ({serviceCount}/1).
+                  Пока условия не выполнены, бизнес не будет виден в каталоге.
+                </AlertDescription>
+              </Alert>
+            )}
+            {showCompletion && selectedBusiness && (
+              <ProfileCompletionCheck entityType="business" entityData={selectedBusiness} onProfileUpdated={fetchBusinesses} />
+            )}
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <h2 className="text-2xl font-bold">{selectedBusiness?.name || 'Бизнес'}</h2>
+                <p className="text-muted-foreground">{selectedBusiness?.address || 'Адрес не указан'}</p>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                {getSubscriptionBadge()}
+                {selectedBusiness?.moderation_status === 'approved' && <Badge variant="outline">Опубликован</Badge>}
+                {selectedBusiness?.moderation_status === 'pending' && <Badge>На модерации</Badge>}
+                {selectedBusiness?.moderation_status === 'draft' && <Badge variant="secondary">Черновик</Badge>}
+              </div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card>
+                <CardHeader><CardTitle>Информация о точке</CardTitle></CardHeader>
+                <CardContent className="space-y-3">
+                  <div><span className="text-muted-foreground">Название:</span> {selectedBusiness?.name}</div>
+                  <div><span className="text-muted-foreground">ИНН:</span> {selectedBusiness?.inn}</div>
+                  <div><span className="text-muted-foreground">Адрес:</span> {selectedBusiness?.address || '—'}</div>
+                  <div><span className="text-muted-foreground">Город:</span> {selectedBusiness?.city || '—'}</div>
+                  <div><span className="text-muted-foreground">ФИО директора:</span> {selectedBusiness?.director_name || '—'}</div>
+                  <div><span className="text-muted-foreground">Email:</span> {selectedBusiness?.contact_email || '—'}</div>
+                  <div><span className="text-muted-foreground">Телефон:</span> {selectedBusiness?.contact_phone || '—'}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader><CardTitle>Управление</CardTitle></CardHeader>
+                <CardContent className="space-y-2">
+                  <Button variant="outline" className="w-full justify-start gap-2">
+                    <ArrowRightLeft className="h-4 w-4" /> Передать управление
+                  </Button>
+                  <Button variant="outline" className="w-full justify-start gap-2">
+                    <UserPlus className="h-4 w-4" /> Назначить менеджера
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
           </div>
-        </TabsContent>
-
-        <TabsContent value="masters">
-          {selectedBusiness && (
-            <BusinessMasters businessId={selectedBusiness.id} freeMasters={selectedBusiness.free_masters || 3} extraMasterPrice={selectedBusiness.extra_master_price || 500} />
-          )}
-        </TabsContent>
-
-        <TabsContent value="services">
-          {selectedBusiness && <BusinessServices businessId={selectedBusiness.id} />}
-        </TabsContent>
-
-        <TabsContent value="schedule">
+        );
+      case 'masters':
+        return selectedBusiness ? (
+          <BusinessMasters businessId={selectedBusiness.id} freeMasters={selectedBusiness.free_masters || 3} extraMasterPrice={selectedBusiness.extra_master_price || 500} />
+        ) : null;
+      case 'services':
+        return selectedBusiness ? <BusinessServices businessId={selectedBusiness.id} /> : null;
+      case 'schedule':
+        return (
           <Card>
             <CardHeader>
               <CardTitle>Общее расписание</CardTitle>
@@ -163,13 +173,11 @@ const BusinessDashboard = () => {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="finance">
-          {selectedBusiness && <BusinessFinances businessId={selectedBusiness.id} />}
-        </TabsContent>
-
-        <TabsContent value="subscription">
+        );
+      case 'finance':
+        return selectedBusiness ? <BusinessFinances businessId={selectedBusiness.id} /> : null;
+      case 'subscription':
+        return (
           <SubscriptionManager
             entityType="business"
             subscriptionStatus={selectedBusiness?.subscription_status || 'trial'}
@@ -180,16 +188,69 @@ const BusinessDashboard = () => {
             parentManaged={selectedBusiness?.subscription_status === 'in_network'}
             parentLabel="Управляется сетью"
           />
-        </TabsContent>
+        );
+      case 'support':
+        return <SupportChat />;
+      case 'settings':
+        return selectedBusiness ? <BusinessSettings business={selectedBusiness} onUpdated={fetchBusinesses} /> : null;
+      default:
+        return null;
+    }
+  };
 
-        <TabsContent value="support">
-          <SupportChat />
-        </TabsContent>
+  return (
+    <div className="flex gap-6 w-full overflow-hidden">
+      {/* Desktop sidebar */}
+      <aside className="hidden lg:flex flex-col w-60 shrink-0">
+        <div className="flex items-center gap-3 px-3 pb-6 border-b mb-4">
+          <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
+            <Building2 className="h-5 w-5 text-primary-foreground" />
+          </div>
+          <div className="min-w-0">
+            <p className="font-semibold text-sm truncate">{selectedBusiness?.name || 'Организация'}</p>
+            <p className="text-xs text-muted-foreground">Организация</p>
+          </div>
+        </div>
 
-        <TabsContent value="settings">
-          {selectedBusiness && <BusinessSettings business={selectedBusiness} onUpdated={fetchBusinesses} />}
-        </TabsContent>
-      </Tabs>
+        <div className="space-y-1">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Меню</p>
+          {menuItems.map(item => <NavButton key={item.key} item={item} />)}
+        </div>
+
+        <div className="mt-auto pt-6 border-t">
+          <div className="flex items-center gap-3 px-3">
+            <Avatar className="h-8 w-8">
+              <AvatarFallback className="text-xs bg-primary/10 text-primary">{getInitials()}</AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <p className="text-sm font-medium truncate">{profile?.first_name}</p>
+              <p className="text-xs text-muted-foreground">Организация</p>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      {/* Mobile/tablet bottom bar */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t z-50 safe-area-bottom">
+        <div className="flex overflow-x-auto scrollbar-hide">
+          {menuItems.map(item => (
+            <button
+              key={item.key}
+              onClick={() => setActiveSection(item.key)}
+              className={`flex flex-col items-center justify-center gap-0.5 min-w-[4rem] flex-1 py-2 text-[10px] leading-tight transition-colors
+                ${activeSection === item.key ? 'text-primary' : 'text-muted-foreground'}`}
+            >
+              <item.icon className="h-4 w-4 shrink-0" />
+              <span className="truncate max-w-[3.5rem] text-center">{item.label}</span>
+            </button>
+          ))}
+        </div>
+      </nav>
+
+      {/* Content */}
+      <div className="flex-1 min-w-0 pb-20 lg:pb-0">
+        {renderContent()}
+      </div>
     </div>
   );
 };
