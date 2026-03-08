@@ -158,22 +158,22 @@ const UniversalDashboardHome = ({ config }: Props) => {
 
       <Card>
         <CardContent className="pt-6">
-          <div className="flex items-start gap-4">
-            <Avatar className="h-16 w-16">
+          <div className="flex flex-col sm:flex-row items-start gap-4">
+            <Avatar className="h-16 w-16 shrink-0">
               <AvatarImage src={profile?.avatar_url || undefined} />
               <AvatarFallback className="text-lg bg-primary/10 text-primary">
                 {getInitials(profile?.first_name, profile?.last_name)}
               </AvatarFallback>
             </Avatar>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="text-xl font-semibold">{profile?.first_name} {profile?.last_name}</h3>
-                  <p className="text-muted-foreground text-sm mt-1">
+            <div className="flex-1 min-w-0 w-full">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                <div className="min-w-0">
+                  <h3 className="text-xl font-semibold truncate">{profile?.first_name} {profile?.last_name}</h3>
+                  <p className="text-muted-foreground text-sm mt-1 line-clamp-2">
                     {masterProfile?.description || 'Добавьте описание в настройках профиля'}
                   </p>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => { const ev = new CustomEvent('navigate-dashboard', { detail: 'profile' }); window.dispatchEvent(ev); }}>Редактировать профиль</Button>
+                <Button variant="outline" size="sm" className="shrink-0 self-start" onClick={() => { const ev = new CustomEvent('navigate-dashboard', { detail: 'profile' }); window.dispatchEvent(ev); }}>Редактировать</Button>
               </div>
               {masterProfile?.service_categories?.name && (
                 <div className="flex flex-wrap gap-2 mt-3">
@@ -183,7 +183,6 @@ const UniversalDashboardHome = ({ config }: Props) => {
                   </Badge>
                 </div>
               )}
-              {/* Social links */}
               {masterProfile?.social_links && Object.values(masterProfile.social_links).some(Boolean) && (
                 <div className="flex gap-2 mt-2 flex-wrap">
                   {masterProfile.social_links.telegram && (
@@ -205,16 +204,16 @@ const UniversalDashboardHome = ({ config }: Props) => {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <Card className="bg-primary text-primary-foreground">
           <CardContent className="pt-6">
             <div className="flex items-start justify-between">
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm opacity-90">Сегодня</p>
                 <p className="text-3xl font-bold mt-1">{stats.todaySessions}</p>
-                <p className="text-xs opacity-75 mt-1">{stats.todayIndividual} индивид., {stats.todayGroup} группов.</p>
+                <p className="text-xs opacity-75 mt-1 truncate">{stats.todayIndividual} инд., {stats.todayGroup} гр.</p>
               </div>
-              <Calendar className="h-5 w-5 opacity-75" />
+              <Calendar className="h-5 w-5 opacity-75 shrink-0" />
             </div>
           </CardContent>
         </Card>
@@ -222,11 +221,11 @@ const UniversalDashboardHome = ({ config }: Props) => {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">{config.clientNamePlural}</p>
+              <div className="min-w-0">
+                <p className="text-sm text-muted-foreground truncate">{config.clientNamePlural}</p>
                 <p className="text-3xl font-bold mt-1">{stats.totalClients}</p>
               </div>
-              <Users className="h-5 w-5 text-muted-foreground" />
+              <Users className="h-5 w-5 text-muted-foreground shrink-0" />
             </div>
           </CardContent>
         </Card>
@@ -234,14 +233,14 @@ const UniversalDashboardHome = ({ config }: Props) => {
         <Card className="bg-primary text-primary-foreground">
           <CardContent className="pt-6">
             <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm opacity-90">Доход за месяц</p>
-                <p className="text-3xl font-bold mt-1">₽ {stats.monthIncome.toLocaleString()}</p>
+              <div className="min-w-0">
+                <p className="text-sm opacity-90">Доход</p>
+                <p className="text-2xl sm:text-3xl font-bold mt-1 truncate">₽{stats.monthIncome.toLocaleString()}</p>
                 {stats.incomeGrowth !== 0 && (
                   <p className="text-xs opacity-75 mt-1">{stats.incomeGrowth > 0 ? '+' : ''}{stats.incomeGrowth}%</p>
                 )}
               </div>
-              <Banknote className="h-5 w-5 opacity-75" />
+              <Banknote className="h-5 w-5 opacity-75 shrink-0" />
             </div>
           </CardContent>
         </Card>
@@ -249,12 +248,12 @@ const UniversalDashboardHome = ({ config }: Props) => {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-start justify-between">
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm text-muted-foreground">Неявки</p>
                 <p className="text-3xl font-bold mt-1">{stats.noShows}</p>
                 <p className="text-xs text-muted-foreground mt-1">За месяц</p>
               </div>
-              <AlertTriangle className="h-5 w-5 text-muted-foreground" />
+              <AlertTriangle className="h-5 w-5 text-muted-foreground shrink-0" />
             </div>
           </CardContent>
         </Card>

@@ -40,7 +40,7 @@ const mobileMenuItems = [
 ];
 
 const ClientDashboard = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, roles } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const isMobile = useIsMobile();
@@ -333,13 +333,15 @@ const ClientDashboard = () => {
               </CardContent>
             </Card>
 
-            <Card className="border-dashed cursor-pointer hover:border-primary transition-colors" onClick={() => navigate('/create-account')}>
-              <CardContent className="pt-6 text-center">
-                <Building2 className="h-10 w-10 mx-auto mb-2 text-primary" />
-                <p className="font-semibold">Создать бизнес-аккаунт</p>
-                <p className="text-sm text-muted-foreground">Мастер, бизнес или сеть — выберите тип и начните работу</p>
-              </CardContent>
-            </Card>
+            {!roles.some(r => ['master', 'business_owner', 'network_owner'].includes(r)) && (
+              <Card className="border-dashed cursor-pointer hover:border-primary transition-colors" onClick={() => navigate('/create-account')}>
+                <CardContent className="pt-6 text-center">
+                  <Building2 className="h-10 w-10 mx-auto mb-2 text-primary" />
+                  <p className="font-semibold">Создать бизнес-аккаунт</p>
+                  <p className="text-sm text-muted-foreground">Мастер, бизнес или сеть — выберите тип и начните работу</p>
+                </CardContent>
+              </Card>
+            )}
           </div>
         );
     }
