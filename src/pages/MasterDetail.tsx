@@ -303,6 +303,7 @@ const MasterDetail = () => {
         .eq('blocker_id', master.user_id).eq('blocked_id', user.id).maybeSingle();
       if (blocked) {
         toast({ title: 'Запись невозможна', description: 'Вы не можете записаться к этому мастеру', variant: 'destructive' });
+        setSendingBooking(false);
         return;
       }
 
