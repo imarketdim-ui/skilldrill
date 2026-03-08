@@ -213,7 +213,7 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
   );
 
   return (
-    <div className="flex gap-6">
+    <div className="flex gap-6 w-full overflow-hidden">
       <aside className="hidden lg:flex flex-col w-60 shrink-0">
         <div className="flex items-center gap-3 px-3 pb-6 border-b mb-4">
           <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
