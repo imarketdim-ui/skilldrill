@@ -5,7 +5,7 @@ import { Shield, Crown, User, Building2 } from 'lucide-react';
 const RoleSwitcher = () => {
   const { roles, activeRole, setActiveRole } = useAuth();
 
-  const platformRoles = roles.filter(r => ['platform_admin', 'super_admin', 'platform_manager'].includes(r));
+  const platformRoles = roles.filter(r => ['platform_admin', 'super_admin', 'platform_manager', 'moderator', 'support', 'integrator'].includes(r));
   const businessRoles = roles.filter(r => ['business_owner', 'business_manager', 'network_owner', 'network_manager'].includes(r));
 
   // Nothing to switch to
