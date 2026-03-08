@@ -18,6 +18,7 @@ import TeachingChats from '../teaching/TeachingChats';
 import SupportChat from '../SupportChat';
 import { CategoryConfig } from './categoryConfig';
 import MasterProfileEditor from './MasterProfileEditor';
+import MasterAchievements from './MasterAchievements';
 
 // Inline notifications component for master dashboard
 const MasterNotifications = () => {
