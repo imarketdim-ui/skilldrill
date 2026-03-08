@@ -47,18 +47,18 @@ const RoleSwitcher = () => {
 
   // Currently client → show available switches
   if (activeRole === 'client' || activeRole === 'master') {
-    // Business switch
-    if (businessRoles.length > 0) {
+    // Platform switch only — business switch happens via workspace cards in ClientDashboard
+    if (platformRoles.length > 0) {
       buttons.push(
         <Button
-          key="business"
+          key="platform"
           variant="outline"
           size="sm"
           className="gap-2"
-          onClick={() => setActiveRole(businessRoles[0] as UserRoleType)}
+          onClick={() => setActiveRole(platformRoles[0] as UserRoleType)}
         >
-          <Building2 className="h-4 w-4" />
-          <span className="hidden sm:inline">Бизнес</span>
+          {platformRoles.includes('super_admin') ? <Crown className="h-4 w-4" /> : <Shield className="h-4 w-4" />}
+          <span className="hidden sm:inline">Площадка</span>
         </Button>
       );
     }
