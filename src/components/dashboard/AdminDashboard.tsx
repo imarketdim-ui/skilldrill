@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import AdminUserList from './admin/AdminUserList';
 import RevocationRequests from './admin/RevocationRequests';
 import FraudFlagsPanel from './admin/FraudFlagsPanel';
+import AdminPromoCodes from './admin/AdminPromoCodes';
 import SupportChat from './SupportChat';
 import SignedImage from '@/components/ui/signed-image';
 
