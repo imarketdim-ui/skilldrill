@@ -59,6 +59,7 @@ type BusinessItem = {
   service_count: number;
   latitude: number | null;
   longitude: number | null;
+  moderation_status: string | null;
 };
 
 const sortOptions = [
