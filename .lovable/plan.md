@@ -1,144 +1,130 @@
 
 
-# Plan: Multi-Module Improvements (Support Chat, Booking Flow, Schedule, Dashboards)
+# Расхождения между ТЗ и текущей реализацией
 
-This is a large scope covering 7 areas. Below is the grouped implementation plan.
+## Раздел 0 — Общие принципы
 
----
+| Пункт ТЗ | Статус | Комментарий |
+|---|---|---|
+| Плоский дизайн без градиентов | ✅ Реализовано | Indigo #4F46E5, без blur/gradient |
+| Карты внутри карточек | ✅ Реализовано | MapLibre интегрирован в `CatalogMap`, `MapPicker` |
+| Чат с функциями Telegram | ⚠️ Частично | Есть личные чаты, статусы доставки/прочтения, emoji, вложения. **Нет групповых чатов** |
+| Контроль ввода (+7, email, ИНН) | ⚠️ Частично | Есть базовая валидация email/телефон. Нет строгой маски +7, нет валидации ИНН (длина/контрольная сумма) |
+| Локальное время пользователя | ⚠️ Не контролируется | Даты отображаются через `toLocaleString('ru-RU')`, но timezone не передается на сервер |
 
-## Area 1: Support Chat for All Dashboards
+## Раздел 1 — Пользователи и роли
 
-**Goal**: Every dashboard (Client, Master, Business, Network) gets a "Техподдержка" tab. Messages go to all admins + super admin.
+| Пункт ТЗ | Статус |
+|---|---|
+| Клиент по умолчанию | ✅ |
+| Мастер через запрос → подтверждение | ✅ (CreateBusinessAccount + модерация) |
+| Сотрудник бизнеса через приглашение | ✅ |
+| Менеджер площадки | ✅ |
+| Супер-админ | ✅ |
+| Статусы VIP/ЧС/Новые/Спящие/Неактивные | ✅ (сегментация в UniversalClients) |
 
-**Approach**:
-- Create `SupportChat.tsx` component — reuses chat UI from `TeachingChats` but with `chat_type = 'support'`
-- On send: insert message with `recipient_id = null` (or a special system UUID), `chat_type = 'support'`
-- Admin/SuperAdmin dashboards show a "Support" tab listing all support conversations grouped by user
-- Need migration: add index or filter for `chat_type = 'support'` queries
+## Раздел 2 — CRM (управление клиентами)
 
-**Files**: New `src/components/dashboard/SupportChat.tsx`, modify `ClientDashboard.tsx`, `UniversalMasterDashboard.tsx`, `BusinessDashboard.tsx`, `NetworkDashboard.tsx`, `AdminDashboard.tsx`, `SuperAdminDashboard.tsx`
+| Пункт ТЗ | Статус | Комментарий |
+|---|---|---|
+| Карточка клиента (ФИО, баланс, история) | ⚠️ Частично | Есть базовая информация, но **нет детальной карточки с полной историей заказов** по услуге/исполнителю/стоимости |
+| Рейтинг клиента (UserScore) | ✅ Реализовано | Профиль, KYC, неявки, отмены, цветовая индикация |
+| Автоматический пересчёт рейтинга каждый час | ❌ Отсутствует | Рейтинг рассчитывается при запросе, нет cron/scheduled-функции |
+| Подтверждение email и телефона в скоринге | ⚠️ Частично | KYC есть, но подтверждение email/телефона не учитывается отдельно |
 
----
+## Раздел 3 — ERP (внутренние процессы)
 
-## Area 2: Timezone — Use Local Time Everywhere
+| Пункт ТЗ | Статус | Комментарий |
+|---|---|---|
+| Карточка услуги (фото, описание, цена, рейтинг) | ✅ | |
+| **Технологическая карта** (материалы, трудозатраты, оборудование) | ❌ Отсутствует UI | В БД есть таблица `technology_cards` с полем `materials`, но **нет UI для создания/просмотра**. Нет расчёта себестоимости |
+| **Склад и материалы** (учёт остатков, уведомления) | ❌ Отсутствует | Нет таблиц и UI для учёта складских остатков |
+| Финансы: доходы, расходы | ✅ (BusinessFinances, UniversalFinances) | |
+| Промежуточные расчёты (прибыль по услуге/мастеру/точке) | ⚠️ Частично | Есть разбивка по мастерам в BusinessFinances, но **нет аналитики по отдельным услугам** |
+| **Автовывод средств** (ежедневный, еженедельный, по порогу) | ❌ Отсутствует | Нет UI и логики автовывода |
 
-**Approach**: All `new Date().toISOString()` calls already use UTC which Supabase stores. The display side already uses `toLocaleString('ru-RU')` and `date-fns format()` which renders in local timezone. The main fix needed:
-- Booking creation in `MasterDetail.tsx`: when constructing `scheduled_at`, use local date+time (already done — `lesson_date` + `start_time` stored separately, not as a UTC timestamp)
-- Schedule settings stored in localStorage already use local time
-- **No significant changes needed** — current architecture already handles this correctly
+## Раздел 4 — Рейтинг мастеров и бизнеса
 
----
+| Пункт ТЗ | Статус | Комментарий |
+|---|---|---|
+| Метрики мастера (заказы, средний чек, выручка, часы работы) | ⚠️ Частично | Есть `UniversalStats`, но не все метрики реализованы (нет часов работы) |
+| Средний рейтинг бизнеса = средний рейтинг мастеров + отзывы | ⚠️ Не рассчитывается агрегированно | Нет формулы агрегации рейтинга бизнеса |
+| Дашборд владельца: загрузка по точкам, KPI мастеров | ⚠️ Частично | Есть финансовый разбор, но **нет визуализации загрузки по точкам и KPI** |
 
-## Area 3: Booking Flow from Master Card (MasterDetail.tsx)
+## Раздел 5 — Записи и расписания
 
-**Current issues**: Slots show the entire day (06:00-23:00) ignoring work hours, breaks, and days off. No reminder selection. No auto-booking logic. No contact creation on booking.
+| Пункт ТЗ | Статус | Комментарий |
+|---|---|---|
+| Расписание мастера (дни, часы, перерывы) | ✅ | `work_days`, `work_hours_config`, `break_config` |
+| Запрет пересечения тайм-слотов на уровне БД | ⚠️ | Проверка есть на фронте, **нет DB constraint** |
+| Автозапись по политике | ✅ | `auto_booking_policy` реализован |
+| Подтверждение/отклонение/перенос | ✅ | |
 
-**Changes to `MasterDetail.tsx`**:
+## Раздел 6 — Приглашения сотрудников
 
-1. **Slot generation**: Fetch master's schedule settings from `master_profiles` (new columns: `work_days`, `work_start`, `work_end`, `break_slots`). Filter by work hours, breaks, existing bookings, AND blocked slots. Disable past dates and non-work days.
+| Пункт ТЗ | Статус | Комментарий |
+|---|---|---|
+| Приглашение с выбором роли и локации | ✅ | |
+| Проверка ЧС перед приглашением | ❌ | Нет проверки blacklist при отправке приглашения |
+| Кнопка «Пожаловаться» при получении приглашения | ❌ | Нет функционала жалобы на приглашение |
 
-2. **Reminder selector**: Add a `<Select>` with options: 15min / 30min / 1h / 3h / 24h / none. Store in `lesson_bookings.reminder_minutes`.
+## Раздел 7 — Вкладки ЛК
 
-3. **Auto-booking logic**: 
-   - Check `master_profiles.auto_booking_policy` (values: `all`, `known`, `high_rated`, `none`)
-   - Check if client is blacklisted
-   - Check client's score vs master's requirements
-   - If auto-approved → status `confirmed`, else → status `pending` with message "Ожидаем подтверждения мастера"
+| Пункт ТЗ | Статус | Комментарий |
+|---|---|---|
+| Клиент: записи (день/неделя/месяц) | ✅ | |
+| Клиент: избранное | ✅ | |
+| Клиент: уведомления | ✅ | |
+| Клиент: «Стать партнером» | ✅ (CreateBusinessAccount) | |
+| Мастер: достижения | ❌ | Нет системы достижений/бейджей |
+| Мастер: технологические карты в каталоге услуг | ❌ | UI отсутствует |
+| Бизнес: точки (множественные) | ⚠️ | Можно иметь несколько `business_locations`, но **нет UI для управления несколькими точками из одного дашборда** (каждая — отдельный workspace) |
+| Админ: отслеживание подписок | ✅ (BonusSubscriptionPanel) | |
+| Админ: метрики пользователей | ⚠️ Частично | Есть `AdminUserList`, но нет агрегированных метрик площадки |
 
-4. **Contact creation**: On booking, auto-insert into `client_tags` for master and create chat contact
+## Раздел 8 — Маркетплейс
 
-5. **Double-click protection**: Disable button during submission (already partially done with `sendingBooking` state, need to add `disabled` guard more strictly)
+| Пункт ТЗ | Статус | Комментарий |
+|---|---|---|
+| Поиск по адресу, бренду, имени, хештегам | ✅ | |
+| **Автозамена раскладки, синонимы, окончания слов** | ❌ Отсутствует | Нет транслитерации, нет нормализации морфологии |
+| Фильтры: город, категория, услуги | ✅ | |
+| Карточка: фото, рейтинг, «Записаться», режим работы | ✅ | |
+| Бейджи «Проверено», «Рекомендуем» | ❌ | Нет визуальных бейджей доверия на карточках |
 
-6. **After booking**: Navigate to `/dashboard` with bookings section on the booked date
+## Раздел 9 — Чат
 
-**Migration**: Add `work_days int[]`, `work_start time`, `work_end time`, `break_slots jsonb` to `master_profiles`
+| Пункт ТЗ | Статус | Комментарий |
+|---|---|---|
+| Личные чаты | ✅ | |
+| **Групповые чаты** | ❌ Отсутствует | В БД `chat_type` поддерживает только 'direct' и 'support' |
+| Статусы: отправлено/доставлено/прочитано | ✅ | |
+| Загрузка фото, файлов | ✅ | |
+| Emoji | ✅ | |
+| **Загрузка видео, Excel** | ❌ | Нет поддержки видео и специфичных форматов |
+| Блокировка / добавление в контакты | ✅ | |
 
----
+## Раздел 10 — Технические ограничения
 
-## Area 4: Client Dashboard — Admin Request Accept/Reject Fix
-
-**Issue**: RLS on `admin_assignments` uses `RESTRICTIVE` policy requiring super_admin for write. The assignee can't update their own record.
-
-**Fix**: Update RLS policy on `admin_assignments` to allow assignees to UPDATE their own records (where `assignee_id = auth.uid()`). The current policy has:
-```sql
-USING: is_super_admin(auth.uid()) OR (assignee_id = auth.uid())
-WITH CHECK: is_super_admin(auth.uid())
-```
-The `WITH CHECK` blocks assignee updates. Need to change to:
-```sql
-WITH CHECK: is_super_admin(auth.uid()) OR (assignee_id = auth.uid() AND status IN ('accepted', 'rejected'))
-```
-
-Also in `ClientRequests.tsx`: the `user_roles` insert for `platform_admin` will fail due to RLS. Need to use a DB function or update RLS on `user_roles` to allow self-insert when accepting an admin assignment.
-
----
-
-## Area 5: Master Dashboard Fixes
-
-1. **Remove "Новый заказ" button**: In `UniversalDashboardHome.tsx` line 156-158, remove the `<Button>` with `{config.newSessionLabel}`
-
-2. **Photo upload redirect fix**: In `MasterProfileEditor.tsx`, `window.location.reload()` (lines 119, 133) causes full page reload losing dashboard context. Replace with a callback/refetch pattern.
-
-3. **Data loss prevention**: In `MasterProfileEditor.tsx`, the form initializes from `masterProfile` on mount. If user navigates away without saving, data is lost. Add `beforeunload` warning if form is dirty. Also add `useEffect` that re-initializes only on `masterProfile.id` change (not every render).
-
-4. **Schedule settings — Work days, hours, breaks**:
-   - Add work day checkboxes (Mon-Sun) to settings dialog in `UniversalSchedule.tsx`
-   - Per-day work hours (e.g., Mon 09:00-18:00, Tue 10:00-20:00)
-   - Multiple break slots per day (start-end pairs, add/remove)
-   - Store in `master_profiles` (DB columns) instead of localStorage
-   - Migration: `work_days`, `work_hours_config jsonb`, `break_config jsonb`
-
----
-
-## Area 6: Business Dashboard — Director/Contact Display + Categories
-
-**Issue**: Director name, email, phone are saved during creation but not shown in the overview tab.
-
-**Check**: Looking at `BusinessDashboard.tsx` lines 117-124 — the overview already shows `director_name`, `contact_email`, `contact_phone`. If they show `—`, the data may not be saving correctly during creation.
-
-**Fix**: Verify `CreateBusinessAccount.tsx` sends `director_name`, `contact_email`, `contact_phone` — it does (line 121). The issue may be the form field names not matching. Need to verify form field `director_name` is populated correctly.
-
----
-
-## Area 7: SuperAdmin — Bonus Subscription Activation
-
-**Goal**: SuperAdmin can grant temporary bonus subscriptions to any master/business/network.
-
-**Approach**:
-- Add dialog in `SuperAdminDashboard.tsx` subscriptions tab
-- Search by SkillSpot ID, select entity type, choose duration (7/14/30 days)
-- Updates `subscription_status = 'active'`, sets `trial_start_date = now()`, `trial_days = chosen_duration` on the target entity
-- Log action in `notifications` table
-
----
-
-## Area 8: Platform Manager Role (New Dashboard)
-
-**Goal**: New role `platform_manager` with its own dashboard for client relationship management.
-
-**Approach**:
-- Migration: Add `platform_manager` to `user_role` enum, create `manager_clients` junction table (`manager_id`, `client_id`, `assigned_by`, `assigned_at`)
-- Create `ManagerDashboard.tsx`: shows assigned clients list, their data, support chat history, requests
-- Cannot moderate anything — read-only on client data + support communication
-- When manager is deactivated: reassign clients to super_admin, create notification for redistribution
-- Add to `Dashboard.tsx` role switch and `useAuth` role type
+| Пункт ТЗ | Статус | Комментарий |
+|---|---|---|
+| Пересечение тайм-слотов запрещено | ⚠️ | Только фронтенд-проверка |
+| Мастер без подписки → read-only | ⚠️ | Сейчас paywall полностью блокирует, а не показывает read-only |
+| Нельзя удалить единственного Owner | ❌ | Нет такой проверки |
+| Нельзя иметь услуги без мастера | ⚠️ | Есть alert, но нет жёсткого ограничения |
 
 ---
 
-## Implementation Priority & File Count
+## Сводка критических расхождений (приоритет)
 
-| Priority | Area | New Files | Modified Files | Migration |
-|----------|------|-----------|----------------|-----------|
-| 1 | Admin request fix (Area 4) | 0 | 1 | 1 (RLS) |
-| 2 | Remove "Новый заказ" + photo fix (Area 5.1-2) | 0 | 2 | 0 |
-| 3 | Support Chat (Area 1) | 1 | 6 | 0 |
-| 4 | Schedule work days/breaks (Area 5.4) | 0 | 1 | 1 |
-| 5 | Booking flow (Area 3) | 0 | 1 | 1 |
-| 6 | Business director display fix (Area 6) | 0 | 1 | 0 |
-| 7 | SuperAdmin bonus subscriptions (Area 7) | 0 | 1 | 0 |
-| 8 | Platform Manager role (Area 8) | 1 | 3 | 1 |
-
-**Total**: ~2 new files, ~12 modified files, ~4 migrations
-
-This is too large for a single implementation pass. I recommend splitting into 2-3 batches.
+1. **Технологические карты услуг** — таблица в БД есть, UI отсутствует полностью
+2. **Групповые чаты** — не реализованы
+3. **Склад и учёт материалов** — нет ни БД, ни UI
+4. **Автовывод средств** — нет
+5. **Автозамена раскладки и морфология поиска** — нет
+6. **Проверка ЧС при приглашении** — нет
+7. **Агрегированный рейтинг бизнеса** — нет формулы
+8. **Бейджи «Проверено»/«Рекомендуем»** в маркетплейсе — нет
+9. **Мастер без подписки: read-only вместо полной блокировки** — расходится с ТЗ
+10. **DB constraint на пересечение тайм-слотов** — нет (только фронтенд)
 
