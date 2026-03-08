@@ -13,6 +13,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Camera, Gift, ChevronRight } from 'lucide-react';
 
 import { z } from 'zod';
+
+const profileSchema = z.object({
   first_name: z.string().trim().max(100, 'Максимум 100 символов').optional(),
   last_name: z.string().trim().max(100, 'Максимум 100 символов').optional(),
   phone: z.string().trim().max(20, 'Максимум 20 символов').optional(),
