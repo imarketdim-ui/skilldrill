@@ -3470,6 +3470,89 @@ export type Database = {
       }
     }
     Views: {
+      user_scores_master_view: {
+        Row: {
+          account_age_days: number | null
+          activity_score: number | null
+          blacklist_by_count: number | null
+          cancel_under_1h: number | null
+          cancel_under_3h: number | null
+          completed_visits: number | null
+          disputes_lost: number | null
+          disputes_total: number | null
+          disputes_won: number | null
+          has_full_name: boolean | null
+          has_photo: boolean | null
+          kyc_verified: boolean | null
+          last_calculated_at: string | null
+          no_show_count: number | null
+          profile_score: number | null
+          status: string | null
+          top_partner_pct: number | null
+          total_cancellations: number | null
+          total_score: number | null
+          unique_partners: number | null
+          user_id: string | null
+          vip_by_count: number | null
+        }
+        Insert: {
+          account_age_days?: number | null
+          activity_score?: number | null
+          blacklist_by_count?: number | null
+          cancel_under_1h?: number | null
+          cancel_under_3h?: number | null
+          completed_visits?: number | null
+          disputes_lost?: number | null
+          disputes_total?: number | null
+          disputes_won?: number | null
+          has_full_name?: boolean | null
+          has_photo?: boolean | null
+          kyc_verified?: boolean | null
+          last_calculated_at?: string | null
+          no_show_count?: number | null
+          profile_score?: number | null
+          status?: string | null
+          top_partner_pct?: number | null
+          total_cancellations?: number | null
+          total_score?: number | null
+          unique_partners?: number | null
+          user_id?: string | null
+          vip_by_count?: number | null
+        }
+        Update: {
+          account_age_days?: number | null
+          activity_score?: number | null
+          blacklist_by_count?: number | null
+          cancel_under_1h?: number | null
+          cancel_under_3h?: number | null
+          completed_visits?: number | null
+          disputes_lost?: number | null
+          disputes_total?: number | null
+          disputes_won?: number | null
+          has_full_name?: boolean | null
+          has_photo?: boolean | null
+          kyc_verified?: boolean | null
+          last_calculated_at?: string | null
+          no_show_count?: number | null
+          profile_score?: number | null
+          status?: string | null
+          top_partner_pct?: number | null
+          total_cancellations?: number | null
+          total_score?: number | null
+          unique_partners?: number | null
+          user_id?: string | null
+          vip_by_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_scores_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_scores_public: {
         Row: {
           account_age_days: number | null
@@ -3579,6 +3662,16 @@ export type Database = {
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
       is_teaching_blacklisted: {
         Args: { _student_id: string; _teacher_id: string }
+        Returns: boolean
+      }
+      pay_subscription_from_balance: {
+        Args: {
+          _amount: number
+          _description: string
+          _entity_id: string
+          _entity_type: string
+          _user_id: string
+        }
         Returns: boolean
       }
       reject_admin_assignment: {
