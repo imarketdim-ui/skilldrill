@@ -68,8 +68,7 @@ const sortOptions = [
   { value: "newest", label: "Новинки" },
 ];
 
-const stemRu = (word: string) =>
-  word.toLowerCase().replace(/(ами|ями|ов|ев|ей|ий|ой|ый|ая|яя|ое|ее|ие|ые|ого|его|ому|ему|ых|их|ую|юю|ём|ем|ах|ях|ам|ям|ой|ей|ию|ью|ок|ек|ик|ки|ка|ку|ке|ек|ок|и|ы|у|е|а|о|ь)$/, "");
+import { fuzzyMatch, stemRu } from '@/lib/searchUtils';
 
 const parseFiltersFromURL = (params: URLSearchParams) => ({
   searchQuery: params.get("q") || "",
