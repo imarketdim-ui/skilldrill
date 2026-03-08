@@ -434,16 +434,18 @@ const Catalog = () => {
         if (s.price != null) {
           if (s.price < priceRange[0] || s.price > priceRange[1]) return false;
         }
-        if (categoryFilter !== CATEGORY_ALL && s.category_name) {
-          // category filter applied via category_name match
-          const cat = categories.find(c => c.id === categoryFilter);
-          if (cat && s.category_name !== cat.name) return false;
-        }
-        if (selectedTags.length > 0) {
-          // Services don't have hashtags directly in ServiceCardData yet, skip
+        if (categoryFilter !== CATEGORY_ALL) {
+          const svc = s as any;
+          if (svc.category_id && svc.category_id !== categoryFilter) return false;
+          if (!svc.category_id && s.category_name) {
+            const cat = categories.find(c => c.id === categoryFilter);
+            if (cat && s.category_name !== cat.name) return false;
+          }
         }
         if (locationFilter) {
-          if (!(s.master_location || "").toLowerCase().includes(locationFilter.toLowerCase())) return false;
+          const svc = s as any;
+          if (svc.city && svc.city.toLowerCase() === locationFilter.toLowerCase()) { /* match */ }
+          else if (!(s.master_location || "").toLowerCase().includes(locationFilter.toLowerCase())) return false;
         }
         return true;
       })
