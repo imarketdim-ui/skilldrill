@@ -311,11 +311,11 @@ const Catalog = () => {
 
       if (!data || data.length === 0) { setServices([]); return; }
 
-      // Get master_profiles for address + category
+      // Get master_profiles for address + category + city
       const masterIds = [...new Set((data as any[]).map((s: any) => s.master_id))];
       const { data: mpData } = await supabase
         .from("master_profiles")
-        .select("user_id, address, category_id, service_categories!master_profiles_category_id_fkey(name)")
+        .select("user_id, address, city, category_id, service_categories!master_profiles_category_id_fkey(name)")
         .in("user_id", masterIds);
 
       const mpMap: Record<string, any> = {};
@@ -333,10 +333,12 @@ const Catalog = () => {
           master_id: s.master_id,
           master_name: [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "Мастер",
           master_avatar: profile?.avatar_url || null,
-          master_location: mp?.address || "Абакан",
+          master_location: mp?.address || null,
           master_rating: null,
           master_review_count: 0,
           category_name: mp?.service_categories?.name || null,
+          category_id: mp?.category_id || null,
+          city: mp?.city || null,
         };
       });
       setServices(mapped);
