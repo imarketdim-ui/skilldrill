@@ -279,7 +279,7 @@ const Catalog = () => {
           images: photos,
           rating: null,
           review_count: 0,
-          address: bl.address || "Абакан",
+          address: bl.address || null,
           city: bl.city || null,
           description: bl.description,
           category_name: cat?.name || bl.category_id ? categories.find(c => c.id === bl.category_id)?.name || null : null,
