@@ -21,7 +21,7 @@ import SupportChat from './SupportChat';
 
 const menuItems = [
   { key: 'overview', label: 'Главная', icon: LayoutDashboard },
-  { key: 'masters', label: 'Мастера', icon: Users },
+  { key: 'masters', label: 'Сотрудники', icon: Users },
   { key: 'services', label: 'Услуги', icon: ClipboardList },
   { key: 'schedule', label: 'Расписание', icon: Calendar },
   { key: 'finance', label: 'Финансы', icon: DollarSign },
