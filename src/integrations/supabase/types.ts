@@ -897,11 +897,12 @@ export type Database = {
       }
       disputes: {
         Row: {
-          booking_id: string
+          booking_id: string | null
           created_at: string
           description: string | null
           id: string
           initiator_id: string
+          lesson_booking_id: string | null
           reason: string
           resolution: string | null
           resolved_at: string | null
@@ -911,11 +912,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          booking_id: string
+          booking_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
           initiator_id: string
+          lesson_booking_id?: string | null
           reason: string
           resolution?: string | null
           resolved_at?: string | null
@@ -925,11 +927,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          booking_id?: string
+          booking_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
           initiator_id?: string
+          lesson_booking_id?: string | null
           reason?: string
           resolution?: string | null
           resolved_at?: string | null
@@ -951,6 +954,13 @@ export type Database = {
             columns: ["initiator_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "disputes_lesson_booking_id_fkey"
+            columns: ["lesson_booking_id"]
+            isOneToOne: false
+            referencedRelation: "lesson_bookings"
             referencedColumns: ["id"]
           },
           {

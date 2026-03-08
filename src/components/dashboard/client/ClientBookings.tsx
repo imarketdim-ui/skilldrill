@@ -57,6 +57,7 @@ export default function ClientBookings({ userId }: Props) {
           date: b.scheduled_at,
           title: (b as any).services?.name || 'Услуга',
           master: `${(b as any).profiles?.first_name || ''} ${(b as any).profiles?.last_name || ''}`.trim(),
+          master_id: b.executor_id,
           duration: b.duration_minutes,
           canCancel: ['pending', 'confirmed'].includes(b.status),
           canDispute: b.status === 'completed',
@@ -71,9 +72,10 @@ export default function ClientBookings({ userId }: Props) {
           date: `${lesson?.lesson_date}T${lesson?.start_time}`,
           title: lesson?.title || 'Занятие',
           master: `${lesson?.profiles?.first_name || ''} ${lesson?.profiles?.last_name || ''}`.trim(),
+          master_id: lesson?.teacher_id || null,
           duration: null,
           canCancel: ['pending', 'confirmed'].includes(lb.status),
-          canDispute: false,
+          canDispute: ['completed', 'no_show'].includes(lb.status),
         });
       });
 
@@ -133,13 +135,18 @@ export default function ClientBookings({ userId }: Props) {
     setSubmitting(true);
     const booking = bookings.find(b => b.id === disputeDialog);
     if (booking) {
-      await supabase.from('disputes').insert({
-        booking_id: disputeDialog,
+      const insertData: any = {
         initiator_id: userId,
         respondent_id: booking.master_id || userId,
         reason: reason,
         description: reason,
-      });
+      };
+      if (booking.type === 'booking') {
+        insertData.booking_id = disputeDialog;
+      } else {
+        insertData.lesson_booking_id = disputeDialog;
+      }
+      await supabase.from('disputes').insert(insertData);
       toast({ title: 'Спор открыт' });
     }
     setDisputeDialog(null);
