@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Settings, LogOut } from 'lucide-react';
+import { Sparkles, LogOut } from 'lucide-react';
 import RoleSwitcher from './RoleSwitcher';
 
 interface DashboardLayoutProps {
@@ -32,9 +32,6 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           <RoleSwitcher />
 
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
-              <Settings className="h-5 w-5" />
-            </Button>
             <Button variant="ghost" size="icon" onClick={handleSignOut}>
               <LogOut className="h-5 w-5" />
             </Button>
