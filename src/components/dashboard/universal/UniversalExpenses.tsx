@@ -29,8 +29,35 @@ const UniversalExpenses = ({ config }: Props) => {
   const fetchExpenses = async () => {
     if (!user) return;
     setLoading(true);
-    const { data } = await supabase.from('teaching_expenses').select('*').eq('teacher_id', user.id).order('expense_date', { ascending: false });
-    setExpenses(data || []);
+
+    // Fetch from teaching_expenses (personal expenses)
+    const { data: te } = await supabase.from('teaching_expenses').select('*').eq('teacher_id', user.id).order('expense_date', { ascending: false });
+
+    // Also check for business_finances expense records if master is in an org
+    const { data: mp } = await supabase.from('master_profiles').select('business_id').eq('user_id', user.id).maybeSingle();
+    let bizExpenses: any[] = [];
+    if (mp?.business_id) {
+      const { data: bf } = await supabase.from('business_finances')
+        .select('*')
+        .eq('business_id', mp.business_id)
+        .eq('master_id', user.id)
+        .eq('type', 'expense')
+        .order('date', { ascending: false });
+      bizExpenses = (bf || []).map(e => ({
+        id: e.id,
+        category: e.category,
+        amount: e.amount,
+        description: e.description,
+        expense_date: e.date,
+        source: 'business',
+      }));
+    }
+
+    const personal = (te || []).map(e => ({ ...e, source: 'personal' }));
+    const combined = [...personal, ...bizExpenses].sort((a, b) =>
+      new Date(b.expense_date || b.date).getTime() - new Date(a.expense_date || a.date).getTime()
+    );
+    setExpenses(combined);
     setLoading(false);
   };
 
@@ -44,8 +71,12 @@ const UniversalExpenses = ({ config }: Props) => {
     else { toast({ title: 'Расход добавлен' }); setIsOpen(false); setForm({ category: '', amount: '', description: '', expense_date: format(new Date(), 'yyyy-MM-dd') }); fetchExpenses(); }
   };
 
-  const handleDelete = async (id: string) => {
-    await supabase.from('teaching_expenses').delete().eq('id', id);
+  const handleDelete = async (expense: any) => {
+    if (expense.source === 'business') {
+      await supabase.from('business_finances').delete().eq('id', expense.id);
+    } else {
+      await supabase.from('teaching_expenses').delete().eq('id', expense.id);
+    }
     toast({ title: 'Расход удалён' }); fetchExpenses();
   };
 
@@ -91,8 +122,18 @@ const UniversalExpenses = ({ config }: Props) => {
         <div className="space-y-2">
           {expenses.map(e => (
             <Card key={e.id}><CardContent className="py-3"><div className="flex items-center justify-between">
-              <div><div className="flex items-center gap-2"><Badge variant="outline">{e.category}</Badge><span className="text-sm text-muted-foreground">{e.expense_date}</span></div>{e.description && <p className="text-sm mt-1">{e.description}</p>}</div>
-              <div className="flex items-center gap-2"><span className="font-bold">{Number(e.amount).toLocaleString()} ₽</span><Button size="icon" variant="ghost" onClick={() => handleDelete(e.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button></div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline">{e.category}</Badge>
+                  <span className="text-sm text-muted-foreground">{e.expense_date}</span>
+                  {e.source === 'business' && <Badge variant="secondary" className="text-[10px]">Бизнес</Badge>}
+                </div>
+                {e.description && <p className="text-sm mt-1">{e.description}</p>}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold">{Number(e.amount).toLocaleString()} ₽</span>
+                <Button size="icon" variant="ghost" onClick={() => handleDelete(e)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+              </div>
             </div></CardContent></Card>
           ))}
         </div>

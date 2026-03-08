@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
+import { useUnifiedBookings, getUniqueClients } from '@/hooks/useUnifiedBookings';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TrendingUp, TrendingDown, Users, BarChart3, Banknote, Calendar, Clock } from 'lucide-react';
 import { CategoryConfig } from './categoryConfig';
@@ -12,77 +12,64 @@ interface Props { config: CategoryConfig; }
 
 const UniversalStats = ({ config }: Props) => {
   const { user } = useAuth();
-  const [stats, setStats] = useState({
-    totalSessions: 0, completedSessions: 0, cancelledSessions: 0, noShowSessions: 0,
-    totalClients: 0, totalIncome: 0, totalExpenses: 0, avgPrice: 0, completionRate: 0,
-    totalWorkHours: 0,
-  });
-  const [monthlyData, setMonthlyData] = useState<{ month: string; income: number; sessions: number; clients: number }[]>([]);
+  const { bookings, loading } = useUnifiedBookings(user?.id);
 
-  useEffect(() => {
-    if (!user) return;
-    const fetchStats = async () => {
-      const [sRes, bRes, eRes] = await Promise.all([
-        supabase.from('lessons').select('*').eq('teacher_id', user.id),
-        supabase.from('lesson_bookings').select('student_id, lesson_id, lessons!inner(teacher_id, lesson_date, price, status)').eq('lessons.teacher_id', user.id),
-        supabase.from('teaching_expenses').select('amount').eq('teacher_id', user.id),
-      ]);
-      const sessions = sRes.data || [];
-      const bookings = bRes.data || [];
-      const expenses = eRes.data || [];
-      const completed = sessions.filter(s => s.status === 'completed');
-      const totalIncome = completed.reduce((s, l) => s + Number(l.price), 0);
-      const totalExpenses = expenses.reduce((s, e) => s + Number(e.amount), 0);
+  const stats = useMemo(() => {
+    const completed = bookings.filter(b => b.status === 'completed');
+    const cancelled = bookings.filter(b => b.status === 'cancelled');
+    const noShow = bookings.filter(b => b.status === 'no_show');
+    const clients = getUniqueClients(bookings);
+    const totalIncome = completed.reduce((s, b) => s + b.price, 0);
 
-      // Calculate total work hours from completed sessions
-      const totalWorkMinutes = completed.reduce((s, l) => {
-        const start = l.start_time;
-        const end = l.end_time;
-        if (start && end) {
-          const [sh, sm] = start.split(':').map(Number);
-          const [eh, em] = end.split(':').map(Number);
-          return s + (eh * 60 + em) - (sh * 60 + sm);
-        }
-        return s;
-      }, 0);
+    // Calculate work hours from sessions with start/end times
+    let totalWorkMinutes = 0;
+    completed.forEach(b => {
+      if (b.startTime && b.endTime) {
+        const [sh, sm] = b.startTime.split(':').map(Number);
+        const [eh, em] = b.endTime.split(':').map(Number);
+        totalWorkMinutes += (eh * 60 + em) - (sh * 60 + sm);
+      } else if (b.durationMinutes) {
+        totalWorkMinutes += b.durationMinutes;
+      }
+    });
 
-      setStats({
-        totalSessions: sessions.length,
-        completedSessions: completed.length,
-        cancelledSessions: sessions.filter(s => s.status === 'cancelled').length,
-        noShowSessions: sessions.filter(s => s.status === 'no_show').length,
-        totalClients: new Set(bookings.map(b => b.student_id)).size,
-        totalIncome, totalExpenses,
-        avgPrice: completed.length > 0 ? Math.round(totalIncome / completed.length) : 0,
-        completionRate: sessions.length > 0 ? Math.round((completed.length / sessions.length) * 100) : 0,
-        totalWorkHours: Math.round(totalWorkMinutes / 60),
-      });
-
-      // Monthly breakdown (last 6 months)
-      const now = new Date();
-      const months = eachMonthOfInterval({ start: subMonths(now, 5), end: now });
-      const monthly = months.map(m => {
-        const mStart = startOfMonth(m);
-        const mEnd = endOfMonth(m);
-        const mSessions = completed.filter(s => {
-          const d = new Date(s.lesson_date);
-          return d >= mStart && d <= mEnd;
-        });
-        const mBookings = bookings.filter(b => {
-          const d = new Date((b.lessons as any)?.lesson_date);
-          return d >= mStart && d <= mEnd;
-        });
-        return {
-          month: format(m, 'LLL', { locale: ru }),
-          income: mSessions.reduce((s, l) => s + Number(l.price), 0),
-          sessions: mSessions.length,
-          clients: new Set(mBookings.map(b => b.student_id)).size,
-        };
-      });
-      setMonthlyData(monthly);
+    return {
+      totalSessions: bookings.length,
+      completedSessions: completed.length,
+      cancelledSessions: cancelled.length,
+      noShowSessions: noShow.length,
+      totalClients: clients.length,
+      totalIncome,
+      avgPrice: completed.length > 0 ? Math.round(totalIncome / completed.length) : 0,
+      completionRate: bookings.length > 0 ? Math.round((completed.length / bookings.length) * 100) : 0,
+      totalWorkHours: Math.round(totalWorkMinutes / 60),
     };
-    fetchStats();
-  }, [user]);
+  }, [bookings]);
+
+  const monthlyData = useMemo(() => {
+    const now = new Date();
+    const months = eachMonthOfInterval({ start: subMonths(now, 5), end: now });
+    const completed = bookings.filter(b => b.status === 'completed');
+    return months.map(m => {
+      const mStart = startOfMonth(m);
+      const mEnd = endOfMonth(m);
+      const mCompleted = completed.filter(b => {
+        const d = new Date(b.date);
+        return d >= mStart && d <= mEnd;
+      });
+      const mAll = bookings.filter(b => {
+        const d = new Date(b.date);
+        return d >= mStart && d <= mEnd;
+      });
+      const clientIds = new Set(mAll.filter(b => b.clientId).map(b => b.clientId));
+      return {
+        month: format(m, 'LLL', { locale: ru }),
+        income: mCompleted.reduce((s, b) => s + b.price, 0),
+        sessions: mCompleted.length,
+        clients: clientIds.size,
+      };
+    });
+  }, [bookings]);
 
   const IconComponent = config.icon;
   const cards = [
@@ -91,15 +78,13 @@ const UniversalStats = ({ config }: Props) => {
     { icon: Users, label: config.clientNamePlural, value: stats.totalClients, color: 'text-primary' },
     { icon: Clock, label: 'Часов работы', value: stats.totalWorkHours, color: 'text-primary' },
     { icon: TrendingUp, label: 'Доход', value: `${stats.totalIncome.toLocaleString()} ₽`, color: 'text-primary' },
-    { icon: TrendingDown, label: 'Расходы', value: `${stats.totalExpenses.toLocaleString()} ₽`, color: 'text-destructive' },
-    { icon: Banknote, label: 'Прибыль', value: `${(stats.totalIncome - stats.totalExpenses).toLocaleString()} ₽`, color: 'text-primary' },
-    { icon: BarChart3, label: 'Ср. цена', value: `${stats.avgPrice.toLocaleString()} ₽`, color: 'text-muted-foreground' },
+    { icon: Banknote, label: 'Ср. цена', value: `${stats.avgPrice.toLocaleString()} ₽`, color: 'text-muted-foreground' },
   ];
 
   return (
     <div className="space-y-6">
       <h3 className="text-lg font-semibold">Статистика</h3>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((c, i) => (
           <Card key={i}><CardContent className="pt-6"><div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-muted"><c.icon className={`h-5 w-5 ${c.color}`} /></div>
@@ -108,7 +93,6 @@ const UniversalStats = ({ config }: Props) => {
         ))}
       </div>
 
-      {/* Status breakdown */}
       <Card>
         <CardHeader><CardTitle>Статусы</CardTitle></CardHeader>
         <CardContent>
@@ -121,7 +105,6 @@ const UniversalStats = ({ config }: Props) => {
         </CardContent>
       </Card>
 
-      {/* Monthly income chart */}
       {monthlyData.length > 0 && (
         <Card>
           <CardHeader><CardTitle>Доход по месяцам</CardTitle></CardHeader>
@@ -141,7 +124,6 @@ const UniversalStats = ({ config }: Props) => {
         </Card>
       )}
 
-      {/* Monthly clients chart */}
       {monthlyData.length > 0 && (
         <Card>
           <CardHeader><CardTitle>Загрузка по месяцам</CardTitle></CardHeader>
@@ -162,7 +144,6 @@ const UniversalStats = ({ config }: Props) => {
         </Card>
       )}
 
-      {/* Completion rate */}
       <Card>
         <CardContent className="pt-6">
           <div className="flex items-center justify-between">

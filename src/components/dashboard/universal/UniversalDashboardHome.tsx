@@ -1,106 +1,72 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { useUnifiedBookings, getUniqueClients } from '@/hooks/useUnifiedBookings';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Calendar, Users, Banknote, AlertTriangle, Clock, CheckCircle, MessageSquare, Plus, User, ExternalLink } from 'lucide-react';
-import { format, isToday, formatDistanceToNow } from 'date-fns';
+import { Calendar, Users, Banknote, AlertTriangle, Clock, CheckCircle, MessageSquare, User, ExternalLink } from 'lucide-react';
+import { format, isToday, formatDistanceToNow, startOfMonth, subMonths } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { CategoryConfig } from './categoryConfig';
 
-interface Props {
-  config: CategoryConfig;
-}
+interface Props { config: CategoryConfig; }
 
 const UniversalDashboardHome = ({ config }: Props) => {
   const { user, profile } = useAuth();
+  const { bookings, loading: bookingsLoading } = useUnifiedBookings(user?.id);
   const [masterProfile, setMasterProfile] = useState<any>(null);
   const [serviceCount, setServiceCount] = useState<number | null>(null);
-  const [stats, setStats] = useState({
-    todaySessions: 0, todayIndividual: 0, todayGroup: 0,
-    totalClients: 0,
-    monthIncome: 0, incomeGrowth: 0,
-    noShows: 0,
-  });
-  const [upcomingSessions, setUpcomingSessions] = useState<any[]>([]);
-  const [recentEvents, setRecentEvents] = useState<any[]>([]);
 
   useEffect(() => {
     if (!user) return;
-
-    const today = new Date().toISOString().split('T')[0];
-    const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
-    const lastMonthStart = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1).toISOString().split('T')[0];
-
     supabase.from('master_profiles')
       .select('*, service_categories(name)')
       .eq('user_id', user.id)
       .maybeSingle()
       .then(({ data }) => setMasterProfile(data));
-
     supabase.from('services').select('id', { count: 'exact' })
       .eq('master_id', user.id).eq('is_active', true)
       .then(({ count }) => setServiceCount(count || 0));
-    supabase.from('lessons')
-      .select('*')
-      .eq('teacher_id', user.id)
-      .eq('lesson_date', today)
-      .then(({ data }) => {
-        const items = data || [];
-        setStats(prev => ({
-          ...prev,
-          todaySessions: items.length,
-          todayIndividual: items.filter(i => i.lesson_type === 'individual').length,
-          todayGroup: items.filter(i => i.lesson_type === 'group').length,
-        }));
-      });
-
-    supabase.from('lessons')
-      .select('*, lesson_bookings(student_id, profiles:student_id(first_name, last_name, avatar_url))')
-      .eq('teacher_id', user.id)
-      .eq('status', 'scheduled')
-      .gte('lesson_date', today)
-      .order('lesson_date')
-      .order('start_time')
-      .limit(5)
-      .then(({ data }) => setUpcomingSessions(data || []));
-
-    supabase.from('lesson_bookings')
-      .select('student_id, lessons!inner(teacher_id)')
-      .eq('lessons.teacher_id', user.id)
-      .then(({ data }) => {
-        if (data) setStats(prev => ({ ...prev, totalClients: new Set(data.map(b => b.student_id)).size }));
-      });
-
-    Promise.all([
-      supabase.from('lessons').select('price').eq('teacher_id', user.id).eq('status', 'completed').gte('lesson_date', monthStart),
-      supabase.from('lessons').select('price').eq('teacher_id', user.id).eq('status', 'completed').gte('lesson_date', lastMonthStart).lt('lesson_date', monthStart),
-    ]).then(([currentRes, lastRes]) => {
-      const current = (currentRes.data || []).reduce((s, l) => s + Number(l.price), 0);
-      const last = (lastRes.data || []).reduce((s, l) => s + Number(l.price), 0);
-      setStats(prev => ({
-        ...prev,
-        monthIncome: current,
-        incomeGrowth: last > 0 ? Math.round(((current - last) / last) * 100) : 0,
-      }));
-    });
-
-    supabase.from('lessons')
-      .select('id', { count: 'exact' })
-      .eq('teacher_id', user.id)
-      .eq('status', 'no_show')
-      .gte('lesson_date', monthStart)
-      .then(({ count }) => setStats(prev => ({ ...prev, noShows: count || 0 })));
-
-    supabase.from('lesson_bookings')
-      .select('*, lessons!inner(title, teacher_id, lesson_date, status), profiles:student_id(first_name, last_name)')
-      .eq('lessons.teacher_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(5)
-      .then(({ data }) => setRecentEvents(data || []));
   }, [user]);
+
+  const stats = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const monthStart = startOfMonth(new Date());
+    const lastMonthStart = startOfMonth(subMonths(new Date(), 1));
+
+    const todayBookings = bookings.filter(b => b.date.startsWith(today));
+    const clients = getUniqueClients(bookings);
+
+    const currentMonthCompleted = bookings.filter(b => b.status === 'completed' && new Date(b.date) >= monthStart);
+    const lastMonthCompleted = bookings.filter(b => b.status === 'completed' && new Date(b.date) >= lastMonthStart && new Date(b.date) < monthStart);
+
+    const currentIncome = currentMonthCompleted.reduce((s, b) => s + b.price, 0);
+    const lastIncome = lastMonthCompleted.reduce((s, b) => s + b.price, 0);
+
+    const noShows = bookings.filter(b => b.status === 'no_show' && new Date(b.date) >= monthStart).length;
+
+    return {
+      todaySessions: todayBookings.length,
+      todayIndividual: todayBookings.filter(b => b.type === 'individual').length,
+      todayGroup: todayBookings.filter(b => b.type === 'group').length,
+      totalClients: clients.length,
+      monthIncome: currentIncome,
+      incomeGrowth: lastIncome > 0 ? Math.round(((currentIncome - lastIncome) / lastIncome) * 100) : 0,
+      noShows,
+    };
+  }, [bookings]);
+
+  const upcomingSessions = useMemo(() => {
+    const now = new Date();
+    return bookings
+      .filter(b => new Date(b.date) >= now && (b.status === 'scheduled' || b.status === 'confirmed' || b.status === 'pending'))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .slice(0, 5);
+  }, [bookings]);
+
+  const recentEvents = useMemo(() => bookings.slice(0, 5), [bookings]);
 
   const getInitials = (firstName?: string | null, lastName?: string | null) =>
     `${(firstName || '')[0] || ''}${(lastName || '')[0] || ''}`.toUpperCase() || '?';
@@ -119,13 +85,12 @@ const UniversalDashboardHome = ({ config }: Props) => {
     }
   };
 
-  const getActivityText = (event: any) => {
-    const name = `${(event.profiles as any)?.first_name || ''} ${(event.profiles as any)?.last_name || ''}`.trim() || config.clientName;
-    switch (event.status) {
-      case 'confirmed': return `${name} записался`;
-      case 'completed': return `${config.sessionName} с ${name} завершён`;
-      case 'cancelled': return `${name} отменил запись`;
-      default: return `${name} — ${(event.lessons as any)?.title}`;
+  const getActivityText = (b: typeof bookings[0]) => {
+    switch (b.status) {
+      case 'confirmed': case 'pending': return `${b.clientName} записался`;
+      case 'completed': return `${b.serviceName} с ${b.clientName} завершён`;
+      case 'cancelled': return `${b.clientName} отменил запись`;
+      default: return `${b.clientName} — ${b.serviceName}`;
     }
   };
 
@@ -153,7 +118,6 @@ const UniversalDashboardHome = ({ config }: Props) => {
           <h2 className="text-2xl font-bold">Добро пожаловать! {config.welcomeEmoji}</h2>
           <p className="text-muted-foreground">Вот что происходит сегодня</p>
         </div>
-        {/* Button removed — bookings created from schedule */}
       </div>
 
       <Card>
@@ -271,24 +235,21 @@ const UniversalDashboardHome = ({ config }: Props) => {
             ) : (
               <div className="space-y-4">
                 {upcomingSessions.map(s => {
-                  const booking = (s.lesson_bookings as any[])?.[0];
-                  const sp = booking?.profiles;
-                  const name = sp ? `${sp.first_name || ''} ${sp.last_name || ''}`.trim() : s.title;
-                  const initials = sp ? getInitials(sp.first_name, sp.last_name) : s.title.substring(0, 2).toUpperCase();
+                  const initials = getInitials(s.clientFirstName, s.clientLastName);
                   return (
                     <div key={s.id} className="flex items-center gap-3">
                       <div className="text-center shrink-0 w-16">
-                        <p className="text-xs text-muted-foreground">{getDateLabel(s.lesson_date)}</p>
-                        <p className="text-lg font-bold">{s.start_time?.slice(0, 5)}</p>
+                        <p className="text-xs text-muted-foreground">{getDateLabel(s.date)}</p>
+                        <p className="text-lg font-bold">{s.startTime?.slice(0, 5) || '—'}</p>
                       </div>
                       <div className="w-px h-10 bg-border" />
                       <Avatar className="h-9 w-9">
                         <AvatarFallback className="text-xs bg-primary/10 text-primary">{initials}</AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{name}</p>
-                        <Badge variant={s.lesson_type === 'group' ? 'secondary' : 'outline'} className="text-xs mt-0.5">
-                          {s.lesson_type === 'group' ? `Группа (${s.current_participants}/${s.max_participants})` : 'Индивидуально'}
+                        <p className="font-medium text-sm truncate">{s.clientName || s.serviceName}</p>
+                        <Badge variant={s.type === 'group' ? 'secondary' : 'outline'} className="text-xs mt-0.5">
+                          {s.source === 'lesson' ? (s.type === 'group' ? 'Группа' : 'Индивидуально') : s.serviceName}
                         </Badge>
                       </div>
                       <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -315,7 +276,7 @@ const UniversalDashboardHome = ({ config }: Props) => {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium">{getActivityText(event)}</p>
                       <p className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(event.created_at), { addSuffix: true, locale: ru })}
+                        {formatDistanceToNow(new Date(event.date), { addSuffix: true, locale: ru })}
                       </p>
                     </div>
                   </div>
