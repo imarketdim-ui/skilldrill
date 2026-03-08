@@ -143,7 +143,7 @@ const ClientSettingsSection = () => {
           <CardDescription>Обновите вашу контактную информацию</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="first_name">Имя</Label>
