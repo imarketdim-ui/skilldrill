@@ -14,7 +14,7 @@ import SubscriptionManager from './SubscriptionManager';
 import SupportChat from './SupportChat';
 
 const NetworkDashboard = () => {
-  const { user } = useAuth();
+  const { user, activeEntityId } = useAuth();
   const [networks, setNetworks] = useState<any[]>([]);
   const [selectedNetwork, setSelectedNetwork] = useState<any>(null);
   const [locations, setLocations] = useState<any[]>([]);
