@@ -72,9 +72,9 @@ const AdminDashboard = () => {
   };
 
   const loadModerationItems = async () => {
-    const masters: any = await supabase.from('master_profiles').select('*, service_categories(name)').eq('moderation_status', 'pending');
-    const businesses: any = await supabase.from('business_locations').select('*').eq('moderation_status', 'pending');
-    const networks: any = await supabase.from('networks').select('*').eq('moderation_status', 'pending');
+    const masters: any = await supabase.from('master_profiles').select('*, service_categories(name), profiles!master_profiles_user_id_fkey(first_name, last_name, email, skillspot_id)').eq('moderation_status', 'pending');
+    const businesses: any = await supabase.from('business_locations').select('*, profiles!business_locations_owner_id_fkey(first_name, last_name, email, skillspot_id)').eq('moderation_status', 'pending');
+    const networks: any = await supabase.from('networks').select('*, profiles!networks_owner_id_fkey(first_name, last_name, email, skillspot_id)').eq('moderation_status', 'pending');
 
     const items: any[] = [];
     (masters.data || []).forEach(m => items.push({ ...m, _type: 'master', _table: 'master_profiles', _idField: 'id' }));
@@ -304,7 +304,31 @@ const AdminDashboard = () => {
             <Card>
               <CardHeader><CardTitle>Споры</CardTitle></CardHeader>
               <CardContent>
-                <div className="text-center py-8 text-muted-foreground"><AlertTriangle className="h-10 w-10 mx-auto mb-3 opacity-50" /><p>Нет открытых споров</p></div>
+                {disputes.filter(d => d.status === 'open').length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground"><AlertTriangle className="h-10 w-10 mx-auto mb-3 opacity-50" /><p>Нет открытых споров</p></div>
+                ) : (
+                  <div className="space-y-3">
+                    {disputes.filter(d => d.status === 'open').map((d) => (
+                      <div key={d.id} className="p-4 rounded-lg border space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Badge variant="destructive">Открыт</Badge>
+                          <span className="text-xs text-muted-foreground">{new Date(d.created_at).toLocaleDateString('ru')}</span>
+                        </div>
+                        <p className="font-medium">{d.reason}</p>
+                        {d.description && <p className="text-sm text-muted-foreground">{d.description}</p>}
+                        <div className="flex gap-2">
+                          <Input placeholder="Решение" id={`resolution-${d.id}`} />
+                          <Button size="sm" onClick={async () => {
+                            const resolution = (document.getElementById(`resolution-${d.id}`) as HTMLInputElement)?.value;
+                            await supabase.from('disputes').update({ status: 'resolved', resolution, resolved_by: user!.id, resolved_at: new Date().toISOString() }).eq('id', d.id);
+                            toast({ title: 'Спор разрешён' });
+                            loadData();
+                          }}>Разрешить</Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

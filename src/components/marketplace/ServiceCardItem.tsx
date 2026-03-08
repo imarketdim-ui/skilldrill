@@ -17,6 +17,10 @@ export interface ServiceCardData {
   master_rating: number | null;
   master_review_count: number;
   category_name: string | null;
+  category_id?: string | null;
+  city?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 interface Props {
