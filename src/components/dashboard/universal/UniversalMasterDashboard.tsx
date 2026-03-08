@@ -163,16 +163,12 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
 
   if (!isSubscriptionActive && masterProfile) {
     return (
-      <Card className="border-destructive">
-        <CardContent className="pt-6 text-center">
-          <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-destructive" />
-          <h2 className="text-xl font-bold mb-2">Подписка неактивна</h2>
-          <p className="text-muted-foreground mb-4">
-            Ваши данные сохранены, но интерфейс мастера недоступен. Оплатите подписку ({pricing.master} ₽/мес) для продолжения работы.
-          </p>
-          <Button onClick={() => setActiveSection('finances')}>Оплатить подписку</Button>
-        </CardContent>
-      </Card>
+      <SubscriptionPaywall
+        entityType="master"
+        entityId={masterProfile.id}
+        entityName={masterProfile.short_description || 'Мастер'}
+        onPaid={() => window.location.reload()}
+      />
     );
   }
 
