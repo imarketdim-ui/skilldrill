@@ -508,6 +508,14 @@ const ProfileCompletionCheck = ({ entityType, entityData, onProfileUpdated }: Pr
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={!!deleteServiceId}
+        onOpenChange={(open) => !open && setDeleteServiceId(null)}
+        title="Удалить услугу?"
+        description="Эта услуга будет удалена. Действие нельзя отменить."
+        onConfirm={() => deleteServiceId && handleDeleteService(deleteServiceId)}
+      />
     </>
   );
 };
