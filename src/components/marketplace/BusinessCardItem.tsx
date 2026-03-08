@@ -16,6 +16,7 @@ interface Props {
   category_name?: string | null;
   specialist_count?: number;
   service_count?: number;
+  moderation_status?: string | null;
   onClick: () => void;
 }
 
