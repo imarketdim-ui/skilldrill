@@ -387,6 +387,10 @@ const AdminDashboard = () => {
           </Card>
         </TabsContent>
 
+        <TabsContent value="promo_codes">
+          <AdminPromoCodes />
+        </TabsContent>
+
         <TabsContent value="support">
           <SupportChat isAdmin />
         </TabsContent>
