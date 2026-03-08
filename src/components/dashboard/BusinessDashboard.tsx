@@ -32,6 +32,8 @@ const menuItems = [
   { key: 'services', label: 'Услуги', icon: ClipboardList },
   { key: 'inventory', label: 'Склад', icon: Package },
   { key: 'schedule', label: 'Расписание', icon: Calendar },
+  { key: 'promotions', label: 'Акции', icon: Percent },
+  { key: 'marketing', label: 'Рассылки', icon: Megaphone },
   { key: 'finance', label: 'Финансы', icon: DollarSign },
   { key: 'subscription', label: 'Подписка', icon: CreditCard },
   { key: 'support', label: 'Поддержка', icon: MessageSquare },
