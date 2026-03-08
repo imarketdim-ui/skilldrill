@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
   Building2, Users, ClipboardList, Calendar, DollarSign, Settings, 
-  ArrowRightLeft, UserPlus, AlertTriangle, MessageSquare, LayoutDashboard, CreditCard
+  ArrowRightLeft, UserPlus, AlertTriangle, MessageSquare, LayoutDashboard, CreditCard, Package
 } from 'lucide-react';
 import ProfileCompletionCheck from './ProfileCompletionCheck';
 import SubscriptionManager from './SubscriptionManager';
