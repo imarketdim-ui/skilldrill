@@ -66,17 +66,46 @@ const UniversalClients = ({ config }: Props) => {
   const fetchClients = async () => {
     if (!user) return;
     setLoading(true);
-    const [{ data: bookings }, { data: blData }] = await Promise.all([
+
+    // Fetch from BOTH lesson_bookings and marketplace bookings
+    const [{ data: lessonBookings }, { data: mktBookings }, { data: blData }] = await Promise.all([
       supabase.from('lesson_bookings')
         .select('student_id, status, lesson_id, created_at, lessons!inner(teacher_id, status, price, lesson_date)')
         .eq('lessons.teacher_id', user.id),
+      supabase.from('bookings')
+        .select('client_id, status, scheduled_at, services!bookings_service_id_fkey(price)')
+        .eq('executor_id', user.id),
       supabase.from('blacklists').select('blocked_id').eq('blocker_id', user.id),
     ]);
     const blSet = new Set((blData || []).map(b => b.blocked_id));
     setBlacklistedIds(blSet);
 
-    if (!bookings || bookings.length === 0) { setClients([]); setLoading(false); return; }
-    const clientIds = [...new Set(bookings.map(b => b.student_id))];
+    // Build unified client interaction records
+    type Interaction = { clientId: string; status: string; date: string; price: number; lessonStatus?: string };
+    const interactions: Interaction[] = [];
+
+    (lessonBookings || []).forEach(b => {
+      interactions.push({
+        clientId: b.student_id,
+        status: b.status,
+        date: (b.lessons as any)?.lesson_date || b.created_at,
+        price: Number((b.lessons as any)?.price || 0),
+        lessonStatus: (b.lessons as any)?.status,
+      });
+    });
+
+    (mktBookings || []).forEach(b => {
+      interactions.push({
+        clientId: b.client_id,
+        status: b.status,
+        date: b.scheduled_at,
+        price: Number((b.services as any)?.price || 0),
+      });
+    });
+
+    if (interactions.length === 0) { setClients([]); setLoading(false); return; }
+
+    const clientIds = [...new Set(interactions.map(i => i.clientId))];
 
     const [{ data: profiles }, { data: vipData }] = await Promise.all([
       supabase.from('profiles').select('id, first_name, last_name, email, phone, skillspot_id').in('id', clientIds),
@@ -85,20 +114,20 @@ const UniversalClients = ({ config }: Props) => {
     const vipSet = new Set((vipData || []).map(v => v.client_id));
 
     const list: ClientInfo[] = (profiles || []).map(p => {
-      const cb = bookings.filter(b => b.student_id === p.id);
-      const sorted = cb.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-      const lastSorted = [...cb].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      const completedBookings = cb.filter(b => (b.lessons as any)?.status === 'completed');
-      const ltv = completedBookings.reduce((sum, b) => sum + Number((b.lessons as any)?.price || 0), 0);
+      const ci = interactions.filter(i => i.clientId === p.id);
+      const sorted = ci.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      const lastSorted = [...ci].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      const completedInteractions = ci.filter(i => i.status === 'completed' || i.lessonStatus === 'completed');
+      const ltv = completedInteractions.reduce((sum, i) => sum + i.price, 0);
       return {
         id: p.id, first_name: p.first_name, last_name: p.last_name,
         email: p.email, phone: p.phone, skillspot_id: p.skillspot_id,
-        totalSessions: cb.length,
-        completedSessions: completedBookings.length,
-        noShows: cb.filter(b => b.status === 'cancelled' && (b.lessons as any)?.status === 'no_show').length,
-        cancellations: cb.filter(b => b.status === 'cancelled').length,
-        firstVisit: sorted.length > 0 ? (sorted[0].lessons as any)?.lesson_date : null,
-        lastVisit: lastSorted.length > 0 ? (lastSorted[0].lessons as any)?.lesson_date : null,
+        totalSessions: ci.length,
+        completedSessions: completedInteractions.length,
+        noShows: ci.filter(i => i.status === 'no_show' || i.lessonStatus === 'no_show').length,
+        cancellations: ci.filter(i => i.status === 'cancelled').length,
+        firstVisit: sorted.length > 0 ? sorted[0].date.split('T')[0] : null,
+        lastVisit: lastSorted.length > 0 ? lastSorted[0].date.split('T')[0] : null,
         isBlacklisted: blSet.has(p.id),
         vipByCount: vipSet.has(p.id) ? 1 : 0,
         ltv,
