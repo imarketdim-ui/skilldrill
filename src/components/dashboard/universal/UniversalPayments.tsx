@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,16 +8,27 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { CreditCard, Check, Clock, AlertCircle } from 'lucide-react';
 
+interface PaymentRecord {
+  id: string;
+  source: 'teaching' | 'booking';
+  clientName: string;
+  serviceName: string;
+  date: string;
+  amount: number;
+  status: string; // paid, unpaid, credited
+}
+
 const statusLabels: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
   unpaid: { label: 'Не оплачено', variant: 'destructive' },
   paid: { label: 'Оплачено', variant: 'default' },
   credited: { label: 'Засчитано', variant: 'secondary' },
+  completed: { label: 'Завершено', variant: 'default' },
 };
 
 const UniversalPayments = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [payments, setPayments] = useState<any[]>([]);
+  const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [filter, setFilter] = useState('all');
   const [loading, setLoading] = useState(true);
 
@@ -26,16 +37,56 @@ const UniversalPayments = () => {
   const fetchPayments = async () => {
     if (!user) return;
     setLoading(true);
-    const { data } = await supabase
+    const records: PaymentRecord[] = [];
+
+    // Fetch teaching payments
+    const { data: tp } = await supabase
       .from('teaching_payments')
       .select(`*, lesson_bookings!inner(student_id, lessons!inner(title, lesson_date, start_time, teacher_id), profiles:student_id(first_name, last_name))`)
       .eq('lesson_bookings.lessons.teacher_id', user.id)
       .order('created_at', { ascending: false });
-    setPayments(data || []);
+
+    (tp || []).forEach(p => {
+      const booking = p.lesson_bookings as any;
+      records.push({
+        id: p.id,
+        source: 'teaching',
+        clientName: `${booking?.profiles?.first_name || ''} ${booking?.profiles?.last_name || ''}`.trim() || 'Клиент',
+        serviceName: booking?.lessons?.title || 'Занятие',
+        date: booking?.lessons?.lesson_date || '',
+        amount: Number(p.amount),
+        status: p.status,
+      });
+    });
+
+    // Fetch completed marketplace bookings as payment records
+    const { data: bk } = await supabase
+      .from('bookings')
+      .select('id, status, scheduled_at, services!bookings_service_id_fkey(name, price), profiles!bookings_client_id_fkey(first_name, last_name)')
+      .eq('executor_id', user.id)
+      .eq('status', 'completed')
+      .order('scheduled_at', { ascending: false });
+
+    (bk || []).forEach(b => {
+      const svc = b.services as any;
+      const prof = b.profiles as any;
+      records.push({
+        id: b.id,
+        source: 'booking',
+        clientName: `${prof?.first_name || ''} ${prof?.last_name || ''}`.trim() || 'Клиент',
+        serviceName: svc?.name || 'Услуга',
+        date: b.scheduled_at?.split('T')[0] || '',
+        amount: Number(svc?.price || 0),
+        status: 'paid',
+      });
+    });
+
+    records.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    setPayments(records);
     setLoading(false);
   };
 
-  const updateStatus = async (id: string, status: string) => {
+  const updateTeachingPaymentStatus = async (id: string, status: string) => {
     const upd: any = { status };
     if (status === 'paid') upd.paid_at = new Date().toISOString();
     const { error } = await supabase.from('teaching_payments').update(upd).eq('id', id);
@@ -44,11 +95,11 @@ const UniversalPayments = () => {
   };
 
   const filtered = filter === 'all' ? payments : payments.filter(p => p.status === filter);
-  const totals = {
-    paid: payments.filter(p => p.status === 'paid').reduce((s, p) => s + Number(p.amount), 0),
-    unpaid: payments.filter(p => p.status === 'unpaid').reduce((s, p) => s + Number(p.amount), 0),
-    credited: payments.filter(p => p.status === 'credited').reduce((s, p) => s + Number(p.amount), 0),
-  };
+  const totals = useMemo(() => ({
+    paid: payments.filter(p => p.status === 'paid' || p.status === 'completed').reduce((s, p) => s + p.amount, 0),
+    unpaid: payments.filter(p => p.status === 'unpaid').reduce((s, p) => s + p.amount, 0),
+    credited: payments.filter(p => p.status === 'credited').reduce((s, p) => s + p.amount, 0),
+  }), [payments]);
 
   return (
     <div className="space-y-4">
@@ -70,21 +121,20 @@ const UniversalPayments = () => {
       ) : (
         <div className="space-y-2">
           {filtered.map(p => {
-            const booking = p.lesson_bookings as any;
             const st = statusLabels[p.status] || statusLabels.unpaid;
             return (
               <Card key={p.id}><CardContent className="py-3"><div className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium">{booking?.profiles?.first_name || 'Клиент'} {booking?.profiles?.last_name || ''}</p>
-                  <p className="text-sm text-muted-foreground">{booking?.lessons?.title} · {booking?.lessons?.lesson_date}</p>
+                  <p className="font-medium">{p.clientName}</p>
+                  <p className="text-sm text-muted-foreground">{p.serviceName} · {p.date}</p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="font-bold">{Number(p.amount).toLocaleString()} ₽</span>
+                  <span className="font-bold">{p.amount.toLocaleString()} ₽</span>
                   <Badge variant={st.variant}>{st.label}</Badge>
-                  {p.status === 'unpaid' && (
+                  {p.status === 'unpaid' && p.source === 'teaching' && (
                     <div className="flex gap-1">
-                      <Button size="sm" variant="outline" onClick={() => updateStatus(p.id, 'paid')}>Оплачено</Button>
-                      <Button size="sm" variant="ghost" onClick={() => updateStatus(p.id, 'credited')}>Засчитать</Button>
+                      <Button size="sm" variant="outline" onClick={() => updateTeachingPaymentStatus(p.id, 'paid')}>Оплачено</Button>
+                      <Button size="sm" variant="ghost" onClick={() => updateTeachingPaymentStatus(p.id, 'credited')}>Засчитать</Button>
                     </div>
                   )}
                 </div>
