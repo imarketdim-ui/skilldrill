@@ -123,16 +123,70 @@ const TeachingChats = () => {
     setLoading(false);
   };
 
+  const fetchGroups = async () => {
+    if (!user) return;
+    const { data: memberships } = await supabase.from('chat_group_members' as any)
+      .select('group_id').eq('user_id', user.id);
+    if (!memberships || memberships.length === 0) return;
+    const groupIds = memberships.map((m: any) => m.group_id);
+    const { data: groupsData } = await supabase.from('chat_groups' as any)
+      .select('*').in('id', groupIds);
+    if (!groupsData) return;
+
+    const groupList: ChatGroup[] = await Promise.all((groupsData as any[]).map(async (g) => {
+      const { count } = await supabase.from('chat_group_members' as any)
+        .select('id', { count: 'exact', head: true }).eq('group_id', g.id);
+      const { data: lastMsgs } = await supabase.from('chat_messages')
+        .select('message, created_at, sender_id')
+        .eq('chat_type', 'group').eq('reference_id', g.id)
+        .order('created_at', { ascending: false }).limit(1);
+      const { count: unreadCount } = await supabase.from('chat_messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('chat_type', 'group').eq('reference_id', g.id)
+        .eq('recipient_id', user.id).eq('is_read', false);
+      const last = lastMsgs?.[0];
+      return {
+        id: g.id, name: g.name, created_by: g.created_by,
+        member_count: count || 0,
+        lastMessage: last?.message,
+        lastMessageAt: last?.created_at,
+        unread: unreadCount || 0,
+      };
+    }));
+    setGroups(groupList.sort((a, b) => (b.lastMessageAt || '').localeCompare(a.lastMessageAt || '')));
+  };
+
   const openChat = async (contact: ChatContact) => {
     setSelectedContact(contact);
     setShowEmoji(false);
     if (!user) return;
-    const { data } = await supabase.from('chat_messages').select('*')
-      .or(`and(sender_id.eq.${user.id},recipient_id.eq.${contact.id}),and(sender_id.eq.${contact.id},recipient_id.eq.${user.id})`)
-      .order('created_at', { ascending: true });
-    setMessages(data || []);
-    // Mark as read + delivered
-    await supabase.from('chat_messages').update({ is_read: true, is_delivered: true }).eq('sender_id', contact.id).eq('recipient_id', user.id).eq('is_read', false);
+
+    if (contact.isGroup && contact.groupId) {
+      // Load group messages
+      const { data } = await supabase.from('chat_messages').select('*')
+        .eq('chat_type', 'group').eq('reference_id', contact.groupId)
+        .eq('recipient_id', user.id)
+        .order('created_at', { ascending: true });
+      // Also get messages sent by user in this group
+      const { data: sentMsgs } = await supabase.from('chat_messages').select('*')
+        .eq('chat_type', 'group').eq('reference_id', contact.groupId)
+        .eq('sender_id', user.id)
+        .order('created_at', { ascending: true });
+      const allMsgs = [...(data || []), ...(sentMsgs || [])];
+      const unique = Array.from(new Map(allMsgs.map(m => [m.id, m])).values());
+      unique.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      setMessages(unique);
+      // Mark as read
+      await supabase.from('chat_messages').update({ is_read: true, is_delivered: true })
+        .eq('chat_type', 'group').eq('reference_id', contact.groupId)
+        .eq('recipient_id', user.id).eq('is_read', false);
+    } else {
+      const { data } = await supabase.from('chat_messages').select('*')
+        .or(`and(sender_id.eq.${user.id},recipient_id.eq.${contact.id}),and(sender_id.eq.${contact.id},recipient_id.eq.${user.id})`)
+        .order('created_at', { ascending: true });
+      setMessages(data || []);
+      await supabase.from('chat_messages').update({ is_read: true, is_delivered: true }).eq('sender_id', contact.id).eq('recipient_id', user.id).eq('is_read', false);
+    }
     setContacts(prev => prev.map(c => c.id === contact.id ? { ...c, unread: 0 } : c));
   };
 
@@ -140,12 +194,40 @@ const TeachingChats = () => {
     if (!user || !selectedContact) return;
     if (!newMessage.trim() && !attachmentUrl) return;
 
+    const messageText = newMessage.trim() || (attachmentType === 'image' ? '📷 Фото' : '📎 Файл');
+
+    if (selectedContact.isGroup && selectedContact.groupId) {
+      // Send to all group members except self
+      const { data: members } = await supabase.from('chat_group_members' as any)
+        .select('user_id').eq('group_id', selectedContact.groupId);
+      const recipientIds = (members as any[] || []).map((m: any) => m.user_id).filter((id: string) => id !== user.id);
+      
+      const inserts = recipientIds.map((rid: string) => ({
+        sender_id: user.id,
+        recipient_id: rid,
+        message: messageText,
+        chat_type: 'group',
+        reference_id: selectedContact.groupId,
+        attachment_url: attachmentUrl || null,
+        attachment_type: attachmentType || null,
+      }));
+      
+      if (inserts.length > 0) {
+        await supabase.from('chat_messages').insert(inserts);
+      }
+      setNewMessage('');
+      setShowEmoji(false);
+      // Refresh messages
+      openChat(selectedContact);
+      return;
+    }
+
     const { data: blocked } = await supabase.from('blacklists').select('id').eq('blocker_id', selectedContact.id).eq('blocked_id', user.id).maybeSingle();
     if (blocked) { toast({ title: 'Чат заблокирован собеседником', variant: 'destructive' }); return; }
 
     const { error } = await supabase.from('chat_messages').insert({
       sender_id: user.id, recipient_id: selectedContact.id,
-      message: newMessage.trim() || (attachmentType === 'image' ? '📷 Фото' : '📎 Файл'),
+      message: messageText,
       chat_type: 'direct',
       attachment_url: attachmentUrl || null,
       attachment_type: attachmentType || null,
