@@ -12,7 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Camera, Gift, ChevronRight } from 'lucide-react';
 
-const profileSchema = z.object({
+import { z } from 'zod';
   first_name: z.string().trim().max(100, 'Максимум 100 символов').optional(),
   last_name: z.string().trim().max(100, 'Максимум 100 символов').optional(),
   phone: z.string().trim().max(20, 'Максимум 20 символов').optional(),
