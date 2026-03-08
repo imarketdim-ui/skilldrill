@@ -71,8 +71,7 @@ const sortOptions = [
   { value: "newest", label: "Новинки" },
 ];
 
-import { fuzzyMatch, stemRu, loadSynonyms, haversineDistance, formatDistance } from '@/lib/searchUtils';
-import type { } from '@/lib/searchUtils';
+import { fuzzyMatch, loadSynonyms, haversineDistance } from '@/lib/searchUtils';
 
 const parseFiltersFromURL = (params: URLSearchParams) => ({
   searchQuery: params.get("q") || "",
