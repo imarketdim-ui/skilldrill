@@ -189,6 +189,7 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
       case 'chats': return <TeachingChats />;
       case 'support': return <SupportChat />;
       case 'stats': return <UniversalStats config={config} />;
+      case 'achievements': return <MasterAchievements />;
       case 'requests': return <MasterRequests />;
       case 'notifications': return <MasterNotifications />;
       default: return <UniversalDashboardHome config={config} />;
