@@ -12,7 +12,9 @@ import {
 import { ReactNode } from "react";
 
 interface ConfirmDialogProps {
-  trigger: ReactNode;
+  trigger?: ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   title?: string;
   description?: string;
   confirmLabel?: string;
@@ -23,6 +25,8 @@ interface ConfirmDialogProps {
 
 export const ConfirmDialog = ({
   trigger,
+  open,
+  onOpenChange,
   title = "Подтверждение",
   description = "Вы уверены? Это действие нельзя отменить.",
   confirmLabel = "Удалить",
@@ -30,8 +34,8 @@ export const ConfirmDialog = ({
   onConfirm,
   variant = "destructive",
 }: ConfirmDialogProps) => (
-  <AlertDialog>
-    <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
+  <AlertDialog open={open} onOpenChange={onOpenChange}>
+    {trigger && <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>}
     <AlertDialogContent>
       <AlertDialogHeader>
         <AlertDialogTitle>{title}</AlertDialogTitle>
