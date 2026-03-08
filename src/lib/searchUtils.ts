@@ -73,20 +73,61 @@ type SynonymEntry = { term: string; synonyms: string[] };
 let synonymCache: SynonymEntry[] | null = null;
 let synonymLoadPromise: Promise<SynonymEntry[]> | null = null;
 
-/** Load synonyms from Supabase (cached) */
+/** Built-in NLP synonyms for common service-industry terms (RU) */
+const BUILTIN_SYNONYMS: SynonymEntry[] = [
+  { term: 'маникюр', synonyms: ['ногти', 'нейл', 'гель-лак', 'шеллак', 'nail'] },
+  { term: 'педикюр', synonyms: ['стопы', 'пятки', 'ногти на ногах'] },
+  { term: 'стрижка', synonyms: ['причёска', 'прическа', 'барбер', 'haircut', 'волосы'] },
+  { term: 'окрашивание', synonyms: ['покраска', 'колорирование', 'мелирование', 'балаяж', 'шатуш', 'тонирование'] },
+  { term: 'массаж', synonyms: ['spa', 'спа', 'релакс', 'massage', 'разминка', 'лимфодренаж'] },
+  { term: 'косметолог', synonyms: ['чистка лица', 'пилинг', 'уход за лицом', 'фейслифтинг', 'мезотерапия', 'биоревитализация'] },
+  { term: 'эпиляция', synonyms: ['депиляция', 'шугаринг', 'воск', 'лазер', 'удаление волос'] },
+  { term: 'брови', synonyms: ['микроблейдинг', 'ламинирование бровей', 'коррекция бровей', 'татуаж'] },
+  { term: 'ресницы', synonyms: ['наращивание ресниц', 'ламинирование ресниц', 'lashes'] },
+  { term: 'фитнес', synonyms: ['тренировка', 'зал', 'gym', 'спорт', 'тренер', 'йога', 'пилатес', 'растяжка'] },
+  { term: 'фото', synonyms: ['фотограф', 'фотосессия', 'съёмка', 'съемка', 'photo', 'photographer'] },
+  { term: 'макияж', synonyms: ['визажист', 'мейкап', 'makeup', 'make-up', 'визаж'] },
+  { term: 'репетитор', synonyms: ['учитель', 'преподаватель', 'обучение', 'урок', 'занятие', 'tutor'] },
+  { term: 'автосервис', synonyms: ['авто', 'машина', 'ремонт авто', 'шиномонтаж', 'СТО', 'детейлинг'] },
+  { term: 'уборка', synonyms: ['клининг', 'cleaning', 'чистка', 'химчистка', 'мойка'] },
+  { term: 'парикмахер', synonyms: ['салон красоты', 'стилист', 'hairdresser', 'укладка'] },
+  { term: 'татуировка', synonyms: ['тату', 'tattoo', 'татуаж'] },
+  { term: 'психолог', synonyms: ['психотерапевт', 'терапия', 'консультация', 'коуч', 'коучинг'] },
+  { term: 'нутрициолог', synonyms: ['диетолог', 'питание', 'диета', 'nutrition'] },
+];
+
+/** Load synonyms from Supabase (cached), merged with built-in NLP synonyms */
 export const loadSynonyms = async (): Promise<SynonymEntry[]> => {
   if (synonymCache) return synonymCache;
   if (synonymLoadPromise) return synonymLoadPromise;
 
   synonymLoadPromise = (async () => {
+    let dbSynonyms: SynonymEntry[] = [];
     try {
       const { supabase } = await import('@/integrations/supabase/client');
       const { data } = await supabase.from('search_synonyms').select('term, synonyms');
-      synonymCache = (data || []) as SynonymEntry[];
+      dbSynonyms = (data || []) as SynonymEntry[];
     } catch {
-      synonymCache = [];
+      // DB table may not exist yet — OK
     }
-    return synonymCache!;
+    // Merge: DB entries override built-in entries with the same term
+    const merged = new Map<string, SynonymEntry>();
+    for (const entry of BUILTIN_SYNONYMS) {
+      merged.set(entry.term.toLowerCase(), entry);
+    }
+    for (const entry of dbSynonyms) {
+      const key = entry.term.toLowerCase();
+      const existing = merged.get(key);
+      if (existing) {
+        // Merge synonym lists
+        const allSyns = new Set([...existing.synonyms.map(s => s.toLowerCase()), ...entry.synonyms.map(s => s.toLowerCase())]);
+        merged.set(key, { term: entry.term, synonyms: Array.from(allSyns) });
+      } else {
+        merged.set(key, entry);
+      }
+    }
+    synonymCache = Array.from(merged.values());
+    return synonymCache;
   })();
   return synonymLoadPromise;
 };
