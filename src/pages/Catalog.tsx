@@ -152,7 +152,7 @@ const Catalog = () => {
       let query = supabase
         .from("master_profiles")
         .select(`
-          id, user_id, description, address, city, category_id, hashtags, latitude, longitude, is_active, work_photos,
+          id, user_id, description, address, city, category_id, hashtags, latitude, longitude, is_active, work_photos, moderation_status,
           profiles!master_profiles_user_id_fkey(first_name, last_name, avatar_url, bio),
           service_categories!master_profiles_category_id_fkey(name)
         `)
