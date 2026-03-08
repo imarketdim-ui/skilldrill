@@ -228,18 +228,33 @@ const MasterDetail = () => {
       });
     }
 
-    const { data: dayLessons } = await supabase
-      .from('lessons')
-      .select('start_time, end_time')
-      .eq('teacher_id', master.user_id)
-      .eq('lesson_date', date)
-      .neq('status', 'cancelled');
+    // Check both lessons AND bookings for blocked slots
+    const [{ data: dayLessons }, { data: dayBookings }] = await Promise.all([
+      supabase
+        .from('lessons')
+        .select('start_time, end_time')
+        .eq('teacher_id', master.user_id)
+        .eq('lesson_date', date)
+        .neq('status', 'cancelled'),
+      supabase
+        .from('bookings')
+        .select('scheduled_at, duration_minutes')
+        .eq('executor_id', master.user_id)
+        .gte('scheduled_at', `${date}T00:00:00`)
+        .lt('scheduled_at', `${date}T23:59:59`)
+        .not('status', 'in', '("cancelled","no_show")'),
+    ]);
 
     const blocked = [
       ...(dayLessons || []).map((l: any) => ({
         start: toMinutes((l.start_time || '00:00').slice(0, 5)),
         end: toMinutes((l.end_time || '00:00').slice(0, 5)),
       })),
+      ...(dayBookings || []).map((b: any) => {
+        const d = new Date(b.scheduled_at);
+        const startM = d.getHours() * 60 + d.getMinutes();
+        return { start: startM, end: startM + (b.duration_minutes || 60) };
+      }),
       ...breakBlocks,
     ];
 
