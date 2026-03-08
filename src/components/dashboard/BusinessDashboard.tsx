@@ -21,9 +21,11 @@ import BusinessFinances from './business/BusinessFinances';
 import SupportChat from './SupportChat';
 import BusinessSchedule from './business/BusinessSchedule';
 import BusinessInventory from './business/BusinessInventory';
+import BusinessBookingDetail from './business/BusinessBookingDetail';
 
 const menuItems = [
   { key: 'overview', label: 'Главная', icon: LayoutDashboard },
+  { key: 'bookings', label: 'Записи', icon: Calendar },
   { key: 'masters', label: 'Команда', icon: Users },
   { key: 'services', label: 'Услуги', icon: ClipboardList },
   { key: 'inventory', label: 'Склад', icon: Package },
@@ -176,6 +178,8 @@ const BusinessDashboard = () => {
             </div>
           </div>
         );
+      case 'bookings':
+        return selectedBusiness ? <BusinessBookingDetail businessId={selectedBusiness.id} /> : null;
       case 'masters':
         return selectedBusiness ? (
           <BusinessMasters businessId={selectedBusiness.id} freeMasters={selectedBusiness.free_masters || 3} extraMasterPrice={selectedBusiness.extra_master_price || 500} />

@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Search, Heart, Calendar, Wallet, Users, MessageSquare,
   Copy, Check, Building2, Shield, Bell, ArrowLeft,
-  LayoutDashboard, Settings, BarChart3, ChevronRight, Wrench, Briefcase
+  LayoutDashboard, Settings, BarChart3, ChevronRight, Wrench, Briefcase, Star
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -21,6 +21,8 @@ import ClientStats from '@/components/dashboard/client/ClientStats';
 import SupportChat from '@/components/dashboard/SupportChat';
 import ClientFavorites from '@/components/dashboard/client/ClientFavorites';
 import ClientSettingsSection from '@/components/dashboard/client/ClientSettingsSection';
+import ClientBookings from '@/components/dashboard/client/ClientBookings';
+import ClientReviews from '@/components/dashboard/client/ClientReviews';
 
 interface WorkspaceEntry {
   id: string;
@@ -34,18 +36,20 @@ interface WorkspaceEntry {
 // Desktop sidebar: no bookings, notifications, settings
 const desktopMenuItems = [
   { key: 'overview', label: 'Обзор', icon: LayoutDashboard },
+  { key: 'bookings', label: 'Записи', icon: Calendar },
   { key: 'favorites', label: 'Избранное', icon: Heart },
+  { key: 'reviews', label: 'Отзывы', icon: Star },
   { key: 'communication', label: 'Общение', icon: MessageSquare },
+  { key: 'stats', label: 'Статистика', icon: BarChart3 },
   { key: 'wallet', label: 'Баланс', icon: Wallet },
   { key: 'settings', label: 'Настройки', icon: Settings },
 ];
 
-// Mobile bottom bar: includes settings, no bookings/notifications
 const mobileMenuItems = [
   { key: 'overview', label: 'Обзор', icon: LayoutDashboard },
+  { key: 'bookings', label: 'Записи', icon: Calendar },
   { key: 'favorites', label: 'Избранное', icon: Heart },
   { key: 'communication', label: 'Общение', icon: MessageSquare },
-  { key: 'wallet', label: 'Баланс', icon: Wallet },
   { key: 'settings', label: 'Настройки', icon: Settings },
 ];
 
@@ -230,52 +234,10 @@ const ClientDashboard = () => {
   const renderContent = () => {
     switch (activeSection) {
       case 'bookings':
-        return (
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setActiveSection('overview')}>
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-                <div>
-                  <CardTitle>Мои записи</CardTitle>
-                  <CardDescription>Полный список ваших записей</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Tabs value={bookingsView} onValueChange={(v) => setBookingsView(v as any)} className="mb-4">
-                <TabsList className="w-full">
-                  <TabsTrigger value="day" className="flex-1">День</TabsTrigger>
-                  <TabsTrigger value="week" className="flex-1">Неделя</TabsTrigger>
-                  <TabsTrigger value="month" className="flex-1">Месяц</TabsTrigger>
-                </TabsList>
-              </Tabs>
+        return user ? <ClientBookings userId={user.id} /> : null;
 
-              {filteredBookings.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Нет записей за этот период</p>
-                  <Button className="mt-4" onClick={() => navigate('/catalog')}>Найти услугу</Button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {filteredBookings.map((booking) => (
-                    <div key={booking.id} className="p-4 rounded-lg border flex items-center justify-between gap-3">
-                      <div>
-                        <p className="font-medium">{(booking.lessons as any)?.title || 'Запись'}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {(booking.lessons as any)?.lesson_date} · {(booking.lessons as any)?.start_time?.slice(0, 5)}
-                        </p>
-                      </div>
-                      <Badge variant={booking.status === 'cancelled' ? 'destructive' : 'secondary'}>{booking.status}</Badge>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        );
+      case 'reviews':
+        return user ? <ClientReviews userId={user.id} /> : null;
 
       case 'favorites':
         return <ClientFavorites userId={user?.id} />;
