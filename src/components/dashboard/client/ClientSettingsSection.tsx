@@ -192,9 +192,6 @@ const ClientSettingsSection = () => {
               </div>
             </div>
 
-            <Button type="submit" disabled={isSubmitting} className="w-full">
-              {isSubmitting ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" />Сохранение...</>) : 'Сохранить изменения'}
-            </Button>
           </form>
         </CardContent>
       </Card>
