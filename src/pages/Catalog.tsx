@@ -67,10 +67,12 @@ const sortOptions = [
   { value: "price_asc", label: "Сначала дешёвые" },
   { value: "price_desc", label: "Сначала дорогие" },
   { value: "rating", label: "По рейтингу" },
+  { value: "nearest", label: "Ближайшие" },
   { value: "newest", label: "Новинки" },
 ];
 
-import { fuzzyMatch, stemRu } from '@/lib/searchUtils';
+import { fuzzyMatch, stemRu, loadSynonyms, haversineDistance, formatDistance } from '@/lib/searchUtils';
+import type { } from '@/lib/searchUtils';
 
 const parseFiltersFromURL = (params: URLSearchParams) => ({
   searchQuery: params.get("q") || "",
