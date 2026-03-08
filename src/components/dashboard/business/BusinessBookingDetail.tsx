@@ -90,7 +90,7 @@ export default function BusinessBookingDetail({ businessId }: Props) {
   };
 
   const handleNoShow = async (bookingId: string) => {
-    await supabase.from('bookings').update({ status: 'no_show' }).eq('id', bookingId);
+    await supabase.from('bookings').update({ status: 'no_show' as any }).eq('id', bookingId);
     toast({ title: 'Отмечена неявка' });
     fetchBookings();
   };
