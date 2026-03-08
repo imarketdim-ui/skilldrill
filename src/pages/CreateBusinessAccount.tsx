@@ -90,10 +90,20 @@ const CreateBusinessAccount = () => {
         toast({ title: 'Заполните все обязательные поля', variant: 'destructive' });
         return;
       }
+      const innResult = validateINN(form.business_inn);
+      if (!innResult.valid) {
+        toast({ title: 'Ошибка ИНН', description: innResult.error, variant: 'destructive' });
+        return;
+      }
     }
     if (accountType === 'network') {
       if (!form.network_name || !form.network_inn || !form.network_legal_form || !form.network_address || !form.director_name || !form.network_contact_email || !form.network_contact_phone) {
         toast({ title: 'Заполните все обязательные поля', variant: 'destructive' });
+        return;
+      }
+      const innResult = validateINN(form.network_inn);
+      if (!innResult.valid) {
+        toast({ title: 'Ошибка ИНН', description: innResult.error, variant: 'destructive' });
         return;
       }
     }
