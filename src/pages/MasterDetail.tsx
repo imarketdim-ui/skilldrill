@@ -35,6 +35,7 @@ interface MasterData {
   work_hours_config: any;
   break_config: any;
   auto_booking_policy: string | null;
+  business_id: string | null;
   profiles: { first_name: string | null; last_name: string | null; avatar_url: string | null; email: string | null } | null;
   service_categories: { name: string } | null;
 }
