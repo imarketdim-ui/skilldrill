@@ -190,7 +190,7 @@ const Catalog = () => {
           bio: mp.description || profile?.bio,
           rating: null,
           review_count: 0,
-          location: mp.address || "Абакан",
+          location: mp.address || null,
           city: mp.city || null,
           category_id: mp.category_id,
           category_name: mp.service_categories?.name || null,
