@@ -21,6 +21,7 @@ import BusinessFinances from './business/BusinessFinances';
 import SupportChat from './SupportChat';
 import BusinessSchedule from './business/BusinessSchedule';
 import BusinessInventory from './business/BusinessInventory';
+import BusinessBookingDetail from './business/BusinessBookingDetail';
 
 const menuItems = [
   { key: 'overview', label: 'Главная', icon: LayoutDashboard },
