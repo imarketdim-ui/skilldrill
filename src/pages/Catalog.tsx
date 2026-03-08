@@ -456,10 +456,10 @@ const Catalog = () => {
       .filter((s) => {
         if (searchQuery) {
           const match =
-            fuzzyMatch(s.name, searchQuery) ||
-            fuzzyMatch(s.master_name, searchQuery) ||
-            fuzzyMatch(s.category_name || "", searchQuery) ||
-            fuzzyMatch(s.master_location || "", searchQuery);
+            fuzzyMatch(s.name, searchQuery, synonyms) ||
+            fuzzyMatch(s.master_name, searchQuery, synonyms) ||
+            fuzzyMatch(s.category_name || "", searchQuery, synonyms) ||
+            fuzzyMatch(s.master_location || "", searchQuery, synonyms);
           if (!match) return false;
         }
         if (s.price != null) {
