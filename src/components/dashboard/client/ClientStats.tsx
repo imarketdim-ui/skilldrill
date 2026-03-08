@@ -62,7 +62,7 @@ export default function ClientStats({ userId }: Props) {
   const [recalculating, setRecalculating] = useState(false);
 
   const loadScore = async () => {
-    const { data } = await supabase.from('user_scores').select('*').eq('user_id', userId).maybeSingle();
+    const { data } = await supabase.from('user_scores_public').select('*').eq('user_id', userId).maybeSingle();
     if (data) setScore(data as any);
     setLoading(false);
   };

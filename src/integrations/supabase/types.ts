@@ -238,7 +238,7 @@ export type Database = {
           executor_id: string
           id: string
           notes: string | null
-          organization_id: string
+          organization_id: string | null
           scheduled_at: string
           service_id: string
           status: Database["public"]["Enums"]["booking_status"]
@@ -253,7 +253,7 @@ export type Database = {
           executor_id: string
           id?: string
           notes?: string | null
-          organization_id: string
+          organization_id?: string | null
           scheduled_at: string
           service_id: string
           status?: Database["public"]["Enums"]["booking_status"]
@@ -268,7 +268,7 @@ export type Database = {
           executor_id?: string
           id?: string
           notes?: string | null
-          organization_id?: string
+          organization_id?: string | null
           scheduled_at?: string
           service_id?: string
           status?: Database["public"]["Enums"]["booking_status"]
@@ -3439,7 +3439,56 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      user_scores_public: {
+        Row: {
+          account_age_days: number | null
+          blacklist_by_count: number | null
+          cancel_under_1h: number | null
+          cancel_under_3h: number | null
+          completed_visits: number | null
+          no_show_count: number | null
+          score_level: string | null
+          status: string | null
+          total_cancellations: number | null
+          user_id: string | null
+          vip_by_count: number | null
+        }
+        Insert: {
+          account_age_days?: number | null
+          blacklist_by_count?: number | null
+          cancel_under_1h?: number | null
+          cancel_under_3h?: number | null
+          completed_visits?: number | null
+          no_show_count?: number | null
+          score_level?: never
+          status?: string | null
+          total_cancellations?: number | null
+          user_id?: string | null
+          vip_by_count?: number | null
+        }
+        Update: {
+          account_age_days?: number | null
+          blacklist_by_count?: number | null
+          cancel_under_1h?: number | null
+          cancel_under_3h?: number | null
+          completed_visits?: number | null
+          no_show_count?: number | null
+          score_level?: never
+          status?: string | null
+          total_cancellations?: number | null
+          user_id?: string | null
+          vip_by_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_scores_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       accept_admin_assignment: {

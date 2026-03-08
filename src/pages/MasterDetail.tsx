@@ -35,6 +35,7 @@ interface MasterData {
   work_hours_config: any;
   break_config: any;
   auto_booking_policy: string | null;
+  business_id: string | null;
   profiles: { first_name: string | null; last_name: string | null; avatar_url: string | null; email: string | null } | null;
   service_categories: { name: string } | null;
 }
@@ -227,18 +228,33 @@ const MasterDetail = () => {
       });
     }
 
-    const { data: dayLessons } = await supabase
-      .from('lessons')
-      .select('start_time, end_time')
-      .eq('teacher_id', master.user_id)
-      .eq('lesson_date', date)
-      .neq('status', 'cancelled');
+    // Check both lessons AND bookings for blocked slots
+    const [{ data: dayLessons }, { data: dayBookings }] = await Promise.all([
+      supabase
+        .from('lessons')
+        .select('start_time, end_time')
+        .eq('teacher_id', master.user_id)
+        .eq('lesson_date', date)
+        .neq('status', 'cancelled'),
+      supabase
+        .from('bookings')
+        .select('scheduled_at, duration_minutes')
+        .eq('executor_id', master.user_id)
+        .gte('scheduled_at', `${date}T00:00:00`)
+        .lt('scheduled_at', `${date}T23:59:59`)
+        .not('status', 'in', '("cancelled","no_show")'),
+    ]);
 
     const blocked = [
       ...(dayLessons || []).map((l: any) => ({
         start: toMinutes((l.start_time || '00:00').slice(0, 5)),
         end: toMinutes((l.end_time || '00:00').slice(0, 5)),
       })),
+      ...(dayBookings || []).map((b: any) => {
+        const d = new Date(b.scheduled_at);
+        const startM = d.getHours() * 60 + d.getMinutes();
+        return { start: startM, end: startM + (b.duration_minutes || 60) };
+      }),
       ...breakBlocks,
     ];
 
@@ -290,51 +306,45 @@ const MasterDetail = () => {
         return;
       }
 
-      const startM = toMinutes(bookingData.time);
       const duration = Number(service.duration_minutes) || 60;
-      const endTime = toTime(startM + duration);
+      const scheduledAt = `${bookingData.date}T${bookingData.time}:00`;
 
       // Determine booking status based on auto_booking_policy
       const policy = master.auto_booking_policy || 'all';
       let bookingStatus: 'confirmed' | 'pending' = 'pending';
-      if (policy === 'all') bookingStatus = 'confirmed';
-      else if (policy === 'known') {
-        // Check if client has previous bookings with this master
-        const { count } = await supabase.from('lesson_bookings')
+      if (policy === 'all') {
+        bookingStatus = 'confirmed';
+      } else if (policy === 'known') {
+        // Check if client has previous completed bookings with this master
+        const { count: bookingCount } = await supabase.from('bookings')
+          .select('id', { count: 'exact', head: true })
+          .eq('executor_id', master.user_id)
+          .eq('client_id', user.id)
+          .in('status', ['confirmed', 'completed'] as any);
+        const { count: lessonCount } = await supabase.from('lesson_bookings')
           .select('id', { count: 'exact', head: true })
           .eq('student_id', user.id)
           .in('status', ['confirmed', 'completed'] as any);
-        if ((count || 0) > 0) bookingStatus = 'confirmed';
+        if (((bookingCount || 0) + (lessonCount || 0)) > 0) bookingStatus = 'confirmed';
       }
       // policy === 'none' stays pending
 
-      const { data: lesson, error: lessonError } = await supabase
-        .from('lessons')
+      // Insert into bookings table (the correct marketplace table)
+      const { data: newBooking, error: bookingError } = await supabase
+        .from('bookings')
         .insert({
-          teacher_id: master.user_id,
-          title: service.name,
-          description: bookingData.comment || null,
-          lesson_date: bookingData.date,
-          start_time: bookingData.time,
-          end_time: endTime,
-          lesson_type: 'individual',
-          max_participants: 1,
-          price: Number(service.price) || 0,
-          status: bookingStatus === 'confirmed' ? 'scheduled' : 'scheduled',
+          client_id: user.id,
+          executor_id: master.user_id,
+          service_id: service.id,
+          organization_id: master.business_id || null,
+          scheduled_at: scheduledAt,
+          duration_minutes: duration,
+          status: bookingStatus,
+          notes: bookingData.comment || null,
         })
         .select('id')
         .single();
 
-      if (lessonError) throw lessonError;
-
-      const reminderMinutes = bookingData.reminder !== '0' ? Number(bookingData.reminder) : null;
-
-      const { error: bookingError } = await supabase.from('lesson_bookings').insert({
-        lesson_id: lesson.id,
-        student_id: user.id,
-        status: bookingStatus,
-        reminder_minutes: reminderMinutes,
-      });
       if (bookingError) throw bookingError;
 
       // Send notification to master
@@ -343,7 +353,7 @@ const MasterDetail = () => {
         type: 'new_booking',
         title: 'Новая запись',
         message: `${user.user_metadata?.first_name || 'Клиент'} записался на «${service.name}» ${bookingData.date} в ${bookingData.time}`,
-        related_id: lesson.id,
+        related_id: newBooking.id,
       });
 
       // Create chat contact
