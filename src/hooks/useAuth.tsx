@@ -41,6 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [roles, setRoles] = useState<UserRoleType[]>([]);
   const [activeRole, setActiveRole] = useState<UserRoleType>('client');
+  const [activeEntityId, setActiveEntityId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (userId: string) => {
