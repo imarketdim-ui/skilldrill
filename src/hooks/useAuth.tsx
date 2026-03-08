@@ -24,7 +24,8 @@ interface AuthContextType {
   profile: Profile | null;
   roles: UserRoleType[];
   activeRole: UserRoleType;
-  setActiveRole: (role: UserRoleType) => void;
+  activeEntityId: string | null;
+  setActiveRole: (role: UserRoleType, entityId?: string | null) => void;
   loading: boolean;
   signUp: (email: string, password: string, firstName?: string, lastName?: string, referredBy?: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
@@ -40,6 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [roles, setRoles] = useState<UserRoleType[]>([]);
   const [activeRole, setActiveRole] = useState<UserRoleType>('client');
+  const [activeEntityId, setActiveEntityId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (userId: string) => {
@@ -83,17 +85,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setRoles(userRoles);
       // Restore active role from localStorage or default to first role
       const savedRole = localStorage.getItem('skillspot_active_role') as UserRoleType;
+      const savedEntityId = localStorage.getItem('skillspot_active_entity_id');
       if (savedRole && userRoles.includes(savedRole)) {
         setActiveRole(savedRole);
+        setActiveEntityId(savedEntityId);
       } else {
         setActiveRole(userRoles[0]);
+        setActiveEntityId(null);
       }
     }
   };
 
-  const handleSetActiveRole = (role: UserRoleType) => {
+  const handleSetActiveRole = (role: UserRoleType, entityId?: string | null) => {
     setActiveRole(role);
+    setActiveEntityId(entityId ?? null);
     localStorage.setItem('skillspot_active_role', role);
+    if (entityId) {
+      localStorage.setItem('skillspot_active_entity_id', entityId);
+    } else {
+      localStorage.removeItem('skillspot_active_entity_id');
+    }
   };
 
   useEffect(() => {
@@ -111,10 +122,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setProfile(profileData);
             setRoles(userRoles);
             const savedRole = localStorage.getItem('skillspot_active_role') as UserRoleType;
+            const savedEntityId = localStorage.getItem('skillspot_active_entity_id');
             if (savedRole && userRoles.includes(savedRole)) {
               setActiveRole(savedRole);
+              setActiveEntityId(savedEntityId);
             } else {
               setActiveRole(userRoles[0]);
+              setActiveEntityId(null);
             }
             setLoading(false);
           }, 0);
@@ -181,17 +195,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null);
     setRoles([]);
     setActiveRole('client');
+    setActiveEntityId(null);
     localStorage.removeItem('skillspot_active_role');
+    localStorage.removeItem('skillspot_active_entity_id');
   };
 
   return (
     <AuthContext.Provider
-      value={{
+       value={{
         user,
         session,
         profile,
         roles,
         activeRole,
+        activeEntityId,
         setActiveRole: handleSetActiveRole,
         loading,
         signUp,

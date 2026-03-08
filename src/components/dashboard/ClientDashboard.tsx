@@ -24,6 +24,7 @@ import ClientSettingsSection from '@/components/dashboard/client/ClientSettingsS
 
 interface WorkspaceEntry {
   id: string;
+  entityId: string;
   label: string;
   sublabel: string;
   icon: React.ReactNode;
@@ -96,6 +97,7 @@ const ClientDashboard = () => {
         const bizName = (mp.business_locations as any)?.name;
         entries.push({
           id: `master-${mp.id}`,
+          entityId: mp.id,
           label: bizName ? `Мастер в «${bizName}»` : 'Мастер',
           sublabel: bizName ? 'Мастер в организации' : 'Индивидуальный мастер',
           icon: <Wrench className="h-5 w-5" />,
@@ -114,6 +116,7 @@ const ClientDashboard = () => {
       (businesses || []).forEach(biz => {
         entries.push({
           id: `biz-owner-${biz.id}`,
+          entityId: biz.id,
           label: biz.name,
           sublabel: 'Владелец',
           icon: <Building2 className="h-5 w-5" />,
@@ -134,6 +137,7 @@ const ClientDashboard = () => {
         const bizName = (m.business_locations as any)?.name || 'Организация';
         entries.push({
           id: `biz-mgr-${m.id}`,
+          entityId: m.business_id,
           label: bizName,
           sublabel: 'Менеджер',
           icon: <Briefcase className="h-5 w-5" />,
@@ -152,6 +156,7 @@ const ClientDashboard = () => {
       (networks || []).forEach(net => {
         entries.push({
           id: `net-owner-${net.id}`,
+          entityId: net.id,
           label: net.name,
           sublabel: 'Владелец сети',
           icon: <Building2 className="h-5 w-5" />,
@@ -172,6 +177,7 @@ const ClientDashboard = () => {
         const netName = (m.networks as any)?.name || 'Сеть';
         entries.push({
           id: `net-mgr-${m.id}`,
+          entityId: m.network_id,
           label: netName,
           sublabel: 'Менеджер сети',
           icon: <Briefcase className="h-5 w-5" />,
@@ -458,7 +464,7 @@ const ClientDashboard = () => {
                     <Card
                       key={ws.id}
                       className="cursor-pointer hover:border-primary/50 transition-colors"
-                      onClick={() => setActiveRole(ws.role)}
+                      onClick={() => setActiveRole(ws.role, ws.entityId)}
                     >
                       <CardContent className="pt-5 pb-4 px-5">
                         <div className="flex items-center gap-3">

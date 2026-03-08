@@ -33,7 +33,7 @@ const menuItems = [
 ];
 
 const BusinessDashboard = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, activeEntityId } = useAuth();
   const pricing = usePlatformPricing();
   const [businesses, setBusinesses] = useState<any[]>([]);
   const [selectedBusiness, setSelectedBusiness] = useState<any>(null);
@@ -47,16 +47,20 @@ const BusinessDashboard = () => {
     const { data } = await supabase.from('business_locations').select('*').eq('owner_id', user.id);
     setBusinesses(data || []);
     if (data && data.length > 0) {
-      setSelectedBusiness(data[0]);
+      // Select the business matching activeEntityId, or fall back to first
+      const target = activeEntityId
+        ? data.find(b => b.id === activeEntityId) || data[0]
+        : data[0];
+      setSelectedBusiness(target);
       const [mRes, sRes] = await Promise.all([
-        supabase.from('business_masters').select('id', { count: 'exact', head: true }).eq('business_id', data[0].id).eq('status', 'accepted'),
-        supabase.from('services').select('id', { count: 'exact', head: true }).eq('business_id', data[0].id).eq('is_active', true),
+        supabase.from('business_masters').select('id', { count: 'exact', head: true }).eq('business_id', target.id).eq('status', 'accepted'),
+        supabase.from('services').select('id', { count: 'exact', head: true }).eq('business_id', target.id).eq('is_active', true),
       ]);
       setMasterCount(mRes.count || 0);
       setServiceCount(sRes.count || 0);
     }
     setLoading(false);
-  }, [user]);
+  }, [user, activeEntityId]);
 
   useEffect(() => { fetchBusinesses(); }, [fetchBusinesses]);
 
