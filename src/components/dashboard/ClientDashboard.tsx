@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth, UserRoleType } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Search, Heart, Calendar, Wallet, Users, MessageSquare,
   Copy, Check, Building2, Shield, Bell, ArrowLeft,
-  LayoutDashboard, Settings, BarChart3, ChevronRight
+  LayoutDashboard, Settings, BarChart3, ChevronRight, Wrench, Briefcase
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -21,6 +21,14 @@ import ClientStats from '@/components/dashboard/client/ClientStats';
 import SupportChat from '@/components/dashboard/SupportChat';
 import ClientFavorites from '@/components/dashboard/client/ClientFavorites';
 import ClientSettingsSection from '@/components/dashboard/client/ClientSettingsSection';
+
+interface WorkspaceEntry {
+  id: string;
+  label: string;
+  sublabel: string;
+  icon: React.ReactNode;
+  role: UserRoleType;
+}
 
 // Desktop sidebar: no bookings, notifications, settings
 const desktopMenuItems = [
@@ -41,7 +49,7 @@ const mobileMenuItems = [
 ];
 
 const ClientDashboard = () => {
-  const { user, profile, roles } = useAuth();
+  const { user, profile, roles, setActiveRole } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const isMobile = useIsMobile();
@@ -52,6 +60,7 @@ const ClientDashboard = () => {
   const [clientBookings, setClientBookings] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [bookingsView, setBookingsView] = useState<'day' | 'week' | 'month'>('week');
+  const [workspaces, setWorkspaces] = useState<WorkspaceEntry[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -66,7 +75,113 @@ const ClientDashboard = () => {
       setClientBookings(bookingsRes.data || []);
       setNotifications(notificationsRes.data || []);
     });
+
+    // Fetch workspaces
+    fetchWorkspaces();
   }, [user]);
+
+  const fetchWorkspaces = async () => {
+    if (!user) return;
+    const entries: WorkspaceEntry[] = [];
+
+    // Independent master
+    if (roles.includes('master')) {
+      const { data: mp } = await supabase
+        .from('master_profiles')
+        .select('id, business_id, business_locations(name)')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (mp) {
+        const bizName = (mp.business_locations as any)?.name;
+        entries.push({
+          id: `master-${mp.id}`,
+          label: bizName ? `Мастер в «${bizName}»` : 'Мастер',
+          sublabel: bizName ? 'Мастер в организации' : 'Индивидуальный мастер',
+          icon: <Wrench className="h-5 w-5" />,
+          role: 'master',
+        });
+      }
+    }
+
+    // Business owner
+    if (roles.includes('business_owner')) {
+      const { data: businesses } = await supabase
+        .from('business_locations')
+        .select('id, name')
+        .eq('owner_id', user.id);
+
+      (businesses || []).forEach(biz => {
+        entries.push({
+          id: `biz-owner-${biz.id}`,
+          label: biz.name,
+          sublabel: 'Владелец',
+          icon: <Building2 className="h-5 w-5" />,
+          role: 'business_owner',
+        });
+      });
+    }
+
+    // Business manager
+    if (roles.includes('business_manager')) {
+      const { data: managed } = await supabase
+        .from('business_managers')
+        .select('id, business_id, business_locations:business_locations!business_managers_business_id_fkey(name)')
+        .eq('user_id', user.id)
+        .eq('is_active', true);
+
+      (managed || []).forEach(m => {
+        const bizName = (m.business_locations as any)?.name || 'Организация';
+        entries.push({
+          id: `biz-mgr-${m.id}`,
+          label: bizName,
+          sublabel: 'Менеджер',
+          icon: <Briefcase className="h-5 w-5" />,
+          role: 'business_manager',
+        });
+      });
+    }
+
+    // Network owner
+    if (roles.includes('network_owner')) {
+      const { data: networks } = await supabase
+        .from('networks')
+        .select('id, name')
+        .eq('owner_id', user.id);
+
+      (networks || []).forEach(net => {
+        entries.push({
+          id: `net-owner-${net.id}`,
+          label: net.name,
+          sublabel: 'Владелец сети',
+          icon: <Building2 className="h-5 w-5" />,
+          role: 'network_owner',
+        });
+      });
+    }
+
+    // Network manager
+    if (roles.includes('network_manager')) {
+      const { data: managed } = await supabase
+        .from('network_managers')
+        .select('id, network_id, networks:networks!network_managers_network_id_fkey(name)')
+        .eq('user_id', user.id)
+        .eq('is_active', true);
+
+      (managed || []).forEach(m => {
+        const netName = (m.networks as any)?.name || 'Сеть';
+        entries.push({
+          id: `net-mgr-${m.id}`,
+          label: netName,
+          sublabel: 'Менеджер сети',
+          icon: <Briefcase className="h-5 w-5" />,
+          role: 'network_manager',
+        });
+      });
+    }
+
+    setWorkspaces(entries);
+  };
 
   const handleCopyId = () => {
     if (profile?.skillspot_id) {
@@ -333,6 +448,35 @@ const ClientDashboard = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Workspace cards */}
+            {workspaces.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Мои кабинеты</h3>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {workspaces.map(ws => (
+                    <Card
+                      key={ws.id}
+                      className="cursor-pointer hover:border-primary/50 transition-colors"
+                      onClick={() => setActiveRole(ws.role)}
+                    >
+                      <CardContent className="pt-5 pb-4 px-5">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                            {ws.icon}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold truncate">{ws.label}</p>
+                            <p className="text-sm text-muted-foreground">{ws.sublabel}</p>
+                          </div>
+                          <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {!roles.some(r => ['master', 'business_owner', 'network_owner'].includes(r)) && (
               <Card className="border-dashed cursor-pointer hover:border-primary transition-colors" onClick={() => navigate('/create-account')}>
