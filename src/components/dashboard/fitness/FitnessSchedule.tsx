@@ -211,7 +211,12 @@ const FitnessSchedule = () => {
                         {w.status === 'scheduled' && <div className="flex gap-1">
                           <Button size="sm" variant="ghost" onClick={() => handleUpdateStatus(w.id, 'completed')}>✓</Button>
                           <Button size="sm" variant="ghost" onClick={() => handleUpdateStatus(w.id, 'cancelled')}>✕</Button>
-                          <Button size="sm" variant="ghost" onClick={() => handleDelete(w.id)}><Trash2 className="h-3 w-3" /></Button>
+                          <ConfirmDialog
+                            trigger={<Button size="sm" variant="ghost"><Trash2 className="h-3 w-3" /></Button>}
+                            title="Удалить тренировку?"
+                            description="Тренировка будет удалена без возможности восстановления."
+                            onConfirm={() => handleDelete(w.id)}
+                          />
                         </div>}
                       </div>
                     </div>

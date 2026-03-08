@@ -161,9 +161,16 @@ const BusinessServices = ({ businessId }: Props) => {
                       <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(s)}>
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
-                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleDelete(s.id)}>
-                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                      </Button>
+                      <ConfirmDialog
+                        trigger={
+                          <Button size="icon" variant="ghost" className="h-7 w-7">
+                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                          </Button>
+                        }
+                        title="Удалить услугу?"
+                        description={`Услуга «${s.name}» будет удалена без возможности восстановления.`}
+                        onConfirm={() => handleDelete(s.id)}
+                      />
                     </div>
                   </div>
                 </CardHeader>
