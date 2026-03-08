@@ -33,6 +33,9 @@ const TAB_ACCESS: Record<string, AdminSubRole[]> = {
   support: ['platform_admin', 'super_admin', 'support'],
 };
 
+// Integrator role gets same access as support + promo_codes
+const INTEGRATOR_TABS = ['support', 'promo_codes'];
+
 const AdminDashboard = () => {
   const { user, activeRole } = useAuth();
   const { toast } = useToast();
