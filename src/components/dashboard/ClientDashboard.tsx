@@ -28,6 +28,7 @@ const desktopMenuItems = [
   { key: 'favorites', label: 'Избранное', icon: Heart },
   { key: 'communication', label: 'Общение', icon: MessageSquare },
   { key: 'wallet', label: 'Баланс', icon: Wallet },
+  { key: 'settings', label: 'Настройки', icon: Settings },
 ];
 
 // Mobile bottom bar: includes settings, no bookings/notifications
