@@ -22,6 +22,7 @@ import Subscription from "./pages/Subscription";
 import About from "./pages/About";
 import ForBusiness from "./pages/ForBusiness";
 import CreateOrganization from "./pages/CreateOrganization";
+import Referral from "./pages/Referral";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
