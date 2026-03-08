@@ -36,18 +36,20 @@ interface WorkspaceEntry {
 // Desktop sidebar: no bookings, notifications, settings
 const desktopMenuItems = [
   { key: 'overview', label: 'Обзор', icon: LayoutDashboard },
+  { key: 'bookings', label: 'Записи', icon: Calendar },
   { key: 'favorites', label: 'Избранное', icon: Heart },
+  { key: 'reviews', label: 'Отзывы', icon: Star },
   { key: 'communication', label: 'Общение', icon: MessageSquare },
+  { key: 'stats', label: 'Статистика', icon: BarChart3 },
   { key: 'wallet', label: 'Баланс', icon: Wallet },
   { key: 'settings', label: 'Настройки', icon: Settings },
 ];
 
-// Mobile bottom bar: includes settings, no bookings/notifications
 const mobileMenuItems = [
   { key: 'overview', label: 'Обзор', icon: LayoutDashboard },
+  { key: 'bookings', label: 'Записи', icon: Calendar },
   { key: 'favorites', label: 'Избранное', icon: Heart },
   { key: 'communication', label: 'Общение', icon: MessageSquare },
-  { key: 'wallet', label: 'Баланс', icon: Wallet },
   { key: 'settings', label: 'Настройки', icon: Settings },
 ];
 
