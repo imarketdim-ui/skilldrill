@@ -14,7 +14,7 @@ const RoleSwitcher = () => {
   const buttons: React.ReactNode[] = [];
 
   // Currently in platform admin mode → show "Клиент" button
-  if (['platform_admin', 'super_admin', 'platform_manager'].includes(activeRole)) {
+  if (['platform_admin', 'super_admin', 'platform_manager', 'moderator', 'support', 'integrator'].includes(activeRole)) {
     buttons.push(
       <Button
         key="client"
