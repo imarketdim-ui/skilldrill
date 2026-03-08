@@ -21,6 +21,8 @@ import ClientStats from '@/components/dashboard/client/ClientStats';
 import SupportChat from '@/components/dashboard/SupportChat';
 import ClientFavorites from '@/components/dashboard/client/ClientFavorites';
 import ClientSettingsSection from '@/components/dashboard/client/ClientSettingsSection';
+import ClientBookings from '@/components/dashboard/client/ClientBookings';
+import ClientReviews from '@/components/dashboard/client/ClientReviews';
 
 interface WorkspaceEntry {
   id: string;
