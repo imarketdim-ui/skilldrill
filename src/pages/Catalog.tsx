@@ -383,10 +383,11 @@ const Catalog = () => {
       .filter((m) => {
         if (searchQuery) {
           const match =
-            fuzzyMatch(m.name, searchQuery) ||
-            fuzzyMatch(m.bio || "", searchQuery) ||
-            fuzzyMatch(m.location || "", searchQuery) ||
-            (m.hashtags || []).some((h) => fuzzyMatch(h, searchQuery));
+            fuzzyMatch(m.name, searchQuery, synonyms) ||
+            fuzzyMatch(m.bio || "", searchQuery, synonyms) ||
+            fuzzyMatch(m.location || "", searchQuery, synonyms) ||
+            fuzzyMatch(m.category_name || "", searchQuery, synonyms) ||
+            (m.hashtags || []).some((h) => fuzzyMatch(h, searchQuery, synonyms));
           if (!match) return false;
         }
         if (m.min_price != null) {
@@ -407,10 +408,16 @@ const Catalog = () => {
           case "price_asc": return (a.min_price || 0) - (b.min_price || 0);
           case "price_desc": return (b.min_price || 0) - (a.min_price || 0);
           case "rating": return (b.rating || 0) - (a.rating || 0);
+          case "nearest": {
+            if (!userLocation) return 0;
+            const dA = (a.latitude && a.longitude) ? haversineDistance(userLocation.lat, userLocation.lon, a.latitude, a.longitude) : 99999;
+            const dB = (b.latitude && b.longitude) ? haversineDistance(userLocation.lat, userLocation.lon, b.latitude, b.longitude) : 99999;
+            return dA - dB;
+          }
           default: return 0;
         }
       });
-  }, [masters, searchQuery, priceRange, selectedTags, sortBy, locationFilter]);
+  }, [masters, searchQuery, priceRange, selectedTags, sortBy, locationFilter, synonyms, userLocation]);
 
   // Filter businesses
   const filteredBusinesses = useMemo(() => {
