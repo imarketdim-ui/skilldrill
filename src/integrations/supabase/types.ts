@@ -3371,7 +3371,12 @@ export type Database = {
       }
     }
     Enums: {
-      booking_status: "pending" | "confirmed" | "cancelled" | "completed"
+      booking_status:
+        | "pending"
+        | "confirmed"
+        | "cancelled"
+        | "completed"
+        | "in_progress"
       legal_form: "ip" | "ooo" | "zao" | "oao" | "self_employed" | "other"
       lesson_status: "scheduled" | "completed" | "cancelled" | "no_show"
       lesson_type: "individual" | "group"
@@ -3523,7 +3528,13 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      booking_status: ["pending", "confirmed", "cancelled", "completed"],
+      booking_status: [
+        "pending",
+        "confirmed",
+        "cancelled",
+        "completed",
+        "in_progress",
+      ],
       legal_form: ["ip", "ooo", "zao", "oao", "self_employed", "other"],
       lesson_status: ["scheduled", "completed", "cancelled", "no_show"],
       lesson_type: ["individual", "group"],
