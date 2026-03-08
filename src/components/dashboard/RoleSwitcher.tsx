@@ -62,22 +62,6 @@ const RoleSwitcher = () => {
         </Button>
       );
     }
-
-    // Platform switch
-    if (platformRoles.length > 0) {
-      buttons.push(
-        <Button
-          key="platform"
-          variant="outline"
-          size="sm"
-          className="gap-2"
-          onClick={() => setActiveRole(platformRoles[0] as UserRoleType)}
-        >
-          {platformRoles.includes('super_admin') ? <Crown className="h-4 w-4" /> : <Shield className="h-4 w-4" />}
-          <span className="hidden sm:inline">Площадка</span>
-        </Button>
-      );
-    }
   }
 
   if (buttons.length === 0) return null;

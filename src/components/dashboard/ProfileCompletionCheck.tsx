@@ -170,9 +170,12 @@ const ProfileCompletionCheck = ({ entityType, entityData, onProfileUpdated }: Pr
     setSaving(false);
   };
 
+  const [deleteServiceId, setDeleteServiceId] = useState<string | null>(null);
+
   const handleDeleteService = async (serviceId: string) => {
     await supabase.from('services').delete().eq('id', serviceId);
     setServices(prev => prev.filter(s => s.id !== serviceId));
+    setDeleteServiceId(null);
   };
 
   const handleUploadPhoto = async (bucket: string, field: string) => {

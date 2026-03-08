@@ -308,7 +308,7 @@ const MasterDetail = () => {
       }
 
       const duration = Number(service.duration_minutes) || 60;
-      const scheduledAt = `${bookingData.date}T${bookingData.time}:00`;
+      const scheduledAt = new Date(`${bookingData.date}T${bookingData.time}:00`).toISOString();
 
       // Determine booking status based on auto_booking_policy
       const policy = master.auto_booking_policy || 'all';

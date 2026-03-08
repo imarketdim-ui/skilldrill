@@ -49,41 +49,16 @@ const SubscriptionPaywall = ({ entityType, entityId, entityName, onPaid }: Subsc
     if (!user || !canPayFromBalance) return;
     setPaying(true);
     try {
-      const { error: balError } = await supabase.from('user_balances')
-        .update({ main_balance: balance - totalPrice })
-        .eq('user_id', user.id);
-      if (balError) throw balError;
-
-      await supabase.from('balance_transactions').insert({
-        user_id: user.id,
-        amount: -totalPrice,
-        type: 'subscription_payment',
-        description: `Оплата подписки «${entityName}» на ${selectedPeriod} мес.`,
+      const description = `Оплата подписки «${entityName}» на ${selectedPeriod} мес.`;
+      const { data: success, error } = await supabase.rpc('pay_subscription_from_balance', {
+        _user_id: user.id,
+        _entity_type: entityType,
+        _entity_id: entityId,
+        _amount: totalPrice,
+        _description: description,
       });
-
-      const now = new Date().toISOString();
-      if (entityType === 'master') {
-        await supabase.from('master_profiles').update({
-          subscription_status: 'active',
-          last_payment_date: now,
-          suspended_at: null,
-          grace_start_date: null,
-        }).eq('id', entityId);
-      } else if (entityType === 'business') {
-        await supabase.from('business_locations').update({
-          subscription_status: 'active',
-          last_payment_date: now,
-          suspended_at: null,
-          grace_start_date: null,
-        }).eq('id', entityId);
-      } else {
-        await supabase.from('networks').update({
-          subscription_status: 'active',
-          last_payment_date: now,
-          suspended_at: null,
-          grace_start_date: null,
-        }).eq('id', entityId);
-      }
+      if (error) throw error;
+      if (!success) throw new Error('Недостаточно средств на балансе');
 
       toast({ title: 'Подписка оплачена!', description: `Списано ${totalPrice} ₽ с баланса` });
       onPaid();
