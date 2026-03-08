@@ -83,6 +83,21 @@ const BusinessDashboard = () => {
     );
   }
 
+  // Subscription paywall — block access if expired/grace/suspended (not trial, active, in_network)
+  const subStatus = selectedBusiness?.subscription_status;
+  const isSubscriptionBlocked = selectedBusiness && !['trial', 'active', 'in_network'].includes(subStatus || '');
+
+  if (isSubscriptionBlocked && !loading) {
+    return (
+      <SubscriptionPaywall
+        entityType="business"
+        entityId={selectedBusiness.id}
+        entityName={selectedBusiness.name || 'Организация'}
+        onPaid={fetchBusinesses}
+      />
+    );
+  }
+
   const showCompletion = selectedBusiness?.moderation_status !== 'approved';
 
   const getInitials = () =>
