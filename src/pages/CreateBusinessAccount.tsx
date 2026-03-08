@@ -13,6 +13,8 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Loader2, Wrench, Building2, Globe, Info, CheckCircle } from 'lucide-react';
 import MapPicker from '@/components/marketplace/MapPicker';
 import { usePlatformPricing } from '@/hooks/usePlatformPricing';
+import { PhoneInput } from '@/components/ui/phone-input';
+import { validateINN } from '@/lib/validation';
 
 const legalForms = [
   { value: 'ip', label: 'ИП' },
