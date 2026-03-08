@@ -361,9 +361,31 @@ const ClientDashboard = () => {
     }
   };
 
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   return (
     <div className="flex gap-6">
-      <aside className="hidden lg:flex flex-col w-60 shrink-0">
+      {/* Mobile sidebar toggle */}
+      <Button
+        variant="outline"
+        size="icon"
+        className="lg:hidden fixed top-4 left-4 z-50"
+        onClick={() => setSidebarOpen(true)}
+      >
+        <LayoutDashboard className="h-4 w-4" />
+      </Button>
+
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div className="lg:hidden fixed inset-0 bg-black/40 z-40" onClick={() => setSidebarOpen(false)} />
+      )}
+
+      <aside className={`
+        fixed lg:relative inset-y-0 left-0 z-40 w-60 shrink-0 flex flex-col bg-card border-r lg:border-r-0 p-4 lg:p-0
+        transition-transform duration-200
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        lg:translate-x-0 lg:flex
+      `}>
         <div className="flex items-center gap-3 px-3 pb-6 border-b mb-4">
           <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
             <Users className="h-5 w-5 text-primary-foreground" />
@@ -373,9 +395,11 @@ const ClientDashboard = () => {
             <p className="text-xs text-muted-foreground">Клиент</p>
           </div>
         </div>
-        <div className="space-y-1">
+        <div className="space-y-1 overflow-y-auto flex-1">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Меню</p>
-          {menuItems.map(item => <NavButton key={item.key} item={item} />)}
+          {menuItems.map(item => (
+            <NavButton key={item.key} item={{...item, onClick: () => setSidebarOpen(false)}} />
+          ))}
         </div>
         <div className="mt-auto pt-6 border-t">
           <div className="flex items-center gap-3 px-3">
@@ -390,20 +414,7 @@ const ClientDashboard = () => {
         </div>
       </aside>
 
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t z-50 flex overflow-x-auto px-2 py-1">
-        {menuItems.map(item => (
-          <button
-            key={item.key}
-            onClick={() => setActiveSection(item.key)}
-            className={`flex flex-col items-center gap-0.5 px-3 py-2 text-xs shrink-0 ${activeSection === item.key ? 'text-primary' : 'text-muted-foreground'}`}
-          >
-            <item.icon className="h-4 w-4" />
-            {item.label}
-          </button>
-        ))}
-      </nav>
-
-      <div className="flex-1 min-w-0 pb-20 lg:pb-0">
+      <div className="flex-1 min-w-0">
         {renderContent()}
       </div>
     </div>
