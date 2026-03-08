@@ -25,6 +25,7 @@ import BusinessBookingDetail from './business/BusinessBookingDetail';
 
 const menuItems = [
   { key: 'overview', label: 'Главная', icon: LayoutDashboard },
+  { key: 'bookings', label: 'Записи', icon: Calendar },
   { key: 'masters', label: 'Команда', icon: Users },
   { key: 'services', label: 'Услуги', icon: ClipboardList },
   { key: 'inventory', label: 'Склад', icon: Package },
