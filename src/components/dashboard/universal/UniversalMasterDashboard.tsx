@@ -244,6 +244,12 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
             <p className="text-xs text-muted-foreground">{config.label}</p>
           </div>
         </div>
+        {isReadOnly && (
+          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 mb-4 mx-1">
+            <p className="text-xs font-medium text-destructive">Подписка истекла</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Часть функций заблокирована</p>
+          </div>
+        )}
         <div className="space-y-1">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Меню</p>
           {adaptedMenuItems.map(item => <NavButton key={item.key} item={item} />)}
