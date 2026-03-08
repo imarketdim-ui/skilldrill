@@ -178,6 +178,8 @@ const BusinessDashboard = () => {
             </div>
           </div>
         );
+      case 'bookings':
+        return selectedBusiness ? <BusinessBookingDetail businessId={selectedBusiness.id} /> : null;
       case 'masters':
         return selectedBusiness ? (
           <BusinessMasters businessId={selectedBusiness.id} freeMasters={selectedBusiness.free_masters || 3} extraMasterPrice={selectedBusiness.extra_master_price || 500} />
