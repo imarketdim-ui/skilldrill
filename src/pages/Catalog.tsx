@@ -869,6 +869,7 @@ const Catalog = () => {
                       min_price={m.min_price}
                       hashtags={m.hashtags}
                       work_photos={m.work_photos}
+                      moderation_status={m.moderation_status}
                       onClick={() => navigate(`/master/${m.user_id}`)}
                     />
                   ))
