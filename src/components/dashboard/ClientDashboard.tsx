@@ -137,6 +137,7 @@ const ClientDashboard = () => {
         const bizName = (m.business_locations as any)?.name || 'Организация';
         entries.push({
           id: `biz-mgr-${m.id}`,
+          entityId: m.business_id,
           label: bizName,
           sublabel: 'Менеджер',
           icon: <Briefcase className="h-5 w-5" />,
