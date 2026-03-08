@@ -177,6 +177,7 @@ const ClientDashboard = () => {
         const netName = (m.networks as any)?.name || 'Сеть';
         entries.push({
           id: `net-mgr-${m.id}`,
+          entityId: m.network_id,
           label: netName,
           sublabel: 'Менеджер сети',
           icon: <Briefcase className="h-5 w-5" />,
