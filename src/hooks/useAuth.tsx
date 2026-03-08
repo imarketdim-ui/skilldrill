@@ -93,9 +93,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const handleSetActiveRole = (role: UserRoleType) => {
+  const handleSetActiveRole = (role: UserRoleType, entityId?: string | null) => {
     setActiveRole(role);
+    setActiveEntityId(entityId ?? null);
     localStorage.setItem('skillspot_active_role', role);
+    if (entityId) {
+      localStorage.setItem('skillspot_active_entity_id', entityId);
+    } else {
+      localStorage.removeItem('skillspot_active_entity_id');
+    }
   };
 
   useEffect(() => {
