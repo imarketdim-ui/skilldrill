@@ -221,12 +221,27 @@ const Catalog = () => {
 
       const bizIds = data.map((bl: any) => bl.id);
 
-      // Fetch master counts + category per business via business_masters -> master_profiles
+      // Fetch master counts per business
       const { data: bmData } = await supabase
         .from("business_masters")
-        .select("business_id, master_id, master_profiles!business_masters_master_id_fkey(category_id, service_categories!master_profiles_category_id_fkey(id, name))")
+        .select("business_id, master_id")
         .in("business_id", bizIds)
         .eq("status", "accepted");
+
+      // Fetch master profile categories separately
+      const masterIds = [...new Set((bmData || []).map((bm: any) => bm.master_id))];
+      let masterCategoryMap: Record<string, { id: string; name: string } | null> = {};
+      if (masterIds.length > 0) {
+        const { data: mpData } = await supabase
+          .from("master_profiles")
+          .select("user_id, category_id, service_categories!master_profiles_category_id_fkey(id, name)")
+          .in("user_id", masterIds);
+        (mpData || []).forEach((mp: any) => {
+          if (mp.service_categories) {
+            masterCategoryMap[mp.user_id] = mp.service_categories;
+          }
+        });
+      }
 
       // Fetch service counts per business
       const { data: svcCountData } = await supabase
@@ -241,8 +256,8 @@ const Catalog = () => {
 
       (bmData || []).forEach((bm: any) => {
         masterCountMap[bm.business_id] = (masterCountMap[bm.business_id] || 0) + 1;
-        if (!bizCategoryMap[bm.business_id] && bm.master_profiles?.service_categories) {
-          bizCategoryMap[bm.business_id] = bm.master_profiles.service_categories;
+        if (!bizCategoryMap[bm.business_id] && masterCategoryMap[bm.master_id]) {
+          bizCategoryMap[bm.business_id] = masterCategoryMap[bm.master_id];
         }
       });
 
