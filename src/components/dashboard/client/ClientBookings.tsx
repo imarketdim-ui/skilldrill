@@ -135,13 +135,18 @@ export default function ClientBookings({ userId }: Props) {
     setSubmitting(true);
     const booking = bookings.find(b => b.id === disputeDialog);
     if (booking) {
-      await supabase.from('disputes').insert({
-        booking_id: disputeDialog,
+      const insertData: any = {
         initiator_id: userId,
         respondent_id: booking.master_id || userId,
         reason: reason,
         description: reason,
-      });
+      };
+      if (booking.type === 'booking') {
+        insertData.booking_id = disputeDialog;
+      } else {
+        insertData.lesson_booking_id = disputeDialog;
+      }
+      await supabase.from('disputes').insert(insertData);
       toast({ title: 'Спор открыт' });
     }
     setDisputeDialog(null);
