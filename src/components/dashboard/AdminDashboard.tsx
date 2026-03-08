@@ -47,7 +47,10 @@ const AdminDashboard = () => {
   const [rejectReason, setRejectReason] = useState<Record<string, string>>({});
 
   const subRole = activeRole as AdminSubRole;
-  const canAccess = (tab: string) => TAB_ACCESS[tab]?.includes(subRole) ?? false;
+  const canAccess = (tab: string) => {
+    if (subRole === 'integrator' as any) return INTEGRATOR_TABS.includes(tab);
+    return TAB_ACCESS[tab]?.includes(subRole) ?? false;
+  };
   const visibleTabs = Object.keys(TAB_ACCESS).filter(canAccess);
   const defaultTab = visibleTabs[0] || 'support';
 
