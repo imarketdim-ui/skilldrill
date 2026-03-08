@@ -202,17 +202,21 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
     item.key === 'clients' ? { ...item, label: config.clientNamePlural } : item
   );
 
-  const NavButton = ({ item }: { item: { key: string; label: string; icon: any } }) => (
-    <Button
-      key={item.key}
-      variant={activeSection === item.key ? 'default' : 'ghost'}
-      className={`w-full justify-start gap-3 ${activeSection === item.key ? '' : 'text-muted-foreground'}`}
-      onClick={() => setActiveSection(item.key)}
-    >
-      <item.icon className="h-4 w-4" />
-      <span>{item.label}</span>
-    </Button>
-  );
+  const NavButton = ({ item }: { item: { key: string; label: string; icon: any } }) => {
+    const isLocked = isReadOnly && !readOnlySections.includes(item.key);
+    return (
+      <Button
+        key={item.key}
+        variant={activeSection === item.key ? 'default' : 'ghost'}
+        className={`w-full justify-start gap-3 ${activeSection === item.key ? '' : 'text-muted-foreground'} ${isLocked ? 'opacity-60' : ''}`}
+        onClick={() => setActiveSection(item.key)}
+      >
+        <item.icon className="h-4 w-4" />
+        <span className="flex-1 text-left">{item.label}</span>
+        {isLocked && <Lock className="h-3 w-3 text-muted-foreground" />}
+      </Button>
+    );
+  };
 
   return (
     <div className="flex flex-col lg:flex-row lg:gap-6 w-full overflow-hidden">
