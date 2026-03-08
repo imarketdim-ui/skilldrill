@@ -46,6 +46,8 @@ const TeachingChats = () => {
   const [loading, setLoading] = useState(true);
   const [showEmoji, setShowEmoji] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [showGroupDialog, setShowGroupDialog] = useState(false);
+  const [groups, setGroups] = useState<ChatGroup[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
