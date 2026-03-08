@@ -12,6 +12,7 @@ import {
   Copy, Check, Building2, Shield, Bell, ArrowLeft,
   LayoutDashboard, Settings, BarChart3, ChevronRight, Wrench, Briefcase, Star
 } from 'lucide-react';
+import { Gift } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
 import TeachingChats from '@/components/dashboard/teaching/TeachingChats';
