@@ -87,6 +87,18 @@ const TechnologyCardEditor = ({ serviceId, serviceName, servicePrice }: Props) =
   const totalEquipmentCost = equipment.reduce((s, e) => s + e.cost_per_use, 0);
   const totalCost = totalMaterialCost + totalLaborCost + totalEquipmentCost;
   const profit = servicePrice - totalCost;
+  const marginPct = servicePrice > 0 ? Math.round((profit / servicePrice) * 100) : 0;
+
+  const getMarginColor = (pct: number) => {
+    if (pct >= 40) return 'text-primary bg-primary/10 border-primary/30';
+    if (pct >= 15) return 'text-amber-600 bg-amber-500/10 border-amber-500/30';
+    return 'text-destructive bg-destructive/10 border-destructive/30';
+  };
+  const getMarginLabel = (pct: number) => {
+    if (pct >= 40) return 'Высокая';
+    if (pct >= 15) return 'Средняя';
+    return 'Низкая';
+  };
 
   const handleSave = async () => {
     if (!user) return;
@@ -242,6 +254,15 @@ const TechnologyCardEditor = ({ serviceId, serviceName, servicePrice }: Props) =
             <div className={`flex justify-between text-sm font-bold pt-1.5 border-t ${profit >= 0 ? 'text-primary' : 'text-destructive'}`}>
               <span>Прибыль</span>
               <span>{profit.toLocaleString()} ₽</span>
+            </div>
+            <div className="flex justify-between items-center text-sm pt-1.5 border-t border-border/50">
+              <span>Маржинальность</span>
+              <div className="flex items-center gap-2">
+                <span className="font-bold">{marginPct}%</span>
+                <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${getMarginColor(marginPct)}`}>
+                  {getMarginLabel(marginPct)}
+                </span>
+              </div>
             </div>
           </div>
 
