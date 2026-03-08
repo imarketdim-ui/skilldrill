@@ -106,13 +106,17 @@ const Catalog = () => {
   const [viewMode, setViewMode] = useState<"grid" | "map">("grid");
   const [selectedService, setSelectedService] = useState<ServiceCardData | null>(null);
 
+  const [citySearch, setCitySearch] = useState("");
+
   // Extract unique cities from dedicated city column
   const availableCities = useMemo(() => {
     const cities = new Set<string>();
     masters.forEach(m => { if (m.city) cities.add(m.city); });
     businesses.forEach(b => { if (b.city) cities.add(b.city); });
+    // Also extract from services
+    services.forEach(s => { if ((s as any).city) cities.add((s as any).city); });
     return Array.from(cities).sort();
-  }, [masters, businesses]);
+  }, [masters, businesses, services]);
 
   // Sync filters → URL
   const syncURL = useCallback(() => {
@@ -186,7 +190,7 @@ const Catalog = () => {
           bio: mp.description || profile?.bio,
           rating: null,
           review_count: 0,
-          location: mp.address || "Абакан",
+          location: mp.address || null,
           city: mp.city || null,
           category_id: mp.category_id,
           category_name: mp.service_categories?.name || null,
@@ -275,7 +279,7 @@ const Catalog = () => {
           images: photos,
           rating: null,
           review_count: 0,
-          address: bl.address || "Абакан",
+          address: bl.address || null,
           city: bl.city || null,
           description: bl.description,
           category_name: cat?.name || bl.category_id ? categories.find(c => c.id === bl.category_id)?.name || null : null,
@@ -307,11 +311,11 @@ const Catalog = () => {
 
       if (!data || data.length === 0) { setServices([]); return; }
 
-      // Get master_profiles for address + category
+      // Get master_profiles for address + category + city
       const masterIds = [...new Set((data as any[]).map((s: any) => s.master_id))];
       const { data: mpData } = await supabase
         .from("master_profiles")
-        .select("user_id, address, category_id, service_categories!master_profiles_category_id_fkey(name)")
+        .select("user_id, address, city, category_id, service_categories!master_profiles_category_id_fkey(name)")
         .in("user_id", masterIds);
 
       const mpMap: Record<string, any> = {};
@@ -329,10 +333,12 @@ const Catalog = () => {
           master_id: s.master_id,
           master_name: [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "Мастер",
           master_avatar: profile?.avatar_url || null,
-          master_location: mp?.address || "Абакан",
+          master_location: mp?.address || null,
           master_rating: null,
           master_review_count: 0,
           category_name: mp?.service_categories?.name || null,
+          category_id: mp?.category_id || null,
+          city: mp?.city || null,
         };
       });
       setServices(mapped);
@@ -428,16 +434,18 @@ const Catalog = () => {
         if (s.price != null) {
           if (s.price < priceRange[0] || s.price > priceRange[1]) return false;
         }
-        if (categoryFilter !== CATEGORY_ALL && s.category_name) {
-          // category filter applied via category_name match
-          const cat = categories.find(c => c.id === categoryFilter);
-          if (cat && s.category_name !== cat.name) return false;
-        }
-        if (selectedTags.length > 0) {
-          // Services don't have hashtags directly in ServiceCardData yet, skip
+        if (categoryFilter !== CATEGORY_ALL) {
+          const svc = s as any;
+          if (svc.category_id && svc.category_id !== categoryFilter) return false;
+          if (!svc.category_id && s.category_name) {
+            const cat = categories.find(c => c.id === categoryFilter);
+            if (cat && s.category_name !== cat.name) return false;
+          }
         }
         if (locationFilter) {
-          if (!(s.master_location || "").toLowerCase().includes(locationFilter.toLowerCase())) return false;
+          const svc = s as any;
+          if (svc.city && svc.city.toLowerCase() === locationFilter.toLowerCase()) { /* match */ }
+          else if (!(s.master_location || "").toLowerCase().includes(locationFilter.toLowerCase())) return false;
         }
         return true;
       })
@@ -553,30 +561,30 @@ const Catalog = () => {
                       <Input
                         placeholder="Введите город..."
                         autoFocus
+                        value={citySearch}
                         className="h-9 text-sm"
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          if (!v) return;
-                        }}
+                        onChange={(e) => setCitySearch(e.target.value)}
                       />
                     </div>
                     <div className="max-h-48 overflow-y-auto p-1">
                       <button
-                        onClick={() => { setLocationFilter(""); setLocationOpen(false); }}
+                        onClick={() => { setLocationFilter(""); setLocationOpen(false); setCitySearch(""); }}
                         className={`w-full text-left px-3 py-2 text-sm rounded-md hover:bg-accent transition-colors ${!locationFilter ? "bg-accent font-medium" : ""}`}
                       >
                         Все города
                       </button>
-                      {availableCities.map((city) => (
+                      {availableCities
+                        .filter(city => !citySearch || city.toLowerCase().includes(citySearch.toLowerCase()))
+                        .map((city) => (
                         <button
                           key={city}
-                          onClick={() => { setLocationFilter(city); setLocationOpen(false); }}
+                          onClick={() => { setLocationFilter(city); setLocationOpen(false); setCitySearch(""); }}
                           className={`w-full text-left px-3 py-2 text-sm rounded-md hover:bg-accent transition-colors ${locationFilter === city ? "bg-accent font-medium" : ""}`}
                         >
                           {city}
                         </button>
                       ))}
-                      {availableCities.length === 0 && (
+                      {availableCities.filter(city => !citySearch || city.toLowerCase().includes(citySearch.toLowerCase())).length === 0 && (
                         <p className="px-3 py-2 text-sm text-muted-foreground">Нет данных</p>
                       )}
                     </div>
