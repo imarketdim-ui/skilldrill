@@ -252,6 +252,7 @@ const BusinessFinances = ({ businessId }: Props) => {
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="flex-wrap">
           <TabsTrigger value="overview">Движение ДДС</TabsTrigger>
+          <TabsTrigger value="payroll">Начисления</TabsTrigger>
           <TabsTrigger value="masters">По мастерам</TabsTrigger>
           <TabsTrigger value="categories">По категориям</TabsTrigger>
         </TabsList>
