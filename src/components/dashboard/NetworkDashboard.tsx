@@ -19,6 +19,7 @@ const NetworkDashboard = () => {
   const [selectedNetwork, setSelectedNetwork] = useState<any>(null);
   const [locations, setLocations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [aggStats, setAggStats] = useState({ masters: 0, clients: 0, revenue: 0, bookingsCount: 0 });
 
   const fetchNetworks = useCallback(async () => {
     if (!user) return;
@@ -31,6 +32,24 @@ const NetworkDashboard = () => {
       setSelectedNetwork(target);
       const { data: locs } = await supabase.from('business_locations').select('*').eq('network_id', target.id);
       setLocations(locs || []);
+
+      // Aggregate stats from child locations
+      if (locs && locs.length > 0) {
+        const locIds = locs.map(l => l.id);
+        const [mastersRes, bookingsRes, financeRes] = await Promise.all([
+          supabase.from('business_masters').select('master_id', { count: 'exact' }).in('business_id', locIds).eq('status', 'accepted'),
+          supabase.from('bookings').select('client_id, status', { count: 'exact' }).in('organization_id', locIds),
+          supabase.from('business_finances').select('amount, type').in('business_id', locIds).eq('type', 'income'),
+        ]);
+        const uniqueClients = new Set((bookingsRes.data || []).map(b => b.client_id));
+        const totalRevenue = (financeRes.data || []).reduce((s, f) => s + Number(f.amount), 0);
+        setAggStats({
+          masters: mastersRes.count || 0,
+          clients: uniqueClients.size,
+          revenue: totalRevenue,
+          bookingsCount: bookingsRes.count || 0,
+        });
+      }
     }
     setLoading(false);
   }, [user, activeEntityId]);
@@ -126,10 +145,14 @@ const NetworkDashboard = () => {
           <Card>
             <CardHeader><CardTitle>Все мастера сети</CardTitle></CardHeader>
             <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                <Users className="h-10 w-10 mx-auto mb-3 opacity-50" />
-                <p>Мастера появятся после добавления точек</p>
-              </div>
+              {aggStats.masters === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Users className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                  <p>Мастера появятся после добавления точек</p>
+                </div>
+              ) : (
+                <p className="text-muted-foreground">Всего мастеров: <span className="font-bold text-foreground">{aggStats.masters}</span></p>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -138,10 +161,14 @@ const NetworkDashboard = () => {
           <Card>
             <CardHeader><CardTitle>Общая CRM / База клиентов</CardTitle></CardHeader>
             <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                <Heart className="h-10 w-10 mx-auto mb-3 opacity-50" />
-                <p>Система лояльности и клиентская база</p>
-              </div>
+              {aggStats.clients === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Heart className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                  <p>Система лояльности и клиентская база</p>
+                </div>
+              ) : (
+                <p className="text-muted-foreground">Уникальных клиентов: <span className="font-bold text-foreground">{aggStats.clients}</span></p>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -151,12 +178,18 @@ const NetworkDashboard = () => {
             <CardHeader><CardTitle>Общие финансы сети</CardTitle></CardHeader>
             <CardContent>
               <div className="grid gap-4 md:grid-cols-3">
-                {['Общий доход', 'Общий расход', 'Прибыль'].map(label => (
-                  <div key={label} className="text-center p-4 rounded-lg bg-muted">
-                    <p className="text-2xl font-bold">0 ₽</p>
-                    <p className="text-sm text-muted-foreground">{label}</p>
-                  </div>
-                ))}
+                <div className="text-center p-4 rounded-lg bg-muted">
+                  <p className="text-2xl font-bold">{aggStats.revenue.toLocaleString()} ₽</p>
+                  <p className="text-sm text-muted-foreground">Общий доход</p>
+                </div>
+                <div className="text-center p-4 rounded-lg bg-muted">
+                  <p className="text-2xl font-bold">{aggStats.bookingsCount}</p>
+                  <p className="text-sm text-muted-foreground">Всего записей</p>
+                </div>
+                <div className="text-center p-4 rounded-lg bg-muted">
+                  <p className="text-2xl font-bold">{locations.length}</p>
+                  <p className="text-sm text-muted-foreground">Активных точек</p>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -186,9 +219,9 @@ const NetworkDashboard = () => {
               <div className="grid gap-4 md:grid-cols-4">
                 {[
                   { val: locations.length, label: 'Точек' },
-                  { val: 0, label: 'Мастеров' },
-                  { val: '—', label: 'Ср. рейтинг' },
-                  { val: 0, label: 'Клиентов' },
+                  { val: aggStats.masters, label: 'Мастеров' },
+                  { val: aggStats.clients, label: 'Клиентов' },
+                  { val: aggStats.bookingsCount, label: 'Записей' },
                 ].map(item => (
                   <div key={item.label} className="text-center p-4 rounded-lg bg-muted">
                     <p className="text-2xl font-bold">{item.val}</p>
