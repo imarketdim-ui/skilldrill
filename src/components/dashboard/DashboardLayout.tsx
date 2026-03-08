@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Settings, LogOut } from 'lucide-react';
+import { Sparkles, LogOut } from 'lucide-react';
 import RoleSwitcher from './RoleSwitcher';
 
 interface DashboardLayoutProps {
