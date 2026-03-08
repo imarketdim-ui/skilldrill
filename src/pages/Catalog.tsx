@@ -888,6 +888,7 @@ const Catalog = () => {
                       category_name={b.category_name}
                       specialist_count={b.specialist_count}
                       service_count={b.service_count}
+                      moderation_status={b.moderation_status}
                       onClick={() => navigate(`/business/${b.id}`)}
                     />
                   ))
