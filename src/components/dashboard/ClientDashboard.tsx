@@ -398,7 +398,7 @@ const ClientDashboard = () => {
         <div className="space-y-1 overflow-y-auto flex-1">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Меню</p>
           {menuItems.map(item => (
-            <NavButton key={item.key} item={{...item, onClick: () => setSidebarOpen(false)}} />
+            <NavButton key={item.key} item={item} />
           ))}
         </div>
         <div className="mt-auto pt-6 border-t">
