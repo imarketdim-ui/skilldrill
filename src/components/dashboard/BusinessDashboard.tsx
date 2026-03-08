@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import ProfileCompletionCheck from './ProfileCompletionCheck';
 import SubscriptionManager from './SubscriptionManager';
+import SubscriptionPaywall from './SubscriptionPaywall';
 import { usePlatformPricing } from '@/hooks/usePlatformPricing';
 import BusinessMasters from './business/BusinessMasters';
 import BusinessServices from './business/BusinessServices';
@@ -79,6 +80,21 @@ const BusinessDashboard = () => {
           <p className="text-muted-foreground">Создайте бизнес-аккаунт в разделе Клиент.</p>
         </CardContent>
       </Card>
+    );
+  }
+
+  // Subscription paywall — block access if expired/grace/suspended (not trial, active, in_network)
+  const subStatus = selectedBusiness?.subscription_status;
+  const isSubscriptionBlocked = selectedBusiness && !['trial', 'active', 'in_network'].includes(subStatus || '');
+
+  if (isSubscriptionBlocked && !loading) {
+    return (
+      <SubscriptionPaywall
+        entityType="business"
+        entityId={selectedBusiness.id}
+        entityName={selectedBusiness.name || 'Организация'}
+        onPaid={fetchBusinesses}
+      />
     );
   }
 

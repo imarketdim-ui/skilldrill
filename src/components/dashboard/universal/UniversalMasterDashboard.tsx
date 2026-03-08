@@ -5,8 +5,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, LayoutDashboard, Calendar, Users, MessageSquare, BarChart3, Wallet, Package, Bell, ClipboardList, UserCog } from 'lucide-react';
+import { LayoutDashboard, Calendar, Users, MessageSquare, BarChart3, Wallet, Package, Bell, ClipboardList, UserCog } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import SubscriptionPaywall from '../SubscriptionPaywall';
 import UniversalDashboardHome from './UniversalDashboardHome';
 import UniversalSchedule from './UniversalSchedule';
 import UniversalClients from './UniversalClients';
@@ -162,16 +163,12 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
 
   if (!isSubscriptionActive && masterProfile) {
     return (
-      <Card className="border-destructive">
-        <CardContent className="pt-6 text-center">
-          <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-destructive" />
-          <h2 className="text-xl font-bold mb-2">Подписка неактивна</h2>
-          <p className="text-muted-foreground mb-4">
-            Ваши данные сохранены, но интерфейс мастера недоступен. Оплатите подписку ({pricing.master} ₽/мес) для продолжения работы.
-          </p>
-          <Button onClick={() => setActiveSection('finances')}>Оплатить подписку</Button>
-        </CardContent>
-      </Card>
+      <SubscriptionPaywall
+        entityType="master"
+        entityId={masterProfile.id}
+        entityName={masterProfile.short_description || 'Мастер'}
+        onPaid={() => window.location.reload()}
+      />
     );
   }
 
