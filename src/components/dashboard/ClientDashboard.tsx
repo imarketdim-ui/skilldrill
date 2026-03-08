@@ -6,110 +6,39 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Search, Heart, Calendar, Wallet, Users, MessageSquare,
   Copy, Check, Gift, Building2, Shield, Loader2, Bell,
-  LayoutDashboard, Star, Settings, BarChart3
+  LayoutDashboard, Settings, BarChart3
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useIsMobile } from '@/hooks/use-mobile';
 import TeachingChats from '@/components/dashboard/teaching/TeachingChats';
 import ClientRequests from '@/components/dashboard/client/ClientRequests';
 import ClientWallet from '@/components/dashboard/client/ClientWallet';
 import ClientReferral from '@/components/dashboard/client/ClientReferral';
 import ClientStats from '@/components/dashboard/client/ClientStats';
 import SupportChat from '@/components/dashboard/SupportChat';
-
-// Favorites section component
-const FavoritesSection = ({ userId, navigate }: { userId?: string; navigate: (path: string) => void }) => {
-  const [favorites, setFavorites] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!userId) return;
-    const fetchFavorites = async () => {
-      setLoading(true);
-      const { data } = await supabase.from('favorites').select('*').eq('user_id', userId).order('created_at', { ascending: false });
-      if (!data || data.length === 0) { setFavorites([]); setLoading(false); return; }
-
-      const masterIds = data.filter(f => f.favorite_type === 'master').map(f => f.target_id);
-      const bizIds = data.filter(f => f.favorite_type === 'business').map(f => f.target_id);
-
-      const [mastersRes, bizRes] = await Promise.all([
-        masterIds.length > 0 ? supabase.from('master_profiles').select('user_id, profiles!master_profiles_user_id_fkey(first_name, last_name, avatar_url), service_categories(name)').in('user_id', masterIds) : { data: [] },
-        bizIds.length > 0 ? supabase.from('business_locations').select('id, name, address').in('id', bizIds) : { data: [] },
-      ]);
-
-      const items = data.map(f => {
-        if (f.favorite_type === 'master') {
-          const mp = (mastersRes.data || []).find((m: any) => m.user_id === f.target_id);
-          return { ...f, name: mp ? `${(mp.profiles as any)?.first_name || ''} ${(mp.profiles as any)?.last_name || ''}`.trim() : 'Мастер', category: (mp?.service_categories as any)?.name, avatar: (mp?.profiles as any)?.avatar_url };
-        }
-        if (f.favorite_type === 'business') {
-          const bl = (bizRes.data || []).find((b: any) => b.id === f.target_id);
-          return { ...f, name: bl?.name || 'Организация', category: bl?.address };
-        }
-        return { ...f, name: 'Объект' };
-      });
-      setFavorites(items);
-      setLoading(false);
-    };
-    fetchFavorites();
-  }, [userId]);
-
-  if (loading) return <Card><CardContent className="pt-6 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></CardContent></Card>;
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Избранное</CardTitle>
-        <CardDescription>Организации, мастера и услуги</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {favorites.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">
-            <Heart className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>Вы ещё ничего не добавили в избранное</p>
-            <Button variant="outline" className="mt-4" onClick={() => navigate('/catalog')}>Найти услугу</Button>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {favorites.map(f => (
-              <div key={f.id} className="p-3 rounded-lg border cursor-pointer hover:border-primary/50 transition-colors flex items-center gap-3"
-                onClick={() => navigate(f.favorite_type === 'master' ? `/master/${f.target_id}` : `/business/${f.target_id}`)}>
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold shrink-0">
-                  {f.avatar ? <img src={f.avatar} className="w-full h-full rounded-full object-cover" /> : f.name?.[0] || '?'}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">{f.name}</p>
-                  {f.category && <p className="text-xs text-muted-foreground">{f.category}</p>}
-                </div>
-                <Badge variant="outline" className="text-[10px] shrink-0">{f.favorite_type === 'master' ? 'Мастер' : 'Организация'}</Badge>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-};
+import ClientFavorites from '@/components/dashboard/client/ClientFavorites';
+import ClientSettingsSection from '@/components/dashboard/client/ClientSettingsSection';
 
 const menuItems = [
   { key: 'overview', label: 'Обзор', icon: LayoutDashboard },
   { key: 'bookings', label: 'Мои записи', icon: Calendar },
   { key: 'favorites', label: 'Избранное', icon: Heart },
-  { key: 'chats', label: 'Чаты', icon: MessageSquare },
+  { key: 'communication', label: 'Общение', icon: MessageSquare },
   { key: 'stats', label: 'Статистика', icon: BarChart3 },
   { key: 'wallet', label: 'Баланс', icon: Wallet },
-  { key: 'referral', label: 'Рефералы', icon: Gift },
-  { key: 'requests', label: 'Запросы', icon: Shield },
-  { key: 'support', label: 'Техподдержка', icon: MessageSquare },
   { key: 'notifications', label: 'Уведомления', icon: Bell },
+  { key: 'settings', label: 'Настройки', icon: Settings },
 ];
 
 const ClientDashboard = () => {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const [activeSection, setActiveSection] = useState('overview');
   const [copied, setCopied] = useState(false);
   const [balance, setBalance] = useState({ main_balance: 0, referral_balance: 0 });
@@ -119,7 +48,6 @@ const ClientDashboard = () => {
 
   useEffect(() => {
     if (!user) return;
-
     Promise.all([
       supabase.from('user_balances').select('main_balance, referral_balance').eq('user_id', user.id).maybeSingle(),
       supabase.from('admin_assignments').select('id', { count: 'exact', head: true }).eq('assignee_id', user.id).eq('status', 'pending'),
@@ -145,20 +73,6 @@ const ClientDashboard = () => {
   const getInitials = () =>
     `${(profile?.first_name || '')[0] || ''}${(profile?.last_name || '')[0] || ''}`.toUpperCase() || '?';
 
-  const NavButton = ({ item }: { item: { key: string; label: string; icon: any } }) => (
-    <Button
-      variant={activeSection === item.key ? 'default' : 'ghost'}
-      className={`w-full justify-start gap-3 ${activeSection === item.key ? '' : 'text-muted-foreground'}`}
-      onClick={() => { setActiveSection(item.key); setSidebarOpen(false); }}
-    >
-      <item.icon className="h-4 w-4" />
-      <span>{item.label}</span>
-      {item.key === 'requests' && pendingInvites > 0 && (
-        <Badge variant="destructive" className="ml-auto h-5 px-1.5 text-[10px]">{pendingInvites}</Badge>
-      )}
-    </Button>
-  );
-
   const renderContent = () => {
     switch (activeSection) {
       case 'bookings':
@@ -173,7 +87,7 @@ const ClientDashboard = () => {
                 <div className="text-center py-12 text-muted-foreground">
                   <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>У вас пока нет записей</p>
-                <Button className="mt-4" onClick={() => navigate('/catalog')}>Найти услугу</Button>
+                  <Button className="mt-4" onClick={() => navigate('/catalog')}>Найти услугу</Button>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -195,10 +109,36 @@ const ClientDashboard = () => {
         );
 
       case 'favorites':
-        return <FavoritesSection userId={user?.id} navigate={navigate} />;
+        return <ClientFavorites userId={user?.id} />;
 
-      case 'chats':
-        return <TeachingChats />;
+      case 'communication':
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Общение</CardTitle>
+              <CardDescription>Чаты, запросы и техподдержка</CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Tabs defaultValue="chats" className="w-full">
+                <TabsList className="w-full rounded-none border-b bg-transparent px-6 pt-2">
+                  <TabsTrigger value="chats" className="flex-1">Чаты</TabsTrigger>
+                  <TabsTrigger value="requests" className="flex-1 relative">
+                    Запросы
+                    {pendingInvites > 0 && (
+                      <Badge variant="destructive" className="ml-1.5 h-5 px-1.5 text-[10px]">{pendingInvites}</Badge>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="support" className="flex-1">Поддержка</TabsTrigger>
+                </TabsList>
+                <div className="p-6">
+                  <TabsContent value="chats" className="mt-0"><TeachingChats /></TabsContent>
+                  <TabsContent value="requests" className="mt-0"><ClientRequests /></TabsContent>
+                  <TabsContent value="support" className="mt-0"><SupportChat /></TabsContent>
+                </div>
+              </Tabs>
+            </CardContent>
+          </Card>
+        );
 
       case 'stats':
         return user ? <ClientStats userId={user.id} /> : null;
@@ -206,14 +146,8 @@ const ClientDashboard = () => {
       case 'wallet':
         return <ClientWallet />;
 
-      case 'referral':
-        return <ClientReferral />;
-
-      case 'requests':
-        return <ClientRequests />;
-
-      case 'support':
-        return <SupportChat />;
+      case 'settings':
+        return <ClientSettingsSection />;
 
       case 'notifications':
         return (
@@ -251,10 +185,10 @@ const ClientDashboard = () => {
                       <Shield className="h-5 w-5 text-primary" />
                       <div>
                         <p className="font-medium">У вас {pendingInvites} входящ{pendingInvites === 1 ? 'ее' : 'их'} назначени{pendingInvites === 1 ? 'е' : 'й'}</p>
-                        <p className="text-sm text-muted-foreground">Перейдите в раздел «Запросы» для подтверждения</p>
+                        <p className="text-sm text-muted-foreground">Перейдите в раздел «Общение → Запросы»</p>
                       </div>
                     </div>
-                    <Button size="sm" onClick={() => setActiveSection('requests')}>Перейти</Button>
+                    <Button size="sm" onClick={() => setActiveSection('communication')}>Перейти</Button>
                   </div>
                 </CardContent>
               </Card>
@@ -282,9 +216,6 @@ const ClientDashboard = () => {
                           </Button>
                         </div>
                       </div>
-                      <Button variant="outline" size="sm" onClick={() => navigate('/settings')}>
-                        <Settings className="h-4 w-4 mr-1" /> Настройки
-                      </Button>
                     </div>
                   </div>
                 </div>
@@ -337,18 +268,6 @@ const ClientDashboard = () => {
               </Card>
             </div>
 
-            <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => navigate('/catalog')}>
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-3">
-                  <Search className="h-5 w-5 text-primary" />
-                  <div>
-                    <p className="font-medium text-sm">Найти услугу</p>
-                    <p className="text-xs text-muted-foreground">Поиск мастеров и организаций</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
             <Card className="border-dashed cursor-pointer hover:border-primary transition-colors" onClick={() => navigate('/create-account')}>
               <CardContent className="pt-6 text-center">
                 <Building2 className="h-10 w-10 mx-auto mb-2 text-primary" />
@@ -361,31 +280,40 @@ const ClientDashboard = () => {
     }
   };
 
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Mobile / tablet: bottom bar
+  if (isMobile) {
+    return (
+      <div className="flex flex-col min-h-[calc(100vh-4rem)]">
+        <div className="flex-1 min-w-0 pb-20">
+          {renderContent()}
+        </div>
 
+        <nav className="fixed bottom-0 left-0 right-0 z-40 bg-card border-t safe-area-bottom">
+          <div className="flex justify-around items-center h-14">
+            {menuItems.map(item => (
+              <button
+                key={item.key}
+                onClick={() => setActiveSection(item.key)}
+                className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full text-[10px] transition-colors
+                  ${activeSection === item.key ? 'text-primary' : 'text-muted-foreground'}`}
+              >
+                <item.icon className="h-5 w-5" />
+                <span className="leading-tight">{item.label}</span>
+                {item.key === 'communication' && pendingInvites > 0 && (
+                  <span className="absolute top-1 right-1/2 translate-x-3 -translate-y-0 h-2 w-2 rounded-full bg-destructive" />
+                )}
+              </button>
+            ))}
+          </div>
+        </nav>
+      </div>
+    );
+  }
+
+  // Desktop: fixed sidebar
   return (
     <div className="flex gap-6">
-      {/* Mobile sidebar toggle */}
-      <Button
-        variant="outline"
-        size="icon"
-        className="lg:hidden fixed top-4 left-4 z-50"
-        onClick={() => setSidebarOpen(true)}
-      >
-        <LayoutDashboard className="h-4 w-4" />
-      </Button>
-
-      {/* Mobile overlay */}
-      {sidebarOpen && (
-        <div className="lg:hidden fixed inset-0 bg-black/40 z-40" onClick={() => setSidebarOpen(false)} />
-      )}
-
-      <aside className={`
-        fixed lg:relative inset-y-0 left-0 z-40 w-60 shrink-0 flex flex-col bg-card border-r lg:border-r-0 p-4 lg:p-0
-        transition-transform duration-200
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-        lg:translate-x-0 lg:flex
-      `}>
+      <aside className="w-60 shrink-0 sticky top-20 self-start flex flex-col h-[calc(100vh-6rem)]">
         <div className="flex items-center gap-3 px-3 pb-6 border-b mb-4">
           <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
             <Users className="h-5 w-5 text-primary-foreground" />
@@ -398,7 +326,18 @@ const ClientDashboard = () => {
         <div className="space-y-1 overflow-y-auto flex-1">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Меню</p>
           {menuItems.map(item => (
-            <NavButton key={item.key} item={item} />
+            <Button
+              key={item.key}
+              variant={activeSection === item.key ? 'default' : 'ghost'}
+              className={`w-full justify-start gap-3 ${activeSection === item.key ? '' : 'text-muted-foreground'}`}
+              onClick={() => setActiveSection(item.key)}
+            >
+              <item.icon className="h-4 w-4" />
+              <span>{item.label}</span>
+              {item.key === 'communication' && pendingInvites > 0 && (
+                <Badge variant="destructive" className="ml-auto h-5 px-1.5 text-[10px]">{pendingInvites}</Badge>
+              )}
+            </Button>
           ))}
         </div>
         <div className="mt-auto pt-6 border-t">
