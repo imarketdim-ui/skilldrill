@@ -21,6 +21,18 @@ interface ChatContact {
   lastMessage?: string;
   lastMessageAt?: string;
   unread: number;
+  isGroup?: boolean;
+  groupId?: string;
+}
+
+interface ChatGroup {
+  id: string;
+  name: string;
+  created_by: string;
+  member_count: number;
+  lastMessage?: string;
+  lastMessageAt?: string;
+  unread: number;
 }
 
 const TeachingChats = () => {
