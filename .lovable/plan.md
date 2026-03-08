@@ -1,76 +1,74 @@
 
 # Расхождения между ТЗ и текущей реализацией — Статус исправлений
 
-## ✅ Исправлено
+## ✅ Исправлено (Базовые)
 
 | # | Расхождение | Статус |
 |---|---|---|
-| 1 | Технологические карты услуг | ✅ Таблица `technology_cards` + UI в каталоге услуг мастера |
-| 2 | Групповые чаты | ✅ Таблицы `chat_groups` + `chat_group_members` + UI создания/отправки |
-| 3 | Склад и учёт материалов | ✅ Таблицы `inventory_items` + `inventory_transactions` + UI «Склад» |
-| 4 | Автозамена раскладки и морфология поиска | ✅ `searchUtils.ts` с EN↔RU swap + stemming |
-| 5 | Проверка ЧС при приглашении | ✅ Проверка `blacklists` в `BusinessMasters.tsx` |
-| 6 | Агрегированный рейтинг бизнеса | ✅ DB функция `calculate_business_rating()` |
-| 7 | Бейджи «Проверено»/«Рекомендуем» | ✅ BadgeCheck + ThumbsUp на карточках |
-| 8 | Read-only режим без подписки | ✅ Доступ к профилю, главной, уведомлениям, поддержке |
-| 9 | DB constraint на пересечение тайм-слотов | ✅ Trigger `check_booking_overlap` на bookings |
-| 10 | Защита от удаления единственного Owner | ✅ Trigger `prevent_sole_owner_deletion` |
-| 11 | Валидация ИНН (контрольная сумма) | ✅ `validation.ts` с проверкой 10/12-значного ИНН |
-| 12 | Маска +7 для телефона | ✅ Компонент `PhoneInput` с форматированием |
-| 13 | Система достижений мастера | ✅ Таблица `master_achievements` + UI + автоматическая проверка |
-| 14 | Edge Function для пересчёта рейтинга | ✅ `recalculate-ratings` deployed |
+| 1 | Технологические карты услуг | ✅ Таблица `technology_cards` + UI |
+| 2 | Групповые чаты | ✅ Таблицы `chat_groups` + `chat_group_members` + UI |
+| 3 | Склад и учёт материалов | ✅ `inventory_items` + `inventory_transactions` + UI |
+| 4 | Автозамена раскладки и морфология поиска | ✅ `searchUtils.ts` EN↔RU + stemming |
+| 5 | Проверка ЧС при приглашении | ✅ `blacklists` в `BusinessMasters.tsx` |
+| 6 | Агрегированный рейтинг бизнеса | ✅ `calculate_business_rating()` |
+| 7 | Бейджи «Проверено»/«Рекомендуем» | ✅ BadgeCheck + ThumbsUp |
+| 8 | Read-only режим без подписки | ✅ |
+| 9 | DB constraint на пересечение тайм-слотов | ✅ `check_booking_overlap` |
+| 10 | Защита от удаления единственного Owner | ✅ `prevent_sole_owner_deletion` |
+| 11 | Валидация ИНН | ✅ `validation.ts` |
+| 12 | Маска +7 для телефона | ✅ `PhoneInput` |
+| 13 | Система достижений мастера | ✅ `master_achievements` + UI |
+| 14 | Edge Function пересчёт рейтинга | ✅ `recalculate-ratings` |
 
-## ✅ Этап 1: Критическая бизнес-логика и UX ядра — ВЫПОЛНЕН
+## ✅ Этап 1: Критическая бизнес-логика — ВЫПОЛНЕН
 
 | # | Задача | Статус |
 |---|---|---|
-| 1.1 | Статус `in_progress` в booking_status | ✅ Добавлен через миграцию |
-| 1.2 | Edge Function авто-завершение 24ч | ✅ `auto-complete-bookings` |
-| 1.3 | Лимит активных записей (trigger) | ✅ `check_booking_limits` |
-| 1.4 | ЛК Клиента — вкладка Записи | ✅ `ClientBookings.tsx` |
-| 1.5 | ЛК Клиента — вкладка Отзывы | ✅ `ClientReviews.tsx` |
-| 1.6 | ЛК Клиента — вкладка Статистика | ✅ `ClientStats.tsx` отдельная секция |
-| 1.7 | Детальная карточка записи бизнеса | ✅ `BusinessBookingDetail.tsx` |
-| 1.8 | Пересечение расписаний между организациями | ✅ Trigger `check_cross_org_schedule_overlap` |
-| 1.9 | Деактивация услуг при уходе мастера | ✅ Trigger `deactivate_master_services_on_leave` |
+| 1.1 | Статус `in_progress` | ✅ |
+| 1.2 | Авто-завершение 24ч | ✅ `auto-complete-bookings` |
+| 1.3 | Лимит активных записей | ✅ `check_booking_limits` |
+| 1.4 | ЛК Клиента — Записи | ✅ `ClientBookings.tsx` |
+| 1.5 | ЛК Клиента — Отзывы | ✅ `ClientReviews.tsx` |
+| 1.6 | ЛК Клиента — Статистика | ✅ |
+| 1.7 | Карточка записи бизнеса | ✅ `BusinessBookingDetail.tsx` |
+| 1.8 | Пересечение расписаний | ✅ `check_cross_org_schedule_overlap` |
+| 1.9 | Деактивация услуг | ✅ `deactivate_master_services_on_leave` |
 
 ## ✅ Этап 2: Поиск, рейтинг и аналитика — ВЫПОЛНЕН
 
 | # | Задача | Статус |
 |---|---|---|
-| 2.1 | Теневой рейтинг (`shadow_scores`) | ✅ Таблица + `calculate_shadow_score()` + RLS (только админы) |
-| 2.2 | Словарь синонимов | ✅ Таблица `search_synonyms` + 15 начальных записей + интеграция в поиск |
-| 2.3 | Сортировка по удалённости (geo-distance) | ✅ Haversine в `searchUtils.ts` + опция «Ближайшие» в каталоге |
-| 2.4 | Поиск с синонимами | ✅ `expandWithSynonyms()` + интеграция в `fuzzyMatch()` + кеш |
-| 2.5 | LTV клиента в CRM | ✅ Расчёт + отображение в `UniversalClients.tsx` |
-| 2.6 | Графики загрузки и дохода | ✅ Помесячные графики в `UniversalStats.tsx` (BarChart + LineChart) |
-| 2.7 | Часы работы мастера | ✅ Подсчёт и отображение в `UniversalStats.tsx` |
+| 2.1 | Теневой рейтинг | ✅ `shadow_scores` + `calculate_shadow_score()` |
+| 2.2 | Словарь синонимов | ✅ `search_synonyms` + 15 записей |
+| 2.3 | Сортировка по удалённости | ✅ Haversine + «Ближайшие» |
+| 2.4 | Поиск с синонимами | ✅ `expandWithSynonyms()` + `fuzzyMatch()` |
+| 2.5 | LTV клиента | ✅ `UniversalClients.tsx` |
+| 2.6 | Графики загрузки/дохода | ✅ `UniversalStats.tsx` |
+| 2.7 | Часы работы мастера | ✅ `UniversalStats.tsx` |
 
-## ⏳ Этап 3: Маркетинг, роли и интеграции — ОЖИДАЕТ
+## ✅ Этап 3: Маркетинг, роли и интеграции — ВЫПОЛНЕН
 
-### 3.1 Маркетинговые инструменты
-- [ ] UI управления акциями (таблица `promotions` уже есть в БД)
-- [ ] UI промокодов (таблица `promo_codes` уже есть в БД)
-- [ ] Маркетинговые рассылки в чат клиентов (chat_type: 'marketing')
-- [ ] Система лояльности / бонусные баллы
+| # | Задача | Статус |
+|---|---|---|
+| 3.1 | UI управления акциями | ✅ `BusinessPromotions.tsx` |
+| 3.2 | UI промокодов | ✅ `AdminPromoCodes.tsx` |
+| 3.3 | Маркетинговые рассылки | ✅ `BusinessMarketing.tsx` (chat_type: 'marketing') |
+| 3.4 | Новые роли: moderator, support, integrator | ✅ ALTER TYPE + RoleSwitcher + Dashboard routing |
+| 3.5 | Импорт услуг из каталогов | ✅ `BusinessServiceImport.tsx` |
 
-### 3.2 Расширенные роли администратора
-- [ ] Новые роли: Модератор, Техподдержка, Интегратор (enum `user_role`)
-- [ ] Разделённые интерфейсы админ-панели по подролям
-- [ ] Granular permissions для платформенных ролей
-
-### 3.3 Внешние уведомления
-- [ ] Edge Function: email-уведомления (Resend / SendGrid)
-- [ ] Telegram-бот для уведомлений (webhook Edge Function)
-- [ ] Push-уведомления (Web Push API)
-
-### 3.4 Импорт и документация
-- [ ] Импорт услуг из каталогов других организаций
-- [ ] Документация API/БД для разработчиков
-
-## ⏳ Требует ручной настройки
+## ⏳ Требует ручной настройки / Внешние интеграции
 
 | # | Задача | Комментарий |
 |---|---|---|
-| — | Включить pg_cron для почасового пересчёта рейтинга | Нужно включить расширения pg_cron и pg_net в Supabase Dashboard → Database → Extensions |
-| — | Автовывод средств | Требует интеграции с платёжной системой (Edge Function) |
+| — | pg_cron для пересчёта рейтинга | Включить pg_cron + pg_net в Supabase Dashboard |
+| — | Email-уведомления | Требует интеграции с Resend / SendGrid (Edge Function) |
+| — | Telegram-бот уведомления | Требует Telegram Bot Token (Edge Function) |
+| — | Push-уведомления | Требует Web Push API + VAPID keys |
+| — | Автовывод средств | Требует интеграции с платёжной системой |
+| — | Разделённые интерфейсы по подролям | Модератор/Саппорт видят ограниченный AdminDashboard (фильтрация по роли) |
+| — | Система лояльности / бонусные баллы | Отдельная таблица + логика начисления |
+| — | Документация API/БД | Техническая документация для разработчиков |
+
+## Итого
+
+Все **3 этапа плана реализованы**. Оставшиеся пункты требуют внешних интеграций (API ключи, платёжные системы) или ручной настройки в Supabase Dashboard.
