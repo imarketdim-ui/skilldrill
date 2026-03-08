@@ -146,6 +146,7 @@ const menuItems = [
 
 const managementItems = [
   { key: 'stats', label: 'Статистика', icon: BarChart3 },
+  { key: 'achievements', label: 'Достижения', icon: Trophy },
 ];
 
 const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config }: Props) => {
