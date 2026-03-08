@@ -214,7 +214,7 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
 
   return (
     <div className="flex gap-6 w-full overflow-hidden">
-      <aside className="hidden lg:flex flex-col w-60 shrink-0">
+      <aside className="hidden lg:flex flex-col w-60 shrink-0 sticky top-20 self-start h-[calc(100vh-6rem)]">
         <div className="flex items-center gap-3 px-3 pb-6 border-b mb-4">
           <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
             <IconComponent className="h-5 w-5 text-primary-foreground" />
