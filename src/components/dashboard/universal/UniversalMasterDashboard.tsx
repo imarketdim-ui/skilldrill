@@ -250,17 +250,20 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
         </div>
       </aside>
 
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t z-50 flex overflow-x-auto px-2 py-1">
-        {[...adaptedMenuItems, ...managementItems].map(item => (
-          <button
-            key={item.key}
-            onClick={() => setActiveSection(item.key)}
-            className={`flex flex-col items-center gap-0.5 px-3 py-2 text-xs shrink-0 ${activeSection === item.key ? 'text-primary' : 'text-muted-foreground'}`}
-          >
-            <item.icon className="h-4 w-4" />
-            {item.label}
-          </button>
-        ))}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t z-50 safe-area-bottom">
+        <div className="flex overflow-x-auto scrollbar-hide">
+          {[...adaptedMenuItems, ...managementItems].map(item => (
+            <button
+              key={item.key}
+              onClick={() => setActiveSection(item.key)}
+              className={`flex flex-col items-center justify-center gap-0.5 min-w-[4rem] flex-1 py-2 text-[10px] leading-tight transition-colors
+                ${activeSection === item.key ? 'text-primary' : 'text-muted-foreground'}`}
+            >
+              <item.icon className="h-4 w-4 shrink-0" />
+              <span className="truncate max-w-[3.5rem] text-center">{item.label}</span>
+            </button>
+          ))}
+        </div>
       </nav>
 
       <div className="flex-1 min-w-0 pb-20 lg:pb-0">
