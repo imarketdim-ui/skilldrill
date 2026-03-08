@@ -421,24 +421,34 @@ const Catalog = () => {
 
   // Filter businesses
   const filteredBusinesses = useMemo(() => {
-    return businesses.filter((b) => {
-      if (searchQuery) {
-        const match =
-          fuzzyMatch(b.name, searchQuery) ||
-          fuzzyMatch(b.description || "", searchQuery) ||
-          fuzzyMatch(b.address || "", searchQuery);
-        if (!match) return false;
-      }
-      if (categoryFilter !== CATEGORY_ALL) {
-        if (!b.category_id || b.category_id !== categoryFilter) return false;
-      }
-      if (locationFilter) {
-        if (b.city && b.city.toLowerCase() === locationFilter.toLowerCase()) { /* match */ }
-        else if (!(b.address || "").toLowerCase().includes(locationFilter.toLowerCase())) return false;
-      }
-      return true;
-    });
-  }, [businesses, searchQuery, categoryFilter, locationFilter]);
+    return businesses
+      .filter((b) => {
+        if (searchQuery) {
+          const match =
+            fuzzyMatch(b.name, searchQuery, synonyms) ||
+            fuzzyMatch(b.description || "", searchQuery, synonyms) ||
+            fuzzyMatch(b.address || "", searchQuery, synonyms) ||
+            fuzzyMatch(b.category_name || "", searchQuery, synonyms);
+          if (!match) return false;
+        }
+        if (categoryFilter !== CATEGORY_ALL) {
+          if (!b.category_id || b.category_id !== categoryFilter) return false;
+        }
+        if (locationFilter) {
+          if (b.city && b.city.toLowerCase() === locationFilter.toLowerCase()) { /* match */ }
+          else if (!(b.address || "").toLowerCase().includes(locationFilter.toLowerCase())) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        if (sortBy === "nearest" && userLocation) {
+          const dA = (a.latitude && a.longitude) ? haversineDistance(userLocation.lat, userLocation.lon, a.latitude, a.longitude) : 99999;
+          const dB = (b.latitude && b.longitude) ? haversineDistance(userLocation.lat, userLocation.lon, b.latitude, b.longitude) : 99999;
+          return dA - dB;
+        }
+        return 0;
+      });
+  }, [businesses, searchQuery, categoryFilter, locationFilter, synonyms, sortBy, userLocation]);
 
   // Filter services
   const filteredServices = useMemo(() => {
