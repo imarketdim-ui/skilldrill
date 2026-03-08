@@ -363,13 +363,11 @@ const Catalog = () => {
     return masters
       .filter((m) => {
         if (searchQuery) {
-          const q = searchQuery.toLowerCase();
-          const stem = stemRu(searchQuery);
           const match =
-            m.name.toLowerCase().includes(q) ||
-            stemRu(m.name).includes(stem) ||
-            (m.bio || "").toLowerCase().includes(q) ||
-            (m.hashtags || []).some((h) => h.toLowerCase().includes(q) || stemRu(h).includes(stem));
+            fuzzyMatch(m.name, searchQuery) ||
+            fuzzyMatch(m.bio || "", searchQuery) ||
+            fuzzyMatch(m.location || "", searchQuery) ||
+            (m.hashtags || []).some((h) => fuzzyMatch(h, searchQuery));
           if (!match) return false;
         }
         if (m.min_price != null) {
