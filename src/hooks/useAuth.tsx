@@ -24,7 +24,8 @@ interface AuthContextType {
   profile: Profile | null;
   roles: UserRoleType[];
   activeRole: UserRoleType;
-  setActiveRole: (role: UserRoleType) => void;
+  activeEntityId: string | null;
+  setActiveRole: (role: UserRoleType, entityId?: string | null) => void;
   loading: boolean;
   signUp: (email: string, password: string, firstName?: string, lastName?: string, referredBy?: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
