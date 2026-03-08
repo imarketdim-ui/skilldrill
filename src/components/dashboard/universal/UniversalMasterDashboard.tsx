@@ -161,16 +161,10 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
     return () => window.removeEventListener('navigate-dashboard', handler as EventListener);
   }, []);
 
-  if (!isSubscriptionActive && masterProfile) {
-    return (
-      <SubscriptionPaywall
-        entityType="master"
-        entityId={masterProfile.id}
-        entityName={masterProfile.short_description || 'Мастер'}
-        onPaid={() => window.location.reload()}
-      />
-    );
-  }
+  const isReadOnly = !isSubscriptionActive && !!masterProfile;
+
+  // Read-only sections that work without subscription
+  const readOnlySections = ['home', 'profile', 'notifications', 'support'];
 
   const renderContent = () => {
     switch (activeSection) {
