@@ -26,6 +26,7 @@ const menuItems = [
   { key: 'overview', label: 'Главная', icon: LayoutDashboard },
   { key: 'masters', label: 'Команда', icon: Users },
   { key: 'services', label: 'Услуги', icon: ClipboardList },
+  { key: 'inventory', label: 'Склад', icon: Package },
   { key: 'schedule', label: 'Расписание', icon: Calendar },
   { key: 'finance', label: 'Финансы', icon: DollarSign },
   { key: 'subscription', label: 'Подписка', icon: CreditCard },
