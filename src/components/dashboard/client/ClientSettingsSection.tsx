@@ -187,7 +187,7 @@ const ClientSettingsSection = () => {
                 {(profile as any)?.kyc_verified ? (
                   <p className="text-sm text-primary font-medium">✓ Верифицирован</p>
                 ) : (
-                  <p className="text-sm text-muted-foreground">Верификация повышает доверие и даёт +15 к рейтингу</p>
+                  <p className="text-sm text-muted-foreground">Верификация положительно влияет на вашу репутацию. Пока недоступна.</p>
                 )}
               </div>
             </div>
