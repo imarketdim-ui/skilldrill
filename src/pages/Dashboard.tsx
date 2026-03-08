@@ -49,6 +49,12 @@ const Dashboard = () => {
         return roles.includes('super_admin') ? <SuperAdminDashboard /> : <ClientDashboard />;
       case 'platform_manager':
         return roles.includes('platform_manager') ? <ManagerDashboard /> : <ClientDashboard />;
+      case 'moderator':
+        return roles.includes('moderator') ? <AdminDashboard /> : <ClientDashboard />;
+      case 'support':
+        return roles.includes('support') ? <AdminDashboard /> : <ClientDashboard />;
+      case 'integrator':
+        return roles.includes('integrator') ? <AdminDashboard /> : <ClientDashboard />;
       default: return <ClientDashboard />;
     }
   };
