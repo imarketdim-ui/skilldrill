@@ -33,6 +33,7 @@ const ClientSettingsSection = () => {
   const { user, profile, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const formRef = useRef<HTMLFormElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -142,7 +143,7 @@ const ClientSettingsSection = () => {
           <CardDescription>Обновите вашу контактную информацию</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="first_name">Имя</Label>
@@ -187,14 +188,11 @@ const ClientSettingsSection = () => {
                 {(profile as any)?.kyc_verified ? (
                   <p className="text-sm text-primary font-medium">✓ Верифицирован</p>
                 ) : (
-                  <p className="text-sm text-muted-foreground">Верификация повышает доверие и даёт +15 к рейтингу</p>
+                  <p className="text-sm text-muted-foreground">Верификация положительно влияет на вашу репутацию. Пока недоступна.</p>
                 )}
               </div>
             </div>
 
-            <Button type="submit" disabled={isSubmitting} className="w-full">
-              {isSubmitting ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" />Сохранение...</>) : 'Сохранить изменения'}
-            </Button>
           </form>
         </CardContent>
       </Card>
@@ -216,6 +214,14 @@ const ClientSettingsSection = () => {
           </div>
         </CardContent>
       </Card>
+
+      <Button
+        onClick={() => formRef.current?.requestSubmit()}
+        disabled={isSubmitting}
+        className="w-full"
+      >
+        {isSubmitting ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" />Сохранение...</>) : 'Сохранить изменения'}
+      </Button>
     </div>
   );
 };
