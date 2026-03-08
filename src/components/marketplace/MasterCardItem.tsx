@@ -16,6 +16,7 @@ interface Props {
   min_price?: number | null;
   hashtags?: string[] | null;
   work_photos?: string[] | null;
+  moderation_status?: string | null;
   onClick: () => void;
 }
 
