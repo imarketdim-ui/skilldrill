@@ -108,6 +108,8 @@ const Catalog = () => {
   const [showAllTags, setShowAllTags] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "map">("grid");
   const [selectedService, setSelectedService] = useState<ServiceCardData | null>(null);
+  const [synonyms, setSynonyms] = useState<{ term: string; synonyms: string[] }[]>([]);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
 
   const [citySearch, setCitySearch] = useState("");
 
