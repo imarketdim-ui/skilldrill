@@ -300,6 +300,14 @@ const BusinessFinances = ({ businessId }: Props) => {
           </Card>
         </TabsContent>
 
+        <TabsContent value="payroll">
+          <PayrollSection
+            masters={masters}
+            filteredFinances={filteredFinances}
+            businessId={businessId}
+          />
+        </TabsContent>
+
         <TabsContent value="masters">
           <Card>
             <CardHeader><CardTitle className="text-base">Прибыль и комиссии по мастерам</CardTitle></CardHeader>
