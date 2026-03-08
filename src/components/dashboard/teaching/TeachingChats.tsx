@@ -416,20 +416,25 @@ const TeachingChats = () => {
               <div className="flex items-center gap-3">
                 <Button variant="ghost" size="sm" className="md:hidden" onClick={() => setSelectedContact(null)}>←</Button>
                 <Avatar className="h-9 w-9">
-                  <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                    {getInitials(selectedContact.first_name, selectedContact.last_name)}
+                  <AvatarFallback className={`text-sm ${selectedContact.isGroup ? 'bg-accent/10 text-accent' : 'bg-primary/10 text-primary'}`}>
+                    {selectedContact.isGroup ? <Users className="h-4 w-4" /> : getInitials(selectedContact.first_name, selectedContact.last_name)}
                   </AvatarFallback>
                 </Avatar>
-                <p className="font-medium text-sm">{selectedContact.first_name} {selectedContact.last_name}</p>
+                <div>
+                  <p className="font-medium text-sm">{selectedContact.first_name} {selectedContact.isGroup ? '' : selectedContact.last_name}</p>
+                  {selectedContact.isGroup && <p className="text-xs text-muted-foreground">{selectedContact.last_name}</p>}
+                </div>
               </div>
-              <div className="flex gap-1">
-                <Button size="icon" variant="ghost" className="h-8 w-8" title="Добавить в клиенты" onClick={handleAddToClients}>
-                  <UserPlus className="h-4 w-4" />
-                </Button>
-                <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" title="Заблокировать" onClick={handleBlockInChat}>
-                  <ShieldBan className="h-4 w-4" />
-                </Button>
-              </div>
+              {!selectedContact.isGroup && (
+                <div className="flex gap-1">
+                  <Button size="icon" variant="ghost" className="h-8 w-8" title="Добавить в клиенты" onClick={handleAddToClients}>
+                    <UserPlus className="h-4 w-4" />
+                  </Button>
+                  <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" title="Заблокировать" onClick={handleBlockInChat}>
+                    <ShieldBan className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
             </div>
 
             {/* Messages */}
