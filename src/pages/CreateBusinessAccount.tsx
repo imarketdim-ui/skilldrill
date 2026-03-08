@@ -303,7 +303,7 @@ const CreateBusinessAccount = () => {
                       </div>
                       <div className="space-y-2">
                         <Label>Телефон *</Label>
-                        <Input required value={form.business_contact_phone || ''} onChange={e => updateForm({ business_contact_phone: formatPhone(e.target.value) })} placeholder="+7..." />
+                        <PhoneInput value={form.business_contact_phone || ''} onChange={v => updateForm({ business_contact_phone: v })} />
                       </div>
                     </div>
                   </>
