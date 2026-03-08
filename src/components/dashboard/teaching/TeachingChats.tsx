@@ -52,7 +52,7 @@ const TeachingChats = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { if (user) fetchContacts(); }, [user]);
+  useEffect(() => { if (user) { fetchContacts(); fetchGroups(); } }, [user]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   useEffect(() => {
