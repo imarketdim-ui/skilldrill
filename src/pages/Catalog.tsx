@@ -320,7 +320,7 @@ const Catalog = () => {
       const { data } = await supabase
         .from("services")
         .select(`
-          id, name, price, duration_minutes, work_photos, hashtags, is_active, master_id,
+          id, name, price, duration_minutes, work_photos, hashtags, is_active, master_id, organization_id,
           profiles!services_master_id_fkey(first_name, last_name, avatar_url)
         `)
         .eq("is_active", true)
@@ -328,36 +328,60 @@ const Catalog = () => {
 
       if (!data || data.length === 0) { setServices([]); return; }
 
-      // Get master_profiles for address + category + city
+      // Get master_profiles for address + category + city — only approved masters
       const masterIds = [...new Set((data as any[]).map((s: any) => s.master_id))];
       const { data: mpData } = await supabase
         .from("master_profiles")
-        .select("user_id, address, city, category_id, service_categories!master_profiles_category_id_fkey(name)")
-        .in("user_id", masterIds);
+        .select("user_id, address, city, category_id, latitude, longitude, moderation_status, service_categories!master_profiles_category_id_fkey(name)")
+        .in("user_id", masterIds)
+        .eq("moderation_status", "approved");
 
       const mpMap: Record<string, any> = {};
       (mpData || []).forEach((mp: any) => { mpMap[mp.user_id] = mp; });
 
-      const mapped: ServiceCardData[] = (data as any[]).map((s: any) => {
-        const profile = s.profiles;
-        const mp = mpMap[s.master_id];
-        return {
-          id: s.id,
-          name: s.name,
-          price: s.price,
-          duration_minutes: s.duration_minutes,
-          work_photos: (s.work_photos as string[]) || [],
-          master_id: s.master_id,
-          master_name: [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "Мастер",
-          master_avatar: profile?.avatar_url || null,
-          master_location: mp?.address || null,
-          master_rating: null,
-          master_review_count: 0,
-          category_name: mp?.service_categories?.name || null,
-          category_id: mp?.category_id || null,
-          city: mp?.city || null,
-        };
-      });
+      // Get business locations for org services
+      const orgIds = [...new Set((data as any[]).filter((s: any) => s.organization_id).map((s: any) => s.organization_id))];
+      let blMap: Record<string, any> = {};
+      if (orgIds.length > 0) {
+        const { data: blData } = await supabase
+          .from("business_locations")
+          .select("id, address, city, category_id, latitude, longitude, moderation_status")
+          .in("id", orgIds)
+          .eq("moderation_status", "approved");
+        (blData || []).forEach((bl: any) => { blMap[bl.id] = bl; });
+      }
+
+      const mapped: ServiceCardData[] = (data as any[])
+        .filter((s: any) => {
+          // Only show services from approved masters or approved businesses
+          if (mpMap[s.master_id]) return true;
+          if (s.organization_id && blMap[s.organization_id]) return true;
+          return false;
+        })
+        .map((s: any) => {
+          const profile = s.profiles;
+          const mp = mpMap[s.master_id];
+          const bl = s.organization_id ? blMap[s.organization_id] : null;
+          const loc = mp || bl;
+          return {
+            id: s.id,
+            name: s.name,
+            price: s.price,
+            duration_minutes: s.duration_minutes,
+            work_photos: (s.work_photos as string[]) || [],
+            master_id: s.master_id,
+            master_name: [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "Мастер",
+            master_avatar: profile?.avatar_url || null,
+            master_location: loc?.address || null,
+            master_rating: null,
+            master_review_count: 0,
+            category_name: mp?.service_categories?.name || null,
+            category_id: loc?.category_id || null,
+            city: loc?.city || null,
+            latitude: loc?.latitude || null,
+            longitude: loc?.longitude || null,
+          };
+        });
       setServices(mapped);
     };
     fetchServices();
