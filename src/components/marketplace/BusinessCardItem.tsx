@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Star, MapPin, Users, ChevronLeft, ChevronRight } from "lucide-react";
+import { Star, MapPin, Users, ChevronLeft, ChevronRight, BadgeCheck, ThumbsUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import useEmblaCarousel from "embla-carousel-react";
