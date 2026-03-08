@@ -319,12 +319,38 @@ const TeachingChats = () => {
     return c.first_name?.toLowerCase().includes(q) || c.last_name?.toLowerCase().includes(q) || c.email?.toLowerCase().includes(q);
   });
 
+  // Merge groups into contact list as virtual contacts
+  const groupContacts: ChatContact[] = groups.map(g => ({
+    id: `group-${g.id}`,
+    first_name: g.name,
+    last_name: `(${g.member_count})`,
+    email: null,
+    lastMessage: g.lastMessage,
+    lastMessageAt: g.lastMessageAt,
+    unread: g.unread,
+    isGroup: true,
+    groupId: g.id,
+  }));
+
+  const allContacts = [...groupContacts, ...filteredContacts].sort((a, b) =>
+    (b.lastMessageAt || '').localeCompare(a.lastMessageAt || '')
+  );
+
+  const handleGroupCreated = (groupId: string) => {
+    fetchGroups();
+  };
+
   return (
     <div className="flex h-[calc(100vh-200px)] min-h-[500px] gap-0 rounded-lg border overflow-hidden bg-card">
       {/* Contact List */}
       <div className={`w-full md:w-80 border-r flex flex-col shrink-0 ${selectedContact ? 'hidden md:flex' : 'flex'}`}>
         <div className="p-4 border-b">
-          <h3 className="text-lg font-bold mb-3">Чаты</h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-bold">Чаты</h3>
+            <Button size="sm" variant="outline" onClick={() => setShowGroupDialog(true)}>
+              <Plus className="h-3.5 w-3.5 mr-1" /> Группа
+            </Button>
+          </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Поиск..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-9" />
@@ -334,27 +360,28 @@ const TeachingChats = () => {
         <ScrollArea className="flex-1">
           {loading ? (
             <p className="text-center py-8 text-muted-foreground text-sm">Загрузка...</p>
-          ) : filteredContacts.length === 0 ? (
+          ) : allContacts.length === 0 ? (
             <div className="text-center py-12">
               <MessageSquare className="h-8 w-8 mx-auto mb-2 text-muted-foreground opacity-50" />
               <p className="text-sm text-muted-foreground">Нет контактов</p>
             </div>
           ) : (
-            filteredContacts.map(contact => (
+            allContacts.map(contact => (
               <div
                 key={contact.id}
                 className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-muted/50 border-b transition-colors ${selectedContact?.id === contact.id ? 'bg-muted' : ''}`}
                 onClick={() => openChat(contact)}
               >
                 <Avatar className="h-10 w-10 shrink-0">
-                  <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                    {getInitials(contact.first_name, contact.last_name)}
+                  <AvatarFallback className={`text-sm ${contact.isGroup ? 'bg-accent/10 text-accent' : 'bg-primary/10 text-primary'}`}>
+                    {contact.isGroup ? <Users className="h-4 w-4" /> : getInitials(contact.first_name, contact.last_name)}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
                     <p className="font-medium text-sm truncate">
-                      {contact.first_name || ''} {contact.last_name || contact.email || ''}
+                      {contact.first_name || ''} {contact.isGroup ? '' : (contact.last_name || contact.email || '')}
+                      {contact.isGroup && <span className="text-muted-foreground text-xs ml-1">{contact.last_name}</span>}
                     </p>
                     <span className="text-xs text-muted-foreground shrink-0">{getTimeLabel(contact.lastMessageAt)}</span>
                   </div>
