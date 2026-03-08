@@ -110,6 +110,14 @@ const BusinessMasters = ({ businessId, freeMasters, extraMasterPrice }: Props) =
     if (!skillspotId.trim()) return;
     setInviting(true);
     try {
+      // Ensure we have an active session before querying
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        toast({ title: 'Сессия истекла', description: 'Пожалуйста, перезагрузите страницу', variant: 'destructive' });
+        setInviting(false);
+        return;
+      }
+
       const { data: profile, error: pErr } = await supabase
         .from('profiles')
         .select('id, first_name, last_name, skillspot_id')
