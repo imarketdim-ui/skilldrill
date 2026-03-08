@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus, Pencil, Trash2, Clock, Tag, Package, X } from 'lucide-react';
 import { CategoryConfig } from './categoryConfig';
 import PhotoUploader from '@/components/marketplace/PhotoUploader';
+import TechnologyCardEditor from './TechnologyCardEditor';
 
 interface ServiceItem {
   id: string;
@@ -168,6 +169,11 @@ const UniversalServices = ({ config }: Props) => {
                   </div>
                 )}
                 {!s.is_active && <Badge variant="outline" className="text-xs">Неактивна</Badge>}
+                <TechnologyCardEditor
+                  serviceId={s.id}
+                  serviceName={s.name}
+                  servicePrice={s.price || 0}
+                />
               </CardContent>
             </Card>
           ))}

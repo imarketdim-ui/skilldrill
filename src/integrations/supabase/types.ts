@@ -911,6 +911,101 @@ export type Database = {
           },
         ]
       }
+      inventory_items: {
+        Row: {
+          business_id: string
+          category: string | null
+          created_at: string
+          id: string
+          min_quantity: number
+          name: string
+          notes: string | null
+          price_per_unit: number
+          quantity: number
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          category?: string | null
+          created_at?: string
+          id?: string
+          min_quantity?: number
+          name: string
+          notes?: string | null
+          price_per_unit?: number
+          quantity?: number
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          category?: string | null
+          created_at?: string
+          id?: string
+          min_quantity?: number
+          name?: string
+          notes?: string | null
+          price_per_unit?: number
+          quantity?: number
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_items_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "business_locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_transactions: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          item_id: string
+          performed_by: string
+          quantity_change: number
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          item_id: string
+          performed_by: string
+          quantity_change: number
+          type?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          item_id?: string
+          performed_by?: string
+          quantity_change?: number
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_transactions_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_transactions_performed_by_fkey"
+            columns: ["performed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lesson_bookings: {
         Row: {
           booked_at: string
@@ -2869,6 +2964,66 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "lesson_bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      technology_cards: {
+        Row: {
+          created_at: string
+          equipment: Json
+          id: string
+          labor_steps: Json
+          master_id: string
+          materials: Json
+          notes: string | null
+          service_id: string
+          total_equipment_cost: number
+          total_labor_cost: number
+          total_material_cost: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          equipment?: Json
+          id?: string
+          labor_steps?: Json
+          master_id: string
+          materials?: Json
+          notes?: string | null
+          service_id: string
+          total_equipment_cost?: number
+          total_labor_cost?: number
+          total_material_cost?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          equipment?: Json
+          id?: string
+          labor_steps?: Json
+          master_id?: string
+          materials?: Json
+          notes?: string | null
+          service_id?: string
+          total_equipment_cost?: number
+          total_labor_cost?: number
+          total_material_cost?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "technology_cards_master_id_fkey"
+            columns: ["master_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "technology_cards_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: true
+            referencedRelation: "services"
             referencedColumns: ["id"]
           },
         ]

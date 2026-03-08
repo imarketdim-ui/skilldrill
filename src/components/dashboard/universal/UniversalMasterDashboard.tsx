@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { LayoutDashboard, Calendar, Users, MessageSquare, BarChart3, Wallet, Package, Bell, ClipboardList, UserCog } from 'lucide-react';
+import { LayoutDashboard, Calendar, Users, MessageSquare, BarChart3, Wallet, Package, Bell, ClipboardList, UserCog, Lock, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import SubscriptionPaywall from '../SubscriptionPaywall';
 import UniversalDashboardHome from './UniversalDashboardHome';
@@ -161,18 +161,23 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
     return () => window.removeEventListener('navigate-dashboard', handler as EventListener);
   }, []);
 
-  if (!isSubscriptionActive && masterProfile) {
-    return (
-      <SubscriptionPaywall
-        entityType="master"
-        entityId={masterProfile.id}
-        entityName={masterProfile.short_description || 'Мастер'}
-        onPaid={() => window.location.reload()}
-      />
-    );
-  }
+  const isReadOnly = !isSubscriptionActive && !!masterProfile;
+
+  // Read-only sections that work without subscription
+  const readOnlySections = ['home', 'profile', 'notifications', 'support'];
 
   const renderContent = () => {
+    // If read-only and trying to access a restricted section, show paywall
+    if (isReadOnly && !readOnlySections.includes(activeSection)) {
+      return (
+        <SubscriptionPaywall
+          entityType="master"
+          entityId={masterProfile.id}
+          entityName={masterProfile.short_description || 'Мастер'}
+          onPaid={() => window.location.reload()}
+        />
+      );
+    }
     switch (activeSection) {
       case 'profile': return <MasterProfileEditor masterProfile={masterProfile} config={config} />;
       case 'schedule': return <UniversalSchedule config={config} />;
@@ -197,20 +202,35 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
     item.key === 'clients' ? { ...item, label: config.clientNamePlural } : item
   );
 
-  const NavButton = ({ item }: { item: { key: string; label: string; icon: any } }) => (
-    <Button
-      key={item.key}
-      variant={activeSection === item.key ? 'default' : 'ghost'}
-      className={`w-full justify-start gap-3 ${activeSection === item.key ? '' : 'text-muted-foreground'}`}
-      onClick={() => setActiveSection(item.key)}
-    >
-      <item.icon className="h-4 w-4" />
-      <span>{item.label}</span>
-    </Button>
-  );
+  const NavButton = ({ item }: { item: { key: string; label: string; icon: any } }) => {
+    const isLocked = isReadOnly && !readOnlySections.includes(item.key);
+    return (
+      <Button
+        key={item.key}
+        variant={activeSection === item.key ? 'default' : 'ghost'}
+        className={`w-full justify-start gap-3 ${activeSection === item.key ? '' : 'text-muted-foreground'} ${isLocked ? 'opacity-60' : ''}`}
+        onClick={() => setActiveSection(item.key)}
+      >
+        <item.icon className="h-4 w-4" />
+        <span className="flex-1 text-left">{item.label}</span>
+        {isLocked && <Lock className="h-3 w-3 text-muted-foreground" />}
+      </Button>
+    );
+  };
 
   return (
     <div className="flex flex-col lg:flex-row lg:gap-6 w-full overflow-hidden">
+      {/* Subscription expired banner */}
+      {isReadOnly && (
+        <div className="w-full bg-destructive/10 border border-destructive/20 rounded-lg p-4 mb-4 flex items-center gap-3 lg:hidden">
+          <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium">Подписка истекла</p>
+            <p className="text-xs text-muted-foreground">Доступ ограничен. Оплатите подписку для полного доступа.</p>
+          </div>
+          <Button size="sm" variant="destructive" onClick={() => setActiveSection('schedule')}>Оплатить</Button>
+        </div>
+      )}
       {/* Desktop: sidebar */}
       <aside className="hidden lg:flex flex-col w-60 shrink-0 sticky top-20 self-start h-[calc(100vh-6rem)]">
         <div className="flex items-center gap-3 px-3 pb-6 border-b mb-4">
@@ -224,6 +244,12 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
             <p className="text-xs text-muted-foreground">{config.label}</p>
           </div>
         </div>
+        {isReadOnly && (
+          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 mb-4 mx-1">
+            <p className="text-xs font-medium text-destructive">Подписка истекла</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Часть функций заблокирована</p>
+          </div>
+        )}
         <div className="space-y-1">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Меню</p>
           {adaptedMenuItems.map(item => <NavButton key={item.key} item={item} />)}

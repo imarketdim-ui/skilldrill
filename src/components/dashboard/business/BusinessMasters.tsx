@@ -137,7 +137,18 @@ const BusinessMasters = ({ businessId, freeMasters, extraMasterPrice }: Props) =
         return;
       }
 
+      // Check blacklist before inviting
       const currentUserId = (await supabase.auth.getUser()).data.user?.id;
+      const { data: blacklisted } = await supabase
+        .from('blacklists')
+        .select('id')
+        .or(`and(blocker_id.eq.${currentUserId},blocked_id.eq.${profile.id}),and(blocker_id.eq.${profile.id},blocked_id.eq.${currentUserId})`)
+        .limit(1);
+      if (blacklisted && blacklisted.length > 0) {
+        toast({ title: 'Невозможно пригласить', description: 'Пользователь находится в чёрном списке', variant: 'destructive' });
+        setInviting(false);
+        return;
+      }
 
       if (selectedRole === 'master') {
         const { data: roles } = await supabase

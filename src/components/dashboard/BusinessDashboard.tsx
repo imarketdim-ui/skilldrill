@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
   Building2, Users, ClipboardList, Calendar, DollarSign, Settings, 
-  ArrowRightLeft, UserPlus, AlertTriangle, MessageSquare, LayoutDashboard, CreditCard
+  ArrowRightLeft, UserPlus, AlertTriangle, MessageSquare, LayoutDashboard, CreditCard, Package
 } from 'lucide-react';
 import ProfileCompletionCheck from './ProfileCompletionCheck';
 import SubscriptionManager from './SubscriptionManager';
@@ -20,11 +20,13 @@ import BusinessSettings from './business/BusinessSettings';
 import BusinessFinances from './business/BusinessFinances';
 import SupportChat from './SupportChat';
 import BusinessSchedule from './business/BusinessSchedule';
+import BusinessInventory from './business/BusinessInventory';
 
 const menuItems = [
   { key: 'overview', label: 'Главная', icon: LayoutDashboard },
   { key: 'masters', label: 'Команда', icon: Users },
   { key: 'services', label: 'Услуги', icon: ClipboardList },
+  { key: 'inventory', label: 'Склад', icon: Package },
   { key: 'schedule', label: 'Расписание', icon: Calendar },
   { key: 'finance', label: 'Финансы', icon: DollarSign },
   { key: 'subscription', label: 'Подписка', icon: CreditCard },
@@ -180,6 +182,8 @@ const BusinessDashboard = () => {
         ) : null;
       case 'services':
         return selectedBusiness ? <BusinessServices businessId={selectedBusiness.id} /> : null;
+      case 'inventory':
+        return selectedBusiness ? <BusinessInventory businessId={selectedBusiness.id} /> : null;
       case 'schedule':
         return selectedBusiness ? <BusinessSchedule businessId={selectedBusiness.id} /> : null;
       case 'finance':

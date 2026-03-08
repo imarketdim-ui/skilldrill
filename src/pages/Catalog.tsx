@@ -40,6 +40,7 @@ type MasterItem = {
   work_photos: string[] | null;
   latitude: number | null;
   longitude: number | null;
+  moderation_status: string | null;
 };
 
 type BusinessItem = {
@@ -58,6 +59,7 @@ type BusinessItem = {
   service_count: number;
   latitude: number | null;
   longitude: number | null;
+  moderation_status: string | null;
 };
 
 const sortOptions = [
@@ -68,8 +70,7 @@ const sortOptions = [
   { value: "newest", label: "Новинки" },
 ];
 
-const stemRu = (word: string) =>
-  word.toLowerCase().replace(/(ами|ями|ов|ев|ей|ий|ой|ый|ая|яя|ое|ее|ие|ые|ого|его|ому|ему|ых|их|ую|юю|ём|ем|ах|ях|ам|ям|ой|ей|ию|ью|ок|ек|ик|ки|ка|ку|ке|ек|ок|и|ы|у|е|а|о|ь)$/, "");
+import { fuzzyMatch, stemRu } from '@/lib/searchUtils';
 
 const parseFiltersFromURL = (params: URLSearchParams) => ({
   searchQuery: params.get("q") || "",
@@ -151,7 +152,7 @@ const Catalog = () => {
       let query = supabase
         .from("master_profiles")
         .select(`
-          id, user_id, description, address, city, category_id, hashtags, latitude, longitude, is_active, work_photos,
+          id, user_id, description, address, city, category_id, hashtags, latitude, longitude, is_active, work_photos, moderation_status,
           profiles!master_profiles_user_id_fkey(first_name, last_name, avatar_url, bio),
           service_categories!master_profiles_category_id_fkey(name)
         `)
@@ -199,6 +200,7 @@ const Catalog = () => {
           work_photos: (mp.work_photos as string[]) || null,
           latitude: mp.latitude,
           longitude: mp.longitude,
+          moderation_status: mp.moderation_status,
         };
       });
 
@@ -214,7 +216,7 @@ const Catalog = () => {
       const { data } = await supabase
         .from("business_locations")
         .select(`
-          id, name, address, city, category_id, description, hashtags, latitude, longitude, is_active,
+          id, name, address, city, category_id, description, hashtags, latitude, longitude, is_active, moderation_status,
           interior_photos, exterior_photos
         `)
         .eq("is_active", true)
@@ -288,6 +290,7 @@ const Catalog = () => {
           service_count: serviceCountMap[bl.id] || 0,
           latitude: bl.latitude,
           longitude: bl.longitude,
+          moderation_status: bl.moderation_status,
         };
       });
 
@@ -364,13 +367,11 @@ const Catalog = () => {
     return masters
       .filter((m) => {
         if (searchQuery) {
-          const q = searchQuery.toLowerCase();
-          const stem = stemRu(searchQuery);
           const match =
-            m.name.toLowerCase().includes(q) ||
-            stemRu(m.name).includes(stem) ||
-            (m.bio || "").toLowerCase().includes(q) ||
-            (m.hashtags || []).some((h) => h.toLowerCase().includes(q) || stemRu(h).includes(stem));
+            fuzzyMatch(m.name, searchQuery) ||
+            fuzzyMatch(m.bio || "", searchQuery) ||
+            fuzzyMatch(m.location || "", searchQuery) ||
+            (m.hashtags || []).some((h) => fuzzyMatch(h, searchQuery));
           if (!match) return false;
         }
         if (m.min_price != null) {
@@ -400,9 +401,10 @@ const Catalog = () => {
   const filteredBusinesses = useMemo(() => {
     return businesses.filter((b) => {
       if (searchQuery) {
-        const q = searchQuery.toLowerCase();
-        const stem = stemRu(searchQuery);
-        const match = b.name.toLowerCase().includes(q) || stemRu(b.name).includes(stem) || (b.description || "").toLowerCase().includes(q) || (b.address || "").toLowerCase().includes(q);
+        const match =
+          fuzzyMatch(b.name, searchQuery) ||
+          fuzzyMatch(b.description || "", searchQuery) ||
+          fuzzyMatch(b.address || "", searchQuery);
         if (!match) return false;
       }
       if (categoryFilter !== CATEGORY_ALL) {
@@ -421,14 +423,11 @@ const Catalog = () => {
     return services
       .filter((s) => {
         if (searchQuery) {
-          const q = searchQuery.toLowerCase();
-          const stem = stemRu(searchQuery);
           const match =
-            s.name.toLowerCase().includes(q) ||
-            stemRu(s.name).includes(stem) ||
-            s.master_name.toLowerCase().includes(q) ||
-            (s.category_name || "").toLowerCase().includes(q) ||
-            (s.master_location || "").toLowerCase().includes(q);
+            fuzzyMatch(s.name, searchQuery) ||
+            fuzzyMatch(s.master_name, searchQuery) ||
+            fuzzyMatch(s.category_name || "", searchQuery) ||
+            fuzzyMatch(s.master_location || "", searchQuery);
           if (!match) return false;
         }
         if (s.price != null) {
@@ -870,6 +869,7 @@ const Catalog = () => {
                       min_price={m.min_price}
                       hashtags={m.hashtags}
                       work_photos={m.work_photos}
+                      moderation_status={m.moderation_status}
                       onClick={() => navigate(`/master/${m.user_id}`)}
                     />
                   ))
@@ -888,6 +888,7 @@ const Catalog = () => {
                       category_name={b.category_name}
                       specialist_count={b.specialist_count}
                       service_count={b.service_count}
+                      moderation_status={b.moderation_status}
                       onClick={() => navigate(`/business/${b.id}`)}
                     />
                   ))

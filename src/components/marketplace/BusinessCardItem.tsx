@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Star, MapPin, Users, ChevronLeft, ChevronRight } from "lucide-react";
+import { Star, MapPin, Users, ChevronLeft, ChevronRight, BadgeCheck, ThumbsUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import useEmblaCarousel from "embla-carousel-react";
@@ -16,11 +16,12 @@ interface Props {
   category_name?: string | null;
   specialist_count?: number;
   service_count?: number;
+  moderation_status?: string | null;
   onClick: () => void;
 }
 
 const BusinessCardItem = ({
-  name, image, images, rating, review_count, address, description, category_name, specialist_count, service_count, onClick,
+  name, image, images, rating, review_count, address, description, category_name, specialist_count, service_count, moderation_status, onClick,
 }: Props) => {
   const photos = images && images.length > 0 ? images : image ? [image] : [];
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
@@ -75,7 +76,17 @@ const BusinessCardItem = ({
       </div>
 
       <CardContent className="p-5">
-        <h3 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors mb-1.5">{name}</h3>
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <h3 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors">{name}</h3>
+          {moderation_status === 'approved' && (
+            <BadgeCheck className="w-4.5 h-4.5 text-primary shrink-0" />
+          )}
+          {rating != null && rating >= 4.5 && (
+            <Badge variant="secondary" className="text-xs gap-0.5 bg-accent/10 text-accent border-0 ml-1">
+              <ThumbsUp className="w-2.5 h-2.5" /> Рекомендуем
+            </Badge>
+          )}
+        </div>
 
         <div className="flex items-center gap-3 text-sm text-muted-foreground mb-2">
           {rating != null && rating > 0 && (

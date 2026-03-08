@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Star, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
+import { Star, MapPin, ChevronLeft, ChevronRight, BadgeCheck, ThumbsUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import useEmblaCarousel from "embla-carousel-react";
@@ -16,11 +16,12 @@ interface Props {
   min_price?: number | null;
   hashtags?: string[] | null;
   work_photos?: string[] | null;
+  moderation_status?: string | null;
   onClick: () => void;
 }
 
 const MasterCardItem = ({
-  name, avatar_url, rating, review_count, bio, location, category_name, min_price, hashtags, work_photos, onClick,
+  name, avatar_url, rating, review_count, bio, location, category_name, min_price, hashtags, work_photos, moderation_status, onClick,
 }: Props) => {
   const photos = work_photos && work_photos.length > 0 ? work_photos : [];
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
@@ -79,10 +80,22 @@ const MasterCardItem = ({
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <h3 className="font-semibold text-foreground truncate group-hover:text-primary transition-colors">{name}</h3>
-            {category_name && (
-              <Badge variant="outline" className="text-xs mt-0.5">{category_name}</Badge>
-            )}
+            <div className="flex items-center gap-1.5">
+              <h3 className="font-semibold text-foreground truncate group-hover:text-primary transition-colors">{name}</h3>
+              {moderation_status === 'approved' && (
+                <BadgeCheck className="w-4 h-4 text-primary shrink-0" />
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              {category_name && (
+                <Badge variant="outline" className="text-xs">{category_name}</Badge>
+              )}
+              {rating != null && rating >= 4.5 && (
+                <Badge variant="secondary" className="text-xs gap-0.5 bg-accent/10 text-accent border-0">
+                  <ThumbsUp className="w-2.5 h-2.5" /> Рекомендуем
+                </Badge>
+              )}
+            </div>
           </div>
           {rating != null && rating > 0 && (
             <div className="flex items-center gap-1 shrink-0">
