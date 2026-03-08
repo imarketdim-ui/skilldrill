@@ -12,6 +12,7 @@ import {
   Copy, Check, Building2, Shield, Bell, ArrowLeft,
   LayoutDashboard, Settings, BarChart3, ChevronRight, Wrench, Briefcase, Star
 } from 'lucide-react';
+import { Gift } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
 import TeachingChats from '@/components/dashboard/teaching/TeachingChats';
@@ -23,6 +24,7 @@ import ClientFavorites from '@/components/dashboard/client/ClientFavorites';
 import ClientSettingsSection from '@/components/dashboard/client/ClientSettingsSection';
 import ClientBookings from '@/components/dashboard/client/ClientBookings';
 import ClientReviews from '@/components/dashboard/client/ClientReviews';
+import ClientBonusPoints from '@/components/dashboard/client/ClientBonusPoints';
 
 interface WorkspaceEntry {
   id: string;
@@ -42,6 +44,7 @@ const desktopMenuItems = [
   { key: 'communication', label: 'Общение', icon: MessageSquare },
   { key: 'stats', label: 'Статистика', icon: BarChart3 },
   { key: 'wallet', label: 'Баланс', icon: Wallet },
+  { key: 'bonus', label: 'Бонусы', icon: Gift },
   { key: 'settings', label: 'Настройки', icon: Settings },
 ];
 
@@ -276,6 +279,9 @@ const ClientDashboard = () => {
 
       case 'wallet':
         return <ClientWallet />;
+
+      case 'bonus':
+        return <ClientBonusPoints />;
 
       case 'settings':
         return <ClientSettingsSection />;

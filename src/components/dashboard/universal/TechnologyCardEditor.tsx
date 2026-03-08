@@ -241,6 +241,18 @@ const TechnologyCardEditor = ({ serviceId, serviceName, servicePrice }: Props) =
             )}
           </div>
 
+          {/* Notes */}
+          <div>
+            <Label className="flex items-center gap-1.5 mb-2">📝 Заметки</Label>
+            <textarea
+              className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              placeholder="Особые указания по выполнению услуги, важные нюансы, предупреждения…"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={3}
+            />
+          </div>
+
           {/* Summary */}
           <div className="p-3 rounded-lg bg-muted space-y-1.5">
             <div className="flex justify-between text-sm">
