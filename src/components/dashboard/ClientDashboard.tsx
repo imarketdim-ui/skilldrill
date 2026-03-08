@@ -24,6 +24,7 @@ import ClientFavorites from '@/components/dashboard/client/ClientFavorites';
 import ClientSettingsSection from '@/components/dashboard/client/ClientSettingsSection';
 import ClientBookings from '@/components/dashboard/client/ClientBookings';
 import ClientReviews from '@/components/dashboard/client/ClientReviews';
+import ClientBonusPoints from '@/components/dashboard/client/ClientBonusPoints';
 
 interface WorkspaceEntry {
   id: string;
