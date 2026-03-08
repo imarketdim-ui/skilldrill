@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus, Pencil, Trash2, Clock, Tag, Package, X } from 'lucide-react';
 import { CategoryConfig } from './categoryConfig';
 import PhotoUploader from '@/components/marketplace/PhotoUploader';
+import TechnologyCardEditor from './TechnologyCardEditor';
 
 interface ServiceItem {
   id: string;
