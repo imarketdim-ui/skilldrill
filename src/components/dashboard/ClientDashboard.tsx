@@ -464,12 +464,7 @@ const ClientDashboard = () => {
                     <Card
                       key={ws.id}
                       className="cursor-pointer hover:border-primary/50 transition-colors"
-                      onClick={() => {
-                        // Extract entity ID from workspace id (e.g. "biz-owner-uuid" -> "uuid")
-                        const parts = ws.id.split('-');
-                        const entityId = parts.slice(2).join('-');
-                        setActiveRole(ws.role, entityId);
-                      }}
+                      onClick={() => setActiveRole(ws.role, ws.entityId)}
                     >
                       <CardContent className="pt-5 pb-4 px-5">
                         <div className="flex items-center gap-3">
