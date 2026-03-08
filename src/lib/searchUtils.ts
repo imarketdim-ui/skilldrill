@@ -1,6 +1,7 @@
 /**
- * Keyboard layout auto-correction (EN ↔ RU)
- * and basic Russian morphological stemming for marketplace search.
+ * Keyboard layout auto-correction (EN ↔ RU),
+ * basic Russian morphological stemming,
+ * synonym expansion, and geo-distance for marketplace search.
  */
 
 const EN_TO_RU: Record<string, string> = {
@@ -51,10 +52,8 @@ export const getSearchVariants = (query: string): string[] => {
   const variants = [trimmed];
   
   if (looksLikeEnglish(trimmed)) {
-    // User probably typed in EN while meaning RU
     variants.push(enToRu(trimmed));
   } else if (looksLikeRussian(trimmed)) {
-    // User probably typed in RU while meaning EN  
     variants.push(ruToEn(trimmed));
   }
   
@@ -68,16 +67,68 @@ export const stemRu = (word: string): string =>
     ""
   );
 
+// ── Synonym support ──
+
+type SynonymEntry = { term: string; synonyms: string[] };
+let synonymCache: SynonymEntry[] | null = null;
+let synonymLoadPromise: Promise<SynonymEntry[]> | null = null;
+
+/** Load synonyms from Supabase (cached) */
+export const loadSynonyms = async (): Promise<SynonymEntry[]> => {
+  if (synonymCache) return synonymCache;
+  if (synonymLoadPromise) return synonymLoadPromise;
+
+  synonymLoadPromise = (async () => {
+    try {
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { data } = await supabase.from('search_synonyms').select('term, synonyms');
+      synonymCache = (data || []) as SynonymEntry[];
+    } catch {
+      synonymCache = [];
+    }
+    return synonymCache!;
+  })();
+  return synonymLoadPromise;
+};
+
+/** Expand query with synonyms (sync, uses cache) */
+export const expandWithSynonyms = (query: string, synonyms: SynonymEntry[]): string[] => {
+  const q = query.toLowerCase().trim();
+  if (!q) return [];
+  const expanded = new Set<string>([q]);
+
+  for (const entry of synonyms) {
+    const term = entry.term.toLowerCase();
+    const syns = entry.synonyms.map(s => s.toLowerCase());
+    const allTerms = [term, ...syns];
+
+    if (allTerms.some(t => q.includes(t) || t.includes(q))) {
+      allTerms.forEach(t => expanded.add(t));
+    }
+  }
+
+  return Array.from(expanded);
+};
+
 /**
  * Check if a target string matches a search query,
- * considering layout variants and stemming.
+ * considering layout variants, stemming, and synonyms.
  */
-export const fuzzyMatch = (target: string, query: string): boolean => {
+export const fuzzyMatch = (target: string, query: string, synonyms?: SynonymEntry[]): boolean => {
   if (!target || !query) return false;
   const lowerTarget = target.toLowerCase();
   const variants = getSearchVariants(query);
+
+  // Expand variants with synonyms
+  let allVariants = [...variants];
+  if (synonyms && synonyms.length > 0) {
+    for (const v of variants) {
+      const expanded = expandWithSynonyms(v, synonyms);
+      expanded.forEach(e => { if (!allVariants.includes(e)) allVariants.push(e); });
+    }
+  }
   
-  return variants.some(variant => {
+  return allVariants.some(variant => {
     if (lowerTarget.includes(variant)) return true;
     // Try stemmed match
     const stemmedVariant = stemRu(variant);
@@ -92,4 +143,28 @@ export const fuzzyMatch = (target: string, query: string): boolean => {
     }
     return false;
   });
+};
+
+// ── Geo-distance ──
+
+/** Calculate distance between two points in km (Haversine formula) */
+export const haversineDistance = (
+  lat1: number, lon1: number,
+  lat2: number, lon2: number
+): number => {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
+/** Format distance for display */
+export const formatDistance = (km: number): string => {
+  if (km < 1) return `${Math.round(km * 1000)} м`;
+  if (km < 10) return `${km.toFixed(1)} км`;
+  return `${Math.round(km)} км`;
 };

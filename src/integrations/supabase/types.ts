@@ -2729,6 +2729,27 @@ export type Database = {
           },
         ]
       }
+      search_synonyms: {
+        Row: {
+          created_at: string
+          id: string
+          synonyms: string[]
+          term: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          synonyms?: string[]
+          term: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          synonyms?: string[]
+          term?: string
+        }
+        Relationships: []
+      }
       service_cards: {
         Row: {
           cost_price: number | null
@@ -2985,6 +3006,41 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shadow_scores: {
+        Row: {
+          calculated_at: string
+          factors: Json
+          id: string
+          score: number
+          status: string
+          user_id: string
+        }
+        Insert: {
+          calculated_at?: string
+          factors?: Json
+          id?: string
+          score?: number
+          status?: string
+          user_id: string
+        }
+        Update: {
+          calculated_at?: string
+          factors?: Json
+          id?: string
+          score?: number
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shadow_scores_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -3322,6 +3378,7 @@ export type Database = {
         Args: { _business_id: string }
         Returns: Json
       }
+      calculate_shadow_score: { Args: { _user_id: string }; Returns: Json }
       calculate_user_score: { Args: { _user_id: string }; Returns: Json }
       check_fraud_indicators: { Args: { _user_id: string }; Returns: Json }
       generate_skillspot_id: { Args: never; Returns: string }

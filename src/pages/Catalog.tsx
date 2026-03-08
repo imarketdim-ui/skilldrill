@@ -67,10 +67,11 @@ const sortOptions = [
   { value: "price_asc", label: "Сначала дешёвые" },
   { value: "price_desc", label: "Сначала дорогие" },
   { value: "rating", label: "По рейтингу" },
+  { value: "nearest", label: "Ближайшие" },
   { value: "newest", label: "Новинки" },
 ];
 
-import { fuzzyMatch, stemRu } from '@/lib/searchUtils';
+import { fuzzyMatch, loadSynonyms, haversineDistance } from '@/lib/searchUtils';
 
 const parseFiltersFromURL = (params: URLSearchParams) => ({
   searchQuery: params.get("q") || "",
@@ -106,6 +107,8 @@ const Catalog = () => {
   const [showAllTags, setShowAllTags] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "map">("grid");
   const [selectedService, setSelectedService] = useState<ServiceCardData | null>(null);
+  const [synonyms, setSynonyms] = useState<{ term: string; synonyms: string[] }[]>([]);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
 
   const [citySearch, setCitySearch] = useState("");
 
@@ -134,6 +137,17 @@ const Catalog = () => {
   }, [searchQuery, categoryFilter, tab, priceRange, sortBy, selectedTags, locationFilter, setSearchParams]);
 
   useEffect(() => { syncURL(); }, [syncURL]);
+
+  // Load synonyms + user geolocation
+  useEffect(() => {
+    loadSynonyms().then(setSynonyms);
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => setUserLocation({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+        () => {} // silently fail
+      );
+    }
+  }, []);
 
   // Fetch categories
   useEffect(() => {
@@ -368,10 +382,11 @@ const Catalog = () => {
       .filter((m) => {
         if (searchQuery) {
           const match =
-            fuzzyMatch(m.name, searchQuery) ||
-            fuzzyMatch(m.bio || "", searchQuery) ||
-            fuzzyMatch(m.location || "", searchQuery) ||
-            (m.hashtags || []).some((h) => fuzzyMatch(h, searchQuery));
+            fuzzyMatch(m.name, searchQuery, synonyms) ||
+            fuzzyMatch(m.bio || "", searchQuery, synonyms) ||
+            fuzzyMatch(m.location || "", searchQuery, synonyms) ||
+            fuzzyMatch(m.category_name || "", searchQuery, synonyms) ||
+            (m.hashtags || []).some((h) => fuzzyMatch(h, searchQuery, synonyms));
           if (!match) return false;
         }
         if (m.min_price != null) {
@@ -392,31 +407,47 @@ const Catalog = () => {
           case "price_asc": return (a.min_price || 0) - (b.min_price || 0);
           case "price_desc": return (b.min_price || 0) - (a.min_price || 0);
           case "rating": return (b.rating || 0) - (a.rating || 0);
+          case "nearest": {
+            if (!userLocation) return 0;
+            const dA = (a.latitude && a.longitude) ? haversineDistance(userLocation.lat, userLocation.lon, a.latitude, a.longitude) : 99999;
+            const dB = (b.latitude && b.longitude) ? haversineDistance(userLocation.lat, userLocation.lon, b.latitude, b.longitude) : 99999;
+            return dA - dB;
+          }
           default: return 0;
         }
       });
-  }, [masters, searchQuery, priceRange, selectedTags, sortBy, locationFilter]);
+  }, [masters, searchQuery, priceRange, selectedTags, sortBy, locationFilter, synonyms, userLocation]);
 
   // Filter businesses
   const filteredBusinesses = useMemo(() => {
-    return businesses.filter((b) => {
-      if (searchQuery) {
-        const match =
-          fuzzyMatch(b.name, searchQuery) ||
-          fuzzyMatch(b.description || "", searchQuery) ||
-          fuzzyMatch(b.address || "", searchQuery);
-        if (!match) return false;
-      }
-      if (categoryFilter !== CATEGORY_ALL) {
-        if (!b.category_id || b.category_id !== categoryFilter) return false;
-      }
-      if (locationFilter) {
-        if (b.city && b.city.toLowerCase() === locationFilter.toLowerCase()) { /* match */ }
-        else if (!(b.address || "").toLowerCase().includes(locationFilter.toLowerCase())) return false;
-      }
-      return true;
-    });
-  }, [businesses, searchQuery, categoryFilter, locationFilter]);
+    return businesses
+      .filter((b) => {
+        if (searchQuery) {
+          const match =
+            fuzzyMatch(b.name, searchQuery, synonyms) ||
+            fuzzyMatch(b.description || "", searchQuery, synonyms) ||
+            fuzzyMatch(b.address || "", searchQuery, synonyms) ||
+            fuzzyMatch(b.category_name || "", searchQuery, synonyms);
+          if (!match) return false;
+        }
+        if (categoryFilter !== CATEGORY_ALL) {
+          if (!b.category_id || b.category_id !== categoryFilter) return false;
+        }
+        if (locationFilter) {
+          if (b.city && b.city.toLowerCase() === locationFilter.toLowerCase()) { /* match */ }
+          else if (!(b.address || "").toLowerCase().includes(locationFilter.toLowerCase())) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        if (sortBy === "nearest" && userLocation) {
+          const dA = (a.latitude && a.longitude) ? haversineDistance(userLocation.lat, userLocation.lon, a.latitude, a.longitude) : 99999;
+          const dB = (b.latitude && b.longitude) ? haversineDistance(userLocation.lat, userLocation.lon, b.latitude, b.longitude) : 99999;
+          return dA - dB;
+        }
+        return 0;
+      });
+  }, [businesses, searchQuery, categoryFilter, locationFilter, synonyms, sortBy, userLocation]);
 
   // Filter services
   const filteredServices = useMemo(() => {
@@ -424,10 +455,10 @@ const Catalog = () => {
       .filter((s) => {
         if (searchQuery) {
           const match =
-            fuzzyMatch(s.name, searchQuery) ||
-            fuzzyMatch(s.master_name, searchQuery) ||
-            fuzzyMatch(s.category_name || "", searchQuery) ||
-            fuzzyMatch(s.master_location || "", searchQuery);
+            fuzzyMatch(s.name, searchQuery, synonyms) ||
+            fuzzyMatch(s.master_name, searchQuery, synonyms) ||
+            fuzzyMatch(s.category_name || "", searchQuery, synonyms) ||
+            fuzzyMatch(s.master_location || "", searchQuery, synonyms);
           if (!match) return false;
         }
         if (s.price != null) {
@@ -455,7 +486,7 @@ const Catalog = () => {
           default: return 0;
         }
       });
-  }, [services, searchQuery, priceRange, sortBy, categoryFilter, categories, selectedTags, locationFilter]);
+  }, [services, searchQuery, priceRange, sortBy, categoryFilter, categories, selectedTags, locationFilter, synonyms]);
 
   const activeFiltersCount = [
     priceRange[0] > 0 || priceRange[1] < 50000,

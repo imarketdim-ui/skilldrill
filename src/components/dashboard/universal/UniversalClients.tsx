@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, User, Ban, TrendingUp, Calendar, Clock, StickyNote, Plus, Trash2, MessageSquare, Crown, Star, Moon, UserX } from 'lucide-react';
+import { Search, User, Ban, TrendingUp, Calendar, Clock, StickyNote, Plus, Trash2, MessageSquare, Crown, Star, Moon, UserX, Banknote } from 'lucide-react';
 import { CategoryConfig } from './categoryConfig';
 import UserScoreCard from '@/components/dashboard/UserScoreCard';
 import { useToast } from '@/hooks/use-toast';
@@ -22,7 +22,7 @@ interface ClientInfo {
   email: string | null; phone: string | null; skillspot_id: string;
   totalSessions: number; completedSessions: number; noShows: number;
   cancellations: number; firstVisit: string | null; lastVisit: string | null;
-  isBlacklisted: boolean; vipByCount: number;
+  isBlacklisted: boolean; vipByCount: number; ltv: number;
 }
 
 type ClientStatus = 'all' | 'vip' | 'regular' | 'new' | 'sleeping' | 'inactive' | 'blacklisted';
@@ -88,17 +88,20 @@ const UniversalClients = ({ config }: Props) => {
       const cb = bookings.filter(b => b.student_id === p.id);
       const sorted = cb.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
       const lastSorted = [...cb].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      const completedBookings = cb.filter(b => (b.lessons as any)?.status === 'completed');
+      const ltv = completedBookings.reduce((sum, b) => sum + Number((b.lessons as any)?.price || 0), 0);
       return {
         id: p.id, first_name: p.first_name, last_name: p.last_name,
         email: p.email, phone: p.phone, skillspot_id: p.skillspot_id,
         totalSessions: cb.length,
-        completedSessions: cb.filter(b => (b.lessons as any)?.status === 'completed').length,
+        completedSessions: completedBookings.length,
         noShows: cb.filter(b => b.status === 'cancelled' && (b.lessons as any)?.status === 'no_show').length,
         cancellations: cb.filter(b => b.status === 'cancelled').length,
         firstVisit: sorted.length > 0 ? (sorted[0].lessons as any)?.lesson_date : null,
         lastVisit: lastSorted.length > 0 ? (lastSorted[0].lessons as any)?.lesson_date : null,
         isBlacklisted: blSet.has(p.id),
         vipByCount: vipSet.has(p.id) ? 1 : 0,
+        ltv,
       };
     });
     setClients(list);
@@ -276,6 +279,7 @@ const UniversalClients = ({ config }: Props) => {
                       </div>
                     </div>
                     <div className="flex items-center gap-3 text-sm">
+                      <div className="text-center hidden sm:block"><p className="font-semibold">{c.ltv.toLocaleString()} ₽</p><p className="text-muted-foreground text-xs">LTV</p></div>
                       <div className="text-center hidden sm:block"><p className="font-semibold">{c.totalSessions}</p><p className="text-muted-foreground text-xs">{config.sessionNamePlural}</p></div>
                       <div className="text-center hidden sm:block"><p className="font-semibold">{getRate(c)}</p><p className="text-muted-foreground text-xs">Посещ.</p></div>
                       {!c.isBlacklisted && (
@@ -385,6 +389,11 @@ const UniversalClients = ({ config }: Props) => {
                     <div className="p-3 rounded-lg bg-muted text-center">
                       <p className="text-lg font-bold">{selectedClient.totalSessions}</p>
                       <p className="text-xs text-muted-foreground">Всего записей</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-primary/10 text-center">
+                      <Banknote className="h-4 w-4 mx-auto mb-1 text-primary" />
+                      <p className="text-lg font-bold">{selectedClient.ltv.toLocaleString()} ₽</p>
+                      <p className="text-xs text-muted-foreground">LTV</p>
                     </div>
                     <div className="p-3 rounded-lg bg-muted text-center">
                       <p className="text-lg font-bold">{getRate(selectedClient)}</p>
