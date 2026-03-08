@@ -493,9 +493,10 @@ const ClientDashboard = () => {
   };
 
   return (
-    <div className="flex gap-4 md:gap-6">
-      <aside className="w-14 md:w-60 shrink-0 sticky top-20 self-start flex flex-col h-[calc(100vh-6rem)]">
-        <div className="hidden md:flex items-center gap-3 px-3 pb-6 border-b mb-4">
+    <div className="flex flex-col lg:flex-row lg:gap-6">
+      {/* Desktop: sidebar */}
+      <aside className="hidden lg:flex w-60 shrink-0 sticky top-20 self-start flex-col h-[calc(100vh-6rem)]">
+        <div className="flex items-center gap-3 px-3 pb-6 border-b mb-4">
           <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
             <Users className="h-5 w-5 text-primary-foreground" />
           </div>
@@ -505,23 +506,23 @@ const ClientDashboard = () => {
           </div>
         </div>
         <div className="space-y-1 overflow-y-auto flex-1">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2 hidden md:block">Меню</p>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Меню</p>
           {desktopMenuItems.map(item => (
             <Button
               key={item.key}
               variant={activeSection === item.key ? 'default' : 'ghost'}
-              className={`w-full justify-center md:justify-start gap-3 ${activeSection === item.key ? '' : 'text-muted-foreground'}`}
+              className={`w-full justify-start gap-3 ${activeSection === item.key ? '' : 'text-muted-foreground'}`}
               onClick={() => setActiveSection(item.key)}
             >
-              <item.icon className="h-4 w-4 shrink-0" />
-              <span className="hidden md:inline">{item.label}</span>
+              <item.icon className="h-4 w-4" />
+              <span>{item.label}</span>
               {item.key === 'communication' && pendingInvites > 0 && (
-                <Badge variant="destructive" className="ml-auto h-5 px-1.5 text-[10px] hidden md:flex">{pendingInvites}</Badge>
+                <Badge variant="destructive" className="ml-auto h-5 px-1.5 text-[10px]">{pendingInvites}</Badge>
               )}
             </Button>
           ))}
         </div>
-        <div className="mt-auto pt-6 border-t hidden md:block">
+        <div className="mt-auto pt-6 border-t">
           <div className="flex items-center gap-3 px-3">
             <Avatar className="h-8 w-8">
               <AvatarFallback className="text-xs bg-primary/10 text-primary">{getInitials()}</AvatarFallback>
@@ -534,7 +535,27 @@ const ClientDashboard = () => {
         </div>
       </aside>
 
-      <div className="flex-1 min-w-0">
+      {/* Mobile/tablet: bottom bar */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-card border-t safe-area-bottom">
+        <div className="flex justify-around items-center h-14">
+          {mobileMenuItems.map(item => (
+            <button
+              key={item.key}
+              onClick={() => setActiveSection(item.key)}
+              className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full text-[10px] transition-colors relative
+                ${activeSection === item.key ? 'text-primary' : 'text-muted-foreground'}`}
+            >
+              <item.icon className="h-5 w-5" />
+              <span className="leading-tight">{item.label}</span>
+              {item.key === 'communication' && pendingInvites > 0 && (
+                <span className="absolute top-1 right-1/2 translate-x-3 h-2 w-2 rounded-full bg-destructive" />
+              )}
+            </button>
+          ))}
+        </div>
+      </nav>
+
+      <div className="flex-1 min-w-0 pb-20 lg:pb-0">
         {renderContent()}
       </div>
     </div>
