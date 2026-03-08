@@ -279,6 +279,7 @@ const UniversalClients = ({ config }: Props) => {
                       </div>
                     </div>
                     <div className="flex items-center gap-3 text-sm">
+                      <div className="text-center hidden sm:block"><p className="font-semibold">{c.ltv.toLocaleString()} ₽</p><p className="text-muted-foreground text-xs">LTV</p></div>
                       <div className="text-center hidden sm:block"><p className="font-semibold">{c.totalSessions}</p><p className="text-muted-foreground text-xs">{config.sessionNamePlural}</p></div>
                       <div className="text-center hidden sm:block"><p className="font-semibold">{getRate(c)}</p><p className="text-muted-foreground text-xs">Посещ.</p></div>
                       {!c.isBlacklisted && (
