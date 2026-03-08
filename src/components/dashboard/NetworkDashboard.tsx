@@ -25,12 +25,15 @@ const NetworkDashboard = () => {
     const { data } = await supabase.from('networks').select('*').eq('owner_id', user.id);
     setNetworks(data || []);
     if (data && data.length > 0) {
-      setSelectedNetwork(data[0]);
-      const { data: locs } = await supabase.from('business_locations').select('*').eq('network_id', data[0].id);
+      const target = activeEntityId
+        ? data.find(n => n.id === activeEntityId) || data[0]
+        : data[0];
+      setSelectedNetwork(target);
+      const { data: locs } = await supabase.from('business_locations').select('*').eq('network_id', target.id);
       setLocations(locs || []);
     }
     setLoading(false);
-  }, [user]);
+  }, [user, activeEntityId]);
 
   useEffect(() => { fetchNetworks(); }, [fetchNetworks]);
 

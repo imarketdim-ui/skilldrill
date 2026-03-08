@@ -195,7 +195,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null);
     setRoles([]);
     setActiveRole('client');
+    setActiveEntityId(null);
     localStorage.removeItem('skillspot_active_role');
+    localStorage.removeItem('skillspot_active_entity_id');
   };
 
   return (
