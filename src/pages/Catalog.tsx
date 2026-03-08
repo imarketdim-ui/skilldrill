@@ -200,6 +200,7 @@ const Catalog = () => {
           work_photos: (mp.work_photos as string[]) || null,
           latitude: mp.latitude,
           longitude: mp.longitude,
+          moderation_status: mp.moderation_status,
         };
       });
 
