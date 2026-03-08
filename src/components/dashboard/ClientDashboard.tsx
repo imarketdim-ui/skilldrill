@@ -149,7 +149,7 @@ const ClientDashboard = () => {
     <Button
       variant={activeSection === item.key ? 'default' : 'ghost'}
       className={`w-full justify-start gap-3 ${activeSection === item.key ? '' : 'text-muted-foreground'}`}
-      onClick={() => setActiveSection(item.key)}
+      onClick={() => { setActiveSection(item.key); setSidebarOpen(false); }}
     >
       <item.icon className="h-4 w-4" />
       <span>{item.label}</span>
