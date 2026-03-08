@@ -76,7 +76,17 @@ const BusinessCardItem = ({
       </div>
 
       <CardContent className="p-5">
-        <h3 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors mb-1.5">{name}</h3>
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <h3 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors">{name}</h3>
+          {moderation_status === 'approved' && (
+            <BadgeCheck className="w-4.5 h-4.5 text-primary shrink-0" />
+          )}
+          {rating != null && rating >= 4.5 && (
+            <Badge variant="secondary" className="text-xs gap-0.5 bg-accent/10 text-accent border-0 ml-1">
+              <ThumbsUp className="w-2.5 h-2.5" /> Рекомендуем
+            </Badge>
+          )}
+        </div>
 
         <div className="flex items-center gap-3 text-sm text-muted-foreground mb-2">
           {rating != null && rating > 0 && (

@@ -167,6 +167,17 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
   const readOnlySections = ['home', 'profile', 'notifications', 'support'];
 
   const renderContent = () => {
+    // If read-only and trying to access a restricted section, show paywall
+    if (isReadOnly && !readOnlySections.includes(activeSection)) {
+      return (
+        <SubscriptionPaywall
+          entityType="master"
+          entityId={masterProfile.id}
+          entityName={masterProfile.short_description || 'Мастер'}
+          onPaid={() => window.location.reload()}
+        />
+      );
+    }
     switch (activeSection) {
       case 'profile': return <MasterProfileEditor masterProfile={masterProfile} config={config} />;
       case 'schedule': return <UniversalSchedule config={config} />;

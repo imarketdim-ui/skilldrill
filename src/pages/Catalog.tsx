@@ -419,14 +419,11 @@ const Catalog = () => {
     return services
       .filter((s) => {
         if (searchQuery) {
-          const q = searchQuery.toLowerCase();
-          const stem = stemRu(searchQuery);
           const match =
-            s.name.toLowerCase().includes(q) ||
-            stemRu(s.name).includes(stem) ||
-            s.master_name.toLowerCase().includes(q) ||
-            (s.category_name || "").toLowerCase().includes(q) ||
-            (s.master_location || "").toLowerCase().includes(q);
+            fuzzyMatch(s.name, searchQuery) ||
+            fuzzyMatch(s.master_name, searchQuery) ||
+            fuzzyMatch(s.category_name || "", searchQuery) ||
+            fuzzyMatch(s.master_location || "", searchQuery);
           if (!match) return false;
         }
         if (s.price != null) {
