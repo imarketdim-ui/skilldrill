@@ -503,6 +503,13 @@ const TeachingChats = () => {
           </>
         )}
       </div>
+      <GroupChatDialog
+        open={showGroupDialog}
+        onOpenChange={setShowGroupDialog}
+        contacts={contacts.filter(c => !c.isGroup)}
+        userId={user?.id || ''}
+        onCreated={handleGroupCreated}
+      />
     </div>
   );
 };
