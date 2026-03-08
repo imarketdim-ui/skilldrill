@@ -156,6 +156,7 @@ const ClientDashboard = () => {
       (networks || []).forEach(net => {
         entries.push({
           id: `net-owner-${net.id}`,
+          entityId: net.id,
           label: net.name,
           sublabel: 'Владелец сети',
           icon: <Building2 className="h-5 w-5" />,
