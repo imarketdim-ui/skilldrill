@@ -204,16 +204,16 @@ const UniversalDashboardHome = ({ config }: Props) => {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <Card className="bg-primary text-primary-foreground">
           <CardContent className="pt-6">
             <div className="flex items-start justify-between">
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm opacity-90">Сегодня</p>
                 <p className="text-3xl font-bold mt-1">{stats.todaySessions}</p>
-                <p className="text-xs opacity-75 mt-1">{stats.todayIndividual} индивид., {stats.todayGroup} группов.</p>
+                <p className="text-xs opacity-75 mt-1 truncate">{stats.todayIndividual} инд., {stats.todayGroup} гр.</p>
               </div>
-              <Calendar className="h-5 w-5 opacity-75" />
+              <Calendar className="h-5 w-5 opacity-75 shrink-0" />
             </div>
           </CardContent>
         </Card>
@@ -221,11 +221,11 @@ const UniversalDashboardHome = ({ config }: Props) => {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">{config.clientNamePlural}</p>
+              <div className="min-w-0">
+                <p className="text-sm text-muted-foreground truncate">{config.clientNamePlural}</p>
                 <p className="text-3xl font-bold mt-1">{stats.totalClients}</p>
               </div>
-              <Users className="h-5 w-5 text-muted-foreground" />
+              <Users className="h-5 w-5 text-muted-foreground shrink-0" />
             </div>
           </CardContent>
         </Card>
@@ -233,14 +233,14 @@ const UniversalDashboardHome = ({ config }: Props) => {
         <Card className="bg-primary text-primary-foreground">
           <CardContent className="pt-6">
             <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm opacity-90">Доход за месяц</p>
-                <p className="text-3xl font-bold mt-1">₽ {stats.monthIncome.toLocaleString()}</p>
+              <div className="min-w-0">
+                <p className="text-sm opacity-90">Доход</p>
+                <p className="text-2xl sm:text-3xl font-bold mt-1 truncate">₽{stats.monthIncome.toLocaleString()}</p>
                 {stats.incomeGrowth !== 0 && (
                   <p className="text-xs opacity-75 mt-1">{stats.incomeGrowth > 0 ? '+' : ''}{stats.incomeGrowth}%</p>
                 )}
               </div>
-              <Banknote className="h-5 w-5 opacity-75" />
+              <Banknote className="h-5 w-5 opacity-75 shrink-0" />
             </div>
           </CardContent>
         </Card>
@@ -248,12 +248,12 @@ const UniversalDashboardHome = ({ config }: Props) => {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-start justify-between">
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm text-muted-foreground">Неявки</p>
                 <p className="text-3xl font-bold mt-1">{stats.noShows}</p>
                 <p className="text-xs text-muted-foreground mt-1">За месяц</p>
               </div>
-              <AlertTriangle className="h-5 w-5 text-muted-foreground" />
+              <AlertTriangle className="h-5 w-5 text-muted-foreground shrink-0" />
             </div>
           </CardContent>
         </Card>
