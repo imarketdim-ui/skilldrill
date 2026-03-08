@@ -211,8 +211,8 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
 
   return (
     <div className="flex gap-6 w-full overflow-hidden">
-      <aside className="hidden lg:flex flex-col w-60 shrink-0 sticky top-20 self-start h-[calc(100vh-6rem)]">
-        <div className="flex items-center gap-3 px-3 pb-6 border-b mb-4">
+      <aside className="w-14 md:w-60 shrink-0 sticky top-20 self-start flex flex-col h-[calc(100vh-6rem)]">
+        <div className="hidden md:flex items-center gap-3 px-3 pb-6 border-b mb-4">
           <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
             <IconComponent className="h-5 w-5 text-primary-foreground" />
           </div>
@@ -225,16 +225,36 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
         </div>
 
         <div className="space-y-1">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Меню</p>
-          {adaptedMenuItems.map(item => <NavButton key={item.key} item={item} />)}
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2 hidden md:block">Меню</p>
+          {adaptedMenuItems.map(item => (
+            <Button
+              key={item.key}
+              variant={activeSection === item.key ? 'default' : 'ghost'}
+              className={`w-full justify-center md:justify-start gap-3 ${activeSection === item.key ? '' : 'text-muted-foreground'}`}
+              onClick={() => setActiveSection(item.key)}
+            >
+              <item.icon className="h-4 w-4 shrink-0" />
+              <span className="hidden md:inline">{item.label}</span>
+            </Button>
+          ))}
         </div>
 
         <div className="space-y-1 mt-6">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Управление</p>
-          {managementItems.map(item => <NavButton key={item.key} item={item} />)}
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2 hidden md:block">Управление</p>
+          {managementItems.map(item => (
+            <Button
+              key={item.key}
+              variant={activeSection === item.key ? 'default' : 'ghost'}
+              className={`w-full justify-center md:justify-start gap-3 ${activeSection === item.key ? '' : 'text-muted-foreground'}`}
+              onClick={() => setActiveSection(item.key)}
+            >
+              <item.icon className="h-4 w-4 shrink-0" />
+              <span className="hidden md:inline">{item.label}</span>
+            </Button>
+          ))}
         </div>
 
-        <div className="mt-auto pt-6 border-t">
+        <div className="mt-auto pt-6 border-t hidden md:block">
           <div className="flex items-center gap-3 px-3">
             <Avatar className="h-8 w-8">
               <AvatarFallback className="text-xs bg-primary/10 text-primary">{getInitials()}</AvatarFallback>
@@ -247,23 +267,7 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
         </div>
       </aside>
 
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t z-50 safe-area-bottom">
-        <div className="flex overflow-x-auto scrollbar-hide">
-          {[...adaptedMenuItems, ...managementItems].map(item => (
-            <button
-              key={item.key}
-              onClick={() => setActiveSection(item.key)}
-              className={`flex flex-col items-center justify-center gap-0.5 min-w-[4rem] flex-1 py-2 text-[10px] leading-tight transition-colors
-                ${activeSection === item.key ? 'text-primary' : 'text-muted-foreground'}`}
-            >
-              <item.icon className="h-4 w-4 shrink-0" />
-              <span className="truncate max-w-[3.5rem] text-center">{item.label}</span>
-            </button>
-          ))}
-        </div>
-      </nav>
-
-      <div className="flex-1 min-w-0 pb-20 lg:pb-0">
+      <div className="flex-1 min-w-0">
         {renderContent()}
       </div>
     </div>
