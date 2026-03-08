@@ -18,6 +18,7 @@ import BusinessServices from './business/BusinessServices';
 import BusinessSettings from './business/BusinessSettings';
 import BusinessFinances from './business/BusinessFinances';
 import SupportChat from './SupportChat';
+import BusinessSchedule from './business/BusinessSchedule';
 
 const menuItems = [
   { key: 'overview', label: 'Главная', icon: LayoutDashboard },
@@ -160,20 +161,7 @@ const BusinessDashboard = () => {
       case 'services':
         return selectedBusiness ? <BusinessServices businessId={selectedBusiness.id} /> : null;
       case 'schedule':
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle>Общее расписание</CardTitle>
-              <CardDescription>С разбивкой по мастерам</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                <Calendar className="h-10 w-10 mx-auto mb-3 opacity-50" />
-                <p>Расписание будет доступно после добавления мастеров</p>
-              </div>
-            </CardContent>
-          </Card>
-        );
+        return selectedBusiness ? <BusinessSchedule businessId={selectedBusiness.id} /> : null;
       case 'finance':
         return selectedBusiness ? <BusinessFinances businessId={selectedBusiness.id} /> : null;
       case 'subscription':
