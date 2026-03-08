@@ -122,10 +122,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setProfile(profileData);
             setRoles(userRoles);
             const savedRole = localStorage.getItem('skillspot_active_role') as UserRoleType;
+            const savedEntityId = localStorage.getItem('skillspot_active_entity_id');
             if (savedRole && userRoles.includes(savedRole)) {
               setActiveRole(savedRole);
+              setActiveEntityId(savedEntityId);
             } else {
               setActiveRole(userRoles[0]);
+              setActiveEntityId(null);
             }
             setLoading(false);
           }, 0);
