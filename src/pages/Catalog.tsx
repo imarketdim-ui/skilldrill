@@ -40,6 +40,7 @@ type MasterItem = {
   work_photos: string[] | null;
   latitude: number | null;
   longitude: number | null;
+  moderation_status: string | null;
 };
 
 type BusinessItem = {
