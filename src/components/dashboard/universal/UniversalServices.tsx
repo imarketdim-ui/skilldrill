@@ -169,6 +169,11 @@ const UniversalServices = ({ config }: Props) => {
                   </div>
                 )}
                 {!s.is_active && <Badge variant="outline" className="text-xs">Неактивна</Badge>}
+                <TechnologyCardEditor
+                  serviceId={s.id}
+                  serviceName={s.name}
+                  servicePrice={s.price || 0}
+                />
               </CardContent>
             </Card>
           ))}
