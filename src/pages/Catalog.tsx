@@ -256,8 +256,8 @@ const Catalog = () => {
 
       (bmData || []).forEach((bm: any) => {
         masterCountMap[bm.business_id] = (masterCountMap[bm.business_id] || 0) + 1;
-        if (!bizCategoryMap[bm.business_id] && bm.master_profiles?.service_categories) {
-          bizCategoryMap[bm.business_id] = bm.master_profiles.service_categories;
+        if (!bizCategoryMap[bm.business_id] && masterCategoryMap[bm.master_id]) {
+          bizCategoryMap[bm.business_id] = masterCategoryMap[bm.master_id];
         }
       });
 
