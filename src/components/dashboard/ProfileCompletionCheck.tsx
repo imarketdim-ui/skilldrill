@@ -350,7 +350,7 @@ const ProfileCompletionCheck = ({ entityType, entityData, onProfileUpdated }: Pr
                               <p className="font-medium">{s.name}</p>
                               <p className="text-muted-foreground">{s.price} ₽ · {s.duration_minutes} мин</p>
                             </div>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDeleteService(s.id)}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleteServiceId(s.id)}>
                               <X className="h-3 w-3" />
                             </Button>
                           </div>
