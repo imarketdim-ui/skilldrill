@@ -97,6 +97,7 @@ const ClientDashboard = () => {
         const bizName = (mp.business_locations as any)?.name;
         entries.push({
           id: `master-${mp.id}`,
+          entityId: mp.id,
           label: bizName ? `Мастер в «${bizName}»` : 'Мастер',
           sublabel: bizName ? 'Мастер в организации' : 'Индивидуальный мастер',
           icon: <Wrench className="h-5 w-5" />,
