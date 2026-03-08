@@ -116,6 +116,7 @@ const ClientDashboard = () => {
       (businesses || []).forEach(biz => {
         entries.push({
           id: `biz-owner-${biz.id}`,
+          entityId: biz.id,
           label: biz.name,
           sublabel: 'Владелец',
           icon: <Building2 className="h-5 w-5" />,
