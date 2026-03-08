@@ -72,9 +72,9 @@ const AdminDashboard = () => {
   };
 
   const loadModerationItems = async () => {
-    const masters: any = await supabase.from('master_profiles').select('*, service_categories(name)').eq('moderation_status', 'pending');
-    const businesses: any = await supabase.from('business_locations').select('*').eq('moderation_status', 'pending');
-    const networks: any = await supabase.from('networks').select('*').eq('moderation_status', 'pending');
+    const masters: any = await supabase.from('master_profiles').select('*, service_categories(name), profiles!master_profiles_user_id_fkey(first_name, last_name, email, skillspot_id)').eq('moderation_status', 'pending');
+    const businesses: any = await supabase.from('business_locations').select('*, profiles!business_locations_owner_id_fkey(first_name, last_name, email, skillspot_id)').eq('moderation_status', 'pending');
+    const networks: any = await supabase.from('networks').select('*, profiles!networks_owner_id_fkey(first_name, last_name, email, skillspot_id)').eq('moderation_status', 'pending');
 
     const items: any[] = [];
     (masters.data || []).forEach(m => items.push({ ...m, _type: 'master', _table: 'master_profiles', _idField: 'id' }));

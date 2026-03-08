@@ -545,6 +545,21 @@ const Catalog = () => {
           type: "master" as const,
         }));
     }
+    if (tab === "services") {
+      return filteredServices
+        .filter((s: any) => s.latitude && s.longitude)
+        .map((s: any) => ({
+          id: s.master_id,
+          name: s.name,
+          latitude: s.latitude,
+          longitude: s.longitude,
+          avatar_url: s.master_avatar,
+          rating: s.master_rating,
+          min_price: s.price,
+          category_name: s.category_name,
+          type: "master" as const,
+        }));
+    }
     return filteredBusinesses
       .filter((b) => b.latitude && b.longitude)
       .map((b) => ({
@@ -558,7 +573,7 @@ const Catalog = () => {
         category_name: b.category_name,
         type: "business" as const,
       }));
-  }, [tab, filteredMasters, filteredBusinesses]);
+  }, [tab, filteredMasters, filteredBusinesses, filteredServices]);
 
   const currentItems = tab === "masters" ? filteredMasters : tab === "businesses" ? filteredBusinesses : filteredServices;
   const currentCount = currentItems.length;
