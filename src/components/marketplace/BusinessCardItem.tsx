@@ -21,7 +21,7 @@ interface Props {
 }
 
 const BusinessCardItem = ({
-  name, image, images, rating, review_count, address, description, category_name, specialist_count, service_count, onClick,
+  name, image, images, rating, review_count, address, description, category_name, specialist_count, service_count, moderation_status, onClick,
 }: Props) => {
   const photos = images && images.length > 0 ? images : image ? [image] : [];
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
