@@ -214,6 +214,14 @@ const ClientSettingsSection = () => {
           </div>
         </CardContent>
       </Card>
+
+      <Button
+        onClick={() => formRef.current?.requestSubmit()}
+        disabled={isSubmitting}
+        className="w-full"
+      >
+        {isSubmitting ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" />Сохранение...</>) : 'Сохранить изменения'}
+      </Button>
     </div>
   );
 };
