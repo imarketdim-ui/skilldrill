@@ -31,6 +31,7 @@ const normalizePhone = (value: string): string => {
 
 const ClientSettingsSection = () => {
   const { user, profile, refreshProfile } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
