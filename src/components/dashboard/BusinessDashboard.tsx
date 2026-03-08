@@ -33,7 +33,7 @@ const menuItems = [
 ];
 
 const BusinessDashboard = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, activeEntityId } = useAuth();
   const pricing = usePlatformPricing();
   const [businesses, setBusinesses] = useState<any[]>([]);
   const [selectedBusiness, setSelectedBusiness] = useState<any>(null);
