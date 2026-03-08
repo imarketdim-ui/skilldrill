@@ -24,6 +24,7 @@ import ClientSettingsSection from '@/components/dashboard/client/ClientSettingsS
 
 interface WorkspaceEntry {
   id: string;
+  entityId: string;
   label: string;
   sublabel: string;
   icon: React.ReactNode;
