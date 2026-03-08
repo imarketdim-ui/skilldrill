@@ -139,6 +139,17 @@ const Catalog = () => {
 
   useEffect(() => { syncURL(); }, [syncURL]);
 
+  // Load synonyms + user geolocation
+  useEffect(() => {
+    loadSynonyms().then(setSynonyms);
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => setUserLocation({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+        () => {} // silently fail
+      );
+    }
+  }, []);
+
   // Fetch categories
   useEffect(() => {
     const fetchCats = async () => {
