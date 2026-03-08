@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,9 +10,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Camera } from 'lucide-react';
+import { Loader2, Camera, Gift, ChevronRight } from 'lucide-react';
+
 import { z } from 'zod';
-import ClientReferral from '@/components/dashboard/client/ClientReferral';
 
 const profileSchema = z.object({
   first_name: z.string().trim().max(100, 'Максимум 100 символов').optional(),
@@ -30,6 +31,7 @@ const normalizePhone = (value: string): string => {
 
 const ClientSettingsSection = () => {
   const { user, profile, refreshProfile } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -199,8 +201,21 @@ const ClientSettingsSection = () => {
 
       <Separator />
 
-      {/* Referral section inside settings */}
-      <ClientReferral />
+      {/* Referral program teaser */}
+      <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => navigate('/referral')}>
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-4">
+            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <Gift className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold">Реферальная программа</p>
+              <p className="text-sm text-muted-foreground">Приглашайте друзей и получайте бонусы</p>
+            </div>
+            <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
