@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { 
   Users, Shield, MessageSquare, 
-  CheckCircle, XCircle, AlertTriangle, Tag, ShieldBan, Eye, Loader2, Flag
+  CheckCircle, XCircle, AlertTriangle, Tag, ShieldBan, Eye, Loader2, Flag, Ticket
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AdminUserList from './admin/AdminUserList';
