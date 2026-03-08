@@ -220,6 +220,17 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
 
   return (
     <div className="flex flex-col lg:flex-row lg:gap-6 w-full overflow-hidden">
+      {/* Subscription expired banner */}
+      {isReadOnly && (
+        <div className="w-full bg-destructive/10 border border-destructive/20 rounded-lg p-4 mb-4 flex items-center gap-3 lg:hidden">
+          <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium">Подписка истекла</p>
+            <p className="text-xs text-muted-foreground">Доступ ограничен. Оплатите подписку для полного доступа.</p>
+          </div>
+          <Button size="sm" variant="destructive" onClick={() => setActiveSection('schedule')}>Оплатить</Button>
+        </div>
+      )}
       {/* Desktop: sidebar */}
       <aside className="hidden lg:flex flex-col w-60 shrink-0 sticky top-20 self-start h-[calc(100vh-6rem)]">
         <div className="flex items-center gap-3 px-3 pb-6 border-b mb-4">
