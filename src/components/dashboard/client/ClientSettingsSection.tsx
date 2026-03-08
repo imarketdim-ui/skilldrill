@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,9 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Camera } from 'lucide-react';
-import { z } from 'zod';
-import ClientReferral from '@/components/dashboard/client/ClientReferral';
+import { Loader2, Camera, Gift, ChevronRight } from 'lucide-react';
 
 const profileSchema = z.object({
   first_name: z.string().trim().max(100, 'Максимум 100 символов').optional(),
