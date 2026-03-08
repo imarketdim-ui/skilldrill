@@ -44,6 +44,7 @@ const desktopMenuItems = [
   { key: 'communication', label: 'Общение', icon: MessageSquare },
   { key: 'stats', label: 'Статистика', icon: BarChart3 },
   { key: 'wallet', label: 'Баланс', icon: Wallet },
+  { key: 'bonus', label: 'Бонусы', icon: Gift },
   { key: 'settings', label: 'Настройки', icon: Settings },
 ];
 
