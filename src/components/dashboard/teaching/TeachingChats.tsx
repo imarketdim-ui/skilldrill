@@ -5,10 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { MessageSquare, Send, Search, Paperclip, Image, Smile, UserPlus, ShieldBan, Check, CheckCheck, X } from 'lucide-react';
+import { MessageSquare, Send, Search, Paperclip, Image, Smile, UserPlus, ShieldBan, Check, CheckCheck, X, Users, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
+import GroupChatDialog from '../chat/GroupChatDialog';
 
 const EMOJI_LIST = ['😀','😂','🥰','😎','👍','❤️','🔥','✨','🎉','👏','🙏','💪','😊','🤔','😅','🥳','💯','⭐','🌟','😍'];
 
