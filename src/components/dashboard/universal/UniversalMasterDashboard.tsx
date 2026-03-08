@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { LayoutDashboard, Calendar, Users, MessageSquare, BarChart3, Wallet, Package, Bell, ClipboardList, UserCog, Lock, AlertTriangle } from 'lucide-react';
+import { LayoutDashboard, Calendar, Users, MessageSquare, BarChart3, Wallet, Package, Bell, ClipboardList, UserCog, Lock, AlertTriangle, Trophy } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import SubscriptionPaywall from '../SubscriptionPaywall';
 import UniversalDashboardHome from './UniversalDashboardHome';
@@ -18,6 +18,7 @@ import TeachingChats from '../teaching/TeachingChats';
 import SupportChat from '../SupportChat';
 import { CategoryConfig } from './categoryConfig';
 import MasterProfileEditor from './MasterProfileEditor';
+import MasterAchievements from './MasterAchievements';
 
 // Inline notifications component for master dashboard
 const MasterNotifications = () => {
@@ -145,6 +146,7 @@ const menuItems = [
 
 const managementItems = [
   { key: 'stats', label: 'Статистика', icon: BarChart3 },
+  { key: 'achievements', label: 'Достижения', icon: Trophy },
 ];
 
 const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config }: Props) => {
@@ -187,6 +189,7 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
       case 'chats': return <TeachingChats />;
       case 'support': return <SupportChat />;
       case 'stats': return <UniversalStats config={config} />;
+      case 'achievements': return <MasterAchievements />;
       case 'requests': return <MasterRequests />;
       case 'notifications': return <MasterNotifications />;
       default: return <UniversalDashboardHome config={config} />;

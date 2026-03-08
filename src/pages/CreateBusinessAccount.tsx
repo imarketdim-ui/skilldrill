@@ -13,6 +13,8 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Loader2, Wrench, Building2, Globe, Info, CheckCircle } from 'lucide-react';
 import MapPicker from '@/components/marketplace/MapPicker';
 import { usePlatformPricing } from '@/hooks/usePlatformPricing';
+import { PhoneInput } from '@/components/ui/phone-input';
+import { validateINN } from '@/lib/validation';
 
 const legalForms = [
   { value: 'ip', label: 'ИП' },
@@ -88,10 +90,20 @@ const CreateBusinessAccount = () => {
         toast({ title: 'Заполните все обязательные поля', variant: 'destructive' });
         return;
       }
+      const innResult = validateINN(form.business_inn);
+      if (!innResult.valid) {
+        toast({ title: 'Ошибка ИНН', description: innResult.error, variant: 'destructive' });
+        return;
+      }
     }
     if (accountType === 'network') {
       if (!form.network_name || !form.network_inn || !form.network_legal_form || !form.network_address || !form.director_name || !form.network_contact_email || !form.network_contact_phone) {
         toast({ title: 'Заполните все обязательные поля', variant: 'destructive' });
+        return;
+      }
+      const innResult = validateINN(form.network_inn);
+      if (!innResult.valid) {
+        toast({ title: 'Ошибка ИНН', description: innResult.error, variant: 'destructive' });
         return;
       }
     }
@@ -291,7 +303,7 @@ const CreateBusinessAccount = () => {
                       </div>
                       <div className="space-y-2">
                         <Label>Телефон *</Label>
-                        <Input required value={form.business_contact_phone || ''} onChange={e => updateForm({ business_contact_phone: formatPhone(e.target.value) })} placeholder="+7..." />
+                        <PhoneInput value={form.business_contact_phone || ''} onChange={v => updateForm({ business_contact_phone: v })} />
                       </div>
                     </div>
                   </>
@@ -341,7 +353,7 @@ const CreateBusinessAccount = () => {
                       </div>
                       <div className="space-y-2">
                         <Label>Телефон *</Label>
-                        <Input required value={form.network_contact_phone || ''} onChange={e => updateForm({ network_contact_phone: formatPhone(e.target.value) })} placeholder="+7..." />
+                        <PhoneInput value={form.network_contact_phone || ''} onChange={v => updateForm({ network_contact_phone: v })} />
                       </div>
                     </div>
                   </>

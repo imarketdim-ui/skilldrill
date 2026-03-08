@@ -5,10 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { MessageSquare, Send, Search, Paperclip, Image, Smile, UserPlus, ShieldBan, Check, CheckCheck, X } from 'lucide-react';
+import { MessageSquare, Send, Search, Paperclip, Image, Smile, UserPlus, ShieldBan, Check, CheckCheck, X, Users, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
+import GroupChatDialog from '../chat/GroupChatDialog';
 
 const EMOJI_LIST = ['😀','😂','🥰','😎','👍','❤️','🔥','✨','🎉','👏','🙏','💪','😊','🤔','😅','🥳','💯','⭐','🌟','😍'];
 
@@ -17,6 +18,18 @@ interface ChatContact {
   first_name: string | null;
   last_name: string | null;
   email: string | null;
+  lastMessage?: string;
+  lastMessageAt?: string;
+  unread: number;
+  isGroup?: boolean;
+  groupId?: string;
+}
+
+interface ChatGroup {
+  id: string;
+  name: string;
+  created_by: string;
+  member_count: number;
   lastMessage?: string;
   lastMessageAt?: string;
   unread: number;
@@ -33,11 +46,13 @@ const TeachingChats = () => {
   const [loading, setLoading] = useState(true);
   const [showEmoji, setShowEmoji] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [showGroupDialog, setShowGroupDialog] = useState(false);
+  const [groups, setGroups] = useState<ChatGroup[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { if (user) fetchContacts(); }, [user]);
+  useEffect(() => { if (user) { fetchContacts(); fetchGroups(); } }, [user]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   useEffect(() => {
@@ -108,16 +123,70 @@ const TeachingChats = () => {
     setLoading(false);
   };
 
+  const fetchGroups = async () => {
+    if (!user) return;
+    const { data: memberships } = await supabase.from('chat_group_members' as any)
+      .select('group_id').eq('user_id', user.id);
+    if (!memberships || memberships.length === 0) return;
+    const groupIds = memberships.map((m: any) => m.group_id);
+    const { data: groupsData } = await supabase.from('chat_groups' as any)
+      .select('*').in('id', groupIds);
+    if (!groupsData) return;
+
+    const groupList: ChatGroup[] = await Promise.all((groupsData as any[]).map(async (g) => {
+      const { count } = await supabase.from('chat_group_members' as any)
+        .select('id', { count: 'exact', head: true }).eq('group_id', g.id);
+      const { data: lastMsgs } = await supabase.from('chat_messages')
+        .select('message, created_at, sender_id')
+        .eq('chat_type', 'group').eq('reference_id', g.id)
+        .order('created_at', { ascending: false }).limit(1);
+      const { count: unreadCount } = await supabase.from('chat_messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('chat_type', 'group').eq('reference_id', g.id)
+        .eq('recipient_id', user.id).eq('is_read', false);
+      const last = lastMsgs?.[0];
+      return {
+        id: g.id, name: g.name, created_by: g.created_by,
+        member_count: count || 0,
+        lastMessage: last?.message,
+        lastMessageAt: last?.created_at,
+        unread: unreadCount || 0,
+      };
+    }));
+    setGroups(groupList.sort((a, b) => (b.lastMessageAt || '').localeCompare(a.lastMessageAt || '')));
+  };
+
   const openChat = async (contact: ChatContact) => {
     setSelectedContact(contact);
     setShowEmoji(false);
     if (!user) return;
-    const { data } = await supabase.from('chat_messages').select('*')
-      .or(`and(sender_id.eq.${user.id},recipient_id.eq.${contact.id}),and(sender_id.eq.${contact.id},recipient_id.eq.${user.id})`)
-      .order('created_at', { ascending: true });
-    setMessages(data || []);
-    // Mark as read + delivered
-    await supabase.from('chat_messages').update({ is_read: true, is_delivered: true }).eq('sender_id', contact.id).eq('recipient_id', user.id).eq('is_read', false);
+
+    if (contact.isGroup && contact.groupId) {
+      // Load group messages
+      const { data } = await supabase.from('chat_messages').select('*')
+        .eq('chat_type', 'group').eq('reference_id', contact.groupId)
+        .eq('recipient_id', user.id)
+        .order('created_at', { ascending: true });
+      // Also get messages sent by user in this group
+      const { data: sentMsgs } = await supabase.from('chat_messages').select('*')
+        .eq('chat_type', 'group').eq('reference_id', contact.groupId)
+        .eq('sender_id', user.id)
+        .order('created_at', { ascending: true });
+      const allMsgs = [...(data || []), ...(sentMsgs || [])];
+      const unique = Array.from(new Map(allMsgs.map(m => [m.id, m])).values());
+      unique.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      setMessages(unique);
+      // Mark as read
+      await supabase.from('chat_messages').update({ is_read: true, is_delivered: true })
+        .eq('chat_type', 'group').eq('reference_id', contact.groupId)
+        .eq('recipient_id', user.id).eq('is_read', false);
+    } else {
+      const { data } = await supabase.from('chat_messages').select('*')
+        .or(`and(sender_id.eq.${user.id},recipient_id.eq.${contact.id}),and(sender_id.eq.${contact.id},recipient_id.eq.${user.id})`)
+        .order('created_at', { ascending: true });
+      setMessages(data || []);
+      await supabase.from('chat_messages').update({ is_read: true, is_delivered: true }).eq('sender_id', contact.id).eq('recipient_id', user.id).eq('is_read', false);
+    }
     setContacts(prev => prev.map(c => c.id === contact.id ? { ...c, unread: 0 } : c));
   };
 
@@ -125,12 +194,40 @@ const TeachingChats = () => {
     if (!user || !selectedContact) return;
     if (!newMessage.trim() && !attachmentUrl) return;
 
+    const messageText = newMessage.trim() || (attachmentType === 'image' ? '📷 Фото' : '📎 Файл');
+
+    if (selectedContact.isGroup && selectedContact.groupId) {
+      // Send to all group members except self
+      const { data: members } = await supabase.from('chat_group_members' as any)
+        .select('user_id').eq('group_id', selectedContact.groupId);
+      const recipientIds = (members as any[] || []).map((m: any) => m.user_id).filter((id: string) => id !== user.id);
+      
+      const inserts = recipientIds.map((rid: string) => ({
+        sender_id: user.id,
+        recipient_id: rid,
+        message: messageText,
+        chat_type: 'group',
+        reference_id: selectedContact.groupId,
+        attachment_url: attachmentUrl || null,
+        attachment_type: attachmentType || null,
+      }));
+      
+      if (inserts.length > 0) {
+        await supabase.from('chat_messages').insert(inserts);
+      }
+      setNewMessage('');
+      setShowEmoji(false);
+      // Refresh messages
+      openChat(selectedContact);
+      return;
+    }
+
     const { data: blocked } = await supabase.from('blacklists').select('id').eq('blocker_id', selectedContact.id).eq('blocked_id', user.id).maybeSingle();
     if (blocked) { toast({ title: 'Чат заблокирован собеседником', variant: 'destructive' }); return; }
 
     const { error } = await supabase.from('chat_messages').insert({
       sender_id: user.id, recipient_id: selectedContact.id,
-      message: newMessage.trim() || (attachmentType === 'image' ? '📷 Фото' : '📎 Файл'),
+      message: messageText,
       chat_type: 'direct',
       attachment_url: attachmentUrl || null,
       attachment_type: attachmentType || null,
@@ -222,12 +319,38 @@ const TeachingChats = () => {
     return c.first_name?.toLowerCase().includes(q) || c.last_name?.toLowerCase().includes(q) || c.email?.toLowerCase().includes(q);
   });
 
+  // Merge groups into contact list as virtual contacts
+  const groupContacts: ChatContact[] = groups.map(g => ({
+    id: `group-${g.id}`,
+    first_name: g.name,
+    last_name: `(${g.member_count})`,
+    email: null,
+    lastMessage: g.lastMessage,
+    lastMessageAt: g.lastMessageAt,
+    unread: g.unread,
+    isGroup: true,
+    groupId: g.id,
+  }));
+
+  const allContacts = [...groupContacts, ...filteredContacts].sort((a, b) =>
+    (b.lastMessageAt || '').localeCompare(a.lastMessageAt || '')
+  );
+
+  const handleGroupCreated = (groupId: string) => {
+    fetchGroups();
+  };
+
   return (
     <div className="flex h-[calc(100vh-200px)] min-h-[500px] gap-0 rounded-lg border overflow-hidden bg-card">
       {/* Contact List */}
       <div className={`w-full md:w-80 border-r flex flex-col shrink-0 ${selectedContact ? 'hidden md:flex' : 'flex'}`}>
         <div className="p-4 border-b">
-          <h3 className="text-lg font-bold mb-3">Чаты</h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-bold">Чаты</h3>
+            <Button size="sm" variant="outline" onClick={() => setShowGroupDialog(true)}>
+              <Plus className="h-3.5 w-3.5 mr-1" /> Группа
+            </Button>
+          </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Поиск..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-9" />
@@ -237,27 +360,28 @@ const TeachingChats = () => {
         <ScrollArea className="flex-1">
           {loading ? (
             <p className="text-center py-8 text-muted-foreground text-sm">Загрузка...</p>
-          ) : filteredContacts.length === 0 ? (
+          ) : allContacts.length === 0 ? (
             <div className="text-center py-12">
               <MessageSquare className="h-8 w-8 mx-auto mb-2 text-muted-foreground opacity-50" />
               <p className="text-sm text-muted-foreground">Нет контактов</p>
             </div>
           ) : (
-            filteredContacts.map(contact => (
+            allContacts.map(contact => (
               <div
                 key={contact.id}
                 className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-muted/50 border-b transition-colors ${selectedContact?.id === contact.id ? 'bg-muted' : ''}`}
                 onClick={() => openChat(contact)}
               >
                 <Avatar className="h-10 w-10 shrink-0">
-                  <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                    {getInitials(contact.first_name, contact.last_name)}
+                  <AvatarFallback className={`text-sm ${contact.isGroup ? 'bg-accent/10 text-accent' : 'bg-primary/10 text-primary'}`}>
+                    {contact.isGroup ? <Users className="h-4 w-4" /> : getInitials(contact.first_name, contact.last_name)}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
                     <p className="font-medium text-sm truncate">
-                      {contact.first_name || ''} {contact.last_name || contact.email || ''}
+                      {contact.first_name || ''} {contact.isGroup ? '' : (contact.last_name || contact.email || '')}
+                      {contact.isGroup && <span className="text-muted-foreground text-xs ml-1">{contact.last_name}</span>}
                     </p>
                     <span className="text-xs text-muted-foreground shrink-0">{getTimeLabel(contact.lastMessageAt)}</span>
                   </div>
@@ -292,20 +416,25 @@ const TeachingChats = () => {
               <div className="flex items-center gap-3">
                 <Button variant="ghost" size="sm" className="md:hidden" onClick={() => setSelectedContact(null)}>←</Button>
                 <Avatar className="h-9 w-9">
-                  <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                    {getInitials(selectedContact.first_name, selectedContact.last_name)}
+                  <AvatarFallback className={`text-sm ${selectedContact.isGroup ? 'bg-accent/10 text-accent' : 'bg-primary/10 text-primary'}`}>
+                    {selectedContact.isGroup ? <Users className="h-4 w-4" /> : getInitials(selectedContact.first_name, selectedContact.last_name)}
                   </AvatarFallback>
                 </Avatar>
-                <p className="font-medium text-sm">{selectedContact.first_name} {selectedContact.last_name}</p>
+                <div>
+                  <p className="font-medium text-sm">{selectedContact.first_name} {selectedContact.isGroup ? '' : selectedContact.last_name}</p>
+                  {selectedContact.isGroup && <p className="text-xs text-muted-foreground">{selectedContact.last_name}</p>}
+                </div>
               </div>
-              <div className="flex gap-1">
-                <Button size="icon" variant="ghost" className="h-8 w-8" title="Добавить в клиенты" onClick={handleAddToClients}>
-                  <UserPlus className="h-4 w-4" />
-                </Button>
-                <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" title="Заблокировать" onClick={handleBlockInChat}>
-                  <ShieldBan className="h-4 w-4" />
-                </Button>
-              </div>
+              {!selectedContact.isGroup && (
+                <div className="flex gap-1">
+                  <Button size="icon" variant="ghost" className="h-8 w-8" title="Добавить в клиенты" onClick={handleAddToClients}>
+                    <UserPlus className="h-4 w-4" />
+                  </Button>
+                  <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" title="Заблокировать" onClick={handleBlockInChat}>
+                    <ShieldBan className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
             </div>
 
             {/* Messages */}
@@ -374,6 +503,13 @@ const TeachingChats = () => {
           </>
         )}
       </div>
+      <GroupChatDialog
+        open={showGroupDialog}
+        onOpenChange={setShowGroupDialog}
+        contacts={contacts.filter(c => !c.isGroup)}
+        userId={user?.id || ''}
+        onCreated={handleGroupCreated}
+      />
     </div>
   );
 };
