@@ -255,6 +255,15 @@ const TechnologyCardEditor = ({ serviceId, serviceName, servicePrice }: Props) =
               <span>Прибыль</span>
               <span>{profit.toLocaleString()} ₽</span>
             </div>
+            <div className="flex justify-between items-center text-sm pt-1.5 border-t border-border/50">
+              <span>Маржинальность</span>
+              <div className="flex items-center gap-2">
+                <span className="font-bold">{marginPct}%</span>
+                <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${getMarginColor(marginPct)}`}>
+                  {getMarginLabel(marginPct)}
+                </span>
+              </div>
+            </div>
           </div>
 
           <Button className="w-full" onClick={handleSave} disabled={saving}>
