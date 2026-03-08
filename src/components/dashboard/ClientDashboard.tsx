@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Search, Heart, Calendar, Wallet, Users, MessageSquare,
   Copy, Check, Building2, Shield, Bell, ArrowLeft,
-  LayoutDashboard, Settings, BarChart3
+  LayoutDashboard, Settings, BarChart3, ChevronRight
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -27,7 +27,6 @@ const desktopMenuItems = [
   { key: 'overview', label: 'Обзор', icon: LayoutDashboard },
   { key: 'favorites', label: 'Избранное', icon: Heart },
   { key: 'communication', label: 'Общение', icon: MessageSquare },
-  { key: 'stats', label: 'Статистика', icon: BarChart3 },
   { key: 'wallet', label: 'Баланс', icon: Wallet },
 ];
 
@@ -36,7 +35,6 @@ const mobileMenuItems = [
   { key: 'overview', label: 'Обзор', icon: LayoutDashboard },
   { key: 'favorites', label: 'Избранное', icon: Heart },
   { key: 'communication', label: 'Общение', icon: MessageSquare },
-  { key: 'stats', label: 'Статистика', icon: BarChart3 },
   { key: 'wallet', label: 'Баланс', icon: Wallet },
   { key: 'settings', label: 'Настройки', icon: Settings },
 ];
@@ -318,6 +316,22 @@ const ClientDashboard = () => {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Stats teaser */}
+            <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setActiveSection('stats')}>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-4">
+                  <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                    <BarChart3 className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold">Моя статистика</p>
+                    <p className="text-sm text-muted-foreground">Надёжность, неявки, отмены и рейтинг</p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+                </div>
+              </CardContent>
+            </Card>
 
             <Card className="border-dashed cursor-pointer hover:border-primary transition-colors" onClick={() => navigate('/create-account')}>
               <CardContent className="pt-6 text-center">
