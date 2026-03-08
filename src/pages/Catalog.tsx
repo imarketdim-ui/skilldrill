@@ -106,13 +106,17 @@ const Catalog = () => {
   const [viewMode, setViewMode] = useState<"grid" | "map">("grid");
   const [selectedService, setSelectedService] = useState<ServiceCardData | null>(null);
 
+  const [citySearch, setCitySearch] = useState("");
+
   // Extract unique cities from dedicated city column
   const availableCities = useMemo(() => {
     const cities = new Set<string>();
     masters.forEach(m => { if (m.city) cities.add(m.city); });
     businesses.forEach(b => { if (b.city) cities.add(b.city); });
+    // Also extract from services
+    services.forEach(s => { if ((s as any).city) cities.add((s as any).city); });
     return Array.from(cities).sort();
-  }, [masters, businesses]);
+  }, [masters, businesses, services]);
 
   // Sync filters → URL
   const syncURL = useCallback(() => {
