@@ -397,9 +397,10 @@ const Catalog = () => {
   const filteredBusinesses = useMemo(() => {
     return businesses.filter((b) => {
       if (searchQuery) {
-        const q = searchQuery.toLowerCase();
-        const stem = stemRu(searchQuery);
-        const match = b.name.toLowerCase().includes(q) || stemRu(b.name).includes(stem) || (b.description || "").toLowerCase().includes(q) || (b.address || "").toLowerCase().includes(q);
+        const match =
+          fuzzyMatch(b.name, searchQuery) ||
+          fuzzyMatch(b.description || "", searchQuery) ||
+          fuzzyMatch(b.address || "", searchQuery);
         if (!match) return false;
       }
       if (categoryFilter !== CATEGORY_ALL) {
