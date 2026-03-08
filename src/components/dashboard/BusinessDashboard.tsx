@@ -196,6 +196,10 @@ const BusinessDashboard = () => {
         return selectedBusiness ? <BusinessSchedule businessId={selectedBusiness.id} /> : null;
       case 'finance':
         return selectedBusiness ? <BusinessFinances businessId={selectedBusiness.id} /> : null;
+      case 'promotions':
+        return selectedBusiness ? <BusinessPromotions businessId={selectedBusiness.id} /> : null;
+      case 'marketing':
+        return selectedBusiness ? <BusinessMarketing businessId={selectedBusiness.id} /> : null;
       case 'subscription':
         return (
           <SubscriptionManager
