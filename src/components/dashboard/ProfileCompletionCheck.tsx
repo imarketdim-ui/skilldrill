@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertTriangle, CheckCircle, MapPin, FileText, Image, Hash,
@@ -170,9 +171,12 @@ const ProfileCompletionCheck = ({ entityType, entityData, onProfileUpdated }: Pr
     setSaving(false);
   };
 
+  const [deleteServiceId, setDeleteServiceId] = useState<string | null>(null);
+
   const handleDeleteService = async (serviceId: string) => {
     await supabase.from('services').delete().eq('id', serviceId);
     setServices(prev => prev.filter(s => s.id !== serviceId));
+    setDeleteServiceId(null);
   };
 
   const handleUploadPhoto = async (bucket: string, field: string) => {
@@ -346,7 +350,7 @@ const ProfileCompletionCheck = ({ entityType, entityData, onProfileUpdated }: Pr
                               <p className="font-medium">{s.name}</p>
                               <p className="text-muted-foreground">{s.price} ₽ · {s.duration_minutes} мин</p>
                             </div>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDeleteService(s.id)}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleteServiceId(s.id)}>
                               <X className="h-3 w-3" />
                             </Button>
                           </div>
@@ -504,6 +508,14 @@ const ProfileCompletionCheck = ({ entityType, entityData, onProfileUpdated }: Pr
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={!!deleteServiceId}
+        onOpenChange={(open) => !open && setDeleteServiceId(null)}
+        title="Удалить услугу?"
+        description="Эта услуга будет удалена. Действие нельзя отменить."
+        onConfirm={() => deleteServiceId && handleDeleteService(deleteServiceId)}
+      />
     </>
   );
 };

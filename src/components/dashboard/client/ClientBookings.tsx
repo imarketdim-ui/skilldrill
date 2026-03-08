@@ -137,7 +137,7 @@ export default function ClientBookings({ userId }: Props) {
     if (booking) {
       const insertData: any = {
         initiator_id: userId,
-        respondent_id: booking.master_id || userId,
+        respondent_id: booking.master_id || booking.executor_id || '',
         reason: reason,
         description: reason,
       };

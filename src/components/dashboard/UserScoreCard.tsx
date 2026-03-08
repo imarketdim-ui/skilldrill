@@ -82,12 +82,21 @@ export default function UserScoreCard({ userId, viewMode }: UserScoreCardProps) 
   const [recalculating, setRecalculating] = useState(false);
 
   const loadScore = async () => {
+    // Master view uses restricted view (no risk_score/reputation_score leak)
+    const table = viewMode === "master" ? "user_scores_master_view" : "user_scores";
     const { data } = await supabase
-      .from("user_scores")
+      .from(table as any)
       .select("*")
       .eq("user_id", userId)
       .maybeSingle();
-    if (data) setScore(data as any);
+    if (data) {
+      // For master view, set hidden fields to 0 (not exposed by view)
+      if (viewMode === "master") {
+        (data as any).risk_score = 0;
+        (data as any).reputation_score = 0;
+      }
+      setScore(data as any);
+    }
     setLoading(false);
   };
 
