@@ -38,6 +38,182 @@ interface Props {
   businessId: string;
 }
 
+// ── Payroll / Accruals Section ──
+interface PayrollProps {
+  masters: { id: string; name: string; skillspot_id: string; commission_percent: number }[];
+  filteredFinances: any[];
+  businessId: string;
+}
+
+const PayrollSection = ({ masters, filteredFinances, businessId }: PayrollProps) => {
+  const [managers, setManagers] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchManagers = async () => {
+      const { data } = await supabase
+        .from('business_managers')
+        .select('*, profile:profiles!business_managers_user_id_fkey(first_name, last_name, skillspot_id)')
+        .eq('business_id', businessId)
+        .eq('is_active', true);
+      setManagers((data || []).map((m: any) => ({
+        id: m.user_id,
+        name: `${m.profile?.first_name || ''} ${m.profile?.last_name || ''}`.trim(),
+        skillspot_id: m.profile?.skillspot_id || '',
+      })));
+    };
+    fetchManagers();
+  }, [businessId]);
+
+  const fmtNum = (n: number) => n.toLocaleString();
+
+  // Master accruals: commission % from service income
+  const masterAccruals = masters.map(m => {
+    const masterIncome = filteredFinances
+      .filter(f => f.type === 'income' && f.master_id === m.id)
+      .reduce((s, f) => s + Number(f.amount), 0);
+    const commissionAmount = Math.round(masterIncome * (100 - m.commission_percent) / 100);
+    return { ...m, role: 'Мастер' as const, income: masterIncome, accrued: commissionAmount, basis: `${100 - m.commission_percent}% от услуг` };
+  });
+
+  // Manager accruals: fixed salary + 5% from total revenue (sales KPI)
+  const totalRevenue = filteredFinances.filter(f => f.type === 'income').reduce((s, f) => s + Number(f.amount), 0);
+  const managerAccruals = managers.map(m => {
+    const baseSalary = 30000;
+    const salesKpi = Math.round(totalRevenue * 0.05);
+    const clientRetentionBonus = totalRevenue > 100000 ? 5000 : 0;
+    return {
+      ...m, role: 'Менеджер' as const,
+      accrued: baseSalary + salesKpi + clientRetentionBonus,
+      breakdown: [
+        { label: 'Оклад', amount: baseSalary },
+        { label: 'KPI: 5% от выручки', amount: salesKpi },
+        { label: 'Бонус: удержание клиентов', amount: clientRetentionBonus },
+      ],
+    };
+  });
+
+  // Admin (Управляющий) accruals: higher salary + team performance KPI
+  const adminAccruals = managers.length > 0 ? [{
+    id: 'admin-pool',
+    name: 'Управляющий',
+    role: 'Управляющий' as const,
+    accrued: (() => {
+      const baseSalary = 50000;
+      const teamKpi = Math.round(totalRevenue * 0.03);
+      const occupancyBonus = masters.length > 0 ? Math.round(5000 * Math.min(1, totalRevenue / (masters.length * 50000))) : 0;
+      const qualityBonus = 3000; // За отсутствие жалоб
+      return baseSalary + teamKpi + occupancyBonus + qualityBonus;
+    })(),
+    breakdown: [
+      { label: 'Оклад', amount: 50000 },
+      { label: 'KPI: 3% от оборота команды', amount: Math.round(totalRevenue * 0.03) },
+      { label: 'Бонус: загрузка мастеров', amount: masters.length > 0 ? Math.round(5000 * Math.min(1, totalRevenue / (masters.length * 50000))) : 0 },
+      { label: 'Бонус: качество сервиса', amount: 3000 },
+    ],
+  }] : [];
+
+  const allAccruals = [
+    ...masterAccruals.map(a => ({ ...a, totalAccrued: a.accrued, breakdown: [{ label: a.basis, amount: a.accrued }] })),
+    ...managerAccruals,
+    ...adminAccruals,
+  ];
+
+  const totalPayroll = allAccruals.reduce((s, a) => s + a.accrued, 0);
+
+  return (
+    <div className="space-y-4">
+      {/* Payroll summary */}
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardContent className="pt-4 text-center">
+            <p className="text-sm text-muted-foreground">К выплате всего</p>
+            <p className="text-xl font-bold mt-1">{fmtNum(totalPayroll)} ₽</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 text-center">
+            <p className="text-sm text-muted-foreground">Мастерам</p>
+            <p className="text-xl font-bold mt-1">{fmtNum(masterAccruals.reduce((s, a) => s + a.accrued, 0))} ₽</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 text-center">
+            <p className="text-sm text-muted-foreground">Менеджерам</p>
+            <p className="text-xl font-bold mt-1">{fmtNum(managerAccruals.reduce((s, a) => s + a.accrued, 0))} ₽</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 text-center">
+            <p className="text-sm text-muted-foreground">Управляющим</p>
+            <p className="text-xl font-bold mt-1">{fmtNum(adminAccruals.reduce((s, a) => s + a.accrued, 0))} ₽</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Per-person breakdown */}
+      {allAccruals.length === 0 ? (
+        <Card>
+          <CardContent className="text-center py-8 text-muted-foreground">
+            <Users className="h-10 w-10 mx-auto mb-3 opacity-50" />
+            <p>Нет сотрудников для расчёта начислений</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {allAccruals.map((a, i) => (
+            <Card key={a.id || i}>
+              <CardContent className="pt-5 pb-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold">
+                      {a.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="font-semibold">{a.name}</p>
+                      <Badge variant="secondary" className="text-xs">{a.role}</Badge>
+                    </div>
+                  </div>
+                  <p className="text-lg font-bold">{fmtNum(a.accrued)} ₽</p>
+                </div>
+                <div className="space-y-1.5 pl-[52px]">
+                  {a.breakdown.map((b: { label: string; amount: number }, j: number) => (
+                    <div key={j} className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">{b.label}</span>
+                      <span className="font-medium">{fmtNum(b.amount)} ₽</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* KPI description */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Система KPI</CardTitle>
+          <CardDescription>Формулы расчёта начислений по ролям</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 text-sm">
+          <div>
+            <p className="font-semibold mb-1">🔧 Мастер</p>
+            <p className="text-muted-foreground">Процент от стоимости оказанных услуг (100% − комиссия организации). Настраивается индивидуально в разделе «Настройки → Комиссии».</p>
+          </div>
+          <div>
+            <p className="font-semibold mb-1">💼 Менеджер</p>
+            <p className="text-muted-foreground">Фикс. оклад 30 000 ₽ + 5% от общей выручки (KPI продаж) + бонус 5 000 ₽ за удержание клиентов (при выручке &gt; 100 000 ₽).</p>
+          </div>
+          <div>
+            <p className="font-semibold mb-1">🛡 Управляющий</p>
+            <p className="text-muted-foreground">Фикс. оклад 50 000 ₽ + 3% от оборота команды + бонус за загрузку мастеров (до 5 000 ₽) + бонус 3 000 ₽ за качество сервиса.</p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
 const BusinessFinances = ({ businessId }: Props) => {
   const { toast } = useToast();
   const [tab, setTab] = useState('overview');
