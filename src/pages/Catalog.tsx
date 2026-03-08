@@ -561,30 +561,30 @@ const Catalog = () => {
                       <Input
                         placeholder="Введите город..."
                         autoFocus
+                        value={citySearch}
                         className="h-9 text-sm"
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          if (!v) return;
-                        }}
+                        onChange={(e) => setCitySearch(e.target.value)}
                       />
                     </div>
                     <div className="max-h-48 overflow-y-auto p-1">
                       <button
-                        onClick={() => { setLocationFilter(""); setLocationOpen(false); }}
+                        onClick={() => { setLocationFilter(""); setLocationOpen(false); setCitySearch(""); }}
                         className={`w-full text-left px-3 py-2 text-sm rounded-md hover:bg-accent transition-colors ${!locationFilter ? "bg-accent font-medium" : ""}`}
                       >
                         Все города
                       </button>
-                      {availableCities.map((city) => (
+                      {availableCities
+                        .filter(city => !citySearch || city.toLowerCase().includes(citySearch.toLowerCase()))
+                        .map((city) => (
                         <button
                           key={city}
-                          onClick={() => { setLocationFilter(city); setLocationOpen(false); }}
+                          onClick={() => { setLocationFilter(city); setLocationOpen(false); setCitySearch(""); }}
                           className={`w-full text-left px-3 py-2 text-sm rounded-md hover:bg-accent transition-colors ${locationFilter === city ? "bg-accent font-medium" : ""}`}
                         >
                           {city}
                         </button>
                       ))}
-                      {availableCities.length === 0 && (
+                      {availableCities.filter(city => !citySearch || city.toLowerCase().includes(citySearch.toLowerCase())).length === 0 && (
                         <p className="px-3 py-2 text-sm text-muted-foreground">Нет данных</p>
                       )}
                     </div>
