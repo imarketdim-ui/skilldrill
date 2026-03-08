@@ -290,6 +290,7 @@ const Catalog = () => {
           service_count: serviceCountMap[bl.id] || 0,
           latitude: bl.latitude,
           longitude: bl.longitude,
+          moderation_status: bl.moderation_status,
         };
       });
 
