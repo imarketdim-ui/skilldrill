@@ -390,6 +390,11 @@ const UniversalClients = ({ config }: Props) => {
                       <p className="text-lg font-bold">{selectedClient.totalSessions}</p>
                       <p className="text-xs text-muted-foreground">Всего записей</p>
                     </div>
+                    <div className="p-3 rounded-lg bg-primary/10 text-center">
+                      <Banknote className="h-4 w-4 mx-auto mb-1 text-primary" />
+                      <p className="text-lg font-bold">{selectedClient.ltv.toLocaleString()} ₽</p>
+                      <p className="text-xs text-muted-foreground">LTV</p>
+                    </div>
                     <div className="p-3 rounded-lg bg-muted text-center">
                       <p className="text-lg font-bold">{getRate(selectedClient)}</p>
                       <p className="text-xs text-muted-foreground">Посещаемость</p>
