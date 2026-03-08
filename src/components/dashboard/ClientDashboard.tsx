@@ -27,7 +27,6 @@ const desktopMenuItems = [
   { key: 'overview', label: 'Обзор', icon: LayoutDashboard },
   { key: 'favorites', label: 'Избранное', icon: Heart },
   { key: 'communication', label: 'Общение', icon: MessageSquare },
-  { key: 'stats', label: 'Статистика', icon: BarChart3 },
   { key: 'wallet', label: 'Баланс', icon: Wallet },
 ];
 
@@ -36,7 +35,6 @@ const mobileMenuItems = [
   { key: 'overview', label: 'Обзор', icon: LayoutDashboard },
   { key: 'favorites', label: 'Избранное', icon: Heart },
   { key: 'communication', label: 'Общение', icon: MessageSquare },
-  { key: 'stats', label: 'Статистика', icon: BarChart3 },
   { key: 'wallet', label: 'Баланс', icon: Wallet },
   { key: 'settings', label: 'Настройки', icon: Settings },
 ];
