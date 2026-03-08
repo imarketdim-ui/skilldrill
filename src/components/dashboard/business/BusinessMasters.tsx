@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { UserPlus, Users, X, Loader2, Shield, Briefcase, Wrench } from 'lucide-react';
+import { Plus, Users, Search, Loader2, Shield, Briefcase, Wrench, Star, Phone, Mail, MoreVertical, Calendar } from 'lucide-react';
 
 interface Props {
   businessId: string;
@@ -22,26 +24,26 @@ interface StaffEntry {
   user_id: string;
   role: StaffRole;
   status: string;
+  isActive: boolean;
   source: 'business_masters' | 'business_managers';
-  profile?: { first_name: string | null; last_name: string | null; avatar_url: string | null; skillspot_id: string };
+  profile?: {
+    first_name: string | null;
+    last_name: string | null;
+    avatar_url: string | null;
+    skillspot_id: string;
+    phone: string | null;
+    email: string | null;
+  };
+  masterProfile?: {
+    short_description: string | null;
+    hashtags: string[] | null;
+  };
 }
 
 const roleLabels: Record<StaffRole, string> = {
   master: 'Мастер',
   manager: 'Менеджер',
   admin: 'Управляющий',
-};
-
-const roleIcons: Record<StaffRole, typeof Wrench> = {
-  master: Wrench,
-  manager: Briefcase,
-  admin: Shield,
-};
-
-const roleBadgeVariant: Record<StaffRole, 'default' | 'secondary' | 'outline'> = {
-  master: 'default',
-  manager: 'secondary',
-  admin: 'outline',
 };
 
 const BusinessMasters = ({ businessId, freeMasters, extraMasterPrice }: Props) => {
@@ -52,6 +54,7 @@ const BusinessMasters = ({ businessId, freeMasters, extraMasterPrice }: Props) =
   const [skillspotId, setSkillspotId] = useState('');
   const [selectedRole, setSelectedRole] = useState<StaffRole>('master');
   const [inviting, setInviting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => { fetchStaff(); }, [businessId]);
 
@@ -60,28 +63,41 @@ const BusinessMasters = ({ businessId, freeMasters, extraMasterPrice }: Props) =
     const [mastersRes, managersRes] = await Promise.all([
       supabase
         .from('business_masters')
-        .select('*, profile:profiles!business_masters_master_id_fkey(first_name, last_name, avatar_url, skillspot_id)')
+        .select('*, profile:profiles!business_masters_master_id_fkey(first_name, last_name, avatar_url, skillspot_id, phone, email)')
         .eq('business_id', businessId),
       supabase
         .from('business_managers')
-        .select('*, profile:profiles!business_managers_user_id_fkey(first_name, last_name, avatar_url, skillspot_id)')
+        .select('*, profile:profiles!business_managers_user_id_fkey(first_name, last_name, avatar_url, skillspot_id, phone, email)')
         .eq('business_id', businessId),
     ]);
+
+    const masterIds = (mastersRes.data || []).map((m: any) => m.master_id);
+    let masterProfilesMap: Record<string, any> = {};
+    if (masterIds.length > 0) {
+      const { data: mps } = await supabase
+        .from('master_profiles')
+        .select('user_id, short_description, hashtags')
+        .in('user_id', masterIds);
+      (mps || []).forEach((mp: any) => { masterProfilesMap[mp.user_id] = mp; });
+    }
 
     const masterEntries: StaffEntry[] = (mastersRes.data || []).map((m: any) => ({
       id: m.id,
       user_id: m.master_id,
       role: 'master' as StaffRole,
       status: m.status,
+      isActive: m.status === 'accepted',
       source: 'business_masters' as const,
       profile: m.profile,
+      masterProfile: masterProfilesMap[m.master_id] || null,
     }));
 
     const managerEntries: StaffEntry[] = (managersRes.data || []).map((m: any) => ({
       id: m.id,
       user_id: m.user_id,
-      role: m.is_active ? 'manager' as StaffRole : 'admin' as StaffRole,
+      role: 'manager' as StaffRole,
       status: m.is_active ? 'accepted' : 'inactive',
+      isActive: m.is_active,
       source: 'business_managers' as const,
       profile: m.profile,
     }));
@@ -106,10 +122,9 @@ const BusinessMasters = ({ businessId, freeMasters, extraMasterPrice }: Props) =
         return;
       }
 
-      // Check if already in staff
       const existing = staff.find(s => s.user_id === profile.id);
       if (existing) {
-        toast({ title: 'Сотрудник уже добавлен', variant: 'destructive' });
+        toast({ title: 'Сотрудник уже в команде', variant: 'destructive' });
         setInviting(false);
         return;
       }
@@ -117,7 +132,6 @@ const BusinessMasters = ({ businessId, freeMasters, extraMasterPrice }: Props) =
       const currentUserId = (await supabase.auth.getUser()).data.user?.id;
 
       if (selectedRole === 'master') {
-        // Check master role
         const { data: roles } = await supabase
           .from('user_roles')
           .select('role')
@@ -139,7 +153,6 @@ const BusinessMasters = ({ businessId, freeMasters, extraMasterPrice }: Props) =
         });
         if (error) throw error;
       } else {
-        // Manager or admin — insert into business_managers
         const { error } = await supabase.from('business_managers').insert({
           business_id: businessId,
           user_id: profile.id,
@@ -161,89 +174,180 @@ const BusinessMasters = ({ businessId, freeMasters, extraMasterPrice }: Props) =
     setInviting(false);
   };
 
+  const handleToggleActive = async (entry: StaffEntry) => {
+    if (entry.source === 'business_masters') {
+      const newStatus = entry.isActive ? 'inactive' : 'accepted';
+      await supabase.from('business_masters').update({ status: newStatus }).eq('id', entry.id);
+    } else {
+      await supabase.from('business_managers').update({ is_active: !entry.isActive }).eq('id', entry.id);
+    }
+    fetchStaff();
+  };
+
   const handleRemove = async (entry: StaffEntry) => {
     if (entry.source === 'business_masters') {
       await supabase.from('business_masters').delete().eq('id', entry.id);
     } else {
       await supabase.from('business_managers').delete().eq('id', entry.id);
     }
-    toast({ title: 'Сотрудник удалён' });
+    toast({ title: 'Сотрудник удалён из команды' });
     fetchStaff();
   };
 
-  const activeMasters = staff.filter(s => s.role === 'master' && s.status === 'accepted');
-  const extraCount = Math.max(0, activeMasters.length - freeMasters);
+  const activeCount = staff.filter(s => s.isActive).length;
 
-  const statusLabel = (status: string) => {
-    if (status === 'pending') return <Badge variant="secondary">Ожидает</Badge>;
-    if (status === 'accepted') return <Badge variant="default">Активен</Badge>;
-    if (status === 'rejected') return <Badge variant="destructive">Отклонён</Badge>;
-    if (status === 'inactive') return <Badge variant="secondary">Неактивен</Badge>;
-    return null;
-  };
+  const filtered = staff.filter(s => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    const name = `${s.profile?.first_name || ''} ${s.profile?.last_name || ''}`.toLowerCase();
+    const desc = (s.masterProfile?.short_description || '').toLowerCase();
+    return name.includes(q) || desc.includes(q) || roleLabels[s.role].toLowerCase().includes(q);
+  });
+
+  const getInitials = (entry: StaffEntry) =>
+    ((entry.profile?.first_name?.[0] || '') + (entry.profile?.last_name?.[0] || '')).toUpperCase() || '?';
 
   return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div>
-              <CardTitle>Сотрудники</CardTitle>
-              <CardDescription>
-                Мастеров: {activeMasters.length} (бесплатных: {freeMasters})
-                {extraCount > 0 && ` · Доп.: ${extraCount} (+${(extraCount * extraMasterPrice).toLocaleString()} ₽/мес)`}
-              </CardDescription>
-            </div>
-            <Button size="sm" onClick={() => setInviteOpen(true)}>
-              <UserPlus className="h-4 w-4 mr-1" /> Пригласить
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <p className="text-center py-8 text-muted-foreground">Загрузка...</p>
-          ) : staff.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <Users className="h-10 w-10 mx-auto mb-3 opacity-50" />
-              <p>Пригласите сотрудников по их SkillSpot ID</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {staff.map(s => {
-                const RoleIcon = roleIcons[s.role];
-                return (
-                  <div key={`${s.source}-${s.id}`} className="flex items-center justify-between p-3 rounded-lg border">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center text-sm font-bold shrink-0">
-                        {(s.profile?.first_name?.[0] || '') + (s.profile?.last_name?.[0] || '')}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-medium truncate">{s.profile?.first_name || ''} {s.profile?.last_name || ''}</p>
-                        <p className="text-xs text-muted-foreground">{s.profile?.skillspot_id}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Badge variant={roleBadgeVariant[s.role]} className="gap-1">
-                        <RoleIcon className="h-3 w-3" />
-                        {roleLabels[s.role]}
-                      </Badge>
-                      {statusLabel(s.status)}
-                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleRemove(s)}>
-                        <X className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-2xl font-bold">Команда</h2>
+          <p className="text-muted-foreground">Мастера, менеджеры и сотрудники</p>
+        </div>
+        <Button onClick={() => setInviteOpen(true)}>
+          <Plus className="h-4 w-4 mr-1" /> Добавить сотрудника
+        </Button>
+      </div>
 
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {[
+          { label: 'Всего', value: staff.length },
+          { label: 'Активных', value: activeCount },
+          { label: 'Мастеров', value: staff.filter(s => s.role === 'master').length },
+          { label: 'Менеджеров', value: staff.filter(s => s.role !== 'master').length },
+        ].map(stat => (
+          <Card key={stat.label}>
+            <CardContent className="pt-4 pb-3 px-4">
+              <p className="text-sm text-muted-foreground">{stat.label}</p>
+              <p className="text-2xl font-bold mt-1">{stat.value}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder="Поиск по имени или специализации..."
+          className="pl-10"
+        />
+      </div>
+
+      {/* Staff grid */}
+      {loading ? (
+        <p className="text-center py-12 text-muted-foreground">Загрузка...</p>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground">
+          <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
+          <p>{staff.length === 0 ? 'Пригласите сотрудников по их SkillSpot ID' : 'Ничего не найдено'}</p>
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {filtered.map(s => (
+            <Card key={`${s.source}-${s.id}`} className={`relative ${!s.isActive ? 'opacity-60' : ''}`}>
+              <CardContent className="pt-5 pb-4 px-5 space-y-4">
+                {/* Top row: avatar + info + menu */}
+                <div className="flex items-start gap-3">
+                  <div className="h-12 w-12 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold shrink-0">
+                    {getInitials(s)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold truncate">
+                      {s.profile?.first_name || ''} {s.profile?.last_name || ''}
+                    </p>
+                    <p className="text-sm text-muted-foreground truncate">
+                      {s.masterProfile?.short_description || roleLabels[s.role]}
+                    </p>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleRemove(s)} className="text-destructive">
+                        Удалить из команды
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                {/* Contact info */}
+                <div className="space-y-1.5 text-sm">
+                  {s.profile?.phone && (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Phone className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">{s.profile.phone}</span>
+                    </div>
+                  )}
+                  {s.profile?.email && (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Mail className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">{s.profile.email}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Tags */}
+                {s.masterProfile?.hashtags && s.masterProfile.hashtags.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {s.masterProfile.hashtags.slice(0, 4).map(tag => (
+                      <Badge key={tag} variant="outline" className="text-xs font-normal">
+                        {tag}
+                      </Badge>
+                    ))}
+                    {s.masterProfile.hashtags.length > 4 && (
+                      <Badge variant="outline" className="text-xs font-normal">
+                        +{s.masterProfile.hashtags.length - 4}
+                      </Badge>
+                    )}
+                  </div>
+                )}
+
+                {/* Bottom: role + status toggle */}
+                <div className="flex items-center justify-between pt-2 border-t">
+                  <Badge variant="secondary" className="text-xs">
+                    {roleLabels[s.role]}
+                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">
+                      {s.status === 'pending' ? 'Ожидает' : s.isActive ? 'Активен' : 'Неактивен'}
+                    </span>
+                    {s.status !== 'pending' && (
+                      <Switch
+                        checked={s.isActive}
+                        onCheckedChange={() => handleToggleActive(s)}
+                      />
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Invite dialog */}
       <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Пригласить сотрудника</DialogTitle>
+            <DialogTitle>Добавить сотрудника</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -276,7 +380,7 @@ const BusinessMasters = ({ businessId, freeMasters, extraMasterPrice }: Props) =
               <p className="text-xs text-muted-foreground">Введите ID пользователя для приглашения</p>
             </div>
             <Button className="w-full" onClick={handleInvite} disabled={inviting || !skillspotId.trim()}>
-              {inviting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <UserPlus className="h-4 w-4 mr-2" />}
+              {inviting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
               Отправить приглашение
             </Button>
           </div>
