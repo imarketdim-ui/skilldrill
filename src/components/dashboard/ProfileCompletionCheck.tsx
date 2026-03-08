@@ -71,8 +71,8 @@ const ProfileCompletionCheck = ({ entityType, entityData, onProfileUpdated }: Pr
     const items: CompletionItem[] = [
       { key: 'address', label: 'Адрес', required: true, completed: !!entityData?.address, icon: MapPin },
     ];
-    // Services only for masters — businesses add services in their dashboard
-    if (entityType !== 'business') {
+    // Services only for masters — organizations add services in their dashboard
+    if (entityType === 'master') {
       items.push({ key: 'services', label: 'Услуги (мин. 1)', required: true, completed: services.length > 0, icon: FileText });
     }
     items.push(
