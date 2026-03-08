@@ -216,7 +216,7 @@ const Catalog = () => {
       const { data } = await supabase
         .from("business_locations")
         .select(`
-          id, name, address, city, category_id, description, hashtags, latitude, longitude, is_active,
+          id, name, address, city, category_id, description, hashtags, latitude, longitude, is_active, moderation_status,
           interior_photos, exterior_photos
         `)
         .eq("is_active", true)
