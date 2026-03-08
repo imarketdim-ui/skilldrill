@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Pencil, Trash2, Clock, Tag, Package, X } from 'lucide-react';
@@ -143,9 +144,16 @@ const UniversalServices = ({ config }: Props) => {
                     <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(s)}>
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
-                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleDelete(s.id)}>
-                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                    </Button>
+                    <ConfirmDialog
+                      trigger={
+                        <Button size="icon" variant="ghost" className="h-7 w-7">
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        </Button>
+                      }
+                      title="Удалить услугу?"
+                      description={`Услуга «${s.name}» будет удалена без возможности восстановления.`}
+                      onConfirm={() => handleDelete(s.id)}
+                    />
                   </div>
                 </div>
               </CardHeader>
