@@ -21,7 +21,7 @@ interface Props {
 }
 
 const MasterCardItem = ({
-  name, avatar_url, rating, review_count, bio, location, category_name, min_price, hashtags, work_photos, onClick,
+  name, avatar_url, rating, review_count, bio, location, category_name, min_price, hashtags, work_photos, moderation_status, onClick,
 }: Props) => {
   const photos = work_photos && work_photos.length > 0 ? work_photos : [];
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
