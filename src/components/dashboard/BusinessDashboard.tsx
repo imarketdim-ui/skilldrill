@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
   Building2, Users, ClipboardList, Calendar, DollarSign, Settings, 
-  ArrowRightLeft, UserPlus, AlertTriangle, MessageSquare, LayoutDashboard, CreditCard, Package
+  ArrowRightLeft, UserPlus, AlertTriangle, MessageSquare, LayoutDashboard, CreditCard, Package, Percent, Megaphone
 } from 'lucide-react';
 import ProfileCompletionCheck from './ProfileCompletionCheck';
 import SubscriptionManager from './SubscriptionManager';
@@ -22,6 +22,8 @@ import SupportChat from './SupportChat';
 import BusinessSchedule from './business/BusinessSchedule';
 import BusinessInventory from './business/BusinessInventory';
 import BusinessBookingDetail from './business/BusinessBookingDetail';
+import BusinessPromotions from './business/BusinessPromotions';
+import BusinessMarketing from './business/BusinessMarketing';
 
 const menuItems = [
   { key: 'overview', label: 'Главная', icon: LayoutDashboard },
@@ -30,6 +32,8 @@ const menuItems = [
   { key: 'services', label: 'Услуги', icon: ClipboardList },
   { key: 'inventory', label: 'Склад', icon: Package },
   { key: 'schedule', label: 'Расписание', icon: Calendar },
+  { key: 'promotions', label: 'Акции', icon: Percent },
+  { key: 'marketing', label: 'Рассылки', icon: Megaphone },
   { key: 'finance', label: 'Финансы', icon: DollarSign },
   { key: 'subscription', label: 'Подписка', icon: CreditCard },
   { key: 'support', label: 'Поддержка', icon: MessageSquare },
@@ -192,6 +196,10 @@ const BusinessDashboard = () => {
         return selectedBusiness ? <BusinessSchedule businessId={selectedBusiness.id} /> : null;
       case 'finance':
         return selectedBusiness ? <BusinessFinances businessId={selectedBusiness.id} /> : null;
+      case 'promotions':
+        return selectedBusiness ? <BusinessPromotions businessId={selectedBusiness.id} /> : null;
+      case 'marketing':
+        return selectedBusiness ? <BusinessMarketing businessId={selectedBusiness.id} /> : null;
       case 'subscription':
         return (
           <SubscriptionManager

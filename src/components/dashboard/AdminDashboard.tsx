@@ -9,12 +9,13 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { 
   Users, Shield, MessageSquare, 
-  CheckCircle, XCircle, AlertTriangle, Tag, ShieldBan, Eye, Loader2, Flag
+  CheckCircle, XCircle, AlertTriangle, Tag, ShieldBan, Eye, Loader2, Flag, Ticket
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AdminUserList from './admin/AdminUserList';
 import RevocationRequests from './admin/RevocationRequests';
 import FraudFlagsPanel from './admin/FraudFlagsPanel';
+import AdminPromoCodes from './admin/AdminPromoCodes';
 import SupportChat from './SupportChat';
 import SignedImage from '@/components/ui/signed-image';
 
@@ -180,6 +181,7 @@ const AdminDashboard = () => {
           <TabsTrigger value="revocations"><ShieldBan className="h-4 w-4 mr-1" /> Аннулирование</TabsTrigger>
           <TabsTrigger value="category_requests"><Tag className="h-4 w-4 mr-1" /> Категории</TabsTrigger>
           <TabsTrigger value="fraud_flags"><Flag className="h-4 w-4 mr-1" /> Антифрод</TabsTrigger>
+          <TabsTrigger value="promo_codes"><Ticket className="h-4 w-4 mr-1" /> Промокоды</TabsTrigger>
           <TabsTrigger value="disputes"><AlertTriangle className="h-4 w-4 mr-1" /> Споры</TabsTrigger>
           <TabsTrigger value="support"><MessageSquare className="h-4 w-4 mr-1" /> Поддержка</TabsTrigger>
         </TabsList>
@@ -383,6 +385,10 @@ const AdminDashboard = () => {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="promo_codes">
+          <AdminPromoCodes />
         </TabsContent>
 
         <TabsContent value="support">
