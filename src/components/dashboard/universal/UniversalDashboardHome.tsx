@@ -224,7 +224,7 @@ const UniversalDashboardHome = ({ config }: Props) => {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
+        <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => { window.dispatchEvent(new CustomEvent('navigate-dashboard', { detail: 'schedule' })); }}>
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <CardTitle className="text-lg">Ближайшие</CardTitle>
             <Badge variant="secondary">{upcomingSessions.length}</Badge>
@@ -261,7 +261,7 @@ const UniversalDashboardHome = ({ config }: Props) => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => { window.dispatchEvent(new CustomEvent('navigate-dashboard', { detail: 'clients' })); }}>
           <CardHeader className="pb-3">
             <CardTitle className="text-lg">Последняя активность</CardTitle>
           </CardHeader>

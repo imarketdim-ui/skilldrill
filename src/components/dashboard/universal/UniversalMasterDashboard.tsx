@@ -204,8 +204,44 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
       case 'services': return <UniversalServices config={config} />;
       case 'clients': return <UniversalClients config={config} />;
       case 'finances': return <UniversalFinances config={config} masterProfile={masterProfile} />;
-      case 'chats': return <TeachingChats />;
-      case 'support': return <SupportChat />;
+      case 'chats': return (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Общение</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Tabs defaultValue="chats" className="w-full">
+              <TabsList className="w-full rounded-none border-b bg-transparent px-6 pt-2">
+                <TabsTrigger value="chats" className="flex-1">Чаты</TabsTrigger>
+                <TabsTrigger value="support" className="flex-1">Техподдержка</TabsTrigger>
+              </TabsList>
+              <div className="p-6">
+                <TabsContent value="chats" className="mt-0"><TeachingChats /></TabsContent>
+                <TabsContent value="support" className="mt-0"><SupportChat /></TabsContent>
+              </div>
+            </Tabs>
+          </CardContent>
+        </Card>
+      );
+      case 'support': return (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Общение</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Tabs defaultValue="support" className="w-full">
+              <TabsList className="w-full rounded-none border-b bg-transparent px-6 pt-2">
+                <TabsTrigger value="chats" className="flex-1">Чаты</TabsTrigger>
+                <TabsTrigger value="support" className="flex-1">Техподдержка</TabsTrigger>
+              </TabsList>
+              <div className="p-6">
+                <TabsContent value="chats" className="mt-0"><TeachingChats /></TabsContent>
+                <TabsContent value="support" className="mt-0"><SupportChat /></TabsContent>
+              </div>
+            </Tabs>
+          </CardContent>
+        </Card>
+      );
       case 'stats': return <UniversalStats config={config} />;
       case 'achievements': return <MasterAchievements />;
       case 'requests': return <MasterRequests />;
