@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Search, Heart, Calendar, Wallet, Users, MessageSquare,
   Copy, Check, Building2, Shield, Bell, ArrowLeft,
-  LayoutDashboard, Settings, BarChart3, ChevronRight, Wrench, Briefcase, Star
+  LayoutDashboard, Settings, BarChart3, ChevronRight, Star
 } from 'lucide-react';
 import { Gift } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
