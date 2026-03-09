@@ -322,9 +322,19 @@ const CreateBusinessAccount = () => {
 
                 {accountType === 'network' && (
                   <>
+                    <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800">
+                      <div className="flex gap-2 items-start">
+                        <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                        <div className="text-sm">
+                          <p className="font-medium text-amber-800 dark:text-amber-200">Название только на русском языке</p>
+                          <p className="text-amber-700 dark:text-amber-300 mt-1">С 1 марта 2026 г. коммерческие наименования в РФ должны быть на русском языке. <Link to="/offer#russian-naming" className="underline hover:no-underline">Подробнее в п. 7 оферты</Link></p>
+                        </div>
+                      </div>
+                    </div>
                     <div className="space-y-2">
                       <Label>Название сети *</Label>
-                      <Input required value={form.network_name || ''} onChange={e => updateForm({ network_name: e.target.value })} />
+                      <Input required value={form.network_name || ''} onChange={e => updateForm({ network_name: e.target.value })} placeholder="Например: Сеть салонов «Красота»" />
+                    </div>
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
