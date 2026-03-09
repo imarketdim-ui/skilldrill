@@ -274,7 +274,7 @@ const MasterDetail = () => {
         .eq('executor_id', master.user_id)
         .gte('scheduled_at', `${date}T00:00:00`)
         .lt('scheduled_at', `${date}T23:59:59`)
-        .not('status', 'in', '("cancelled","no_show")'),
+        .not('status', 'in', '("cancelled","no_show","rejected")'),
     ]);
 
     const blocked = [
