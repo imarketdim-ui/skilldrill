@@ -649,68 +649,29 @@ const MasterDetail = () => {
                 <TabsContent value="services">
                   <div className="grid gap-4">
                     {services.map(service => (
-                      <Card key={service.id} className="hover:border-primary/50 transition-colors">
+                      <Card 
+                        key={service.id} 
+                        className="hover:border-primary/50 transition-colors cursor-pointer"
+                        onClick={() => setViewingService(service)}
+                      >
                         <CardContent className="flex flex-col md:flex-row gap-4 p-4">
                           <div className="flex-1">
                             <h3 className="font-semibold text-lg mb-1">{service.name}</h3>
-                            {service.description && <p className="text-sm text-muted-foreground mb-2">{service.description}</p>}
+                            {service.description && <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{service.description}</p>}
                             <div className="flex items-center gap-4 text-sm text-muted-foreground">
                               <span className="flex items-center gap-1"><Clock className="w-4 h-4" />{service.duration_minutes} мин</span>
                             </div>
                           </div>
-                          <div className="flex flex-col items-end justify-between">
+                          <div className="flex flex-col items-end justify-between gap-2">
                             <p className="text-2xl font-bold">{Number(service.price).toLocaleString()} ₽</p>
-                            <Dialog open={bookingService === service.id} onOpenChange={open => setBookingService(open ? service.id : null)}>
-                              <DialogTrigger asChild>
-                                <Button onClick={(e) => e.stopPropagation()}>Записаться</Button>
-                              </DialogTrigger>
-                              <DialogContent className="max-h-[85vh] overflow-y-auto">
-                                <DialogHeader><DialogTitle>Запись на «{service.name}»</DialogTitle></DialogHeader>
-                                <div className="space-y-4">
-                                  <p className="text-sm text-muted-foreground">Мастер: {masterName}</p>
-                                  <p className="text-sm text-muted-foreground">{Number(service.price).toLocaleString()} ₽ · {service.duration_minutes} мин</p>
-                                  <Input type="text" placeholder="Ваше имя" value={bookingData.name} onChange={(e) => setBookingData(p => ({ ...p, name: e.target.value }))} />
-                                  <Input type="tel" placeholder="Телефон" value={bookingData.phone} onChange={(e) => setBookingData(p => ({ ...p, phone: e.target.value }))} />
-                                  <div className="space-y-1">
-                                    <label className="text-sm font-medium">Дата</label>
-                                    <Input type="date" min={new Date().toISOString().slice(0, 10)} value={bookingData.date} onChange={(e) => setBookingData(p => ({ ...p, date: e.target.value, time: '' }))} />
-                                  </div>
-                                  <div className="space-y-1">
-                                    <label className="text-sm font-medium">Доступные слоты</label>
-                                    {availableSlots.length === 0 ? (
-                                      <p className="text-sm text-muted-foreground">Нет доступного времени на выбранную дату</p>
-                                    ) : (
-                                      <div className="grid grid-cols-4 gap-2">
-                                        {availableSlots.map(slot => (
-                                          <Button
-                                            key={slot}
-                                            type="button"
-                                            size="sm"
-                                            variant={bookingData.time === slot ? 'default' : 'outline'}
-                                            onClick={() => setBookingData(p => ({ ...p, time: slot }))}
-                                          >
-                                            {slot}
-                                          </Button>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </div>
-                                  <Textarea placeholder="Комментарий (необязательно)" value={bookingData.comment} onChange={(e) => setBookingData(p => ({ ...p, comment: e.target.value }))} />
-                                  <div className="space-y-1">
-                                    <label className="text-sm font-medium flex items-center gap-1"><Bell className="w-3.5 h-3.5" /> Напоминание</label>
-                                    <Select value={bookingData.reminder} onValueChange={v => setBookingData(p => ({ ...p, reminder: v }))}>
-                                      <SelectTrigger><SelectValue /></SelectTrigger>
-                                      <SelectContent>
-                                        {REMINDER_OPTIONS.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                  <Button onClick={() => handleBook(service.id)} className="w-full" disabled={sendingBooking || !bookingData.date || !bookingData.time}>
-                                    {sendingBooking ? 'Отправка...' : 'Подтвердить запись'}
-                                  </Button>
-                                </div>
-                              </DialogContent>
-                            </Dialog>
+                            <Button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setBookingService(service.id);
+                              }}
+                            >
+                              Записаться
+                            </Button>
                           </div>
                         </CardContent>
                       </Card>
