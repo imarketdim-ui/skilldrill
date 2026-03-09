@@ -7,8 +7,8 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import {
   LayoutDashboard, Calendar, Users, MessageSquare, BarChart3, Wallet,
-  Package, Bell, ClipboardList, UserCog, Lock, AlertTriangle, Trophy,
-  PanelLeftClose, PanelLeftOpen, Database, Briefcase, HeadphonesIcon
+  Package, Bell, ClipboardList, UserCog, Lock, AlertTriangle,
+  PanelLeftClose, PanelLeftOpen, Database, Briefcase, Megaphone
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -21,35 +21,31 @@ import UniversalServices from './UniversalServices';
 import UniversalStats from './UniversalStats';
 import TeachingChats from '../teaching/TeachingChats';
 import SupportChat from '../SupportChat';
+import BusinessMarketing from '../business/BusinessMarketing';
 import { CategoryConfig } from './categoryConfig';
 import MasterProfileEditor from './MasterProfileEditor';
-import MasterAchievements from './MasterAchievements';
 
-// Inline notifications component for master dashboard
+// Inline notifications component
 const MasterNotifications = () => {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showArchive, setShowArchive] = useState(false);
 
   useEffect(() => {
-    supabase.from('notifications').select('*')
-      .eq('user_id', (supabase as any).auth?.getUser ? '' : '')
-      .order('created_at', { ascending: false }).limit(30)
-      .then(async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-        const { data } = await supabase.from('notifications').select('*')
-          .eq('user_id', user.id).order('created_at', { ascending: false }).limit(30);
-        setNotifications(data || []);
-      });
+    const fetch = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase.from('notifications').select('*')
+        .eq('user_id', user.id).order('created_at', { ascending: false }).limit(30);
+      setNotifications(data || []);
+    };
+    fetch();
   }, []);
 
   const displayed = showArchive ? notifications : notifications.slice(0, 10);
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-lg">Уведомления</CardTitle>
-      </CardHeader>
+      <CardHeader><CardTitle className="text-lg">Уведомления</CardTitle></CardHeader>
       <CardContent>
         {displayed.length === 0 ? (
           <p className="text-center py-10 text-muted-foreground">Уведомлений пока нет</p>
@@ -74,7 +70,7 @@ const MasterNotifications = () => {
   );
 };
 
-// Inline requests component - shows pending lesson bookings
+// Inline requests component
 const MasterRequests = () => {
   const [requests, setRequests] = useState<any[]>([]);
 
@@ -98,9 +94,7 @@ const MasterRequests = () => {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-lg">Заявки на запись</CardTitle>
-      </CardHeader>
+      <CardHeader><CardTitle className="text-lg">Заявки на запись</CardTitle></CardHeader>
       <CardContent>
         {requests.length === 0 ? (
           <p className="text-center py-10 text-muted-foreground">Нет ожидающих заявок</p>
@@ -136,39 +130,33 @@ interface Props {
   config: CategoryConfig;
 }
 
-const menuItems = [
-  { key: 'home', label: 'Главная', icon: LayoutDashboard, group: 'main' },
-  { key: 'profile', label: 'Профиль', icon: UserCog, group: 'main' },
-  { key: 'notifications', label: 'Уведомления', icon: Bell, group: 'main' },
+const mainItems = [
+  { key: 'home', label: 'Главная', icon: LayoutDashboard },
+  { key: 'profile', label: 'Профиль', icon: UserCog },
+  { key: 'notifications', label: 'Уведомления', icon: Bell },
 ];
 
 const crmItems = [
-  { key: 'schedule', label: 'Расписание', icon: Calendar, group: 'crm' },
-  { key: 'clients', label: 'Клиенты', icon: Users, group: 'crm' },
-  { key: 'chats', label: 'Чаты', icon: MessageSquare, group: 'crm' },
-  { key: 'requests', label: 'Заявки', icon: ClipboardList, group: 'crm' },
+  { key: 'schedule', label: 'Расписание', icon: Calendar },
+  { key: 'clients', label: 'Клиенты', icon: Users },
+  { key: 'chats', label: 'Чаты', icon: MessageSquare },
+  { key: 'requests', label: 'Заявки', icon: ClipboardList },
+  { key: 'marketing', label: 'Маркетинг', icon: Megaphone },
 ];
 
 const erpItems = [
-  { key: 'stats', label: 'Статистика', icon: BarChart3, group: 'erp' },
-  { key: 'services', label: 'Услуги', icon: Package, group: 'erp' },
-  { key: 'finances', label: 'Финансы', icon: Wallet, group: 'erp' },
-  { key: 'achievements', label: 'Достижения', icon: Trophy, group: 'erp' },
+  { key: 'stats', label: 'Статистика', icon: BarChart3 },
+  { key: 'services', label: 'Услуги', icon: Package },
+  { key: 'finances', label: 'Финансы', icon: Wallet },
 ];
 
-const communicationItems = [
-  { key: 'support', label: 'Техподдержка', icon: HeadphonesIcon, group: 'comm' },
-];
-
-const allItems = [...menuItems, ...crmItems, ...erpItems, ...communicationItems];
+const allItems = [...mainItems, ...crmItems, ...erpItems];
 
 const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config }: Props) => {
   const { profile } = useAuth();
-  const pricing = usePlatformPricing();
   const [activeSection, setActiveSection] = useState('home');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // Listen for navigate-dashboard custom events
   useEffect(() => {
     const handler = (e: CustomEvent) => {
       if (e.detail) setActiveSection(e.detail);
@@ -178,16 +166,13 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
   }, []);
 
   const isReadOnly = !isSubscriptionActive && !!masterProfile;
-
-  // Read-only sections that work without subscription
-  const readOnlySections = ['home', 'profile', 'notifications', 'support'];
+  const readOnlySections = ['home', 'profile', 'notifications'];
 
   const adaptedCrmItems = crmItems.map(item =>
     item.key === 'clients' ? { ...item, label: config.clientNamePlural } : item
   );
 
   const renderContent = () => {
-    // If read-only and trying to access a restricted section, show paywall
     if (isReadOnly && !readOnlySections.includes(activeSection)) {
       return (
         <SubscriptionPaywall
@@ -206,9 +191,7 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
       case 'finances': return <UniversalFinances config={config} masterProfile={masterProfile} />;
       case 'chats': return (
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Общение</CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle className="text-lg">Общение</CardTitle></CardHeader>
           <CardContent className="p-0">
             <Tabs defaultValue="chats" className="w-full">
               <TabsList className="w-full rounded-none border-b bg-transparent px-6 pt-2">
@@ -223,29 +206,10 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
           </CardContent>
         </Card>
       );
-      case 'support': return (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Общение</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Tabs defaultValue="support" className="w-full">
-              <TabsList className="w-full rounded-none border-b bg-transparent px-6 pt-2">
-                <TabsTrigger value="chats" className="flex-1">Чаты</TabsTrigger>
-                <TabsTrigger value="support" className="flex-1">Техподдержка</TabsTrigger>
-              </TabsList>
-              <div className="p-6">
-                <TabsContent value="chats" className="mt-0"><TeachingChats /></TabsContent>
-                <TabsContent value="support" className="mt-0"><SupportChat /></TabsContent>
-              </div>
-            </Tabs>
-          </CardContent>
-        </Card>
-      );
       case 'stats': return <UniversalStats config={config} />;
-      case 'achievements': return <MasterAchievements />;
       case 'requests': return <MasterRequests />;
       case 'notifications': return <MasterNotifications />;
+      case 'marketing': return <BusinessMarketing businessId={masterProfile?.id} />;
       default: return <UniversalDashboardHome config={config} />;
     }
   };
@@ -284,7 +248,6 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
 
   return (
     <div className="flex flex-col lg:flex-row lg:gap-6 w-full overflow-hidden">
-      {/* Subscription expired banner */}
       {isReadOnly && (
         <div className="w-full bg-destructive/10 border border-destructive/20 rounded-lg p-4 mb-4 flex items-center gap-3 lg:hidden">
           <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
@@ -292,10 +255,10 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
             <p className="text-sm font-medium">Подписка истекла</p>
             <p className="text-xs text-muted-foreground">Доступ ограничен. Оплатите подписку для полного доступа.</p>
           </div>
-          <Button size="sm" variant="destructive" onClick={() => setActiveSection('schedule')}>Оплатить</Button>
+          <Button size="sm" variant="destructive" onClick={() => setActiveSection('finances')}>Оплатить</Button>
         </div>
       )}
-      {/* Desktop: collapsible sidebar */}
+
       <aside className={`hidden lg:flex flex-col shrink-0 sticky top-20 self-start h-[calc(100vh-6rem)] transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-60'}`}>
         <div className="flex items-center gap-3 px-3 pb-4 border-b mb-2">
           {!sidebarCollapsed && (
@@ -323,14 +286,13 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
         )}
         <div className="space-y-0.5 overflow-y-auto flex-1">
           {!sidebarCollapsed && <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Основное</p>}
-          {menuItems.map(item => <NavButton key={item.key} item={item} />)}
+          {mainItems.map(item => <NavButton key={item.key} item={item} />)}
 
           <SectionLabel label="CRM" icon={Users} />
           {adaptedCrmItems.map(item => <NavButton key={item.key} item={item} />)}
 
           <SectionLabel label="ERP" icon={Database} />
           {erpItems.map(item => <NavButton key={item.key} item={item} />)}
-
         </div>
         {!sidebarCollapsed && (
           <div className="mt-auto pt-6 border-t">
@@ -347,7 +309,6 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
         )}
       </aside>
 
-      {/* Mobile/tablet: bottom bar */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t z-50 safe-area-bottom">
         <div className="flex overflow-x-auto scrollbar-hide">
           {allItems.map(item => (
