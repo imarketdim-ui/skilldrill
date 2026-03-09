@@ -266,7 +266,6 @@ const CreateBusinessAccount = () => {
                       <Label>Название организации *</Label>
                       <Input required value={form.business_name || ''} onChange={e => updateForm({ business_name: e.target.value })} placeholder="Например: Салон красоты «Ромашка»" />
                     </div>
-                    </div>
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
                         <Label>ИНН *</Label>
