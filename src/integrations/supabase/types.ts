@@ -3330,6 +3330,7 @@ export type Database = {
           name: string
           organization_id: string | null
           price: number | null
+          tech_card: Json | null
           updated_at: string
           work_photos: Json | null
         }
@@ -3346,6 +3347,7 @@ export type Database = {
           name: string
           organization_id?: string | null
           price?: number | null
+          tech_card?: Json | null
           updated_at?: string
           work_photos?: Json | null
         }
@@ -3362,6 +3364,7 @@ export type Database = {
           name?: string
           organization_id?: string | null
           price?: number | null
+          tech_card?: Json | null
           updated_at?: string
           work_photos?: Json | null
         }
