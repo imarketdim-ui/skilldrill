@@ -57,9 +57,9 @@ const PlatformRoleHub = ({ onSelect, onBack }: PlatformRoleHubProps) => {
         })}
       </div>
 
-      <Button variant="outline" className="w-full" onClick={onBack}>
-        ← Вернуться в кабинет клиента
-      </Button>
+      <p className="text-center text-sm text-muted-foreground">
+        Для перехода в кабинет клиента используйте переключатель ролей вверху
+      </p>
     </div>
   );
 };
