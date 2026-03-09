@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, forwardRef } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { MapPin, Loader2 } from "lucide-react";
@@ -11,7 +11,7 @@ interface Props {
   onLocationChange: (lat: number, lng: number, address: string) => void;
 }
 
-const MapPicker = ({ latitude, longitude, address, onLocationChange }: Props) => {
+const MapPicker = forwardRef<HTMLDivElement, Props>(({ latitude, longitude, address, onLocationChange }, _ref) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markerRef = useRef<maplibregl.Marker | null>(null);
