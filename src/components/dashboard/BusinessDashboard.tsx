@@ -404,6 +404,14 @@ const BusinessDashboard = () => {
         return selectedBusiness ? <BusinessServices businessId={selectedBusiness.id} /> : null;
       case 'inventory':
         return selectedBusiness ? <BusinessInventory businessId={selectedBusiness.id} /> : null;
+      case 'registers':
+        return selectedBusiness ? <BusinessCashRegisters businessId={selectedBusiness.id} /> : null;
+      case 'procurement':
+        return selectedBusiness ? <BusinessProcurement businessId={selectedBusiness.id} /> : null;
+      case 'writeoffs':
+        return selectedBusiness ? <BusinessWriteOffs businessId={selectedBusiness.id} /> : null;
+      case 'product_sales':
+        return selectedBusiness ? <BusinessProductSales businessId={selectedBusiness.id} /> : null;
       case 'schedule':
         return selectedBusiness ? <BusinessSchedule businessId={selectedBusiness.id} /> : null;
       case 'finance':
