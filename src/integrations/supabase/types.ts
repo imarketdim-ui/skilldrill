@@ -443,6 +443,7 @@ export type Database = {
       business_locations: {
         Row: {
           address: string | null
+          auto_writeoff_enabled: boolean
           cash_balance: number
           category_id: string | null
           certificate_photos: Json | null
@@ -480,6 +481,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          auto_writeoff_enabled?: boolean
           cash_balance?: number
           category_id?: string | null
           certificate_photos?: Json | null
@@ -517,6 +519,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          auto_writeoff_enabled?: boolean
           cash_balance?: number
           category_id?: string | null
           certificate_photos?: Json | null
@@ -669,6 +672,101 @@ export type Database = {
             columns: ["master_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cash_register_transactions: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          description: string | null
+          id: string
+          performed_by: string
+          reference_id: string | null
+          reference_type: string | null
+          register_id: string
+          type: string
+        }
+        Insert: {
+          amount: number
+          category: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          performed_by: string
+          reference_id?: string | null
+          reference_type?: string | null
+          register_id: string
+          type: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          performed_by?: string
+          reference_id?: string | null
+          reference_type?: string | null
+          register_id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_register_transactions_performed_by_fkey"
+            columns: ["performed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_register_transactions_register_id_fkey"
+            columns: ["register_id"]
+            isOneToOne: false
+            referencedRelation: "cash_registers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cash_registers: {
+        Row: {
+          balance: number
+          business_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          balance?: number
+          business_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          balance?: number
+          business_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_registers_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "business_locations"
             referencedColumns: ["id"]
           },
         ]
@@ -2069,6 +2167,84 @@ export type Database = {
           value?: Json
         }
         Relationships: []
+      }
+      product_sales: {
+        Row: {
+          business_id: string
+          client_id: string | null
+          created_at: string
+          id: string
+          item_id: string | null
+          notes: string | null
+          quantity: number
+          register_id: string | null
+          sold_by: string
+          total_price: number
+          unit_price: number
+        }
+        Insert: {
+          business_id: string
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          item_id?: string | null
+          notes?: string | null
+          quantity?: number
+          register_id?: string | null
+          sold_by: string
+          total_price: number
+          unit_price: number
+        }
+        Update: {
+          business_id?: string
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          item_id?: string | null
+          notes?: string | null
+          quantity?: number
+          register_id?: string | null
+          sold_by?: string
+          total_price?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_sales_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "business_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_sales_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_sales_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_sales_register_id_fkey"
+            columns: ["register_id"]
+            isOneToOne: false
+            referencedRelation: "cash_registers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_sales_sold_by_fkey"
+            columns: ["sold_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
