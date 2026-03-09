@@ -788,7 +788,73 @@ const MasterDetail = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Service Detail Dialog */}
+      <ServiceDetailDialog
+        service={viewingService}
+        masterName={masterName}
+        masterId={master?.id}
+        masterLocation={master?.address}
+        masterLatitude={master?.latitude}
+        masterLongitude={master?.longitude}
+        open={!!viewingService}
+        onOpenChange={(open) => !open && setViewingService(null)}
+        onBook={() => {
+          setViewingService(null);
+          setBookingService(viewingService?.id);
+        }}
+      />
 
+      {/* Booking Dialog */}
+      {bookingService && (
+        <Dialog open={!!bookingService} onOpenChange={(open) => !open && setBookingService(null)}>
+          <DialogContent className="max-h-[85vh] overflow-y-auto">
+            <DialogHeader><DialogTitle>Запись на «{services.find(s => s.id === bookingService)?.name}»</DialogTitle></DialogHeader>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">Мастер: {masterName}</p>
+              <p className="text-sm text-muted-foreground">{Number(services.find(s => s.id === bookingService)?.price || 0).toLocaleString()} ₽ · {services.find(s => s.id === bookingService)?.duration_minutes} мин</p>
+              <Input type="text" placeholder="Ваше имя" value={bookingData.name} onChange={(e) => setBookingData(p => ({ ...p, name: e.target.value }))} />
+              <Input type="tel" placeholder="Телефон" value={bookingData.phone} onChange={(e) => setBookingData(p => ({ ...p, phone: e.target.value }))} />
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Дата</label>
+                <Input type="date" min={new Date().toISOString().slice(0, 10)} value={bookingData.date} onChange={(e) => setBookingData(p => ({ ...p, date: e.target.value, time: '' }))} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Доступные слоты</label>
+                {availableSlots.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Нет доступного времени на выбранную дату</p>
+                ) : (
+                  <div className="grid grid-cols-4 gap-2">
+                    {availableSlots.map(slot => (
+                      <Button
+                        key={slot}
+                        type="button"
+                        size="sm"
+                        variant={bookingData.time === slot ? 'default' : 'outline'}
+                        onClick={() => setBookingData(p => ({ ...p, time: slot }))}
+                      >
+                        {slot}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <Textarea placeholder="Комментарий (необязательно)" value={bookingData.comment} onChange={(e) => setBookingData(p => ({ ...p, comment: e.target.value }))} />
+              <div className="space-y-1">
+                <label className="text-sm font-medium flex items-center gap-1"><Bell className="w-3.5 h-3.5" /> Напоминание</label>
+                <Select value={bookingData.reminder} onValueChange={v => setBookingData(p => ({ ...p, reminder: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {REMINDER_OPTIONS.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button onClick={() => handleBook(bookingService)} className="w-full" disabled={sendingBooking || !bookingData.date || !bookingData.time}>
+                {sendingBooking ? 'Отправка...' : 'Подтвердить запись'}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
     </div>
   );
