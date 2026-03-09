@@ -51,6 +51,7 @@ const REMINDER_OPTIONS = [
 
 const MasterDetail = () => {
   const { masterId } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
