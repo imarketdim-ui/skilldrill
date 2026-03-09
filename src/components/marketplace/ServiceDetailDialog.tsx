@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Clock, Banknote, Copy, Check, MapPin, User } from 'lucide-react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { useEffect, useRef } from 'react';
 
 interface ServiceDetailDialogProps {
   service: any;
@@ -36,33 +35,6 @@ const ServiceDetailDialog = ({
   const [showMap, setShowMap] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<maplibregl.Map | null>(null);
-
-  if (!service) return null;
-
-  const photos = service.work_photos || [];
-  const hashtags = service.hashtags || [];
-  const serviceUrl = masterId ? `${window.location.origin}/master/${masterId}?service=${service.id}` : '';
-
-  const copyLink = () => {
-    navigator.clipboard.writeText(serviceUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleMasterClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (masterId) {
-      onOpenChange(false);
-      navigate(`/master/${masterId}`);
-    }
-  };
-
-  const handleAddressClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (masterLatitude && masterLongitude) {
-      setShowMap(true);
-    }
-  };
 
   // Initialize map when showing
   useEffect(() => {
@@ -105,6 +77,33 @@ const ServiceDetailDialog = ({
       setShowMap(false);
     }
   }, [open]);
+
+  if (!service) return null;
+
+  const photos = service.work_photos || [];
+  const hashtags = service.hashtags || [];
+  const serviceUrl = masterId ? `${window.location.origin}/master/${masterId}?service=${service.id}` : '';
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(serviceUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleMasterClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (masterId) {
+      onOpenChange(false);
+      navigate(`/master/${masterId}`);
+    }
+  };
+
+  const handleAddressClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (masterLatitude && masterLongitude) {
+      setShowMap(true);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
