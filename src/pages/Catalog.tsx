@@ -578,6 +578,11 @@ const Catalog = () => {
 
   const currentItems = tab === "masters" ? filteredMasters : tab === "businesses" ? filteredBusinesses : filteredServices;
   const currentCount = currentItems.length;
+  const visibleItems = currentItems.slice(0, visibleCount);
+  const hasMore = visibleCount < currentCount;
+
+  // Reset visible count when filters change
+  useEffect(() => { setVisibleCount(24); }, [tab, searchQuery, categoryFilter, locationFilter, selectedTags, priceRange, sortBy]);
 
   return (
     <div className="min-h-screen bg-background">
