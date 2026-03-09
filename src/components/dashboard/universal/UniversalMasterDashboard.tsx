@@ -131,23 +131,23 @@ interface Props {
 }
 
 const mainItems = [
-  { key: 'home', label: 'Главная', icon: LayoutDashboard },
-  { key: 'profile', label: 'Профиль', icon: UserCog },
-  { key: 'notifications', label: 'Уведомления', icon: Bell },
+  { key: 'home', label: 'Главная', icon: LayoutDashboard, description: 'Обзор и быстрые действия' },
+  { key: 'profile', label: 'Профиль', icon: UserCog, description: 'Редактирование профиля' },
+  { key: 'notifications', label: 'Уведомления', icon: Bell, description: 'Все уведомления' },
 ];
 
 const crmItems = [
-  { key: 'schedule', label: 'Расписание', icon: Calendar },
-  { key: 'clients', label: 'Клиенты', icon: Users },
-  { key: 'chats', label: 'Чаты', icon: MessageSquare },
-  { key: 'requests', label: 'Заявки', icon: ClipboardList },
-  { key: 'marketing', label: 'Маркетинг', icon: Megaphone },
+  { key: 'schedule', label: 'Расписание', icon: Calendar, description: 'Управление временем' },
+  { key: 'clients', label: 'Клиенты', icon: Users, description: 'База клиентов' },
+  { key: 'chats', label: 'Чаты', icon: MessageSquare, description: 'Общение с клиентами' },
+  { key: 'requests', label: 'Заявки', icon: ClipboardList, description: 'Входящие заявки' },
+  { key: 'marketing', label: 'Маркетинг', icon: Megaphone, description: 'Рассылки и реклама' },
 ];
 
 const erpItems = [
-  { key: 'stats', label: 'Статистика', icon: BarChart3 },
-  { key: 'services', label: 'Услуги', icon: Package },
-  { key: 'finances', label: 'Финансы', icon: Wallet },
+  { key: 'stats', label: 'Статистика', icon: BarChart3, description: 'Аналитика и отчёты' },
+  { key: 'services', label: 'Услуги', icon: Package, description: 'Список услуг и цены' },
+  { key: 'finances', label: 'Финансы', icon: Wallet, description: 'Доходы и расходы' },
 ];
 
 const allItems = [...mainItems, ...crmItems, ...erpItems];
