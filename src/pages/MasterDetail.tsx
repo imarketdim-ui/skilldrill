@@ -671,7 +671,7 @@ const MasterDetail = () => {
                                   <Input type="tel" placeholder="Телефон" value={bookingData.phone} onChange={(e) => setBookingData(p => ({ ...p, phone: e.target.value }))} />
                                   <div className="space-y-1">
                                     <label className="text-sm font-medium">Дата</label>
-                                    <Input type="date" value={bookingData.date} onChange={(e) => setBookingData(p => ({ ...p, date: e.target.value, time: '' }))} />
+                                    <Input type="date" min={new Date().toISOString().slice(0, 10)} value={bookingData.date} onChange={(e) => setBookingData(p => ({ ...p, date: e.target.value, time: '' }))} />
                                   </div>
                                   <div className="space-y-1">
                                     <label className="text-sm font-medium">Доступные слоты</label>
