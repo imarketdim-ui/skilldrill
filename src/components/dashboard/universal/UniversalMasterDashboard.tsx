@@ -5,8 +5,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { LayoutDashboard, Calendar, Users, MessageSquare, BarChart3, Wallet, Package, Bell, ClipboardList, UserCog, Lock, AlertTriangle, Trophy } from 'lucide-react';
+import {
+  LayoutDashboard, Calendar, Users, MessageSquare, BarChart3, Wallet,
+  Package, Bell, ClipboardList, UserCog, Lock, AlertTriangle, Trophy,
+  PanelLeftClose, PanelLeftOpen, Database, Briefcase, HeadphonesIcon
+} from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import SubscriptionPaywall from '../SubscriptionPaywall';
 import UniversalDashboardHome from './UniversalDashboardHome';
 import UniversalSchedule from './UniversalSchedule';
@@ -132,27 +137,36 @@ interface Props {
 }
 
 const menuItems = [
-  { key: 'home', label: 'Главная', icon: LayoutDashboard },
-  { key: 'profile', label: 'Профиль', icon: UserCog },
-  { key: 'schedule', label: 'Расписание', icon: Calendar },
-  { key: 'services', label: 'Услуги', icon: Package },
-  { key: 'clients', label: 'Клиенты', icon: Users },
-  { key: 'chats', label: 'Чаты', icon: MessageSquare },
-  { key: 'finances', label: 'Финансы', icon: Wallet },
-  { key: 'requests', label: 'Заявки', icon: ClipboardList },
-  { key: 'support', label: 'Техподдержка', icon: MessageSquare },
-  { key: 'notifications', label: 'Уведомления', icon: Bell },
+  { key: 'home', label: 'Главная', icon: LayoutDashboard, group: 'main' },
+  { key: 'profile', label: 'Профиль', icon: UserCog, group: 'main' },
+  { key: 'schedule', label: 'Расписание', icon: Calendar, group: 'main' },
+  { key: 'services', label: 'Услуги', icon: Package, group: 'main' },
 ];
 
-const managementItems = [
-  { key: 'stats', label: 'Статистика', icon: BarChart3 },
-  { key: 'achievements', label: 'Достижения', icon: Trophy },
+const crmItems = [
+  { key: 'clients', label: 'Клиенты', icon: Users, group: 'crm' },
+  { key: 'requests', label: 'Заявки', icon: ClipboardList, group: 'crm' },
+  { key: 'stats', label: 'Статистика', icon: BarChart3, group: 'crm' },
+  { key: 'achievements', label: 'Достижения', icon: Trophy, group: 'crm' },
 ];
+
+const erpItems = [
+  { key: 'finances', label: 'Финансы', icon: Wallet, group: 'erp' },
+  { key: 'notifications', label: 'Уведомления', icon: Bell, group: 'erp' },
+];
+
+const communicationItems = [
+  { key: 'chats', label: 'Чаты', icon: MessageSquare, group: 'comm' },
+  { key: 'support', label: 'Техподдержка', icon: HeadphonesIcon, group: 'comm' },
+];
+
+const allItems = [...menuItems, ...crmItems, ...erpItems, ...communicationItems];
 
 const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config }: Props) => {
   const { profile } = useAuth();
   const pricing = usePlatformPricing();
   const [activeSection, setActiveSection] = useState('home');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Listen for navigate-dashboard custom events
   useEffect(() => {
@@ -167,6 +181,10 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
 
   // Read-only sections that work without subscription
   const readOnlySections = ['home', 'profile', 'notifications', 'support'];
+
+  const adaptedCrmItems = crmItems.map(item =>
+    item.key === 'clients' ? { ...item, label: config.clientNamePlural } : item
+  );
 
   const renderContent = () => {
     // If read-only and trying to access a restricted section, show paywall
@@ -201,23 +219,30 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
 
   const IconComponent = config.icon;
 
-  const adaptedMenuItems = menuItems.map(item =>
-    item.key === 'clients' ? { ...item, label: config.clientNamePlural } : item
-  );
-
   const NavButton = ({ item }: { item: { key: string; label: string; icon: any } }) => {
     const isLocked = isReadOnly && !readOnlySections.includes(item.key);
     return (
       <Button
         key={item.key}
         variant={activeSection === item.key ? 'default' : 'ghost'}
-        className={`w-full justify-start gap-3 ${activeSection === item.key ? '' : 'text-muted-foreground'} ${isLocked ? 'opacity-60' : ''}`}
+        className={`w-full gap-3 ${sidebarCollapsed ? 'justify-center px-2' : 'justify-start'} ${activeSection === item.key ? '' : 'text-muted-foreground'} ${isLocked ? 'opacity-60' : ''}`}
         onClick={() => setActiveSection(item.key)}
+        title={sidebarCollapsed ? item.label : undefined}
       >
-        <item.icon className="h-4 w-4" />
-        <span className="flex-1 text-left">{item.label}</span>
-        {isLocked && <Lock className="h-3 w-3 text-muted-foreground" />}
+        <item.icon className="h-4 w-4 shrink-0" />
+        {!sidebarCollapsed && <span className="flex-1 text-left">{item.label}</span>}
+        {!sidebarCollapsed && isLocked && <Lock className="h-3 w-3 text-muted-foreground" />}
       </Button>
+    );
+  };
+
+  const SectionLabel = ({ label, icon: Icon }: { label: string; icon: any }) => {
+    if (sidebarCollapsed) return <div className="border-t my-2 mx-2" />;
+    return (
+      <div className="flex items-center gap-2 px-3 mb-2 mt-4">
+        <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{label}</p>
+      </div>
     );
   };
 
@@ -234,50 +259,64 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
           <Button size="sm" variant="destructive" onClick={() => setActiveSection('schedule')}>Оплатить</Button>
         </div>
       )}
-      {/* Desktop: sidebar */}
-      <aside className="hidden lg:flex flex-col w-60 shrink-0 sticky top-20 self-start h-[calc(100vh-6rem)]">
-        <div className="flex items-center gap-3 px-3 pb-6 border-b mb-4">
-          <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
-            <IconComponent className="h-5 w-5 text-primary-foreground" />
-          </div>
-          <div>
-            <p className="font-semibold text-sm">
-              {masterProfile?.service_categories?.name || config.label}
-            </p>
-            <p className="text-xs text-muted-foreground">{config.label}</p>
-          </div>
+      {/* Desktop: collapsible sidebar */}
+      <aside className={`hidden lg:flex flex-col shrink-0 sticky top-20 self-start h-[calc(100vh-6rem)] transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-60'}`}>
+        <div className="flex items-center gap-3 px-3 pb-4 border-b mb-2">
+          {!sidebarCollapsed && (
+            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
+              <IconComponent className="h-5 w-5 text-primary-foreground" />
+            </div>
+          )}
+          {!sidebarCollapsed && (
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm truncate">
+                {masterProfile?.service_categories?.name || config.label}
+              </p>
+              <p className="text-xs text-muted-foreground">{config.label}</p>
+            </div>
+          )}
+          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>
+            {sidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+          </Button>
         </div>
-        {isReadOnly && (
+        {isReadOnly && !sidebarCollapsed && (
           <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 mb-4 mx-1">
             <p className="text-xs font-medium text-destructive">Подписка истекла</p>
             <p className="text-[10px] text-muted-foreground mt-0.5">Часть функций заблокирована</p>
           </div>
         )}
-        <div className="space-y-1">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Меню</p>
-          {adaptedMenuItems.map(item => <NavButton key={item.key} item={item} />)}
+        <div className="space-y-0.5 overflow-y-auto flex-1">
+          {!sidebarCollapsed && <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Основное</p>}
+          {menuItems.map(item => <NavButton key={item.key} item={item} />)}
+
+          <SectionLabel label="CRM" icon={Users} />
+          {adaptedCrmItems.map(item => <NavButton key={item.key} item={item} />)}
+
+          <SectionLabel label="ERP" icon={Database} />
+          {erpItems.map(item => <NavButton key={item.key} item={item} />)}
+
+          <SectionLabel label="Общение" icon={MessageSquare} />
+          {communicationItems.map(item => <NavButton key={item.key} item={item} />)}
         </div>
-        <div className="space-y-1 mt-6">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Управление</p>
-          {managementItems.map(item => <NavButton key={item.key} item={item} />)}
-        </div>
-        <div className="mt-auto pt-6 border-t">
-          <div className="flex items-center gap-3 px-3">
-            <Avatar className="h-8 w-8">
-              <AvatarFallback className="text-xs bg-primary/10 text-primary">{getInitials()}</AvatarFallback>
-            </Avatar>
-            <div className="min-w-0">
-              <p className="text-sm font-medium truncate">{profile?.first_name}</p>
-              <p className="text-xs text-muted-foreground">{config.label}</p>
+        {!sidebarCollapsed && (
+          <div className="mt-auto pt-6 border-t">
+            <div className="flex items-center gap-3 px-3">
+              <Avatar className="h-8 w-8">
+                <AvatarFallback className="text-xs bg-primary/10 text-primary">{getInitials()}</AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <p className="text-sm font-medium truncate">{profile?.first_name}</p>
+                <p className="text-xs text-muted-foreground">{config.label}</p>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </aside>
 
       {/* Mobile/tablet: bottom bar */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t z-50 safe-area-bottom">
         <div className="flex overflow-x-auto scrollbar-hide">
-          {[...adaptedMenuItems, ...managementItems].map(item => (
+          {allItems.map(item => (
             <button
               key={item.key}
               onClick={() => setActiveSection(item.key)}
@@ -285,7 +324,7 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
                 ${activeSection === item.key ? 'text-primary' : 'text-muted-foreground'}`}
             >
               <item.icon className="h-4 w-4 shrink-0" />
-              <span className="truncate max-w-[3.5rem] text-center">{item.label}</span>
+              <span className="truncate max-w-[3.5rem] text-center">{item.key === 'clients' ? config.clientNamePlural : item.label}</span>
             </button>
           ))}
         </div>
