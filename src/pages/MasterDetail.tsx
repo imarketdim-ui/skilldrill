@@ -36,6 +36,7 @@ interface MasterData {
   break_config: any;
   auto_booking_policy: string | null;
   business_id: string | null;
+  social_links: { telegram?: string; vk?: string; instagram?: string; youtube?: string } | null;
   profiles: { first_name: string | null; last_name: string | null; avatar_url: string | null; email: string | null } | null;
   service_categories: { name: string } | null;
 }
