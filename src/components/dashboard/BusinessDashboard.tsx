@@ -16,6 +16,7 @@ import {
 import ProfileCompletionCheck from './ProfileCompletionCheck';
 import SubscriptionManager from './SubscriptionManager';
 import SubscriptionPaywall from './SubscriptionPaywall';
+import SectionHub from './SectionHub';
 import { usePlatformPricing } from '@/hooks/usePlatformPricing';
 import BusinessMasters from './business/BusinessMasters';
 import BusinessServices from './business/BusinessServices';
