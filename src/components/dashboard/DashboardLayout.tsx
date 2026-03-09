@@ -7,9 +7,11 @@ import RoleSwitcher from './RoleSwitcher';
 
 interface DashboardLayoutProps {
   children: ReactNode;
+  onSelectHub?: (hub: 'business' | 'platform') => void;
+  onBackToClient?: () => void;
 }
 
-const DashboardLayout = ({ children }: DashboardLayoutProps) => {
+const DashboardLayout = ({ children, onSelectHub, onBackToClient }: DashboardLayoutProps) => {
   const { signOut, activeRole, setActiveRole } = useAuth();
   const navigate = useNavigate();
 
@@ -18,22 +20,33 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     navigate('/');
   };
 
-  const isSubDashboard = activeRole !== 'client' && !['platform_admin', 'super_admin', 'platform_manager'].includes(activeRole);
+  const isSubDashboard = !['client'].includes(activeRole) &&
+    !['platform_admin', 'super_admin', 'platform_manager', 'moderator', 'support', 'integrator'].includes(activeRole);
+
+  const isPlatformDashboard = ['platform_admin', 'super_admin', 'platform_manager', 'moderator', 'support', 'integrator'].includes(activeRole);
+
+  const handleBack = () => {
+    if (onBackToClient) {
+      onBackToClient();
+    } else {
+      setActiveRole('client');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
         <div className="container-wide py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {isSubDashboard ? (
+            {(isSubDashboard || isPlatformDashboard) ? (
               <Button
                 variant="ghost"
                 size="sm"
                 className="gap-2"
-                onClick={() => setActiveRole('client')}
+                onClick={handleBack}
               >
                 <ArrowLeft className="h-4 w-4" />
-                <span className="hidden sm:inline">Главная</span>
+                <span className="hidden sm:inline">Клиент</span>
               </Button>
             ) : (
               <>
@@ -45,7 +58,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             )}
           </div>
 
-          <RoleSwitcher />
+          <RoleSwitcher onSelectHub={onSelectHub} />
 
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" onClick={handleSignOut}>

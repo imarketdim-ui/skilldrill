@@ -1,20 +1,32 @@
-import { useAuth, UserRoleType } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Shield, Crown, User, Building2 } from 'lucide-react';
 
-const RoleSwitcher = () => {
+interface RoleSwitcherProps {
+  onSelectHub?: (hub: 'business' | 'platform') => void;
+}
+
+const RoleSwitcher = ({ onSelectHub }: RoleSwitcherProps) => {
   const { roles, activeRole, setActiveRole } = useAuth();
 
-  const platformRoles = roles.filter(r => ['platform_admin', 'super_admin', 'platform_manager', 'moderator', 'support', 'integrator'].includes(r));
-  const businessRoles = roles.filter(r => ['business_owner', 'business_manager', 'network_owner', 'network_manager'].includes(r));
+  const hasPlatformRoles = roles.some(r =>
+    ['platform_admin', 'super_admin', 'platform_manager', 'moderator', 'support', 'integrator'].includes(r)
+  );
+  const hasBusinessRoles = roles.some(r =>
+    ['master', 'business_owner', 'business_manager', 'network_owner', 'network_manager'].includes(r)
+  );
 
-  // Nothing to switch to
-  if (platformRoles.length === 0 && businessRoles.length === 0) return null;
+  const isInClientView = activeRole === 'client';
+  const isInBusinessView = ['master', 'business_owner', 'business_manager', 'network_owner', 'network_manager'].includes(activeRole);
+  const isInPlatformView = ['platform_admin', 'super_admin', 'platform_manager', 'moderator', 'support', 'integrator'].includes(activeRole);
+
+  // Nothing to show if user only has client role
+  if (!hasPlatformRoles && !hasBusinessRoles) return null;
 
   const buttons: React.ReactNode[] = [];
 
-  // Currently in platform admin mode → show "Клиент" button
-  if (['platform_admin', 'super_admin', 'platform_manager', 'moderator', 'support', 'integrator'].includes(activeRole)) {
+  // Always show "Клиент" when not in client view
+  if (!isInClientView) {
     buttons.push(
       <Button
         key="client"
@@ -29,39 +41,36 @@ const RoleSwitcher = () => {
     );
   }
 
-  // Currently in business/network role → show "Клиент" button
-  if (['business_owner', 'business_manager', 'network_owner', 'network_manager'].includes(activeRole)) {
+  // Show "Бизнес" when in client view and has business roles
+  if (isInClientView && hasBusinessRoles) {
     buttons.push(
       <Button
-        key="client"
+        key="business"
         variant="outline"
         size="sm"
         className="gap-2"
-        onClick={() => setActiveRole('client')}
+        onClick={() => onSelectHub?.('business')}
       >
-        <User className="h-4 w-4" />
-        <span className="hidden sm:inline">Клиент</span>
+        <Building2 className="h-4 w-4" />
+        <span className="hidden sm:inline">Бизнес</span>
       </Button>
     );
   }
 
-  // Currently client → show available switches
-  if (activeRole === 'client' || activeRole === 'master') {
-    // Platform switch only — business switch happens via workspace cards in ClientDashboard
-    if (platformRoles.length > 0) {
-      buttons.push(
-        <Button
-          key="platform"
-          variant="outline"
-          size="sm"
-          className="gap-2"
-          onClick={() => setActiveRole(platformRoles[0] as UserRoleType)}
-        >
-          {platformRoles.includes('super_admin') ? <Crown className="h-4 w-4" /> : <Shield className="h-4 w-4" />}
-          <span className="hidden sm:inline">Площадка</span>
-        </Button>
-      );
-    }
+  // Show "Площадка" when in client view and has platform roles
+  if (isInClientView && hasPlatformRoles) {
+    buttons.push(
+      <Button
+        key="platform"
+        variant="outline"
+        size="sm"
+        className="gap-2"
+        onClick={() => onSelectHub?.('platform')}
+      >
+        {roles.includes('super_admin') ? <Crown className="h-4 w-4" /> : <Shield className="h-4 w-4" />}
+        <span className="hidden sm:inline">Площадка</span>
+      </Button>
+    );
   }
 
   if (buttons.length === 0) return null;
