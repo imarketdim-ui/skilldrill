@@ -3897,7 +3897,18 @@ export type Database = {
         Returns: Json
       }
       calculate_shadow_score: { Args: { _user_id: string }; Returns: Json }
-      calculate_user_score: { Args: { _user_id: string }; Returns: undefined }
+      calculate_user_score: {
+        Args: { _user_id: string }
+        Returns: {
+          activity_score: number
+          details: Json
+          profile_score: number
+          reputation_score: number
+          risk_score: number
+          score: number
+          status: string
+        }[]
+      }
       check_fraud_indicators: { Args: { _user_id: string }; Returns: Json }
       generate_skillspot_id: { Args: never; Returns: string }
       get_user_org_role: {
