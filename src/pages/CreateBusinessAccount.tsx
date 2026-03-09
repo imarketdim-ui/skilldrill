@@ -10,7 +10,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Loader2, Wrench, Building2, Globe, Info, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Loader2, Wrench, Building2, Globe, Info, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import MapPicker from '@/components/marketplace/MapPicker';
 import { usePlatformPricing } from '@/hooks/usePlatformPricing';
 import { PhoneInput } from '@/components/ui/phone-input';
