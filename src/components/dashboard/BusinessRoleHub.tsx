@@ -278,7 +278,7 @@ const BusinessRoleHub = ({ onSelect, onBack }: BusinessRoleHubProps) => {
                     </Link>
                   </p>
                 </div>
-                <Crown className="h-5 w-5 text-amber-500 shrink-0" />
+                <Crown className="h-5 w-5 text-primary shrink-0" />
               </div>
             </CardContent>
           </Card>
