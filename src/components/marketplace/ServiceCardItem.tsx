@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Star, MapPin, Clock, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -26,9 +27,11 @@ export interface ServiceCardData {
 interface Props {
   service: ServiceCardData;
   onClick: () => void;
+  onBook?: () => void;
 }
 
-const ServiceCardItem = ({ service, onClick }: Props) => {
+const ServiceCardItem = ({ service, onClick, onBook }: Props) => {
+  const navigate = useNavigate();
   const photos = service.work_photos?.length > 0 ? service.work_photos : ["/placeholder.svg"];
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -43,10 +46,23 @@ const ServiceCardItem = ({ service, onClick }: Props) => {
     emblaApi.on("select", onSelect);
   }, [emblaApi, onSelect]);
 
-  // Attach listener via effect-like pattern
   if (emblaApi) {
     emblaApi.on("select", onSelect);
   }
+
+  const handleBookClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onBook) {
+      onBook();
+    } else {
+      navigate(`/master/${service.master_id}?book=${service.id}`);
+    }
+  };
+
+  const handleMasterClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(`/master/${service.master_id}`);
+  };
 
   return (
     <motion.div
@@ -74,7 +90,6 @@ const ServiceCardItem = ({ service, onClick }: Props) => {
                 </div>
               ))}
             </div>
-            {/* Nav arrows */}
             <button
               className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-card/80 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity"
               onClick={(e) => { e.stopPropagation(); emblaApi?.scrollPrev(); }}
@@ -87,7 +102,6 @@ const ServiceCardItem = ({ service, onClick }: Props) => {
             >
               <ChevronRight className="w-4 h-4" />
             </button>
-            {/* Dots */}
             <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
               {photos.slice(0, 5).map((_, i) => (
                 <div key={i} className={`w-1.5 h-1.5 rounded-full transition-colors ${i === currentSlide ? 'bg-card' : 'bg-card/50'}`} />
@@ -141,8 +155,11 @@ const ServiceCardItem = ({ service, onClick }: Props) => {
           )}
         </div>
 
-        {/* Master info */}
-        <div className="flex items-center gap-3 mb-4 pb-4 border-b border-border/50">
+        {/* Master info - clickable */}
+        <div
+          className="flex items-center gap-3 mb-4 pb-4 border-b border-border/50 hover:opacity-80 transition-opacity"
+          onClick={handleMasterClick}
+        >
           <div className="w-10 h-10 rounded-full overflow-hidden bg-secondary shrink-0">
             {service.master_avatar ? (
               <img src={service.master_avatar} alt={service.master_name} className="w-full h-full object-cover" />
@@ -153,7 +170,7 @@ const ServiceCardItem = ({ service, onClick }: Props) => {
             )}
           </div>
           <div>
-            <p className="text-sm font-medium text-foreground">{service.master_name}</p>
+            <p className="text-sm font-medium text-primary">{service.master_name}</p>
             <p className="text-xs text-muted-foreground">Мастер</p>
           </div>
         </div>
@@ -163,7 +180,7 @@ const ServiceCardItem = ({ service, onClick }: Props) => {
           <p className="text-2xl font-display font-bold text-foreground">
             {service.price != null ? `${Number(service.price).toLocaleString()} ₽` : "—"}
           </p>
-          <Button variant="hero" size="sm">Записаться</Button>
+          <Button variant="hero" size="sm" onClick={handleBookClick}>Записаться</Button>
         </div>
       </div>
     </motion.div>

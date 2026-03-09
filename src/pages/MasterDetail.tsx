@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams, Link, useSearchParams } from 'react-router-dom';
 import { Star, MapPin, Clock, ArrowLeft, MessageSquare, Camera, Heart, Share2, ExternalLink, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -51,6 +51,7 @@ const REMINDER_OPTIONS = [
 
 const MasterDetail = () => {
   const { masterId } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -118,6 +119,17 @@ const MasterDetail = () => {
     };
     fetchData();
   }, [masterId, user]);
+
+  // Auto-open booking from URL param (e.g. from service card "Записаться")
+  useEffect(() => {
+    const bookServiceId = searchParams.get('book');
+    if (bookServiceId && services.length > 0 && !bookingService) {
+      const serviceToBook = services.find(s => s.id === bookServiceId);
+      if (serviceToBook) {
+        setBookingService(serviceToBook.id);
+      }
+    }
+  }, [searchParams, services, bookingService]);
 
   useEffect(() => {
     if (!bookingService) return;
