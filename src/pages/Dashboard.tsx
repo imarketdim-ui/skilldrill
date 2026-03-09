@@ -81,20 +81,7 @@ const Dashboard = () => {
     setView('dashboard');
   }, [setActiveRole]);
 
-  // Back from sub-dashboard → go to the relevant hub
-  const handleBackToHub = useCallback(() => {
-    const isBusinessRole = ['master', 'business_owner', 'business_manager', 'network_owner', 'network_manager'].includes(activeRole);
-    const isPlatformRole = ['platform_admin', 'super_admin', 'platform_manager', 'moderator', 'support', 'integrator'].includes(activeRole);
-
-    setActiveRole('client');
-    if (isBusinessRole) {
-      setView('hub_business');
-    } else if (isPlatformRole) {
-      setView('hub_platform');
-    } else {
-      setView('dashboard');
-    }
-  }, [activeRole, setActiveRole]);
+  // Old handleBackToHub removed - logic moved to handleBackToHubInternal above
 
   if (loading) {
     return (
