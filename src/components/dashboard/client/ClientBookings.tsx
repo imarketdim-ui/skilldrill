@@ -171,6 +171,7 @@ export default function ClientBookings({ userId }: Props) {
       <h3 className="text-lg font-semibold">Мои записи</h3>
       <Tabs value={period} onValueChange={v => setPeriod(v as any)}>
         <TabsList className="w-full">
+          <TabsTrigger value="all" className="flex-1">Все</TabsTrigger>
           <TabsTrigger value="day" className="flex-1">День</TabsTrigger>
           <TabsTrigger value="week" className="flex-1">Неделя</TabsTrigger>
           <TabsTrigger value="month" className="flex-1">Месяц</TabsTrigger>
