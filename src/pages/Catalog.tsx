@@ -15,7 +15,7 @@ import CatalogMap, { type MapMaster } from "@/components/marketplace/CatalogMap"
 import MasterCardItem from "@/components/marketplace/MasterCardItem";
 import BusinessCardItem from "@/components/marketplace/BusinessCardItem";
 import ServiceCardItem, { type ServiceCardData } from "@/components/marketplace/ServiceCardItem";
-import ServiceDetailDialog from "@/components/marketplace/ServiceDetailDialog";
+
 import { supabase } from "@/integrations/supabase/client";
 
 // Categories from DB
@@ -106,7 +106,7 @@ const Catalog = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [showAllTags, setShowAllTags] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "map">("grid");
-  const [selectedService, setSelectedService] = useState<ServiceCardData | null>(null);
+  
   const [synonyms, setSynonyms] = useState<{ term: string; synonyms: string[] }[]>([]);
   const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
 
@@ -966,7 +966,7 @@ const Catalog = () => {
                     <ServiceCardItem
                       key={s.id}
                       service={s}
-                      onClick={() => setSelectedService(s)}
+                      onClick={() => navigate(`/master/${s.master_id}?book=${s.id}`)}
                     />
                   ))}
             </div>
@@ -988,31 +988,8 @@ const Catalog = () => {
       </main>
       <Footer />
 
-      {/* Service Detail Dialog */}
-      <ServiceDetailDialog
-        service={selectedService ? {
-          id: selectedService.id,
-          name: selectedService.name,
-          price: selectedService.price,
-          duration_minutes: selectedService.duration_minutes,
-          work_photos: selectedService.work_photos,
-          description: null,
-          hashtags: [],
-        } : null}
-        masterName={selectedService?.master_name}
-        masterId={selectedService?.master_id}
-        masterLocation={selectedService?.master_location}
-        masterLatitude={selectedService?.latitude}
-        masterLongitude={selectedService?.longitude}
-        open={!!selectedService}
-        onOpenChange={(open) => { if (!open) setSelectedService(null); }}
-        onBook={() => {
-          if (selectedService) {
-            setSelectedService(null);
-            navigate(`/master/${selectedService.master_id}?book=${selectedService.id}`);
-          }
-        }}
-      />
+
+
     </div>
   );
 };
