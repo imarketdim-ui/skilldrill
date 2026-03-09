@@ -9,7 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Users, Search, Loader2, Shield, Briefcase, Wrench, Star, Phone, Mail, MoreVertical, Calendar } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Plus, Users, Search, Loader2, Shield, Briefcase, Wrench, Star, Phone, Mail, MoreVertical, Calendar, Lock } from 'lucide-react';
+import RolePermissionsEditor from './RolePermissionsEditor';
 
 interface Props {
   businessId: string;
@@ -228,139 +230,152 @@ const BusinessMasters = ({ businessId, freeMasters, extraMasterPrice }: Props) =
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <h2 className="text-2xl font-bold">Команда</h2>
-          <p className="text-muted-foreground">Мастера, менеджеры и сотрудники</p>
-        </div>
-        <Button onClick={() => setInviteOpen(true)}>
-          <Plus className="h-4 w-4 mr-1" /> Добавить сотрудника
-        </Button>
-      </div>
+      <Tabs defaultValue="staff" className="w-full">
+        <TabsList>
+          <TabsTrigger value="staff" className="gap-1.5">
+            <Users className="h-3.5 w-3.5" /> Сотрудники
+          </TabsTrigger>
+          <TabsTrigger value="permissions" className="gap-1.5">
+            <Lock className="h-3.5 w-3.5" /> Доступы
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[
-          { label: 'Всего', value: staff.length },
-          { label: 'Активных', value: activeCount },
-          { label: 'Мастеров', value: staff.filter(s => s.role === 'master').length },
-          { label: 'Менеджеров', value: staff.filter(s => s.role !== 'master').length },
-        ].map(stat => (
-          <Card key={stat.label}>
-            <CardContent className="pt-4 pb-3 px-4">
-              <p className="text-sm text-muted-foreground">{stat.label}</p>
-              <p className="text-2xl font-bold mt-1">{stat.value}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+        <TabsContent value="staff" className="space-y-6 mt-4">
+          {/* Header */}
+          <div className="flex items-start justify-between flex-wrap gap-3">
+            <div>
+              <h2 className="text-2xl font-bold">Команда</h2>
+              <p className="text-muted-foreground">Мастера, менеджеры и сотрудники</p>
+            </div>
+            <Button onClick={() => setInviteOpen(true)}>
+              <Plus className="h-4 w-4 mr-1" /> Добавить сотрудника
+            </Button>
+          </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          placeholder="Поиск по имени или специализации..."
-          className="pl-10"
-        />
-      </div>
+          {/* Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[
+              { label: 'Всего', value: staff.length },
+              { label: 'Активных', value: activeCount },
+              { label: 'Мастеров', value: staff.filter(s => s.role === 'master').length },
+              { label: 'Менеджеров', value: staff.filter(s => s.role !== 'master').length },
+            ].map(stat => (
+              <Card key={stat.label}>
+                <CardContent className="pt-4 pb-3 px-4">
+                  <p className="text-sm text-muted-foreground">{stat.label}</p>
+                  <p className="text-2xl font-bold mt-1">{stat.value}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
 
-      {/* Staff grid */}
-      {loading ? (
-        <p className="text-center py-12 text-muted-foreground">Загрузка...</p>
-      ) : filtered.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
-          <p>{staff.length === 0 ? 'Пригласите сотрудников по их SkillSpot ID' : 'Ничего не найдено'}</p>
-        </div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map(s => (
-            <Card key={`${s.source}-${s.id}`} className={`relative ${!s.isActive ? 'opacity-60' : ''}`}>
-              <CardContent className="pt-5 pb-4 px-5 space-y-4">
-                {/* Top row: avatar + info + menu */}
-                <div className="flex items-start gap-3">
-                  <div className="h-12 w-12 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold shrink-0">
-                    {getInitials(s)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold truncate">
-                      {s.profile?.first_name || ''} {s.profile?.last_name || ''}
-                    </p>
-                    <p className="text-sm text-muted-foreground truncate">
-                      {s.masterProfile?.short_description || roleLabels[s.role]}
-                    </p>
-                  </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleRemove(s)} className="text-destructive">
-                        Удалить из команды
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Поиск по имени или специализации..."
+              className="pl-10"
+            />
+          </div>
 
-                {/* Contact info */}
-                <div className="space-y-1.5 text-sm">
-                  {s.profile?.phone && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Phone className="h-3.5 w-3.5 shrink-0" />
-                      <span className="truncate">{s.profile.phone}</span>
+          {/* Staff grid */}
+          {loading ? (
+            <p className="text-center py-12 text-muted-foreground">Загрузка...</p>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
+              <p>{staff.length === 0 ? 'Пригласите сотрудников по их SkillSpot ID' : 'Ничего не найдено'}</p>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {filtered.map(s => (
+                <Card key={`${s.source}-${s.id}`} className={`relative ${!s.isActive ? 'opacity-60' : ''}`}>
+                  <CardContent className="pt-5 pb-4 px-5 space-y-4">
+                    <div className="flex items-start gap-3">
+                      <div className="h-12 w-12 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold shrink-0">
+                        {getInitials(s)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold truncate">
+                          {s.profile?.first_name || ''} {s.profile?.last_name || ''}
+                        </p>
+                        <p className="text-sm text-muted-foreground truncate">
+                          {s.masterProfile?.short_description || roleLabels[s.role]}
+                        </p>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleRemove(s)} className="text-destructive">
+                            Удалить из команды
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
-                  )}
-                  {s.profile?.email && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Mail className="h-3.5 w-3.5 shrink-0" />
-                      <span className="truncate">{s.profile.email}</span>
+
+                    <div className="space-y-1.5 text-sm">
+                      {s.profile?.phone && (
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Phone className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate">{s.profile.phone}</span>
+                        </div>
+                      )}
+                      {s.profile?.email && (
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Mail className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate">{s.profile.email}</span>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
 
-                {/* Tags */}
-                {s.masterProfile?.hashtags && s.masterProfile.hashtags.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {s.masterProfile.hashtags.slice(0, 4).map(tag => (
-                      <Badge key={tag} variant="outline" className="text-xs font-normal">
-                        {tag}
-                      </Badge>
-                    ))}
-                    {s.masterProfile.hashtags.length > 4 && (
-                      <Badge variant="outline" className="text-xs font-normal">
-                        +{s.masterProfile.hashtags.length - 4}
-                      </Badge>
+                    {s.masterProfile?.hashtags && s.masterProfile.hashtags.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {s.masterProfile.hashtags.slice(0, 4).map(tag => (
+                          <Badge key={tag} variant="outline" className="text-xs font-normal">
+                            {tag}
+                          </Badge>
+                        ))}
+                        {s.masterProfile.hashtags.length > 4 && (
+                          <Badge variant="outline" className="text-xs font-normal">
+                            +{s.masterProfile.hashtags.length - 4}
+                          </Badge>
+                        )}
+                      </div>
                     )}
-                  </div>
-                )}
 
-                {/* Bottom: role + status toggle */}
-                <div className="flex items-center justify-between pt-2 border-t">
-                  <Badge variant="secondary" className="text-xs">
-                    {roleLabels[s.role]}
-                  </Badge>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">
-                      {s.status === 'pending' ? 'Ожидает' : s.isActive ? 'Активен' : 'Неактивен'}
-                    </span>
-                    {s.status !== 'pending' && (
-                      <Switch
-                        checked={s.isActive}
-                        onCheckedChange={() => handleToggleActive(s)}
-                      />
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+                    <div className="flex items-center justify-between pt-2 border-t">
+                      <Badge variant="secondary" className="text-xs">
+                        {roleLabels[s.role]}
+                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">
+                          {s.status === 'pending' ? 'Ожидает' : s.isActive ? 'Активен' : 'Неактивен'}
+                        </span>
+                        {s.status !== 'pending' && (
+                          <Switch
+                            checked={s.isActive}
+                            onCheckedChange={() => handleToggleActive(s)}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="permissions" className="mt-4">
+          <RolePermissionsEditor businessId={businessId} />
+        </TabsContent>
+      </Tabs>
 
       {/* Invite dialog */}
       <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
