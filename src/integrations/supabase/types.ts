@@ -1356,6 +1356,103 @@ export type Database = {
           },
         ]
       }
+      marketing_campaigns: {
+        Row: {
+          audience_filter: string
+          business_id: string | null
+          cost_per_client: number
+          created_at: string
+          creator_id: string
+          hold_amount: number | null
+          hold_released: boolean | null
+          id: string
+          include_own_clients: boolean | null
+          message: string
+          moderated_at: string | null
+          moderator_comment: string | null
+          moderator_id: string | null
+          selected_client_ids: string[] | null
+          sent_at: string | null
+          sent_count: number | null
+          status: string
+          target_count: number
+          target_type: string
+          title: string
+          total_cost: number
+          updated_at: string
+        }
+        Insert: {
+          audience_filter?: string
+          business_id?: string | null
+          cost_per_client?: number
+          created_at?: string
+          creator_id: string
+          hold_amount?: number | null
+          hold_released?: boolean | null
+          id?: string
+          include_own_clients?: boolean | null
+          message: string
+          moderated_at?: string | null
+          moderator_comment?: string | null
+          moderator_id?: string | null
+          selected_client_ids?: string[] | null
+          sent_at?: string | null
+          sent_count?: number | null
+          status?: string
+          target_count?: number
+          target_type?: string
+          title: string
+          total_cost?: number
+          updated_at?: string
+        }
+        Update: {
+          audience_filter?: string
+          business_id?: string | null
+          cost_per_client?: number
+          created_at?: string
+          creator_id?: string
+          hold_amount?: number | null
+          hold_released?: boolean | null
+          id?: string
+          include_own_clients?: boolean | null
+          message?: string
+          moderated_at?: string | null
+          moderator_comment?: string | null
+          moderator_id?: string | null
+          selected_client_ids?: string[] | null
+          sent_at?: string | null
+          sent_count?: number | null
+          status?: string
+          target_count?: number
+          target_type?: string
+          title?: string
+          total_cost?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_campaigns_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "business_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_campaigns_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_campaigns_moderator_id_fkey"
+            columns: ["moderator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       master_achievements: {
         Row: {
           achievement_type: string

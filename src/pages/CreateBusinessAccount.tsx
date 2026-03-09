@@ -189,26 +189,36 @@ const CreateBusinessAccount = () => {
         {!accountType && (
           <div className="grid gap-4">
             {typeCards.map(card => {
-              const isDisabled = card.type === 'network' && !pricing.network;
+              const isNetworkLocked = card.type === 'network' && !pricing.network;
               return (
                 <Card
                   key={card.type}
-                  className={`transition-colors ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-primary'}`}
-                  onClick={() => !isDisabled && setAccountType(card.type)}
+                  className={`transition-colors ${isNetworkLocked ? 'cursor-pointer hover:border-primary/50' : 'cursor-pointer hover:border-primary'}`}
+                  onClick={() => {
+                    if (isNetworkLocked) {
+                      toast({
+                        title: 'Тариф «Сеть» пока недоступен',
+                        description: 'Для создания сети необходимо подключить тариф. Перейдите на страницу тарифов для оформления подписки.',
+                      });
+                      navigate('/for-business#pricing');
+                      return;
+                    }
+                    setAccountType(card.type);
+                  }}
                 >
                   <CardContent className="pt-6">
                     <div className="flex items-center gap-4">
-                      <div className={`p-3 rounded-xl ${isDisabled ? 'bg-muted' : 'bg-primary/10'}`}>
-                        <card.icon className={`h-8 w-8 ${isDisabled ? 'text-muted-foreground' : 'text-primary'}`} />
+                      <div className={`p-3 rounded-xl ${isNetworkLocked ? 'bg-muted' : 'bg-primary/10'}`}>
+                        <card.icon className={`h-8 w-8 ${isNetworkLocked ? 'text-muted-foreground' : 'text-primary'}`} />
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
                           <h3 className="font-semibold text-lg">{card.title}</h3>
                           {card.note && <Badge variant="secondary">{card.note}</Badge>}
-                          {isDisabled && <Badge variant="outline">Скоро</Badge>}
+                          {isNetworkLocked && <Badge variant="outline" className="text-primary border-primary">Подключить тариф →</Badge>}
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          {isDisabled ? 'Тариф пока недоступен' : card.desc}
+                          {isNetworkLocked ? 'Оформите подписку для создания сети' : card.desc}
                         </p>
                       </div>
                     </div>
