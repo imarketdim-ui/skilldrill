@@ -929,9 +929,10 @@ const Catalog = () => {
               )}
             </div>
           ) : currentCount > 0 ? (
+            <>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {tab === "masters"
-                ? filteredMasters.map((m) => (
+                ? (filteredMasters.slice(0, visibleCount) as MasterItem[]).map((m) => (
                     <MasterCardItem
                       key={m.id}
                       id={m.id}
@@ -950,7 +951,7 @@ const Catalog = () => {
                     />
                   ))
                 : tab === "businesses"
-                ? filteredBusinesses.map((b) => (
+                ? (filteredBusinesses.slice(0, visibleCount) as BusinessItem[]).map((b) => (
                     <BusinessCardItem
                       key={b.id}
                       id={b.id}
@@ -968,7 +969,7 @@ const Catalog = () => {
                       onClick={() => navigate(`/business/${b.id}`)}
                     />
                   ))
-                : filteredServices.map((s) => (
+                : (filteredServices.slice(0, visibleCount) as ServiceCardData[]).map((s) => (
                     <ServiceCardItem
                       key={s.id}
                       service={s}
@@ -976,6 +977,18 @@ const Catalog = () => {
                     />
                   ))}
             </div>
+            {hasMore && (
+              <div className="flex justify-center mt-8">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={() => setVisibleCount(prev => prev + 24)}
+                >
+                  Показать ещё ({currentCount - visibleCount} осталось)
+                </Button>
+              </div>
+            )}
+            </>
           ) : (
             <div className="text-center py-16">
               <Search className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
