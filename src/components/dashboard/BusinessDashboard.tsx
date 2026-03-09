@@ -300,13 +300,16 @@ const BusinessDashboard = () => {
     </Button>
   );
 
-  const SectionLabel = ({ label, icon: Icon }: { label: string; icon: any }) => {
+  const SectionLabel = ({ label, icon: Icon, sectionKey }: { label: string; icon: any; sectionKey?: string }) => {
     if (sidebarCollapsed) return <div className="border-t my-2 mx-2" />;
     return (
-      <div className="flex items-center gap-2 px-3 mb-2 mt-4">
+      <button
+        className={`flex items-center gap-2 px-3 mb-2 mt-4 w-full text-left hover:opacity-80 transition-opacity ${activeSection === sectionKey ? 'text-primary' : ''}`}
+        onClick={() => sectionKey && setActiveSection(sectionKey)}
+      >
         <Icon className="h-3.5 w-3.5 text-muted-foreground" />
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{label}</p>
-      </div>
+      </button>
     );
   };
 
