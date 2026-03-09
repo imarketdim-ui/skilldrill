@@ -15,7 +15,7 @@ import CatalogMap, { type MapMaster } from "@/components/marketplace/CatalogMap"
 import MasterCardItem from "@/components/marketplace/MasterCardItem";
 import BusinessCardItem from "@/components/marketplace/BusinessCardItem";
 import ServiceCardItem, { type ServiceCardData } from "@/components/marketplace/ServiceCardItem";
-import ServiceDetailDialog from "@/components/marketplace/ServiceDetailDialog";
+
 import { supabase } from "@/integrations/supabase/client";
 
 // Categories from DB
