@@ -25,7 +25,7 @@ export default function ClientBookings({ userId }: Props) {
   const { toast } = useToast();
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'archive'>('week');
+  const [period, setPeriod] = useState<'all' | 'day' | 'week' | 'month' | 'archive'>('week');
   const [cancelDialog, setCancelDialog] = useState<string | null>(null);
   const [disputeDialog, setDisputeDialog] = useState<string | null>(null);
   const [reason, setReason] = useState('');
