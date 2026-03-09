@@ -41,14 +41,13 @@ const ServiceCardItem = ({ service, onClick, onBook }: Props) => {
     setCurrentSlide(emblaApi.selectedScrollSnap());
   }, [emblaApi]);
 
-  useCallback(() => {
+  useEffect(() => {
     if (!emblaApi) return;
     emblaApi.on("select", onSelect);
+    return () => {
+      emblaApi.off("select", onSelect);
+    };
   }, [emblaApi, onSelect]);
-
-  if (emblaApi) {
-    emblaApi.on("select", onSelect);
-  }
 
   const handleBookClick = (e: React.MouseEvent) => {
     e.stopPropagation();
