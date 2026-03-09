@@ -26,12 +26,37 @@ const Dashboard = () => {
     }
   }, [user, loading, navigate]);
 
-  // When activeRole changes externally, go to dashboard view
+  // When activeRole changes externally (via RoleSwitcher dropdown), go to dashboard view
+  // Skip if we're navigating to a hub (view is already being set by handleBackToHub)
+  const [skipNextRoleEffect, setSkipNextRoleEffect] = useState(false);
+  
   useEffect(() => {
+    if (skipNextRoleEffect) {
+      setSkipNextRoleEffect(false);
+      return;
+    }
     if (activeRole !== 'client') {
       setView('dashboard');
     }
-  }, [activeRole]);
+  }, [activeRole, skipNextRoleEffect]);
+
+  // Back from sub-dashboard → go to the relevant hub (NOT client dashboard)
+  const handleBackToHubInternal = useCallback(() => {
+    const isBusinessRole = ['master', 'business_owner', 'business_manager', 'network_owner', 'network_manager'].includes(activeRole);
+    const isPlatformRole = ['platform_admin', 'super_admin', 'platform_manager', 'moderator', 'support', 'integrator'].includes(activeRole);
+
+    // Set view FIRST before changing role to avoid useEffect resetting it
+    if (isBusinessRole) {
+      setView('hub_business');
+    } else if (isPlatformRole) {
+      setView('hub_platform');
+    } else {
+      setView('dashboard');
+    }
+    
+    setSkipNextRoleEffect(true);
+    setActiveRole('client');
+  }, [activeRole, setActiveRole]);
 
   const handleSelectHub = useCallback((hub: 'business' | 'platform') => {
     // If currently in a sub-role, first reset to client then show hub
