@@ -106,6 +106,7 @@ const Catalog = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [showAllTags, setShowAllTags] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "map">("grid");
+  const [visibleCount, setVisibleCount] = useState(24);
   
   const [synonyms, setSynonyms] = useState<{ term: string; synonyms: string[] }[]>([]);
   const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
@@ -177,7 +178,7 @@ const Catalog = () => {
         query = query.eq("category_id", categoryFilter);
       }
 
-      const { data } = await query.limit(100);
+      const { data } = await query.limit(500);
 
       // Fetch services for all masters in parallel
       const userIds = (data || []).map((mp: any) => mp.user_id);
@@ -235,7 +236,7 @@ const Catalog = () => {
         `)
         .eq("is_active", true)
         .eq("moderation_status", "approved")
-        .limit(100);
+        .limit(500);
 
       if (!data || data.length === 0) { setBusinesses([]); return; }
 
@@ -577,6 +578,11 @@ const Catalog = () => {
 
   const currentItems = tab === "masters" ? filteredMasters : tab === "businesses" ? filteredBusinesses : filteredServices;
   const currentCount = currentItems.length;
+  const visibleItems = currentItems.slice(0, visibleCount);
+  const hasMore = visibleCount < currentCount;
+
+  // Reset visible count when filters change
+  useEffect(() => { setVisibleCount(24); }, [tab, searchQuery, categoryFilter, locationFilter, selectedTags, priceRange, sortBy]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -589,7 +595,7 @@ const Catalog = () => {
               Поиск услуг
             </h1>
             <p className="text-lg text-muted-foreground">
-              Найдите нужную услугу среди мастеров и организаций Абакана
+              Найдите нужную услугу среди мастеров и организаций
             </p>
           </div>
 
@@ -923,9 +929,10 @@ const Catalog = () => {
               )}
             </div>
           ) : currentCount > 0 ? (
+            <>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {tab === "masters"
-                ? filteredMasters.map((m) => (
+                ? (filteredMasters.slice(0, visibleCount) as MasterItem[]).map((m) => (
                     <MasterCardItem
                       key={m.id}
                       id={m.id}
@@ -944,7 +951,7 @@ const Catalog = () => {
                     />
                   ))
                 : tab === "businesses"
-                ? filteredBusinesses.map((b) => (
+                ? (filteredBusinesses.slice(0, visibleCount) as BusinessItem[]).map((b) => (
                     <BusinessCardItem
                       key={b.id}
                       id={b.id}
@@ -962,7 +969,7 @@ const Catalog = () => {
                       onClick={() => navigate(`/business/${b.id}`)}
                     />
                   ))
-                : filteredServices.map((s) => (
+                : (filteredServices.slice(0, visibleCount) as ServiceCardData[]).map((s) => (
                     <ServiceCardItem
                       key={s.id}
                       service={s}
@@ -970,6 +977,18 @@ const Catalog = () => {
                     />
                   ))}
             </div>
+            {hasMore && (
+              <div className="flex justify-center mt-8">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={() => setVisibleCount(prev => prev + 24)}
+                >
+                  Показать ещё ({currentCount - visibleCount} осталось)
+                </Button>
+              </div>
+            )}
+            </>
           ) : (
             <div className="text-center py-16">
               <Search className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
