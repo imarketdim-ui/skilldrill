@@ -3787,6 +3787,7 @@ export type Database = {
         | "completed"
         | "in_progress"
         | "no_show"
+        | "rejected"
       legal_form: "ip" | "ooo" | "zao" | "oao" | "self_employed" | "other"
       lesson_status: "scheduled" | "completed" | "cancelled" | "no_show"
       lesson_type: "individual" | "group"
@@ -3948,6 +3949,7 @@ export const Constants = {
         "completed",
         "in_progress",
         "no_show",
+        "rejected",
       ],
       legal_form: ["ip", "ooo", "zao", "oao", "self_employed", "other"],
       lesson_status: ["scheduled", "completed", "cancelled", "no_show"],
