@@ -21,11 +21,44 @@ const STATUS_MAP: Record<string, { label: string; variant: 'default' | 'secondar
   no_show: { label: 'Неявка', variant: 'destructive' },
 };
 
+const BookingCard = ({ b, onCancel, onDispute }: { b: any; onCancel: (id: string) => void; onDispute: (id: string) => void }) => {
+  const s = STATUS_MAP[b.status] || { label: b.status, variant: 'secondary' as const };
+  const d = new Date(b.date);
+  return (
+    <Card>
+      <CardContent className="pt-4 pb-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="font-medium truncate">{b.title}</p>
+            <p className="text-sm text-muted-foreground">{b.master}</p>
+            <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{d.toLocaleDateString('ru-RU')}</span>
+              <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</span>
+              {b.duration && <span>{b.duration} мин</span>}
+            </div>
+          </div>
+          <Badge variant={s.variant}>{s.label}</Badge>
+        </div>
+        {(b.canCancel || b.canDispute) && (
+          <div className="flex gap-2 mt-3 pt-3 border-t">
+            {b.canCancel && <Button size="sm" variant="outline" onClick={() => onCancel(b.id)}>Отменить</Button>}
+            {b.canDispute && (
+              <Button size="sm" variant="outline" className="text-destructive" onClick={() => onDispute(b.id)}>
+                <AlertTriangle className="h-3 w-3 mr-1" />Открыть спор
+              </Button>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
 export default function ClientBookings({ userId }: Props) {
   const { toast } = useToast();
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'archive'>('week');
+  const [period, setPeriod] = useState<'all' | 'day' | 'week' | 'month' | 'archive'>('week');
   const [cancelDialog, setCancelDialog] = useState<string | null>(null);
   const [disputeDialog, setDisputeDialog] = useState<string | null>(null);
   const [reason, setReason] = useState('');
@@ -87,24 +120,34 @@ export default function ClientBookings({ userId }: Props) {
   }, [userId]);
 
   const filtered = useMemo(() => {
+    if (period === 'all') return bookings;
     const now = new Date();
     return bookings.filter(b => {
       const d = new Date(b.date);
       if (period === 'archive') return d < now;
-      if (period === 'day') {
-        return d.toDateString() === now.toDateString();
-      }
+      if (period === 'day') return d.toDateString() === now.toDateString();
       if (period === 'week') {
         const end = new Date(now);
         end.setDate(end.getDate() + 7);
         return d >= now && d <= end;
       }
-      // month
       const end = new Date(now);
       end.setDate(end.getDate() + 30);
       return d >= now && d <= end;
     });
   }, [bookings, period]);
+
+  // Group by date for "all" view
+  const groupedByDate = useMemo(() => {
+    if (period !== 'all') return null;
+    const groups: Record<string, typeof filtered> = {};
+    filtered.forEach(b => {
+      const dateKey = new Date(b.date).toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      if (!groups[dateKey]) groups[dateKey] = [];
+      groups[dateKey].push(b);
+    });
+    return groups;
+  }, [filtered, period]);
 
   const handleCancel = async () => {
     if (!cancelDialog) return;
@@ -161,6 +204,7 @@ export default function ClientBookings({ userId }: Props) {
       <h3 className="text-lg font-semibold">Мои записи</h3>
       <Tabs value={period} onValueChange={v => setPeriod(v as any)}>
         <TabsList className="w-full">
+          <TabsTrigger value="all" className="flex-1">Все</TabsTrigger>
           <TabsTrigger value="day" className="flex-1">День</TabsTrigger>
           <TabsTrigger value="week" className="flex-1">Неделя</TabsTrigger>
           <TabsTrigger value="month" className="flex-1">Месяц</TabsTrigger>
@@ -177,46 +221,18 @@ export default function ClientBookings({ userId }: Props) {
         </Card>
       ) : (
         <div className="space-y-3">
-          {filtered.map(b => {
-            const s = STATUS_MAP[b.status] || { label: b.status, variant: 'secondary' as const };
-            const d = new Date(b.date);
-            return (
-              <Card key={b.id}>
-                <CardContent className="pt-4 pb-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{b.title}</p>
-                      <p className="text-sm text-muted-foreground">{b.master}</p>
-                      <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          {d.toLocaleDateString('ru-RU')}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                        {b.duration && <span>{b.duration} мин</span>}
-                      </div>
-                    </div>
-                    <Badge variant={s.variant}>{s.label}</Badge>
-                  </div>
-                  {(b.canCancel || b.canDispute) && (
-                    <div className="flex gap-2 mt-3 pt-3 border-t">
-                      {b.canCancel && (
-                        <Button size="sm" variant="outline" onClick={() => setCancelDialog(b.id)}>Отменить</Button>
-                      )}
-                      {b.canDispute && (
-                        <Button size="sm" variant="outline" className="text-destructive" onClick={() => setDisputeDialog(b.id)}>
-                          <AlertTriangle className="h-3 w-3 mr-1" />Открыть спор
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
+          {groupedByDate ? (
+            Object.entries(groupedByDate).map(([dateLabel, items]) => (
+              <div key={dateLabel}>
+                <p className="text-sm font-semibold text-muted-foreground mb-2 capitalize">{dateLabel}</p>
+                <div className="space-y-2 mb-4">
+                  {items.map(b => <BookingCard key={b.id} b={b} onCancel={setCancelDialog} onDispute={setDisputeDialog} />)}
+                </div>
+              </div>
+            ))
+          ) : (
+            filtered.map(b => <BookingCard key={b.id} b={b} onCancel={setCancelDialog} onDispute={setDisputeDialog} />)
+          )}
         </div>
       )}
 
