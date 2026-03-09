@@ -38,10 +38,12 @@ const CreateBusinessAccount = () => {
   const { user, profile, roles, loading, refreshProfile } = useAuth();
   const pricing = usePlatformPricing();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
-  const [accountType, setAccountType] = useState<AccountType | null>(null);
+  const initialType = searchParams.get('type') as AccountType | null;
+  const [accountType, setAccountType] = useState<AccountType | null>(initialType);
   const [existingMasterProfiles, setExistingMasterProfiles] = useState<any[]>([]);
   const [existingBusinesses, setExistingBusinesses] = useState<any[]>([]);
   const [existingNetworks, setExistingNetworks] = useState<any[]>([]);
