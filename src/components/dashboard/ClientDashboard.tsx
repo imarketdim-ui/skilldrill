@@ -26,14 +26,6 @@ import ClientBookings from '@/components/dashboard/client/ClientBookings';
 import ClientReviews from '@/components/dashboard/client/ClientReviews';
 import ClientBonusPoints from '@/components/dashboard/client/ClientBonusPoints';
 
-interface WorkspaceEntry {
-  id: string;
-  entityId: string;
-  label: string;
-  sublabel: string;
-  icon: React.ReactNode;
-  role: UserRoleType;
-}
 
 // Desktop sidebar: no bookings, notifications, settings
 const desktopMenuItems = [
