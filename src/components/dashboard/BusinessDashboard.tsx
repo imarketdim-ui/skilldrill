@@ -195,21 +195,21 @@ const mainItems = [
 ];
 
 const crmItems = [
-  { key: 'bookings', label: 'Записи', icon: Calendar },
-  { key: 'schedule', label: 'Расписание', icon: Calendar },
-  { key: 'clients', label: 'Клиенты', icon: Users },
-  { key: 'chats', label: 'Чаты', icon: MessageSquare },
-  { key: 'marketing', label: 'Маркетинг', icon: Megaphone },
+  { key: 'bookings', label: 'Записи', icon: Calendar, description: 'Все записи клиентов' },
+  { key: 'schedule', label: 'Расписание', icon: Calendar, description: 'Календарь событий' },
+  { key: 'clients', label: 'Клиенты', icon: Users, description: 'База клиентов' },
+  { key: 'chats', label: 'Чаты', icon: MessageSquare, description: 'Общение с клиентами' },
+  { key: 'marketing', label: 'Маркетинг', icon: Megaphone, description: 'Рассылки и реклама' },
 ];
 
 const erpItems = [
-  { key: 'stats', label: 'Статистика', icon: BarChart3 },
-  { key: 'services', label: 'Услуги', icon: ClipboardList },
-  { key: 'masters', label: 'Команда', icon: Users },
-  { key: 'inventory', label: 'Склад', icon: Package },
-  { key: 'promotions', label: 'Акции', icon: Percent },
-  { key: 'finance', label: 'Финансы', icon: Wallet },
-  { key: 'subscription', label: 'Подписка', icon: CreditCard },
+  { key: 'stats', label: 'Статистика', icon: BarChart3, description: 'Аналитика и отчёты' },
+  { key: 'services', label: 'Услуги', icon: ClipboardList, description: 'Услуги и прайс' },
+  { key: 'masters', label: 'Команда', icon: Users, description: 'Сотрудники' },
+  { key: 'inventory', label: 'Склад', icon: Package, description: 'Товары и материалы' },
+  { key: 'promotions', label: 'Акции', icon: Percent, description: 'Скидки и промо' },
+  { key: 'finance', label: 'Финансы', icon: Wallet, description: 'Доходы и расходы' },
+  { key: 'subscription', label: 'Подписка', icon: CreditCard, description: 'Тарифы и оплата' },
 ];
 
 const allItems = [...mainItems, ...crmItems, ...erpItems];
