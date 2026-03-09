@@ -15,6 +15,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import Header from '@/components/landing/Header';
 import Footer from '@/components/landing/Footer';
+import ServiceDetailDialog from '@/components/marketplace/ServiceDetailDialog';
 
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
