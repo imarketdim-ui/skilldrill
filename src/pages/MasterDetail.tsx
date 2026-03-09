@@ -70,7 +70,7 @@ const MasterDetail = () => {
   const [sendingBooking, setSendingBooking] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
-  const [selectedServiceForDetail, setSelectedServiceForDetail] = useState<any>(null);
+  
   const mapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
