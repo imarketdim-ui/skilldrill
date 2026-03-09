@@ -186,22 +186,34 @@ const CreateBusinessAccount = () => {
 
         {!accountType && (
           <div className="grid gap-4">
-            {typeCards.map(card => (
-              <Card key={card.type} className="cursor-pointer transition-colors hover:border-primary" onClick={() => setAccountType(card.type)}>
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-primary/10 rounded-xl"><card.icon className="h-8 w-8 text-primary" /></div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-lg">{card.title}</h3>
-                        {card.note && <Badge variant="secondary">{card.note}</Badge>}
+            {typeCards.map(card => {
+              const isDisabled = card.type === 'network' && !pricing.network;
+              return (
+                <Card
+                  key={card.type}
+                  className={`transition-colors ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-primary'}`}
+                  onClick={() => !isDisabled && setAccountType(card.type)}
+                >
+                  <CardContent className="pt-6">
+                    <div className="flex items-center gap-4">
+                      <div className={`p-3 rounded-xl ${isDisabled ? 'bg-muted' : 'bg-primary/10'}`}>
+                        <card.icon className={`h-8 w-8 ${isDisabled ? 'text-muted-foreground' : 'text-primary'}`} />
                       </div>
-                      <p className="text-sm text-muted-foreground">{card.desc}</p>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold text-lg">{card.title}</h3>
+                          {card.note && <Badge variant="secondary">{card.note}</Badge>}
+                          {isDisabled && <Badge variant="outline">Скоро</Badge>}
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {isDisabled ? 'Тариф пока недоступен' : card.desc}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
             {existingMasterProfiles.length > 0 && (
               <Card className="border-dashed">
                 <CardContent className="pt-6">
