@@ -49,7 +49,7 @@ const mobileMenuItems = [
 ];
 
 const ClientDashboard = () => {
-  const { user, profile, roles, setActiveRole } = useAuth();
+  const { user, profile, roles } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const isMobile = useIsMobile();
