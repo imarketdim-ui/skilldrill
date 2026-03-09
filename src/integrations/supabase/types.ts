@@ -470,6 +470,7 @@ export type Database = {
           name: string
           network_id: string | null
           owner_id: string
+          role_permissions: Json
           subscription_price: number
           subscription_status: string
           suspended_at: string | null
@@ -506,6 +507,7 @@ export type Database = {
           name: string
           network_id?: string | null
           owner_id: string
+          role_permissions?: Json
           subscription_price?: number
           subscription_status?: string
           suspended_at?: string | null
@@ -542,6 +544,7 @@ export type Database = {
           name?: string
           network_id?: string | null
           owner_id?: string
+          role_permissions?: Json
           subscription_price?: number
           subscription_status?: string
           suspended_at?: string | null

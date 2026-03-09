@@ -1,0 +1,1 @@
+ALTER TABLE public.business_locations ADD COLUMN IF NOT EXISTS role_permissions jsonb NOT NULL DEFAULT '{}'::jsonb;
