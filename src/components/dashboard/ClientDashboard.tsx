@@ -60,7 +60,7 @@ const ClientDashboard = () => {
   const [clientBookings, setClientBookings] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [bookingsView, setBookingsView] = useState<'day' | 'week' | 'month'>('week');
-  const [workspaces, setWorkspaces] = useState<WorkspaceEntry[]>([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
 
   useEffect(() => {
     if (!user) return;
