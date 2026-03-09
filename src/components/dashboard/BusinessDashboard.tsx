@@ -28,6 +28,10 @@ import BusinessInventory from './business/BusinessInventory';
 import BusinessBookingDetail from './business/BusinessBookingDetail';
 import BusinessPromotions from './business/BusinessPromotions';
 import BusinessMarketing from './business/BusinessMarketing';
+import BusinessCashRegisters from './business/BusinessCashRegisters';
+import BusinessProcurement from './business/BusinessProcurement';
+import BusinessWriteOffs from './business/BusinessWriteOffs';
+import BusinessProductSales from './business/BusinessProductSales';
 import TeachingChats from './teaching/TeachingChats';
 
 // Inline notifications for business
