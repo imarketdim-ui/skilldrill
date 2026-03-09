@@ -59,8 +59,6 @@ const ClientDashboard = () => {
   const [pendingInvites, setPendingInvites] = useState(0);
   const [clientBookings, setClientBookings] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
-  const [bookingsView, setBookingsView] = useState<'day' | 'week' | 'month'>('week');
-  const [notifications, setNotifications] = useState<any[]>([]);
 
   useEffect(() => {
     if (!user) return;
