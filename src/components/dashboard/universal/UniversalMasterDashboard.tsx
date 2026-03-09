@@ -139,24 +139,24 @@ interface Props {
 const menuItems = [
   { key: 'home', label: 'Главная', icon: LayoutDashboard, group: 'main' },
   { key: 'profile', label: 'Профиль', icon: UserCog, group: 'main' },
-  { key: 'schedule', label: 'Расписание', icon: Calendar, group: 'main' },
-  { key: 'services', label: 'Услуги', icon: Package, group: 'main' },
+  { key: 'notifications', label: 'Уведомления', icon: Bell, group: 'main' },
 ];
 
 const crmItems = [
+  { key: 'schedule', label: 'Расписание', icon: Calendar, group: 'crm' },
   { key: 'clients', label: 'Клиенты', icon: Users, group: 'crm' },
+  { key: 'chats', label: 'Чаты', icon: MessageSquare, group: 'crm' },
   { key: 'requests', label: 'Заявки', icon: ClipboardList, group: 'crm' },
-  { key: 'stats', label: 'Статистика', icon: BarChart3, group: 'crm' },
-  { key: 'achievements', label: 'Достижения', icon: Trophy, group: 'crm' },
 ];
 
 const erpItems = [
+  { key: 'stats', label: 'Статистика', icon: BarChart3, group: 'erp' },
+  { key: 'services', label: 'Услуги', icon: Package, group: 'erp' },
   { key: 'finances', label: 'Финансы', icon: Wallet, group: 'erp' },
-  { key: 'notifications', label: 'Уведомления', icon: Bell, group: 'erp' },
+  { key: 'achievements', label: 'Достижения', icon: Trophy, group: 'erp' },
 ];
 
 const communicationItems = [
-  { key: 'chats', label: 'Чаты', icon: MessageSquare, group: 'comm' },
   { key: 'support', label: 'Техподдержка', icon: HeadphonesIcon, group: 'comm' },
 ];
 

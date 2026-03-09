@@ -169,7 +169,7 @@ const UniversalDashboardHome = ({ config }: Props) => {
       </Card>
 
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        <Card className="bg-primary text-primary-foreground">
+        <Card className="bg-primary text-primary-foreground cursor-pointer hover:opacity-90 transition-opacity" onClick={() => { window.dispatchEvent(new CustomEvent('navigate-dashboard', { detail: 'schedule' })); }}>
           <CardContent className="pt-6">
             <div className="flex items-start justify-between">
               <div className="min-w-0">
@@ -182,7 +182,7 @@ const UniversalDashboardHome = ({ config }: Props) => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => { window.dispatchEvent(new CustomEvent('navigate-dashboard', { detail: 'clients' })); }}>
           <CardContent className="pt-6">
             <div className="flex items-start justify-between">
               <div className="min-w-0">
@@ -194,7 +194,7 @@ const UniversalDashboardHome = ({ config }: Props) => {
           </CardContent>
         </Card>
 
-        <Card className="bg-primary text-primary-foreground">
+        <Card className="bg-primary text-primary-foreground cursor-pointer hover:opacity-90 transition-opacity" onClick={() => { window.dispatchEvent(new CustomEvent('navigate-dashboard', { detail: 'finances' })); }}>
           <CardContent className="pt-6">
             <div className="flex items-start justify-between">
               <div className="min-w-0">
@@ -209,7 +209,7 @@ const UniversalDashboardHome = ({ config }: Props) => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => { window.dispatchEvent(new CustomEvent('navigate-dashboard', { detail: 'stats' })); }}>
           <CardContent className="pt-6">
             <div className="flex items-start justify-between">
               <div className="min-w-0">
