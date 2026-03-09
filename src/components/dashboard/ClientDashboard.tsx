@@ -423,36 +423,7 @@ const ClientDashboard = () => {
               </CardContent>
             </Card>
 
-            {/* Workspace cards */}
-            {workspaces.length > 0 && (
-              <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Мои кабинеты</h3>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {workspaces.map(ws => (
-                    <Card
-                      key={ws.id}
-                      className="cursor-pointer hover:border-primary/50 transition-colors"
-                      onClick={() => setActiveRole(ws.role, ws.entityId)}
-                    >
-                      <CardContent className="pt-5 pb-4 px-5">
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                            {ws.icon}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold truncate">{ws.label}</p>
-                            <p className="text-sm text-muted-foreground">{ws.sublabel}</p>
-                          </div>
-                          <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {!roles.some(r => ['master', 'business_owner', 'network_owner'].includes(r)) && (
+            {!roles.some(r => ['master', 'business_owner', 'business_manager', 'network_owner', 'network_manager'].includes(r)) && (
               <Card className="border-dashed cursor-pointer hover:border-primary transition-colors" onClick={() => navigate('/create-account')}>
                 <CardContent className="pt-6 text-center">
                   <Building2 className="h-10 w-10 mx-auto mb-2 text-primary" />
