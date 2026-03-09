@@ -13,6 +13,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import SubscriptionPaywall from '../SubscriptionPaywall';
+import SectionHub from '../SectionHub';
 import UniversalDashboardHome from './UniversalDashboardHome';
 import UniversalSchedule from './UniversalSchedule';
 import UniversalClients from './UniversalClients';
@@ -131,23 +132,23 @@ interface Props {
 }
 
 const mainItems = [
-  { key: 'home', label: 'Главная', icon: LayoutDashboard },
-  { key: 'profile', label: 'Профиль', icon: UserCog },
-  { key: 'notifications', label: 'Уведомления', icon: Bell },
+  { key: 'home', label: 'Главная', icon: LayoutDashboard, description: 'Обзор и быстрые действия' },
+  { key: 'profile', label: 'Профиль', icon: UserCog, description: 'Редактирование профиля' },
+  { key: 'notifications', label: 'Уведомления', icon: Bell, description: 'Все уведомления' },
 ];
 
 const crmItems = [
-  { key: 'schedule', label: 'Расписание', icon: Calendar },
-  { key: 'clients', label: 'Клиенты', icon: Users },
-  { key: 'chats', label: 'Чаты', icon: MessageSquare },
-  { key: 'requests', label: 'Заявки', icon: ClipboardList },
-  { key: 'marketing', label: 'Маркетинг', icon: Megaphone },
+  { key: 'schedule', label: 'Расписание', icon: Calendar, description: 'Управление временем' },
+  { key: 'clients', label: 'Клиенты', icon: Users, description: 'База клиентов' },
+  { key: 'chats', label: 'Чаты', icon: MessageSquare, description: 'Общение с клиентами' },
+  { key: 'requests', label: 'Заявки', icon: ClipboardList, description: 'Входящие заявки' },
+  { key: 'marketing', label: 'Маркетинг', icon: Megaphone, description: 'Рассылки и реклама' },
 ];
 
 const erpItems = [
-  { key: 'stats', label: 'Статистика', icon: BarChart3 },
-  { key: 'services', label: 'Услуги', icon: Package },
-  { key: 'finances', label: 'Финансы', icon: Wallet },
+  { key: 'stats', label: 'Статистика', icon: BarChart3, description: 'Аналитика и отчёты' },
+  { key: 'services', label: 'Услуги', icon: Package, description: 'Список услуг и цены' },
+  { key: 'finances', label: 'Финансы', icon: Wallet, description: 'Доходы и расходы' },
 ];
 
 const allItems = [...mainItems, ...crmItems, ...erpItems];
@@ -185,6 +186,22 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
     }
     switch (activeSection) {
       case 'profile': return <MasterProfileEditor masterProfile={masterProfile} config={config} />;
+      case 'crm': return (
+        <SectionHub
+          title="CRM"
+          description="Управление клиентами и коммуникациями"
+          items={adaptedCrmItems}
+          onNavigate={setActiveSection}
+        />
+      );
+      case 'erp': return (
+        <SectionHub
+          title="ERP"
+          description="Управление бизнес-процессами"
+          items={erpItems}
+          onNavigate={setActiveSection}
+        />
+      );
       case 'schedule': return <UniversalSchedule config={config} />;
       case 'services': return <UniversalServices config={config} />;
       case 'clients': return <UniversalClients config={config} />;
@@ -236,13 +253,16 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
     );
   };
 
-  const SectionLabel = ({ label, icon: Icon }: { label: string; icon: any }) => {
+  const SectionLabel = ({ label, icon: Icon, sectionKey }: { label: string; icon: any; sectionKey?: string }) => {
     if (sidebarCollapsed) return <div className="border-t my-2 mx-2" />;
     return (
-      <div className="flex items-center gap-2 px-3 mb-2 mt-4">
+      <button
+        className={`flex items-center gap-2 px-3 mb-2 mt-4 w-full text-left hover:opacity-80 transition-opacity ${activeSection === sectionKey ? 'text-primary' : ''}`}
+        onClick={() => sectionKey && setActiveSection(sectionKey)}
+      >
         <Icon className="h-3.5 w-3.5 text-muted-foreground" />
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{label}</p>
-      </div>
+      </button>
     );
   };
 
@@ -288,10 +308,10 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
           {!sidebarCollapsed && <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Основное</p>}
           {mainItems.map(item => <NavButton key={item.key} item={item} />)}
 
-          <SectionLabel label="CRM" icon={Users} />
+          <SectionLabel label="CRM" icon={Users} sectionKey="crm" />
           {adaptedCrmItems.map(item => <NavButton key={item.key} item={item} />)}
 
-          <SectionLabel label="ERP" icon={Database} />
+          <SectionLabel label="ERP" icon={Database} sectionKey="erp" />
           {erpItems.map(item => <NavButton key={item.key} item={item} />)}
         </div>
         {!sidebarCollapsed && (

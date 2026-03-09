@@ -16,6 +16,7 @@ import {
 import ProfileCompletionCheck from './ProfileCompletionCheck';
 import SubscriptionManager from './SubscriptionManager';
 import SubscriptionPaywall from './SubscriptionPaywall';
+import SectionHub from './SectionHub';
 import { usePlatformPricing } from '@/hooks/usePlatformPricing';
 import BusinessMasters from './business/BusinessMasters';
 import BusinessServices from './business/BusinessServices';
@@ -194,21 +195,21 @@ const mainItems = [
 ];
 
 const crmItems = [
-  { key: 'bookings', label: 'Записи', icon: Calendar },
-  { key: 'schedule', label: 'Расписание', icon: Calendar },
-  { key: 'clients', label: 'Клиенты', icon: Users },
-  { key: 'chats', label: 'Чаты', icon: MessageSquare },
-  { key: 'marketing', label: 'Маркетинг', icon: Megaphone },
+  { key: 'bookings', label: 'Записи', icon: Calendar, description: 'Все записи клиентов' },
+  { key: 'schedule', label: 'Расписание', icon: Calendar, description: 'Календарь событий' },
+  { key: 'clients', label: 'Клиенты', icon: Users, description: 'База клиентов' },
+  { key: 'chats', label: 'Чаты', icon: MessageSquare, description: 'Общение с клиентами' },
+  { key: 'marketing', label: 'Маркетинг', icon: Megaphone, description: 'Рассылки и реклама' },
 ];
 
 const erpItems = [
-  { key: 'stats', label: 'Статистика', icon: BarChart3 },
-  { key: 'services', label: 'Услуги', icon: ClipboardList },
-  { key: 'masters', label: 'Команда', icon: Users },
-  { key: 'inventory', label: 'Склад', icon: Package },
-  { key: 'promotions', label: 'Акции', icon: Percent },
-  { key: 'finance', label: 'Финансы', icon: Wallet },
-  { key: 'subscription', label: 'Подписка', icon: CreditCard },
+  { key: 'stats', label: 'Статистика', icon: BarChart3, description: 'Аналитика и отчёты' },
+  { key: 'services', label: 'Услуги', icon: ClipboardList, description: 'Услуги и прайс' },
+  { key: 'masters', label: 'Команда', icon: Users, description: 'Сотрудники' },
+  { key: 'inventory', label: 'Склад', icon: Package, description: 'Товары и материалы' },
+  { key: 'promotions', label: 'Акции', icon: Percent, description: 'Скидки и промо' },
+  { key: 'finance', label: 'Финансы', icon: Wallet, description: 'Доходы и расходы' },
+  { key: 'subscription', label: 'Подписка', icon: CreditCard, description: 'Тарифы и оплата' },
 ];
 
 const allItems = [...mainItems, ...crmItems, ...erpItems];
@@ -299,18 +300,39 @@ const BusinessDashboard = () => {
     </Button>
   );
 
-  const SectionLabel = ({ label, icon: Icon }: { label: string; icon: any }) => {
+  const SectionLabel = ({ label, icon: Icon, sectionKey }: { label: string; icon: any; sectionKey?: string }) => {
     if (sidebarCollapsed) return <div className="border-t my-2 mx-2" />;
     return (
-      <div className="flex items-center gap-2 px-3 mb-2 mt-4">
+      <button
+        className={`flex items-center gap-2 px-3 mb-2 mt-4 w-full text-left hover:opacity-80 transition-opacity ${activeSection === sectionKey ? 'text-primary' : ''}`}
+        onClick={() => sectionKey && setActiveSection(sectionKey)}
+      >
         <Icon className="h-3.5 w-3.5 text-muted-foreground" />
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{label}</p>
-      </div>
+      </button>
     );
   };
 
   const renderContent = () => {
     switch (activeSection) {
+      case 'crm':
+        return (
+          <SectionHub
+            title="CRM"
+            description="Управление клиентами и коммуникациями"
+            items={crmItems}
+            onNavigate={setActiveSection}
+          />
+        );
+      case 'erp':
+        return (
+          <SectionHub
+            title="ERP"
+            description="Управление бизнес-процессами"
+            items={erpItems}
+            onNavigate={setActiveSection}
+          />
+        );
       case 'overview':
         return (
           <div className="space-y-6">
@@ -451,10 +473,10 @@ const BusinessDashboard = () => {
           {!sidebarCollapsed && <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Основное</p>}
           {mainItems.map(item => <NavButton key={item.key} item={item} />)}
 
-          <SectionLabel label="CRM" icon={Users} />
+          <SectionLabel label="CRM" icon={Users} sectionKey="crm" />
           {crmItems.map(item => <NavButton key={item.key} item={item} />)}
 
-          <SectionLabel label="ERP" icon={Database} />
+          <SectionLabel label="ERP" icon={Database} sectionKey="erp" />
           {erpItems.map(item => <NavButton key={item.key} item={item} />)}
         </div>
 
