@@ -114,21 +114,20 @@ const CreateBusinessAccount = () => {
     setIsSubmitting(true);
     try {
       if (accountType === 'master') {
-        const { error: roleError } = await supabase.rpc('assign_role_on_account_creation', { _user_id: user.id, _role: 'master' });
-        if (roleError) throw new Error('Не удалось назначить роль мастера');
         const existingCat = existingMasterProfiles.find(mp => mp.category_id === form.category_id);
         if (existingCat) { toast({ title: 'У вас уже есть профиль в этой категории', variant: 'destructive' }); setIsSubmitting(false); return; }
-        await supabase.from('master_profiles').insert({
+        const { error: insertError } = await supabase.from('master_profiles').insert({
           user_id: user.id, category_id: form.category_id,
           subscription_status: 'trial', trial_start_date: new Date().toISOString(),
           trial_days: form.promo_code ? 45 : 14, promo_code_used: form.promo_code || null,
           moderation_status: 'draft', is_active: true,
         });
+        if (insertError) throw new Error(insertError.message);
+        const { error: roleError } = await supabase.rpc('assign_role_on_account_creation', { _user_id: user.id, _role: 'master' });
+        if (roleError) console.error('Role assignment failed:', roleError);
         toast({ title: 'Аккаунт мастера создан!', description: 'Заполните профиль для прохождения модерации.' });
       } else if (accountType === 'business') {
-        const { error: roleError } = await supabase.rpc('assign_role_on_account_creation', { _user_id: user.id, _role: 'business_owner' });
-        if (roleError) throw new Error('Не удалось назначить роль владельца бизнеса');
-        await supabase.from('business_locations').insert({
+        const { error: insertError } = await supabase.from('business_locations').insert({
           owner_id: user.id, name: form.business_name, inn: form.business_inn,
           legal_form: form.business_legal_form, address: form.business_address,
           city: form.business_city || null, description: form.business_description || null,
@@ -136,16 +135,25 @@ const CreateBusinessAccount = () => {
           director_name: form.director_name, moderation_status: 'draft',
           latitude: form.business_lat || null, longitude: form.business_lng || null,
         });
+        if (insertError) throw new Error(insertError.message);
+        const { error: roleError } = await supabase.rpc('assign_role_on_account_creation', { _user_id: user.id, _role: 'business_owner' });
+        if (roleError) console.error('Role assignment failed:', roleError);
         toast({ title: 'Бизнес-аккаунт создан!', description: 'Заполните профиль и добавьте услуги.' });
       } else if (accountType === 'network') {
-        const { error: roleError } = await supabase.rpc('assign_role_on_account_creation', { _user_id: user.id, _role: 'network_owner' });
-        if (roleError) throw new Error('Не удалось назначить роль владельца сети');
-        await supabase.from('networks').insert({
-          owner_id: user.id, name: form.network_name, description: form.network_description || null,
-          inn: form.network_inn, legal_form: form.network_legal_form, address: form.network_address,
-          contact_email: form.network_contact_email, contact_phone: form.network_contact_phone,
-          director_name: form.director_name, moderation_status: 'draft',
+        if (!form.network_name?.trim() || !form.network_inn?.trim() || !form.network_legal_form || !form.network_address?.trim() || !form.director_name?.trim() || !form.network_contact_email?.trim() || !form.network_contact_phone?.trim()) {
+          toast({ title: 'Заполните все обязательные поля', variant: 'destructive' });
+          setIsSubmitting(false);
+          return;
+        }
+        const { error: insertError } = await supabase.from('networks').insert({
+          owner_id: user.id, name: form.network_name.trim(), description: form.network_description || null,
+          inn: form.network_inn.trim(), legal_form: form.network_legal_form, address: form.network_address.trim(),
+          contact_email: form.network_contact_email.trim(), contact_phone: form.network_contact_phone.trim(),
+          director_name: form.director_name.trim(), moderation_status: 'draft',
         });
+        if (insertError) throw new Error(insertError.message);
+        const { error: roleError } = await supabase.rpc('assign_role_on_account_creation', { _user_id: user.id, _role: 'network_owner' });
+        if (roleError) console.error('Role assignment failed:', roleError);
         toast({ title: 'Сеть создана!', description: 'Заполните профиль и добавьте точки.' });
       }
 
