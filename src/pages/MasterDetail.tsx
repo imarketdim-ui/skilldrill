@@ -120,7 +120,17 @@ const MasterDetail = () => {
     fetchData();
   }, [masterId, user]);
 
+  // Auto-open booking from URL param (e.g. from service card "Записаться")
   useEffect(() => {
+    const bookServiceId = searchParams.get('book');
+    if (bookServiceId && services.length > 0 && !bookingService) {
+      const serviceToBook = services.find(s => s.id === bookServiceId);
+      if (serviceToBook) {
+        setBookingService(serviceToBook.id);
+      }
+    }
+  }, [searchParams, services, bookingService]);
+
     if (!bookingService) return;
     const initialName = [user?.user_metadata?.first_name, user?.user_metadata?.last_name].filter(Boolean).join(' ').trim();
     setBookingData(prev => ({
