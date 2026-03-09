@@ -26,7 +26,7 @@ const Dashboard = () => {
     }
   }, [user, loading, navigate]);
 
-  // When activeRole changes externally, go back to dashboard view
+  // When activeRole changes externally, go to dashboard view
   useEffect(() => {
     if (activeRole !== 'client') {
       setView('dashboard');
@@ -34,8 +34,12 @@ const Dashboard = () => {
   }, [activeRole]);
 
   const handleSelectHub = useCallback((hub: 'business' | 'platform') => {
+    // If currently in a sub-role, first reset to client then show hub
+    if (activeRole !== 'client') {
+      setActiveRole('client');
+    }
     setView(hub === 'business' ? 'hub_business' : 'hub_platform');
-  }, []);
+  }, [activeRole, setActiveRole]);
 
   const handleBusinessRoleSelected = useCallback((role: UserRoleType, entityId: string) => {
     setActiveRole(role, entityId);
@@ -51,6 +55,21 @@ const Dashboard = () => {
     setActiveRole('client');
     setView('dashboard');
   }, [setActiveRole]);
+
+  // Back from sub-dashboard → go to the relevant hub
+  const handleBackToHub = useCallback(() => {
+    const isBusinessRole = ['master', 'business_owner', 'business_manager', 'network_owner', 'network_manager'].includes(activeRole);
+    const isPlatformRole = ['platform_admin', 'super_admin', 'platform_manager', 'moderator', 'support', 'integrator'].includes(activeRole);
+
+    setActiveRole('client');
+    if (isBusinessRole) {
+      setView('hub_business');
+    } else if (isPlatformRole) {
+      setView('hub_platform');
+    } else {
+      setView('dashboard');
+    }
+  }, [activeRole, setActiveRole]);
 
   if (loading) {
     return (
@@ -102,7 +121,7 @@ const Dashboard = () => {
   return (
     <DashboardLayout
       onSelectHub={handleSelectHub}
-      onBackToClient={handleBackToClient}
+      onBackToHub={activeRole !== 'client' ? handleBackToHub : undefined}
     >
       {renderContent()}
     </DashboardLayout>

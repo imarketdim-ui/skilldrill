@@ -10,7 +10,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Loader2, Wrench, Building2, Globe, Info, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Loader2, Wrench, Building2, Globe, Info, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import MapPicker from '@/components/marketplace/MapPicker';
 import { usePlatformPricing } from '@/hooks/usePlatformPricing';
 import { PhoneInput } from '@/components/ui/phone-input';
@@ -252,9 +253,18 @@ const CreateBusinessAccount = () => {
 
                 {accountType === 'business' && (
                   <>
+                    <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800">
+                      <div className="flex gap-2 items-start">
+                        <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                        <div className="text-sm">
+                          <p className="font-medium text-amber-800 dark:text-amber-200">Название только на русском языке</p>
+                          <p className="text-amber-700 dark:text-amber-300 mt-1">С 1 марта 2026 г. коммерческие наименования в РФ должны быть на русском языке. <Link to="/offer#russian-naming" className="underline hover:no-underline">Подробнее в п. 7 оферты</Link></p>
+                        </div>
+                      </div>
+                    </div>
                     <div className="space-y-2">
                       <Label>Название организации *</Label>
-                      <Input required value={form.business_name || ''} onChange={e => updateForm({ business_name: e.target.value })} />
+                      <Input required value={form.business_name || ''} onChange={e => updateForm({ business_name: e.target.value })} placeholder="Например: Салон красоты «Ромашка»" />
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
@@ -311,9 +321,18 @@ const CreateBusinessAccount = () => {
 
                 {accountType === 'network' && (
                   <>
+                    <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800">
+                      <div className="flex gap-2 items-start">
+                        <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                        <div className="text-sm">
+                          <p className="font-medium text-amber-800 dark:text-amber-200">Название только на русском языке</p>
+                          <p className="text-amber-700 dark:text-amber-300 mt-1">С 1 марта 2026 г. коммерческие наименования в РФ должны быть на русском языке. <Link to="/offer#russian-naming" className="underline hover:no-underline">Подробнее в п. 7 оферты</Link></p>
+                        </div>
+                      </div>
+                    </div>
                     <div className="space-y-2">
                       <Label>Название сети *</Label>
-                      <Input required value={form.network_name || ''} onChange={e => updateForm({ network_name: e.target.value })} />
+                      <Input required value={form.network_name || ''} onChange={e => updateForm({ network_name: e.target.value })} placeholder="Например: Сеть салонов «Красота»" />
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
