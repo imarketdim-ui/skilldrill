@@ -139,24 +139,24 @@ interface Props {
 const menuItems = [
   { key: 'home', label: 'Главная', icon: LayoutDashboard, group: 'main' },
   { key: 'profile', label: 'Профиль', icon: UserCog, group: 'main' },
-  { key: 'schedule', label: 'Расписание', icon: Calendar, group: 'main' },
-  { key: 'services', label: 'Услуги', icon: Package, group: 'main' },
+  { key: 'notifications', label: 'Уведомления', icon: Bell, group: 'main' },
 ];
 
 const crmItems = [
+  { key: 'schedule', label: 'Расписание', icon: Calendar, group: 'crm' },
   { key: 'clients', label: 'Клиенты', icon: Users, group: 'crm' },
+  { key: 'chats', label: 'Чаты', icon: MessageSquare, group: 'crm' },
   { key: 'requests', label: 'Заявки', icon: ClipboardList, group: 'crm' },
-  { key: 'stats', label: 'Статистика', icon: BarChart3, group: 'crm' },
-  { key: 'achievements', label: 'Достижения', icon: Trophy, group: 'crm' },
 ];
 
 const erpItems = [
+  { key: 'stats', label: 'Статистика', icon: BarChart3, group: 'erp' },
+  { key: 'services', label: 'Услуги', icon: Package, group: 'erp' },
   { key: 'finances', label: 'Финансы', icon: Wallet, group: 'erp' },
-  { key: 'notifications', label: 'Уведомления', icon: Bell, group: 'erp' },
+  { key: 'achievements', label: 'Достижения', icon: Trophy, group: 'erp' },
 ];
 
 const communicationItems = [
-  { key: 'chats', label: 'Чаты', icon: MessageSquare, group: 'comm' },
   { key: 'support', label: 'Техподдержка', icon: HeadphonesIcon, group: 'comm' },
 ];
 
@@ -204,8 +204,44 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
       case 'services': return <UniversalServices config={config} />;
       case 'clients': return <UniversalClients config={config} />;
       case 'finances': return <UniversalFinances config={config} masterProfile={masterProfile} />;
-      case 'chats': return <TeachingChats />;
-      case 'support': return <SupportChat />;
+      case 'chats': return (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Общение</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Tabs defaultValue="chats" className="w-full">
+              <TabsList className="w-full rounded-none border-b bg-transparent px-6 pt-2">
+                <TabsTrigger value="chats" className="flex-1">Чаты</TabsTrigger>
+                <TabsTrigger value="support" className="flex-1">Техподдержка</TabsTrigger>
+              </TabsList>
+              <div className="p-6">
+                <TabsContent value="chats" className="mt-0"><TeachingChats /></TabsContent>
+                <TabsContent value="support" className="mt-0"><SupportChat /></TabsContent>
+              </div>
+            </Tabs>
+          </CardContent>
+        </Card>
+      );
+      case 'support': return (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Общение</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Tabs defaultValue="support" className="w-full">
+              <TabsList className="w-full rounded-none border-b bg-transparent px-6 pt-2">
+                <TabsTrigger value="chats" className="flex-1">Чаты</TabsTrigger>
+                <TabsTrigger value="support" className="flex-1">Техподдержка</TabsTrigger>
+              </TabsList>
+              <div className="p-6">
+                <TabsContent value="chats" className="mt-0"><TeachingChats /></TabsContent>
+                <TabsContent value="support" className="mt-0"><SupportChat /></TabsContent>
+              </div>
+            </Tabs>
+          </CardContent>
+        </Card>
+      );
       case 'stats': return <UniversalStats config={config} />;
       case 'achievements': return <MasterAchievements />;
       case 'requests': return <MasterRequests />;
@@ -295,8 +331,6 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
           <SectionLabel label="ERP" icon={Database} />
           {erpItems.map(item => <NavButton key={item.key} item={item} />)}
 
-          <SectionLabel label="Общение" icon={MessageSquare} />
-          {communicationItems.map(item => <NavButton key={item.key} item={item} />)}
         </div>
         {!sidebarCollapsed && (
           <div className="mt-auto pt-6 border-t">
