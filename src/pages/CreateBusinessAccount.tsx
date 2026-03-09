@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -38,10 +38,12 @@ const CreateBusinessAccount = () => {
   const { user, profile, roles, loading, refreshProfile } = useAuth();
   const pricing = usePlatformPricing();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
-  const [accountType, setAccountType] = useState<AccountType | null>(null);
+  const initialType = searchParams.get('type') as AccountType | null;
+  const [accountType, setAccountType] = useState<AccountType | null>(initialType);
   const [existingMasterProfiles, setExistingMasterProfiles] = useState<any[]>([]);
   const [existingBusinesses, setExistingBusinesses] = useState<any[]>([]);
   const [existingNetworks, setExistingNetworks] = useState<any[]>([]);

@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Star, MapPin, Clock, ChevronLeft, ChevronRight } from "lucide-react";
@@ -41,14 +41,13 @@ const ServiceCardItem = ({ service, onClick, onBook }: Props) => {
     setCurrentSlide(emblaApi.selectedScrollSnap());
   }, [emblaApi]);
 
-  useCallback(() => {
+  useEffect(() => {
     if (!emblaApi) return;
     emblaApi.on("select", onSelect);
+    return () => {
+      emblaApi.off("select", onSelect);
+    };
   }, [emblaApi, onSelect]);
-
-  if (emblaApi) {
-    emblaApi.on("select", onSelect);
-  }
 
   const handleBookClick = (e: React.MouseEvent) => {
     e.stopPropagation();
