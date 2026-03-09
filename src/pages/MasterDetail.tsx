@@ -134,13 +134,32 @@ const MasterDetail = () => {
 
   useEffect(() => {
     if (!bookingService) return;
-    const initialName = [user?.user_metadata?.first_name, user?.user_metadata?.last_name].filter(Boolean).join(' ').trim();
-    setBookingData(prev => ({
-      ...prev,
-      name: prev.name || initialName,
-      phone: prev.phone || '',
-      date: prev.date || new Date().toISOString().slice(0, 10),
-    }));
+    
+    const fetchProfile = async () => {
+      let initialName = [user?.user_metadata?.first_name, user?.user_metadata?.last_name].filter(Boolean).join(' ').trim();
+      let initialPhone = user?.phone || user?.user_metadata?.phone || '';
+      
+      if (user) {
+        const { data } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
+        if (data) {
+          if (data.first_name || data.last_name) {
+            initialName = [data.first_name, data.last_name].filter(Boolean).join(' ').trim();
+          }
+          if (data.phone) {
+            initialPhone = data.phone;
+          }
+        }
+      }
+      
+      setBookingData(prev => ({
+        ...prev,
+        name: prev.name || initialName,
+        phone: prev.phone || initialPhone,
+        date: prev.date || new Date().toISOString().slice(0, 10),
+      }));
+    };
+    
+    fetchProfile();
   }, [bookingService, user]);
 
   useEffect(() => {

@@ -30,7 +30,38 @@ const BusinessDetail = () => {
   const [loading, setLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
   const [bookingService, setBookingService] = useState<string | null>(null);
+  const [bookingData, setBookingData] = useState({ name: '', phone: '', date: '', time: '', comment: '' });
   const [mapOpen, setMapOpen] = useState(false);
+
+  useEffect(() => {
+    if (!bookingService) return;
+    
+    const fetchProfile = async () => {
+      let initialName = [user?.user_metadata?.first_name, user?.user_metadata?.last_name].filter(Boolean).join(' ').trim();
+      let initialPhone = user?.phone || user?.user_metadata?.phone || '';
+      
+      if (user) {
+        const { data } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
+        if (data) {
+          if (data.first_name || data.last_name) {
+            initialName = [data.first_name, data.last_name].filter(Boolean).join(' ').trim();
+          }
+          if (data.phone) {
+            initialPhone = data.phone;
+          }
+        }
+      }
+      
+      setBookingData(prev => ({
+        ...prev,
+        name: prev.name || initialName,
+        phone: prev.phone || initialPhone,
+        date: prev.date || new Date().toISOString().slice(0, 10),
+      }));
+    };
+    
+    fetchProfile();
+  }, [bookingService, user]);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
 
@@ -97,6 +128,7 @@ const BusinessDetail = () => {
   const handleBook = () => {
     toast({ title: 'Заявка отправлена!', description: 'Организация свяжется с вами для подтверждения.' });
     setBookingService(null);
+    setBookingData({ name: '', phone: '', date: '', time: '', comment: '' });
   };
 
   if (loading) return <div className="min-h-screen"><Header /><main className="pt-24 pb-16 text-center"><p className="text-muted-foreground">Загрузка...</p></main><Footer /></div>;
@@ -202,12 +234,13 @@ const BusinessDetail = () => {
                                 <DialogHeader><DialogTitle>Запись на «{service.name}»</DialogTitle></DialogHeader>
                                 <div className="space-y-4">
                                   <p className="text-sm text-muted-foreground">{Number(service.price).toLocaleString()} ₽ · {service.duration_minutes} мин</p>
-                                  <Input placeholder="Ваше имя" /><Input type="tel" placeholder="Телефон" />
+                                  <Input placeholder="Ваше имя" value={bookingData.name} onChange={e => setBookingData({...bookingData, name: e.target.value})} />
+                                  <Input type="tel" placeholder="Телефон" value={bookingData.phone} onChange={e => setBookingData({...bookingData, phone: e.target.value})} />
                                   <div className="grid grid-cols-2 gap-3">
-                                    <div className="space-y-1"><label className="text-sm font-medium">Дата</label><Input type="date" /></div>
-                                    <div className="space-y-1"><label className="text-sm font-medium">Время</label><Input type="time" /></div>
+                                    <div className="space-y-1"><label className="text-sm font-medium">Дата</label><Input type="date" value={bookingData.date} onChange={e => setBookingData({...bookingData, date: e.target.value})} /></div>
+                                    <div className="space-y-1"><label className="text-sm font-medium">Время</label><Input type="time" value={bookingData.time} onChange={e => setBookingData({...bookingData, time: e.target.value})} /></div>
                                   </div>
-                                  <Textarea placeholder="Комментарий (необязательно)" />
+                                  <Textarea placeholder="Комментарий (необязательно)" value={bookingData.comment} onChange={e => setBookingData({...bookingData, comment: e.target.value})} />
                                   <Button onClick={handleBook} className="w-full">Подтвердить запись</Button>
                                 </div>
                               </DialogContent>
