@@ -315,6 +315,24 @@ const BusinessDashboard = () => {
 
   const renderContent = () => {
     switch (activeSection) {
+      case 'crm':
+        return (
+          <SectionHub
+            title="CRM"
+            description="Управление клиентами и коммуникациями"
+            items={crmItems}
+            onNavigate={setActiveSection}
+          />
+        );
+      case 'erp':
+        return (
+          <SectionHub
+            title="ERP"
+            description="Управление бизнес-процессами"
+            items={erpItems}
+            onNavigate={setActiveSection}
+          />
+        );
       case 'overview':
         return (
           <div className="space-y-6">
