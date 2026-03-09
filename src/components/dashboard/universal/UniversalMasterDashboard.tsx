@@ -331,8 +331,6 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
           <SectionLabel label="ERP" icon={Database} />
           {erpItems.map(item => <NavButton key={item.key} item={item} />)}
 
-          <SectionLabel label="Общение" icon={MessageSquare} />
-          {communicationItems.map(item => <NavButton key={item.key} item={item} />)}
         </div>
         {!sidebarCollapsed && (
           <div className="mt-auto pt-6 border-t">
