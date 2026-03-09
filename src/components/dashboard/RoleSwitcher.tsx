@@ -1,6 +1,13 @@
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { Shield, Crown, User, Building2 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Shield, Crown, User, Building2, ChevronDown } from 'lucide-react';
 
 interface RoleSwitcherProps {
   onSelectHub?: (hub: 'business' | 'platform') => void;
@@ -17,65 +24,66 @@ const RoleSwitcher = ({ onSelectHub }: RoleSwitcherProps) => {
   );
 
   const isInClientView = activeRole === 'client';
-  const isInBusinessView = ['master', 'business_owner', 'business_manager', 'network_owner', 'network_manager'].includes(activeRole);
-  const isInPlatformView = ['platform_admin', 'super_admin', 'platform_manager', 'moderator', 'support', 'integrator'].includes(activeRole);
 
   // Nothing to show if user only has client role
   if (!hasPlatformRoles && !hasBusinessRoles) return null;
 
-  const buttons: React.ReactNode[] = [];
+  // Determine current role label
+  const getCurrentLabel = () => {
+    if (activeRole === 'client') return 'Клиент';
+    if (['master', 'business_owner', 'business_manager', 'network_owner', 'network_manager'].includes(activeRole)) {
+      return 'Бизнес';
+    }
+    return 'Площадка';
+  };
 
-  // Always show "Клиент" when not in client view
-  if (!isInClientView) {
-    buttons.push(
-      <Button
-        key="client"
-        variant="outline"
-        size="sm"
-        className="gap-2"
-        onClick={() => setActiveRole('client')}
-      >
-        <User className="h-4 w-4" />
-        <span className="hidden sm:inline">Клиент</span>
-      </Button>
-    );
-  }
+  const getCurrentIcon = () => {
+    if (activeRole === 'client') return <User className="h-4 w-4" />;
+    if (['master', 'business_owner', 'business_manager', 'network_owner', 'network_manager'].includes(activeRole)) {
+      return <Building2 className="h-4 w-4" />;
+    }
+    if (roles.includes('super_admin')) return <Crown className="h-4 w-4" />;
+    return <Shield className="h-4 w-4" />;
+  };
 
-  // Show "Бизнес" when in client view and has business roles
-  if (isInClientView && hasBusinessRoles) {
-    buttons.push(
-      <Button
-        key="business"
-        variant="outline"
-        size="sm"
-        className="gap-2"
-        onClick={() => onSelectHub?.('business')}
-      >
-        <Building2 className="h-4 w-4" />
-        <span className="hidden sm:inline">Бизнес</span>
-      </Button>
-    );
-  }
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="sm" className="gap-2">
+          {getCurrentIcon()}
+          <span className="hidden sm:inline">{getCurrentLabel()}</span>
+          <ChevronDown className="h-3.5 w-3.5 opacity-50" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="center" className="w-48">
+        {/* Client option */}
+        {!isInClientView && (
+          <DropdownMenuItem onClick={() => setActiveRole('client')} className="gap-2">
+            <User className="h-4 w-4" />
+            Клиент
+          </DropdownMenuItem>
+        )}
 
-  // Show "Площадка" when in client view and has platform roles
-  if (isInClientView && hasPlatformRoles) {
-    buttons.push(
-      <Button
-        key="platform"
-        variant="outline"
-        size="sm"
-        className="gap-2"
-        onClick={() => onSelectHub?.('platform')}
-      >
-        {roles.includes('super_admin') ? <Crown className="h-4 w-4" /> : <Shield className="h-4 w-4" />}
-        <span className="hidden sm:inline">Площадка</span>
-      </Button>
-    );
-  }
+        {!isInClientView && (hasBusinessRoles || hasPlatformRoles) && <DropdownMenuSeparator />}
 
-  if (buttons.length === 0) return null;
+        {/* Business option */}
+        {hasBusinessRoles && (
+          <DropdownMenuItem onClick={() => onSelectHub?.('business')} className="gap-2">
+            <Building2 className="h-4 w-4" />
+            Бизнес
+          </DropdownMenuItem>
+        )}
 
-  return <div className="flex items-center gap-2">{buttons}</div>;
+        {/* Platform option */}
+        {hasPlatformRoles && (
+          <DropdownMenuItem onClick={() => onSelectHub?.('platform')} className="gap-2">
+            {roles.includes('super_admin') ? <Crown className="h-4 w-4" /> : <Shield className="h-4 w-4" />}
+            Площадка
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 };
 
 export default RoleSwitcher;

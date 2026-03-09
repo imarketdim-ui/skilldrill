@@ -10,7 +10,6 @@ const navLinks = [
   { label: "Поиск услуг", href: "/", isRoute: true },
   { label: "О платформе", href: "/about", isRoute: true },
   { label: "Для бизнеса", href: "/for-business", isRoute: true },
-  { label: "Контакты", href: "/contacts", isRoute: true },
 ];
 
 const Header = () => {
