@@ -133,7 +133,7 @@ const Dashboard = () => {
   return (
     <DashboardLayout
       onSelectHub={handleSelectHub}
-      onBackToHub={activeRole !== 'client' ? handleBackToHub : undefined}
+      onBackToHub={activeRole !== 'client' ? handleBackToHubInternal : undefined}
     >
       {renderContent()}
     </DashboardLayout>
