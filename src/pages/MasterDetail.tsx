@@ -63,6 +63,7 @@ const MasterDetail = () => {
   const [loading, setLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
   const [bookingService, setBookingService] = useState<string | null>(null);
+  const [viewingService, setViewingService] = useState<any>(null);
   const [messageOpen, setMessageOpen] = useState(false);
   const [messageText, setMessageText] = useState('');
   const [bookingData, setBookingData] = useState({ name: '', phone: '', date: '', time: '', comment: '', reminder: '60' });
