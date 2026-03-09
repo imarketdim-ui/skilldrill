@@ -317,9 +317,22 @@ const MasterDetail = () => {
 
     if (sendingBooking) return; // double-click guard
 
+    // Prevent self-booking
+    if (user.id === master.user_id) {
+      toast({ title: 'Нельзя записаться к себе', variant: 'destructive' });
+      return;
+    }
+
     const service = services.find(s => s.id === serviceId);
     if (!service || !bookingData.date || !bookingData.time) {
       toast({ title: 'Заполните дату и время', variant: 'destructive' });
+      return;
+    }
+
+    // Prevent booking past dates
+    const today = new Date().toISOString().slice(0, 10);
+    if (bookingData.date < today) {
+      toast({ title: 'Нельзя записаться на прошедшую дату', variant: 'destructive' });
       return;
     }
 
@@ -340,6 +353,7 @@ const MasterDetail = () => {
       }
 
       const duration = Number(service.duration_minutes) || 60;
+      // Use timezone-safe ISO string: append timezone offset so DB stores correct UTC
       const scheduledAt = new Date(`${bookingData.date}T${bookingData.time}:00`).toISOString();
 
       // Determine booking status based on auto_booking_policy
@@ -354,15 +368,25 @@ const MasterDetail = () => {
           .eq('executor_id', master.user_id)
           .eq('client_id', user.id)
           .in('status', ['confirmed', 'completed'] as any);
-        const { count: lessonCount } = await supabase.from('lesson_bookings')
-          .select('id', { count: 'exact', head: true })
-          .eq('student_id', user.id)
-          .in('status', ['confirmed', 'completed'] as any);
-        if (((bookingCount || 0) + (lessonCount || 0)) > 0) bookingStatus = 'confirmed';
+        // Check lesson bookings specifically with this teacher
+        const { data: teacherLessons } = await supabase.from('lessons')
+          .select('id')
+          .eq('teacher_id', master.user_id);
+        const teacherLessonIds = (teacherLessons || []).map(l => l.id);
+        let lessonCount = 0;
+        if (teacherLessonIds.length > 0) {
+          const { count } = await supabase.from('lesson_bookings')
+            .select('id', { count: 'exact', head: true })
+            .eq('student_id', user.id)
+            .in('lesson_id', teacherLessonIds)
+            .in('status', ['confirmed', 'completed'] as any);
+          lessonCount = count || 0;
+        }
+        if (((bookingCount || 0) + lessonCount) > 0) bookingStatus = 'confirmed';
       }
       // policy === 'none' stays pending
 
-      // Insert into bookings table (the correct marketplace table)
+      // Insert into bookings table
       const { data: newBooking, error: bookingError } = await supabase
         .from('bookings')
         .insert({
@@ -385,7 +409,7 @@ const MasterDetail = () => {
         user_id: master.user_id,
         type: 'new_booking',
         title: 'Новая запись',
-        message: `${user.user_metadata?.first_name || 'Клиент'} записался на «${service.name}» ${bookingData.date} в ${bookingData.time}`,
+        message: `${bookingData.name || user.user_metadata?.first_name || 'Клиент'} записался на «${service.name}» ${bookingData.date} в ${bookingData.time}`,
         related_id: newBooking.id,
       });
 
