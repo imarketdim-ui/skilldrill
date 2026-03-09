@@ -285,7 +285,7 @@ const BusinessRoleHub = ({ onSelect, onBack }: BusinessRoleHubProps) => {
         )}
 
         {/* Create Network - only if no network yet */}
-        {canCreateNetwork ? (
+        {canCreateNetwork && (
           <Card
             className="cursor-pointer hover:border-primary/50 transition-colors border-dashed"
             onClick={() => navigate('/create-account?type=network')}
@@ -300,22 +300,6 @@ const BusinessRoleHub = ({ onSelect, onBack }: BusinessRoleHubProps) => {
                   <p className="text-sm text-muted-foreground">Управление несколькими филиалами</p>
                 </div>
                 <Building2 className="h-5 w-5 text-muted-foreground shrink-0" />
-              </div>
-            </CardContent>
-          </Card>
-        ) : limits.networkCount > 0 ? null : (
-          <Card className="border-dashed bg-muted/30">
-            <CardContent className="py-4 px-5">
-              <div className="flex items-center gap-4">
-                <div className="h-11 w-11 rounded-xl bg-muted text-muted-foreground flex items-center justify-center shrink-0">
-                  <Lock className="h-5 w-5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-muted-foreground">Сеть уже создана</p>
-                  <p className="text-sm text-muted-foreground">
-                    У вас может быть только одна сеть
-                  </p>
-                </div>
               </div>
             </CardContent>
           </Card>
