@@ -1001,11 +1001,16 @@ const Catalog = () => {
         } : null}
         masterName={selectedService?.master_name}
         masterId={selectedService?.master_id}
+        masterLocation={selectedService?.master_location}
+        masterLatitude={selectedService?.latitude}
+        masterLongitude={selectedService?.longitude}
         open={!!selectedService}
         onOpenChange={(open) => { if (!open) setSelectedService(null); }}
         onBook={() => {
-          setSelectedService(null);
-          if (selectedService) navigate(`/master/${selectedService.master_id}`);
+          if (selectedService) {
+            setSelectedService(null);
+            navigate(`/master/${selectedService.master_id}?book=${selectedService.id}`);
+          }
         }}
       />
     </div>
