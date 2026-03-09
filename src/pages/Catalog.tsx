@@ -966,7 +966,7 @@ const Catalog = () => {
                     <ServiceCardItem
                       key={s.id}
                       service={s}
-                      onClick={() => setSelectedService(s)}
+                      onClick={() => navigate(`/master/${s.master_id}?book=${s.id}`)}
                     />
                   ))}
             </div>
