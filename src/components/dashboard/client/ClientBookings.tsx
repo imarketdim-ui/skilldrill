@@ -21,6 +21,39 @@ const STATUS_MAP: Record<string, { label: string; variant: 'default' | 'secondar
   no_show: { label: 'Неявка', variant: 'destructive' },
 };
 
+const BookingCard = ({ b, onCancel, onDispute }: { b: any; onCancel: (id: string) => void; onDispute: (id: string) => void }) => {
+  const s = STATUS_MAP[b.status] || { label: b.status, variant: 'secondary' as const };
+  const d = new Date(b.date);
+  return (
+    <Card>
+      <CardContent className="pt-4 pb-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="font-medium truncate">{b.title}</p>
+            <p className="text-sm text-muted-foreground">{b.master}</p>
+            <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{d.toLocaleDateString('ru-RU')}</span>
+              <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</span>
+              {b.duration && <span>{b.duration} мин</span>}
+            </div>
+          </div>
+          <Badge variant={s.variant}>{s.label}</Badge>
+        </div>
+        {(b.canCancel || b.canDispute) && (
+          <div className="flex gap-2 mt-3 pt-3 border-t">
+            {b.canCancel && <Button size="sm" variant="outline" onClick={() => onCancel(b.id)}>Отменить</Button>}
+            {b.canDispute && (
+              <Button size="sm" variant="outline" className="text-destructive" onClick={() => onDispute(b.id)}>
+                <AlertTriangle className="h-3 w-3 mr-1" />Открыть спор
+              </Button>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
 export default function ClientBookings({ userId }: Props) {
   const { toast } = useToast();
   const [bookings, setBookings] = useState<any[]>([]);
