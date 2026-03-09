@@ -178,7 +178,7 @@ const Catalog = () => {
         query = query.eq("category_id", categoryFilter);
       }
 
-      const { data } = await query.limit(100);
+      const { data } = await query.limit(500);
 
       // Fetch services for all masters in parallel
       const userIds = (data || []).map((mp: any) => mp.user_id);
