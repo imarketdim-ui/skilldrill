@@ -8,11 +8,11 @@ import RoleSwitcher from './RoleSwitcher';
 interface DashboardLayoutProps {
   children: ReactNode;
   onSelectHub?: (hub: 'business' | 'platform') => void;
-  onBackToClient?: () => void;
+  onBackToHub?: () => void;
 }
 
-const DashboardLayout = ({ children, onSelectHub, onBackToClient }: DashboardLayoutProps) => {
-  const { signOut, activeRole, setActiveRole } = useAuth();
+const DashboardLayout = ({ children, onSelectHub, onBackToHub }: DashboardLayoutProps) => {
+  const { signOut, activeRole } = useAuth();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -20,33 +20,22 @@ const DashboardLayout = ({ children, onSelectHub, onBackToClient }: DashboardLay
     navigate('/');
   };
 
-  const isSubDashboard = !['client'].includes(activeRole) &&
-    !['platform_admin', 'super_admin', 'platform_manager', 'moderator', 'support', 'integrator'].includes(activeRole);
-
-  const isPlatformDashboard = ['platform_admin', 'super_admin', 'platform_manager', 'moderator', 'support', 'integrator'].includes(activeRole);
-
-  const handleBack = () => {
-    if (onBackToClient) {
-      onBackToClient();
-    } else {
-      setActiveRole('client');
-    }
-  };
+  const isInSubDashboard = activeRole !== 'client';
 
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
         <div className="container-wide py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {(isSubDashboard || isPlatformDashboard) ? (
+            {isInSubDashboard && onBackToHub ? (
               <Button
                 variant="ghost"
                 size="sm"
                 className="gap-2"
-                onClick={handleBack}
+                onClick={onBackToHub}
               >
                 <ArrowLeft className="h-4 w-4" />
-                <span className="hidden sm:inline">Клиент</span>
+                <span className="hidden sm:inline">Назад</span>
               </Button>
             ) : (
               <>
