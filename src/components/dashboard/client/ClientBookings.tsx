@@ -87,24 +87,34 @@ export default function ClientBookings({ userId }: Props) {
   }, [userId]);
 
   const filtered = useMemo(() => {
+    if (period === 'all') return bookings;
     const now = new Date();
     return bookings.filter(b => {
       const d = new Date(b.date);
       if (period === 'archive') return d < now;
-      if (period === 'day') {
-        return d.toDateString() === now.toDateString();
-      }
+      if (period === 'day') return d.toDateString() === now.toDateString();
       if (period === 'week') {
         const end = new Date(now);
         end.setDate(end.getDate() + 7);
         return d >= now && d <= end;
       }
-      // month
       const end = new Date(now);
       end.setDate(end.getDate() + 30);
       return d >= now && d <= end;
     });
   }, [bookings, period]);
+
+  // Group by date for "all" view
+  const groupedByDate = useMemo(() => {
+    if (period !== 'all') return null;
+    const groups: Record<string, typeof filtered> = {};
+    filtered.forEach(b => {
+      const dateKey = new Date(b.date).toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      if (!groups[dateKey]) groups[dateKey] = [];
+      groups[dateKey].push(b);
+    });
+    return groups;
+  }, [filtered, period]);
 
   const handleCancel = async () => {
     if (!cancelDialog) return;
