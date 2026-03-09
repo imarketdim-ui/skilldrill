@@ -131,6 +131,7 @@ const MasterDetail = () => {
     }
   }, [searchParams, services, bookingService]);
 
+  useEffect(() => {
     if (!bookingService) return;
     const initialName = [user?.user_metadata?.first_name, user?.user_metadata?.last_name].filter(Boolean).join(' ').trim();
     setBookingData(prev => ({
