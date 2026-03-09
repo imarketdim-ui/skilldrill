@@ -43,7 +43,9 @@ const CreateBusinessAccount = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
   const initialType = searchParams.get('type') as AccountType | null;
-  const [accountType, setAccountType] = useState<AccountType | null>(initialType);
+  const [accountType, setAccountType] = useState<AccountType | null>(
+    initialType === 'network' && !pricing.network ? null : initialType
+  );
   const [existingMasterProfiles, setExistingMasterProfiles] = useState<any[]>([]);
   const [existingBusinesses, setExistingBusinesses] = useState<any[]>([]);
   const [existingNetworks, setExistingNetworks] = useState<any[]>([]);
