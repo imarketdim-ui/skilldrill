@@ -3621,7 +3621,7 @@ export type Database = {
         Returns: Json
       }
       calculate_shadow_score: { Args: { _user_id: string }; Returns: Json }
-      calculate_user_score: { Args: { _user_id: string }; Returns: Json }
+      calculate_user_score: { Args: { _user_id: string }; Returns: undefined }
       check_fraud_indicators: { Args: { _user_id: string }; Returns: Json }
       generate_skillspot_id: { Args: never; Returns: string }
       get_user_org_role: {

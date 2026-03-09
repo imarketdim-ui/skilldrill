@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Shield, User, Activity, AlertTriangle, Heart, Info, Loader2, RefreshCw, BadgeCheck, Flag } from "lucide-react";
+import { Shield, User, Activity, AlertTriangle, Heart, Info, Loader2, RefreshCw, BadgeCheck, Flag, CheckCircle2, XCircle, Mail, Phone, MessageCircle, FileCheck, PenLine, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -30,7 +30,12 @@ interface ScoreData {
   top_partner_pct: number;
   has_full_name: boolean;
   has_photo: boolean;
+  has_bio: boolean;
   kyc_verified: boolean;
+  email_verified: boolean;
+  phone_verified: boolean;
+  has_telegram: boolean;
+  referral_count: number;
   status: string;
   account_age_days: number;
   last_calculated_at: string | null;
@@ -64,9 +69,9 @@ function blockLabel(value: number, max: number, isRisk: boolean = false): { text
     if (value >= -20) return { text: "Средний", color: "text-accent" };
     return { text: "Высокий", color: "text-destructive" };
   }
-  const pct = max > 0 ? (value / max) * 100 : 0;
-  if (pct >= 60) return { text: "Высокая", color: "text-primary" };
-  if (pct >= 30) return { text: "Средняя", color: "text-accent" };
+  const pctVal = max > 0 ? (value / max) * 100 : 0;
+  if (pctVal >= 60) return { text: "Высокая", color: "text-primary" };
+  if (pctVal >= 30) return { text: "Средняя", color: "text-accent" };
   return { text: "Низкая", color: "text-muted-foreground" };
 }
 
@@ -82,7 +87,6 @@ export default function UserScoreCard({ userId, viewMode }: UserScoreCardProps) 
   const [recalculating, setRecalculating] = useState(false);
 
   const loadScore = async () => {
-    // Master view uses restricted view (no risk_score/reputation_score leak)
     const table = viewMode === "master" ? "user_scores_master_view" : "user_scores";
     const { data } = await supabase
       .from(table as any)
@@ -90,7 +94,6 @@ export default function UserScoreCard({ userId, viewMode }: UserScoreCardProps) 
       .eq("user_id", userId)
       .maybeSingle();
     if (data) {
-      // For master view, set hidden fields to 0 (not exposed by view)
       if (viewMode === "master") {
         (data as any).risk_score = 0;
         (data as any).reputation_score = 0;
@@ -132,20 +135,20 @@ export default function UserScoreCard({ userId, viewMode }: UserScoreCardProps) 
   }
 
   const statusInfo = STATUS_LABELS[score.status] || STATUS_LABELS.insufficient_data;
-  const activityBlock = blockLabel(score.activity_score, 15);
-  const riskBlock = blockLabel(score.risk_score, 0, true);
-  const repBlock = score.reputation_score >= 10
-    ? { text: "Лояльность", color: "text-primary" }
-    : score.reputation_score <= -10
-      ? { text: "Конфликтность", color: "text-destructive" }
-      : { text: "Стабильность", color: "text-foreground" };
-  
-  const profileStatus = score.kyc_verified 
-    ? "KYC подтверждён" 
-    : (score.has_full_name && score.has_photo ? "Частично" : "Нет");
-  const profileColor = score.kyc_verified 
-    ? "text-primary" 
-    : (score.has_full_name && score.has_photo ? "text-accent" : "text-muted-foreground");
+
+  // Profile factors list for client view
+  const profileFactors = [
+    { label: "Имя и фамилия", done: score.has_full_name, icon: User, hint: "Заполните ФИО в настройках" },
+    { label: "Фото профиля", done: score.has_photo, icon: User, hint: "Загрузите фото в настройках" },
+    { label: "О себе (био)", done: score.has_bio, icon: PenLine, hint: "Добавьте описание в настройках" },
+    { label: "Подтверждение email", done: score.email_verified, icon: Mail, hint: "Подтвердите email-адрес" },
+    { label: "Телефон указан", done: score.phone_verified, icon: Phone, hint: "Добавьте номер телефона" },
+    { label: "Telegram привязан", done: score.has_telegram, icon: MessageCircle, hint: "Укажите Telegram в профиле мастера" },
+    { label: "KYC верификация", done: score.kyc_verified, icon: FileCheck, hint: "Пройдите верификацию личности" },
+  ];
+
+  const completedFactors = profileFactors.filter(f => f.done).length;
+  const totalFactors = profileFactors.length;
 
   // === CLIENT VIEW ===
   if (viewMode === "client") {
@@ -179,11 +182,84 @@ export default function UserScoreCard({ userId, viewMode }: UserScoreCardProps) 
           <StatBox label="В ЧС" value={score.blacklist_by_count.toString()} warn={score.blacklist_by_count > 0} />
           <StatBox label="Споры" value={pct(score.disputes_total, score.completed_visits)} warn={score.disputes_total > 0} />
         </div>
+
+        {/* Profile completion factors */}
+        <div className="bg-card rounded-xl border border-border p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-foreground">Факторы, влияющие на рейтинг</p>
+            <span className="text-xs text-muted-foreground">{completedFactors}/{totalFactors}</span>
+          </div>
+          
+          {/* Progress bar */}
+          <div className="h-2 bg-secondary rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-primary rounded-full transition-all duration-500"
+              style={{ width: `${(completedFactors / totalFactors) * 100}%` }}
+            />
+          </div>
+
+          <div className="space-y-2">
+            {profileFactors.map((factor) => (
+              <div key={factor.label} className="flex items-center gap-3 text-sm">
+                <div className={`shrink-0 ${factor.done ? 'text-primary' : 'text-muted-foreground/40'}`}>
+                  {factor.done 
+                    ? <CheckCircle2 className="w-4 h-4" /> 
+                    : <XCircle className="w-4 h-4" />
+                  }
+                </div>
+                <span className={factor.done ? 'text-foreground' : 'text-muted-foreground'}>
+                  {factor.label}
+                </span>
+                {!factor.done && (
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <Info className="w-3.5 h-3.5 text-muted-foreground/50" />
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p className="text-xs">{factor.hint}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Additional behavioral factors */}
+          <div className="pt-2 border-t border-border space-y-1.5">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Поведенческие факторы</p>
+            <FactorHint label="Завершённые визиты" positive hint="Чем больше визитов — тем выше рейтинг" />
+            <FactorHint label="Неявки и поздние отмены" positive={false} hint="Снижают рейтинг" />
+            <FactorHint label="VIP-оценки от мастеров" positive hint="Повышают репутацию" />
+            <FactorHint label="Попадания в ЧС" positive={false} hint="Значительно снижают рейтинг" />
+            <FactorHint label="Проигранные споры" positive={false} hint="Снижают репутацию" />
+            <FactorHint label="Приглашённые пользователи" positive hint="Бонус за реферальную программу" />
+            {score.referral_count > 0 && (
+              <div className="flex items-center gap-2 text-xs text-primary pl-6">
+                <Users className="w-3.5 h-3.5" /> Приглашено: {score.referral_count}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     );
   }
 
   // === MASTER VIEW ===
+  const activityBlock = blockLabel(score.activity_score, 15);
+  const riskBlock = blockLabel(score.risk_score, 0, true);
+  const repBlock = score.reputation_score >= 10
+    ? { text: "Лояльность", color: "text-primary" }
+    : score.reputation_score <= -10
+      ? { text: "Конфликтность", color: "text-destructive" }
+      : { text: "Стабильность", color: "text-foreground" };
+  
+  const profileStatus = score.kyc_verified 
+    ? "KYC подтверждён" 
+    : (score.has_full_name && score.has_photo ? "Частично" : "Нет");
+  const profileColor = score.kyc_verified 
+    ? "text-primary" 
+    : (score.has_full_name && score.has_photo ? "text-accent" : "text-muted-foreground");
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -257,8 +333,40 @@ export default function UserScoreCard({ userId, viewMode }: UserScoreCardProps) 
               <MetricRow label="VIP оценки" value={score.vip_by_count.toString()} good={score.vip_by_count > 0} />
             </div>
           </div>
+
+          {/* Profile factors for master view too */}
+          <div className="bg-card rounded-xl border border-border p-4 space-y-2">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Профиль клиента</p>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-xs">
+              <MetricRow label="ФИО" value={score.has_full_name ? "✓" : "✗"} good={score.has_full_name} warn={!score.has_full_name} />
+              <MetricRow label="Фото" value={score.has_photo ? "✓" : "✗"} good={score.has_photo} warn={!score.has_photo} />
+              <MetricRow label="Email" value={score.email_verified ? "✓" : "✗"} good={score.email_verified} warn={!score.email_verified} />
+              <MetricRow label="Телефон" value={score.phone_verified ? "✓" : "✗"} good={score.phone_verified} warn={!score.phone_verified} />
+              <MetricRow label="KYC" value={score.kyc_verified ? "✓" : "✗"} good={score.kyc_verified} warn={!score.kyc_verified} />
+              <MetricRow label="Telegram" value={score.has_telegram ? "✓" : "✗"} good={score.has_telegram} />
+            </div>
+          </div>
         </>
       )}
+    </div>
+  );
+}
+
+function FactorHint({ label, positive, hint }: { label: string; positive: boolean; hint: string }) {
+  return (
+    <div className="flex items-center gap-2 text-xs">
+      <span className={`shrink-0 ${positive ? 'text-primary' : 'text-destructive'}`}>
+        {positive ? '▲' : '▼'}
+      </span>
+      <span className="text-muted-foreground">{label}</span>
+      <Tooltip>
+        <TooltipTrigger>
+          <Info className="w-3 h-3 text-muted-foreground/40" />
+        </TooltipTrigger>
+        <TooltipContent side="right">
+          <p className="text-xs">{hint}</p>
+        </TooltipContent>
+      </Tooltip>
     </div>
   );
 }
