@@ -121,6 +121,8 @@ const MapPicker = forwardRef<HTMLDivElement, Props>(({ latitude, longitude, addr
       <p className="text-xs text-muted-foreground">Кликните на карту или перетащите маркер для указания местоположения</p>
     </div>
   );
-};
+});
+
+MapPicker.displayName = "MapPicker";
 
 export default MapPicker;

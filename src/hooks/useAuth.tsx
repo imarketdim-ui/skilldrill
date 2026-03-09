@@ -160,11 +160,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
       if (referredBy) metaData.referred_by = referredBy;
 
+      const redirectUrl = `${window.location.origin}/dashboard`;
       const { error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: 'https://skilldrill.lovable.app/dashboard',
+          emailRedirectTo: redirectUrl,
           data: metaData,
         },
       });
