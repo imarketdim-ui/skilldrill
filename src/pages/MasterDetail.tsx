@@ -623,7 +623,7 @@ const MasterDetail = () => {
                 <TabsContent value="services">
                   <div className="grid gap-4">
                     {services.map(service => (
-                      <Card key={service.id} className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setSelectedServiceForDetail(service)}>
+                      <Card key={service.id} className="hover:border-primary/50 transition-colors">
                         <CardContent className="flex flex-col md:flex-row gap-4 p-4">
                           <div className="flex-1">
                             <h3 className="font-semibold text-lg mb-1">{service.name}</h3>
