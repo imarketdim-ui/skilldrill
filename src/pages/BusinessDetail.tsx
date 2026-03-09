@@ -237,7 +237,7 @@ const BusinessDetail = () => {
                                   <Input placeholder="Ваше имя" value={bookingData.name} onChange={e => setBookingData({...bookingData, name: e.target.value})} />
                                   <Input type="tel" placeholder="Телефон" value={bookingData.phone} onChange={e => setBookingData({...bookingData, phone: e.target.value})} />
                                   <div className="grid grid-cols-2 gap-3">
-                                    <div className="space-y-1"><label className="text-sm font-medium">Дата</label><Input type="date" value={bookingData.date} onChange={e => setBookingData({...bookingData, date: e.target.value})} /></div>
+                                    <div className="space-y-1"><label className="text-sm font-medium">Дата</label><Input type="date" min={new Date().toISOString().slice(0, 10)} value={bookingData.date} onChange={e => setBookingData({...bookingData, date: e.target.value})} /></div>
                                     <div className="space-y-1"><label className="text-sm font-medium">Время</label><Input type="time" value={bookingData.time} onChange={e => setBookingData({...bookingData, time: e.target.value})} /></div>
                                   </div>
                                   <Textarea placeholder="Комментарий (необязательно)" value={bookingData.comment} onChange={e => setBookingData({...bookingData, comment: e.target.value})} />
