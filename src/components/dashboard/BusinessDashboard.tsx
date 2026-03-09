@@ -28,6 +28,10 @@ import BusinessInventory from './business/BusinessInventory';
 import BusinessBookingDetail from './business/BusinessBookingDetail';
 import BusinessPromotions from './business/BusinessPromotions';
 import BusinessMarketing from './business/BusinessMarketing';
+import BusinessCashRegisters from './business/BusinessCashRegisters';
+import BusinessProcurement from './business/BusinessProcurement';
+import BusinessWriteOffs from './business/BusinessWriteOffs';
+import BusinessProductSales from './business/BusinessProductSales';
 import TeachingChats from './teaching/TeachingChats';
 
 // Inline notifications for business
@@ -207,6 +211,10 @@ const erpItems = [
   { key: 'services', label: 'Услуги', icon: ClipboardList, description: 'Услуги и прайс' },
   { key: 'masters', label: 'Команда', icon: Users, description: 'Сотрудники' },
   { key: 'inventory', label: 'Склад', icon: Package, description: 'Товары и материалы' },
+  { key: 'registers', label: 'Кассы', icon: Wallet, description: 'Наличные и безналичные' },
+  { key: 'procurement', label: 'Закупки', icon: Package, description: 'Закупка материалов' },
+  { key: 'writeoffs', label: 'Списания', icon: ClipboardList, description: 'Списание материалов' },
+  { key: 'product_sales', label: 'Продажи', icon: Briefcase, description: 'Продажа товаров' },
   { key: 'promotions', label: 'Акции', icon: Percent, description: 'Скидки и промо' },
   { key: 'finance', label: 'Финансы', icon: Wallet, description: 'Доходы и расходы' },
   { key: 'subscription', label: 'Подписка', icon: CreditCard, description: 'Тарифы и оплата' },
@@ -396,6 +404,14 @@ const BusinessDashboard = () => {
         return selectedBusiness ? <BusinessServices businessId={selectedBusiness.id} /> : null;
       case 'inventory':
         return selectedBusiness ? <BusinessInventory businessId={selectedBusiness.id} /> : null;
+      case 'registers':
+        return selectedBusiness ? <BusinessCashRegisters businessId={selectedBusiness.id} /> : null;
+      case 'procurement':
+        return selectedBusiness ? <BusinessProcurement businessId={selectedBusiness.id} /> : null;
+      case 'writeoffs':
+        return selectedBusiness ? <BusinessWriteOffs businessId={selectedBusiness.id} /> : null;
+      case 'product_sales':
+        return selectedBusiness ? <BusinessProductSales businessId={selectedBusiness.id} /> : null;
       case 'schedule':
         return selectedBusiness ? <BusinessSchedule businessId={selectedBusiness.id} /> : null;
       case 'finance':
