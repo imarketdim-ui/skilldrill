@@ -186,6 +186,22 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
     }
     switch (activeSection) {
       case 'profile': return <MasterProfileEditor masterProfile={masterProfile} config={config} />;
+      case 'crm': return (
+        <SectionHub
+          title="CRM"
+          description="Управление клиентами и коммуникациями"
+          items={adaptedCrmItems}
+          onNavigate={setActiveSection}
+        />
+      );
+      case 'erp': return (
+        <SectionHub
+          title="ERP"
+          description="Управление бизнес-процессами"
+          items={erpItems}
+          onNavigate={setActiveSection}
+        />
+      );
       case 'schedule': return <UniversalSchedule config={config} />;
       case 'services': return <UniversalServices config={config} />;
       case 'clients': return <UniversalClients config={config} />;
