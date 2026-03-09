@@ -988,31 +988,8 @@ const Catalog = () => {
       </main>
       <Footer />
 
-      {/* Service Detail Dialog */}
-      <ServiceDetailDialog
-        service={selectedService ? {
-          id: selectedService.id,
-          name: selectedService.name,
-          price: selectedService.price,
-          duration_minutes: selectedService.duration_minutes,
-          work_photos: selectedService.work_photos,
-          description: null,
-          hashtags: [],
-        } : null}
-        masterName={selectedService?.master_name}
-        masterId={selectedService?.master_id}
-        masterLocation={selectedService?.master_location}
-        masterLatitude={selectedService?.latitude}
-        masterLongitude={selectedService?.longitude}
-        open={!!selectedService}
-        onOpenChange={(open) => { if (!open) setSelectedService(null); }}
-        onBook={() => {
-          if (selectedService) {
-            setSelectedService(null);
-            navigate(`/master/${selectedService.master_id}?book=${selectedService.id}`);
-          }
-        }}
-      />
+
+
     </div>
   );
 };

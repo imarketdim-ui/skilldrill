@@ -801,15 +801,8 @@ const MasterDetail = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Service Detail Dialog */}
-      <ServiceDetailDialog
-        service={selectedServiceForDetail}
-        masterName={masterName}
-        masterId={master.id}
-        open={!!selectedServiceForDetail}
-        onOpenChange={(open) => { if (!open) setSelectedServiceForDetail(null); }}
-        onBook={() => { setBookingService(selectedServiceForDetail?.id); setSelectedServiceForDetail(null); }}
-      />
+
+
     </div>
   );
 };
