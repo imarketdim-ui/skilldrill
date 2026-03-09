@@ -321,45 +321,58 @@ const ClientDashboard = () => {
 
   return (
     <div className="flex flex-col lg:flex-row lg:gap-6">
-      {/* Desktop: sidebar */}
-      <aside className="hidden lg:flex w-60 shrink-0 sticky top-20 self-start flex-col h-[calc(100vh-6rem)]">
-        <div className="flex items-center gap-3 px-3 pb-6 border-b mb-4">
-          <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
-            <Users className="h-5 w-5 text-primary-foreground" />
-          </div>
-          <div>
-            <p className="font-semibold text-sm">Личный кабинет</p>
-            <p className="text-xs text-muted-foreground">Клиент</p>
-          </div>
+      {/* Desktop: collapsible sidebar */}
+      <aside className={`hidden lg:flex shrink-0 sticky top-20 self-start flex-col h-[calc(100vh-6rem)] transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-60'}`}>
+        <div className="flex items-center gap-3 px-3 pb-4 border-b mb-4">
+          {!sidebarCollapsed && (
+            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
+              <Users className="h-5 w-5 text-primary-foreground" />
+            </div>
+          )}
+          {!sidebarCollapsed && (
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm">Личный кабинет</p>
+              <p className="text-xs text-muted-foreground">Клиент</p>
+            </div>
+          )}
+          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>
+            {sidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+          </Button>
         </div>
         <div className="space-y-1 overflow-y-auto flex-1">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Меню</p>
+          {!sidebarCollapsed && <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Меню</p>}
           {desktopMenuItems.map(item => (
             <Button
               key={item.key}
               variant={activeSection === item.key ? 'default' : 'ghost'}
-              className={`w-full justify-start gap-3 ${activeSection === item.key ? '' : 'text-muted-foreground'}`}
+              className={`w-full gap-3 ${sidebarCollapsed ? 'justify-center px-2' : 'justify-start'} ${activeSection === item.key ? '' : 'text-muted-foreground'}`}
               onClick={() => setActiveSection(item.key)}
+              title={sidebarCollapsed ? item.label : undefined}
             >
-              <item.icon className="h-4 w-4" />
-              <span>{item.label}</span>
-              {item.key === 'communication' && pendingInvites > 0 && (
+              <item.icon className="h-4 w-4 shrink-0" />
+              {!sidebarCollapsed && <span>{item.label}</span>}
+              {!sidebarCollapsed && item.key === 'communication' && pendingInvites > 0 && (
                 <Badge variant="destructive" className="ml-auto h-5 px-1.5 text-[10px]">{pendingInvites}</Badge>
+              )}
+              {sidebarCollapsed && item.key === 'communication' && pendingInvites > 0 && (
+                <span className="absolute top-0.5 right-0.5 h-2 w-2 rounded-full bg-destructive" />
               )}
             </Button>
           ))}
         </div>
-        <div className="mt-auto pt-6 border-t">
-          <div className="flex items-center gap-3 px-3">
-            <Avatar className="h-8 w-8">
-              <AvatarFallback className="text-xs bg-primary/10 text-primary">{getInitials()}</AvatarFallback>
-            </Avatar>
-            <div className="min-w-0">
-              <p className="text-sm font-medium truncate">{profile?.first_name || 'Пользователь'}</p>
-              <p className="text-xs text-muted-foreground">Клиент</p>
+        {!sidebarCollapsed && (
+          <div className="mt-auto pt-6 border-t">
+            <div className="flex items-center gap-3 px-3">
+              <Avatar className="h-8 w-8">
+                <AvatarFallback className="text-xs bg-primary/10 text-primary">{getInitials()}</AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <p className="text-sm font-medium truncate">{profile?.first_name || 'Пользователь'}</p>
+                <p className="text-xs text-muted-foreground">Клиент</p>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </aside>
 
       {/* Mobile/tablet: bottom bar */}
