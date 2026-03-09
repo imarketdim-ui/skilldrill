@@ -128,6 +128,7 @@ const BusinessDetail = () => {
   const handleBook = () => {
     toast({ title: 'Заявка отправлена!', description: 'Организация свяжется с вами для подтверждения.' });
     setBookingService(null);
+    setBookingData({ name: '', phone: '', date: '', time: '', comment: '' });
   };
 
   if (loading) return <div className="min-h-screen"><Header /><main className="pt-24 pb-16 text-center"><p className="text-muted-foreground">Загрузка...</p></main><Footer /></div>;
