@@ -10,7 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Search, Heart, Calendar, Wallet, Users, MessageSquare,
   Copy, Check, Building2, Shield, Bell, ArrowLeft,
-  LayoutDashboard, Settings, BarChart3, ChevronRight, Star
+  LayoutDashboard, Settings, BarChart3, ChevronRight, Star,
+  PanelLeftClose, PanelLeftOpen
 } from 'lucide-react';
 import { Gift } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -54,6 +55,7 @@ const ClientDashboard = () => {
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const [activeSection, setActiveSection] = useState('overview');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [copied, setCopied] = useState(false);
   const [balance, setBalance] = useState({ main_balance: 0, referral_balance: 0 });
   const [pendingInvites, setPendingInvites] = useState(0);
