@@ -423,6 +423,7 @@ const MasterDetail = () => {
           executor_id: master.user_id,
           service_id: service.id,
           organization_id: master.business_id || null,
+          resource_id: bookingData.resource_id || null,
           scheduled_at: scheduledAt,
           duration_minutes: duration,
           status: bookingStatus,
