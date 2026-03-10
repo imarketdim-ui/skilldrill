@@ -167,6 +167,30 @@ const MasterDetail = () => {
     fetchProfile();
   }, [bookingService, user]);
 
+  // Check blacklist, active bookings count, and load resources when booking opens
+  useEffect(() => {
+    if (!bookingService || !master || !user) return;
+    const checkAccess = async () => {
+      const [blRes, activeRes, resourcesRes] = await Promise.all([
+        supabase.from('blacklists').select('id').eq('blocker_id', master.user_id).eq('blocked_id', user.id).maybeSingle(),
+        supabase.from('bookings').select('id', { count: 'exact', head: true })
+          .eq('client_id', user.id).in('status', ['pending', 'confirmed'] as any).gt('scheduled_at', new Date().toISOString()),
+        master.business_id
+          ? supabase.from('resources').select('id, name, capacity').eq('organization_id', master.business_id).eq('is_active', true)
+          : Promise.resolve({ data: [] }),
+      ]);
+      setIsBlacklisted(!!blRes.data);
+      setActiveBookingsCount(activeRes.count || 0);
+      const resources = resourcesRes.data || [];
+      setOrgResources(resources);
+      // Auto-select if single resource
+      if (resources.length === 1) {
+        setBookingData(prev => ({ ...prev, resource_id: resources[0].id }));
+      }
+    };
+    checkAccess();
+  }, [bookingService, master, user]);
+
   useEffect(() => {
     if (bookingService && bookingData.date) {
       loadAvailableSlots(bookingService, bookingData.date);
