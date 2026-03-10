@@ -838,47 +838,75 @@ const MasterDetail = () => {
           <DialogContent className="max-h-[85vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Запись на «{services.find(s => s.id === bookingService)?.name}»</DialogTitle></DialogHeader>
             <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">Мастер: {masterName}</p>
-              <p className="text-sm text-muted-foreground">{Number(services.find(s => s.id === bookingService)?.price || 0).toLocaleString()} ₽ · {services.find(s => s.id === bookingService)?.duration_minutes} мин</p>
-              <Input type="text" placeholder="Ваше имя" value={bookingData.name} onChange={(e) => setBookingData(p => ({ ...p, name: e.target.value }))} />
-              <Input type="tel" placeholder="Телефон" value={bookingData.phone} onChange={(e) => setBookingData(p => ({ ...p, phone: e.target.value }))} />
-              <div className="space-y-1">
-                <label className="text-sm font-medium">Дата</label>
-                <Input type="date" min={new Date().toISOString().slice(0, 10)} value={bookingData.date} onChange={(e) => setBookingData(p => ({ ...p, date: e.target.value, time: '' }))} />
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium">Доступные слоты</label>
-                {availableSlots.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Нет доступного времени на выбранную дату</p>
-                ) : (
-                  <div className="grid grid-cols-4 gap-2">
-                    {availableSlots.map(slot => (
-                      <Button
-                        key={slot}
-                        type="button"
-                        size="sm"
-                        variant={bookingData.time === slot ? 'default' : 'outline'}
-                        onClick={() => setBookingData(p => ({ ...p, time: slot }))}
-                      >
-                        {slot}
-                      </Button>
-                    ))}
+              {isBlacklisted ? (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive">
+                  <ShieldAlert className="h-5 w-5 shrink-0" />
+                  <p className="text-sm font-medium">Запись недоступна для вашего профиля</p>
+                </div>
+              ) : activeBookingsCount >= 3 ? (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300">
+                  <AlertTriangle className="h-5 w-5 shrink-0" />
+                  <p className="text-sm font-medium">У вас уже 3 активных записи. Завершите или отмените существующие.</p>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground">Мастер: {masterName}</p>
+                  <p className="text-sm text-muted-foreground">{Number(services.find(s => s.id === bookingService)?.price || 0).toLocaleString()} ₽ · {services.find(s => s.id === bookingService)?.duration_minutes} мин</p>
+                  <Input type="text" placeholder="Ваше имя" value={bookingData.name} onChange={(e) => setBookingData(p => ({ ...p, name: e.target.value }))} />
+                  <Input type="tel" placeholder="Телефон" value={bookingData.phone} onChange={(e) => setBookingData(p => ({ ...p, phone: e.target.value }))} />
+                  
+                  {/* Resource picker */}
+                  {orgResources.length > 1 && (
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium">Ресурс (кабинет/бокс)</label>
+                      <Select value={bookingData.resource_id} onValueChange={v => setBookingData(p => ({ ...p, resource_id: v }))}>
+                        <SelectTrigger><SelectValue placeholder="Выберите ресурс" /></SelectTrigger>
+                        <SelectContent>
+                          {orgResources.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium">Дата</label>
+                    <Input type="date" min={new Date().toISOString().slice(0, 10)} value={bookingData.date} onChange={(e) => setBookingData(p => ({ ...p, date: e.target.value, time: '' }))} />
                   </div>
-                )}
-              </div>
-              <Textarea placeholder="Комментарий (необязательно)" value={bookingData.comment} onChange={(e) => setBookingData(p => ({ ...p, comment: e.target.value }))} />
-              <div className="space-y-1">
-                <label className="text-sm font-medium flex items-center gap-1"><Bell className="w-3.5 h-3.5" /> Напоминание</label>
-                <Select value={bookingData.reminder} onValueChange={v => setBookingData(p => ({ ...p, reminder: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {REMINDER_OPTIONS.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button onClick={() => handleBook(bookingService)} className="w-full" disabled={sendingBooking || !bookingData.date || !bookingData.time}>
-                {sendingBooking ? 'Отправка...' : 'Подтвердить запись'}
-              </Button>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium">Доступные слоты</label>
+                    {availableSlots.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">Нет доступного времени на выбранную дату</p>
+                    ) : (
+                      <div className="grid grid-cols-4 gap-2">
+                        {availableSlots.map(slot => (
+                          <Button
+                            key={slot}
+                            type="button"
+                            size="sm"
+                            variant={bookingData.time === slot ? 'default' : 'outline'}
+                            onClick={() => setBookingData(p => ({ ...p, time: slot }))}
+                          >
+                            {slot}
+                          </Button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <Textarea placeholder="Комментарий (необязательно)" value={bookingData.comment} onChange={(e) => setBookingData(p => ({ ...p, comment: e.target.value }))} />
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium flex items-center gap-1"><Bell className="w-3.5 h-3.5" /> Напоминание</label>
+                    <Select value={bookingData.reminder} onValueChange={v => setBookingData(p => ({ ...p, reminder: v }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {REMINDER_OPTIONS.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button onClick={() => handleBook(bookingService)} className="w-full" disabled={sendingBooking || !bookingData.date || !bookingData.time}>
+                    {sendingBooking ? 'Отправка...' : 'Подтвердить запись'}
+                  </Button>
+                </>
+              )}
             </div>
           </DialogContent>
         </Dialog>
