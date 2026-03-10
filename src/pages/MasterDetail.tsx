@@ -433,7 +433,7 @@ const MasterDetail = () => {
       }
 
       setBookingService(null);
-      setBookingData({ name: '', phone: '', date: '', time: '', comment: '', reminder: '60' });
+      setBookingData({ name: '', phone: '', date: '', time: '', comment: '', reminder: '60', resource_id: '' });
       setAvailableSlots([]);
       navigate('/dashboard');
     } catch (err: any) {
