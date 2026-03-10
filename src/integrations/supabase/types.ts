@@ -234,11 +234,13 @@ export type Database = {
           cancelled_by: string | null
           client_id: string
           created_at: string
+          custom_data: Json | null
           duration_minutes: number
           executor_id: string
           id: string
           notes: string | null
           organization_id: string | null
+          resource_id: string | null
           scheduled_at: string
           service_id: string
           status: Database["public"]["Enums"]["booking_status"]
@@ -249,11 +251,13 @@ export type Database = {
           cancelled_by?: string | null
           client_id: string
           created_at?: string
+          custom_data?: Json | null
           duration_minutes: number
           executor_id: string
           id?: string
           notes?: string | null
           organization_id?: string | null
+          resource_id?: string | null
           scheduled_at: string
           service_id: string
           status?: Database["public"]["Enums"]["booking_status"]
@@ -264,11 +268,13 @@ export type Database = {
           cancelled_by?: string | null
           client_id?: string
           created_at?: string
+          custom_data?: Json | null
           duration_minutes?: number
           executor_id?: string
           id?: string
           notes?: string | null
           organization_id?: string | null
+          resource_id?: string | null
           scheduled_at?: string
           service_id?: string
           status?: Database["public"]["Enums"]["booking_status"]
@@ -301,6 +307,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "resources"
             referencedColumns: ["id"]
           },
           {
@@ -2696,6 +2709,47 @@ export type Database = {
           },
         ]
       }
+      resources: {
+        Row: {
+          capacity: number
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          capacity?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          capacity?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resources_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       revocation_archive: {
         Row: {
           entity_data: Json
@@ -3136,6 +3190,55 @@ export type Database = {
         }
         Relationships: []
       }
+      service_assignments: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          master_id: string
+          resource_id: string | null
+          service_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          master_id: string
+          resource_id?: string | null
+          service_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          master_id?: string
+          resource_id?: string | null
+          service_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_assignments_master_id_fkey"
+            columns: ["master_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_assignments_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "resources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_assignments_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_cards: {
         Row: {
           cost_price: number | null
@@ -3187,6 +3290,7 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          schema: Json | null
         }
         Insert: {
           created_at?: string
@@ -3194,6 +3298,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
+          schema?: Json | null
         }
         Update: {
           created_at?: string
@@ -3201,6 +3306,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+          schema?: Json | null
         }
         Relationships: []
       }
