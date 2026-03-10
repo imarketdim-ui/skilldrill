@@ -66,12 +66,15 @@ const MasterDetail = () => {
   const [viewingService, setViewingService] = useState<any>(null);
   const [messageOpen, setMessageOpen] = useState(false);
   const [messageText, setMessageText] = useState('');
-  const [bookingData, setBookingData] = useState({ name: '', phone: '', date: '', time: '', comment: '', reminder: '60' });
+  const [bookingData, setBookingData] = useState({ name: '', phone: '', date: '', time: '', comment: '', reminder: '60', resource_id: '' });
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [sendingMessage, setSendingMessage] = useState(false);
   const [sendingBooking, setSendingBooking] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [isBlacklisted, setIsBlacklisted] = useState(false);
+  const [activeBookingsCount, setActiveBookingsCount] = useState(0);
+  const [orgResources, setOrgResources] = useState<any[]>([]);
   
   const mapRef = useRef<HTMLDivElement>(null);
 
