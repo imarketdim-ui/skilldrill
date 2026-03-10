@@ -4018,6 +4018,15 @@ export type Database = {
           status: string
         }[]
       }
+      check_availability: {
+        Args: {
+          _duration_minutes: number
+          _master_id: string
+          _resource_id: string
+          _start_time: string
+        }
+        Returns: boolean
+      }
       check_fraud_indicators: { Args: { _user_id: string }; Returns: Json }
       generate_skillspot_id: { Args: never; Returns: string }
       get_user_org_role: {
