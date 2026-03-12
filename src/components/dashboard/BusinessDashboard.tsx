@@ -423,7 +423,7 @@ const BusinessDashboard = () => {
       case 'clients':
         return selectedBusiness ? <BusinessClients businessId={selectedBusiness.id} /> : null;
       case 'stats':
-        return selectedBusiness ? <BusinessStats businessId={selectedBusiness.id} /> : null;
+        return selectedBusiness ? <BusinessAnalytics businessId={selectedBusiness.id} /> : null;
       case 'notifications':
         return <BusinessNotifications />;
       case 'chats':
