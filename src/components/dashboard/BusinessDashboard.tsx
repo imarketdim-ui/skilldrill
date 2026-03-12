@@ -345,6 +345,7 @@ const BusinessDashboard = () => {
         return (
           <div className="space-y-6">
             <BusinessOnboardingTour onNavigate={setActiveSection} />
+            {!canActivate && selectedBusiness && (
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>
