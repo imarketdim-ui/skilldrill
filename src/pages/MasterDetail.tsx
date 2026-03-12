@@ -457,6 +457,25 @@ const MasterDetail = () => {
         toast({ title: 'Запись отправлена', description: 'Ожидаем подтверждения мастера. Вы получите уведомление.' });
       }
 
+      // Offer Tinkoff payment if service has a price
+      if (service.price && service.price > 0 && newBooking?.id) {
+        const payNow = window.confirm(`Оплатить ${Number(service.price).toLocaleString()} ₽ через Тинькофф прямо сейчас? Вы также можете оплатить позже из Личного кабинета.`);
+        if (payNow) {
+          try {
+            const { data: payData, error: payError } = await supabase.functions.invoke('tinkoff-payment-init', {
+              body: { booking_id: newBooking.id },
+            });
+            if (payError) throw payError;
+            if (payData?.payment_url) {
+              window.location.href = payData.payment_url;
+              return;
+            }
+          } catch (payErr: any) {
+            toast({ title: 'Ошибка оплаты', description: payErr.message || 'Попробуйте оплатить позже из ЛК', variant: 'destructive' });
+          }
+        }
+      }
+
       setBookingService(null);
       setBookingData({ name: '', phone: '', date: '', time: '', comment: '', reminder: '60', resource_id: '' });
       setAvailableSlots([]);
