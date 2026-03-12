@@ -238,8 +238,10 @@ export type Database = {
           duration_minutes: number
           executor_id: string
           id: string
+          is_paid: boolean
           notes: string | null
           organization_id: string | null
+          payment_id: string | null
           resource_id: string | null
           scheduled_at: string
           service_id: string
@@ -255,8 +257,10 @@ export type Database = {
           duration_minutes: number
           executor_id: string
           id?: string
+          is_paid?: boolean
           notes?: string | null
           organization_id?: string | null
+          payment_id?: string | null
           resource_id?: string | null
           scheduled_at: string
           service_id: string
@@ -272,8 +276,10 @@ export type Database = {
           duration_minutes?: number
           executor_id?: string
           id?: string
+          is_paid?: boolean
           notes?: string | null
           organization_id?: string | null
+          payment_id?: string | null
           resource_id?: string | null
           scheduled_at?: string
           service_id?: string
@@ -488,6 +494,7 @@ export type Database = {
           subscription_price: number
           subscription_status: string
           suspended_at: string | null
+          tinkoff_terminal_key: string | null
           trial_start_date: string | null
           updated_at: string
           work_photos: Json | null
@@ -526,6 +533,7 @@ export type Database = {
           subscription_price?: number
           subscription_status?: string
           suspended_at?: string | null
+          tinkoff_terminal_key?: string | null
           trial_start_date?: string | null
           updated_at?: string
           work_photos?: Json | null
@@ -564,6 +572,7 @@ export type Database = {
           subscription_price?: number
           subscription_status?: string
           suspended_at?: string | null
+          tinkoff_terminal_key?: string | null
           trial_start_date?: string | null
           updated_at?: string
           work_photos?: Json | null

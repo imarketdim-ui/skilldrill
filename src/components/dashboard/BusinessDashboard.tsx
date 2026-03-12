@@ -33,7 +33,7 @@ import BusinessProcurement from './business/BusinessProcurement';
 import BusinessWriteOffs from './business/BusinessWriteOffs';
 import BusinessProductSales from './business/BusinessProductSales';
 import TeachingChats from './teaching/TeachingChats';
-
+import BusinessAnalytics from './business/BusinessAnalytics';
 // Inline notifications for business
 const BusinessNotifications = () => {
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -423,7 +423,7 @@ const BusinessDashboard = () => {
       case 'clients':
         return selectedBusiness ? <BusinessClients businessId={selectedBusiness.id} /> : null;
       case 'stats':
-        return selectedBusiness ? <BusinessStats businessId={selectedBusiness.id} /> : null;
+        return selectedBusiness ? <BusinessAnalytics businessId={selectedBusiness.id} /> : null;
       case 'notifications':
         return <BusinessNotifications />;
       case 'chats':
