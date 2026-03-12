@@ -494,6 +494,7 @@ export type Database = {
           subscription_price: number
           subscription_status: string
           suspended_at: string | null
+          timezone: string | null
           tinkoff_terminal_key: string | null
           trial_start_date: string | null
           updated_at: string
@@ -533,6 +534,7 @@ export type Database = {
           subscription_price?: number
           subscription_status?: string
           suspended_at?: string | null
+          timezone?: string | null
           tinkoff_terminal_key?: string | null
           trial_start_date?: string | null
           updated_at?: string
@@ -572,6 +574,7 @@ export type Database = {
           subscription_price?: number
           subscription_status?: string
           suspended_at?: string | null
+          timezone?: string | null
           tinkoff_terminal_key?: string | null
           trial_start_date?: string | null
           updated_at?: string
@@ -2480,6 +2483,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      push_subscriptions: {
+        Row: {
+          created_at: string | null
+          endpoint: string
+          id: string
+          is_active: boolean | null
+          keys: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          endpoint: string
+          id?: string
+          is_active?: boolean | null
+          keys: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          endpoint?: string
+          id?: string
+          is_active?: boolean | null
+          keys?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       rate_limits: {
         Row: {

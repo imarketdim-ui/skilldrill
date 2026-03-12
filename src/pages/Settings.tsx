@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Loader2, Camera } from 'lucide-react';
+import PushNotificationToggle from '@/components/dashboard/PushNotificationToggle';
 import { z } from 'zod';
 
 const profileSchema = z.object({
@@ -275,6 +276,16 @@ const Settings = () => {
                     {isSubmitting ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" />Сохранение...</>) : 'Сохранить изменения'}
                   </Button>
                 </form>
+              </CardContent>
+            </Card>
+            {/* Push Notifications */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Уведомления</CardTitle>
+                <CardDescription>Настройте оповещения о записях и событиях</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <PushNotificationToggle />
               </CardContent>
             </Card>
           </div>

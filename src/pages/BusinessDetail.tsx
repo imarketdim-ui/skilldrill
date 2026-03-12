@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
+import { updatePageMeta } from '@/lib/seoUtils';
 import { Star, MapPin, ArrowLeft, Users, Clock, MessageSquare, Heart, Share2, Camera } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -89,6 +90,18 @@ const BusinessDetail = () => {
     };
     fetch();
   }, [businessId, user]);
+
+  // Dynamic SEO meta tags
+  useEffect(() => {
+    if (!business) return;
+    const topService = services[0];
+    const priceStr = topService ? `от ${topService.price} ₽` : '';
+    updatePageMeta({
+      title: `${business.name}${business.city ? ` в ${business.city}` : ''} — SkillSpot`,
+      description: `${business.description || business.name}${topService ? `. ${topService.name} ${priceStr}` : ''}. Онлайн-запись.`,
+      url: window.location.href,
+    });
+  }, [business, services]);
 
   useEffect(() => {
     if (!mapOpen || !mapRef.current || !business?.latitude || !business?.longitude) return;

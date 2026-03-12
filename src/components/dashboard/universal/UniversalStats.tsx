@@ -10,6 +10,7 @@ import { ru } from 'date-fns/locale';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LineChart, Line } from 'recharts';
 import MasterTopServices from './MasterTopServices';
 import MasterReviewsWidget from './MasterReviewsWidget';
+import ReviewsEmbedWidget from './ReviewsEmbedWidget';
 
 interface Props { config: CategoryConfig; }
 
@@ -134,6 +135,8 @@ const UniversalStats = ({ config }: Props) => {
         <MasterTopServices bookings={filtered} />
         <MasterReviewsWidget />
       </div>
+
+      <ReviewsEmbedWidget />
 
       {monthlyData.length > 0 && (
         <Card>

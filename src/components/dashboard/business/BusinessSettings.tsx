@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { TIMEZONE_OPTIONS } from '@/hooks/useTimezone';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -62,6 +63,7 @@ const BusinessSettings = ({ business, onUpdated }: Props) => {
         address: business.address || '', city: business.city || '', description: business.description || '',
         director_name: business.director_name || '', contact_email: business.contact_email || '',
         contact_phone: business.contact_phone || '',
+        timezone: (business as any).timezone || 'Europe/Moscow',
       });
     }
   }, [business]);
@@ -238,6 +240,15 @@ const BusinessSettings = ({ business, onUpdated }: Props) => {
             <div className="space-y-2">
               <Label>Описание</Label>
               <Textarea value={form.description || ''} onChange={e => setForm((p: any) => ({ ...p, description: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label>Часовой пояс</Label>
+              <Select value={form.timezone || 'Europe/Moscow'} onValueChange={v => setForm((p: any) => ({ ...p, timezone: v }))}>
+                <SelectTrigger><SelectValue placeholder="Выберите часовой пояс" /></SelectTrigger>
+                <SelectContent>
+                  {TIMEZONE_OPTIONS.map(tz => <SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
