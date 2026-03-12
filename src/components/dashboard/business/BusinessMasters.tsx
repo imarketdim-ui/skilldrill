@@ -239,6 +239,9 @@ const BusinessMasters = ({ businessId, freeMasters, extraMasterPrice }: Props) =
           <TabsTrigger value="permissions" className="gap-1.5">
             <Lock className="h-3.5 w-3.5" /> Доступы
           </TabsTrigger>
+          <TabsTrigger value="invites" className="gap-1.5">
+            <Link2 className="h-3.5 w-3.5" /> Приглашения
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="staff" className="space-y-6 mt-4">
