@@ -241,6 +241,16 @@ const BusinessSettings = ({ business, onUpdated }: Props) => {
               <Label>Описание</Label>
               <Textarea value={form.description || ''} onChange={e => setForm((p: any) => ({ ...p, description: e.target.value }))} />
             </div>
+            <div className="space-y-2">
+              <Label>Часовой пояс</Label>
+              <Select value={form.timezone || 'Europe/Moscow'} onValueChange={v => setForm((p: any) => ({ ...p, timezone: v }))}>
+                <SelectTrigger><SelectValue placeholder="Выберите часовой пояс" /></SelectTrigger>
+                <SelectContent>
+                  {TIMEZONE_OPTIONS.map(tz => <SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Email</Label>
