@@ -10,8 +10,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Users, Search, Loader2, Shield, Briefcase, Wrench, Star, Phone, Mail, MoreVertical, Calendar, Lock } from 'lucide-react';
+import { Plus, Users, Search, Loader2, Shield, Briefcase, Wrench, Star, Phone, Mail, MoreVertical, Calendar, Lock, Link2 } from 'lucide-react';
 import RolePermissionsEditor from './RolePermissionsEditor';
+import BusinessInviteForm from './BusinessInviteForm';
 
 interface Props {
   businessId: string;
