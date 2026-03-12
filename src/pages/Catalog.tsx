@@ -982,7 +982,7 @@ const Catalog = () => {
                 <Button
                   variant="outline"
                   size="lg"
-                  onClick={() => setVisibleCount(prev => prev + 24)}
+                  onClick={() => setVisibleCount(prev => prev + 20)}
                 >
                   Показать ещё ({currentCount - visibleCount} осталось)
                 </Button>

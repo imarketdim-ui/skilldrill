@@ -1,12 +1,31 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
+/**
+ * Recalculate user ratings Edge Function
+ * 
+ * Schedule: Run every hour via pg_cron
+ * 
+ * Cron setup (run in Supabase SQL Editor):
+ * 
+ * SELECT cron.schedule(
+ *   'recalculate-ratings-hourly',
+ *   '0 * * * *',
+ *   $$
+ *   SELECT net.http_post(
+ *     url := 'https://fttbwjuaaltomksuslyi.supabase.co/functions/v1/recalculate-ratings',
+ *     headers := '{"Content-Type": "application/json", "x-cron-secret": "YOUR_CRON_SECRET"}'::jsonb,
+ *     body := '{}'::jsonb
+ *   ) AS request_id;
+ *   $$
+ * );
+ */
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
@@ -26,31 +45,32 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
-    // Get all users who have at least 1 booking or 30+ days on platform
-    const { data: users, error } = await supabase
-      .from('profiles')
-      .select('id, created_at')
+    // Get users with recent activity (bookings in last 30 days or new accounts)
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+    
+    const { data: activeUserIds } = await supabase
+      .from('bookings')
+      .select('client_id')
+      .gte('updated_at', thirtyDaysAgo)
       .limit(1000)
 
-    if (error) throw error
+    const uniqueIds = [...new Set((activeUserIds || []).map((r: any) => r.client_id))]
 
     let processed = 0
     let errors = 0
     const batchSize = 50
-    const userList = users || []
 
-    // Process in batches to avoid timeout
-    for (let i = 0; i < userList.length; i += batchSize) {
-      const batch = userList.slice(i, i + batchSize)
+    for (let i = 0; i < uniqueIds.length; i += batchSize) {
+      const batch = uniqueIds.slice(i, i + batchSize)
       
       await Promise.all(
-        batch.map(async (user) => {
+        batch.map(async (userId) => {
           const { error: calcError } = await supabase.rpc('calculate_user_score', {
-            _user_id: user.id,
+            _user_id: userId,
           })
           if (calcError) {
             errors++
-            console.error(`Error calculating score for ${user.id}:`, calcError.message)
+            console.error(`Error calculating score for ${userId}:`, calcError.message)
           } else {
             processed++
           }
@@ -63,7 +83,7 @@ Deno.serve(async (req) => {
         success: true,
         processed,
         errors,
-        total: userList.length,
+        total: uniqueIds.length,
         timestamp: new Date().toISOString(),
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
