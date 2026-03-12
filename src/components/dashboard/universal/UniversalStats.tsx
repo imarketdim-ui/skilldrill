@@ -1,27 +1,40 @@
-import { useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUnifiedBookings, getUniqueClients } from '@/hooks/useUnifiedBookings';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, TrendingDown, Users, BarChart3, Banknote, Calendar, Clock } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { TrendingUp, Users, Banknote, Calendar, Clock } from 'lucide-react';
 import { CategoryConfig } from './categoryConfig';
-import { format, startOfMonth, endOfMonth, eachMonthOfInterval, subMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachMonthOfInterval, subMonths, subDays } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LineChart, Line } from 'recharts';
+import MasterTopServices from './MasterTopServices';
+import MasterReviewsWidget from './MasterReviewsWidget';
 
 interface Props { config: CategoryConfig; }
 
 const UniversalStats = ({ config }: Props) => {
   const { user } = useAuth();
   const { bookings, loading } = useUnifiedBookings(user?.id);
+  const [period, setPeriod] = useState('all');
+
+  const filtered = useMemo(() => {
+    if (period === 'all') return bookings;
+    const now = new Date();
+    let from: Date;
+    if (period === 'today') from = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    else if (period === 'week') from = subDays(now, 7);
+    else from = startOfMonth(now);
+    return bookings.filter(b => new Date(b.date) >= from);
+  }, [bookings, period]);
 
   const stats = useMemo(() => {
-    const completed = bookings.filter(b => b.status === 'completed');
-    const cancelled = bookings.filter(b => b.status === 'cancelled');
-    const noShow = bookings.filter(b => b.status === 'no_show');
-    const clients = getUniqueClients(bookings);
+    const completed = filtered.filter(b => b.status === 'completed');
+    const cancelled = filtered.filter(b => b.status === 'cancelled');
+    const noShow = filtered.filter(b => b.status === 'no_show');
+    const clients = getUniqueClients(filtered);
     const totalIncome = completed.reduce((s, b) => s + b.price, 0);
 
-    // Calculate work hours from sessions with start/end times
     let totalWorkMinutes = 0;
     completed.forEach(b => {
       if (b.startTime && b.endTime) {
@@ -34,17 +47,17 @@ const UniversalStats = ({ config }: Props) => {
     });
 
     return {
-      totalSessions: bookings.length,
+      totalSessions: filtered.length,
       completedSessions: completed.length,
       cancelledSessions: cancelled.length,
       noShowSessions: noShow.length,
       totalClients: clients.length,
       totalIncome,
       avgPrice: completed.length > 0 ? Math.round(totalIncome / completed.length) : 0,
-      completionRate: bookings.length > 0 ? Math.round((completed.length / bookings.length) * 100) : 0,
+      completionRate: filtered.length > 0 ? Math.round((completed.length / filtered.length) * 100) : 0,
       totalWorkHours: Math.round(totalWorkMinutes / 60),
     };
-  }, [bookings]);
+  }, [filtered]);
 
   const monthlyData = useMemo(() => {
     const now = new Date();
@@ -83,7 +96,19 @@ const UniversalStats = ({ config }: Props) => {
 
   return (
     <div className="space-y-6">
-      <h3 className="text-lg font-semibold">Статистика</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold">Статистика</h3>
+        <Select value={period} onValueChange={setPeriod}>
+          <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="today">Сегодня</SelectItem>
+            <SelectItem value="week">Неделя</SelectItem>
+            <SelectItem value="month">Месяц</SelectItem>
+            <SelectItem value="all">Всё время</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((c, i) => (
           <Card key={i}><CardContent className="pt-6"><div className="flex items-center gap-3">
@@ -104,6 +129,11 @@ const UniversalStats = ({ config }: Props) => {
           </div>
         </CardContent>
       </Card>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <MasterTopServices bookings={filtered} />
+        <MasterReviewsWidget />
+      </div>
 
       {monthlyData.length > 0 && (
         <Card>
