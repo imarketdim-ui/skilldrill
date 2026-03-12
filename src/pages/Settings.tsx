@@ -278,6 +278,16 @@ const Settings = () => {
                 </form>
               </CardContent>
             </Card>
+            {/* Push Notifications */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Уведомления</CardTitle>
+                <CardDescription>Настройте оповещения о записях и событиях</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <PushNotificationToggle />
+              </CardContent>
+            </Card>
           </div>
         </motion.div>
       </div>
