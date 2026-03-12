@@ -136,6 +136,8 @@ const UniversalStats = ({ config }: Props) => {
         <MasterReviewsWidget />
       </div>
 
+      <ReviewsEmbedWidget />
+
       {monthlyData.length > 0 && (
         <Card>
           <CardHeader><CardTitle>Доход по месяцам</CardTitle></CardHeader>
