@@ -33,7 +33,7 @@ import BusinessProcurement from './business/BusinessProcurement';
 import BusinessWriteOffs from './business/BusinessWriteOffs';
 import BusinessProductSales from './business/BusinessProductSales';
 import TeachingChats from './teaching/TeachingChats';
-
+import BusinessAnalytics from './business/BusinessAnalytics';
 // Inline notifications for business
 const BusinessNotifications = () => {
   const [notifications, setNotifications] = useState<any[]>([]);
