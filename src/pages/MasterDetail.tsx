@@ -127,6 +127,22 @@ const MasterDetail = () => {
     fetchData();
   }, [masterId, user]);
 
+  // Dynamic SEO meta tags
+  useEffect(() => {
+    if (!master || !master.profiles) return;
+    const name = `${master.profiles.first_name || ''} ${master.profiles.last_name || ''}`.trim();
+    const category = master.service_categories?.name || '';
+    const city = (master as any).city || '';
+    const topService = services[0];
+    const priceStr = topService ? `от ${topService.price} ₽` : '';
+    updatePageMeta({
+      title: `Запись к ${name}${city ? ` в ${city}` : ''} — SkillSpot`,
+      description: `${category}${topService ? `. ${topService.name} ${priceStr}` : ''}. Отзывы, расписание и онлайн-запись.`,
+      url: window.location.href,
+      image: master.profiles.avatar_url || undefined,
+    });
+  }, [master, services]);
+
   // Auto-open booking from URL param (e.g. from service card "Записаться")
   useEffect(() => {
     const bookServiceId = searchParams.get('book');
