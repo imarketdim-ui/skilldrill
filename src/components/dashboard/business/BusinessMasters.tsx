@@ -10,8 +10,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Users, Search, Loader2, Shield, Briefcase, Wrench, Star, Phone, Mail, MoreVertical, Calendar, Lock } from 'lucide-react';
+import { Plus, Users, Search, Loader2, Shield, Briefcase, Wrench, Star, Phone, Mail, MoreVertical, Calendar, Lock, Link2 } from 'lucide-react';
 import RolePermissionsEditor from './RolePermissionsEditor';
+import BusinessInviteForm from './BusinessInviteForm';
 
 interface Props {
   businessId: string;
@@ -238,6 +239,9 @@ const BusinessMasters = ({ businessId, freeMasters, extraMasterPrice }: Props) =
           <TabsTrigger value="permissions" className="gap-1.5">
             <Lock className="h-3.5 w-3.5" /> Доступы
           </TabsTrigger>
+          <TabsTrigger value="invites" className="gap-1.5">
+            <Link2 className="h-3.5 w-3.5" /> Приглашения
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="staff" className="space-y-6 mt-4">
@@ -374,6 +378,10 @@ const BusinessMasters = ({ businessId, freeMasters, extraMasterPrice }: Props) =
 
         <TabsContent value="permissions" className="mt-4">
           <RolePermissionsEditor businessId={businessId} />
+        </TabsContent>
+
+        <TabsContent value="invites" className="mt-4">
+          <BusinessInviteForm businessId={businessId} />
         </TabsContent>
       </Tabs>
 

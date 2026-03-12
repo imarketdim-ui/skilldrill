@@ -106,7 +106,7 @@ const Catalog = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [showAllTags, setShowAllTags] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "map">("grid");
-  const [visibleCount, setVisibleCount] = useState(24);
+  const [visibleCount, setVisibleCount] = useState(20);
   
   const [synonyms, setSynonyms] = useState<{ term: string; synonyms: string[] }[]>([]);
   const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
@@ -582,7 +582,7 @@ const Catalog = () => {
   const hasMore = visibleCount < currentCount;
 
   // Reset visible count when filters change
-  useEffect(() => { setVisibleCount(24); }, [tab, searchQuery, categoryFilter, locationFilter, selectedTags, priceRange, sortBy]);
+  useEffect(() => { setVisibleCount(20); }, [tab, searchQuery, categoryFilter, locationFilter, selectedTags, priceRange, sortBy]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -982,7 +982,7 @@ const Catalog = () => {
                 <Button
                   variant="outline"
                   size="lg"
-                  onClick={() => setVisibleCount(prev => prev + 24)}
+                  onClick={() => setVisibleCount(prev => prev + 20)}
                 >
                   Показать ещё ({currentCount - visibleCount} осталось)
                 </Button>
