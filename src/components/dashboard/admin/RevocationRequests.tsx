@@ -68,7 +68,7 @@ const RevocationRequests = ({ isSuperAdmin = false }: Props) => {
               await supabase.from('revocation_archive').insert({
                 user_id: req.target_user_id,
                 entity_type: 'master',
-                entity_data: mp,
+                entity_data: mp as any,
                 revocation_request_id: req.id,
               });
               await supabase.from('master_profiles').update({ is_active: false, suspended_at: new Date().toISOString() }).eq('id', entityId);
