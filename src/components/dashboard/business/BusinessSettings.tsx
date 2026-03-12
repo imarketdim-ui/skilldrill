@@ -63,6 +63,7 @@ const BusinessSettings = ({ business, onUpdated }: Props) => {
         address: business.address || '', city: business.city || '', description: business.description || '',
         director_name: business.director_name || '', contact_email: business.contact_email || '',
         contact_phone: business.contact_phone || '',
+        timezone: (business as any).timezone || 'Europe/Moscow',
       });
     }
   }, [business]);
