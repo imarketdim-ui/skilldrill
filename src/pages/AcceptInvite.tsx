@@ -80,7 +80,7 @@ const AcceptInvite = () => {
 
             {status === 'success' && (
               <>
-                <CheckCircle2 className="h-12 w-12 mx-auto text-green-500" />
+                <CheckCircle2 className="h-12 w-12 mx-auto text-primary" />
                 <h2 className="text-xl font-bold">Приглашение принято!</h2>
                 <p className="text-muted-foreground">
                   {message} Организация: <strong>{orgName}</strong>

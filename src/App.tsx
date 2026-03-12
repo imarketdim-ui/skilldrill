@@ -24,6 +24,7 @@ import ForBusiness from "./pages/ForBusiness";
 import CreateOrganization from "./pages/CreateOrganization";
 import Referral from "./pages/Referral";
 import NotFound from "./pages/NotFound";
+import AcceptInvite from "./pages/AcceptInvite";
 
 const queryClient = new QueryClient();
 
@@ -49,6 +50,7 @@ const App = () => (
             <Route path="/about" element={<About />} />
             <Route path="/for-business" element={<ForBusiness />} />
             <Route path="/create-organization" element={<CreateOrganization />} />
+            <Route path="/accept-invite/:token" element={<AcceptInvite />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/offer" element={<Offer />} />
