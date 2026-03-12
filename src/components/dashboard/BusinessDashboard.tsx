@@ -34,7 +34,7 @@ import BusinessWriteOffs from './business/BusinessWriteOffs';
 import BusinessProductSales from './business/BusinessProductSales';
 import TeachingChats from './teaching/TeachingChats';
 import BusinessAnalytics from './business/BusinessAnalytics';
-// Inline notifications for business
+import BusinessOnboardingTour from '../onboarding/BusinessOnboardingTour';
 const BusinessNotifications = () => {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showArchive, setShowArchive] = useState(false);
