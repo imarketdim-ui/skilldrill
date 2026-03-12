@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
+import { updatePageMeta } from '@/lib/seoUtils';
 import { Star, MapPin, ArrowLeft, Users, Clock, MessageSquare, Heart, Share2, Camera } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
