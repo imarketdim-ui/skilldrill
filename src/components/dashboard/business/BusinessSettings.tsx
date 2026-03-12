@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { TIMEZONE_OPTIONS } from '@/hooks/useTimezone';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
