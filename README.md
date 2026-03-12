@@ -1,73 +1,87 @@
-# Welcome to your Lovable project
+# SkillSpot — Маркетплейс услуг
 
-## Project info
+## 🚀 О проекте
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+SkillSpot — это маркетплейс для записи к проверенным специалистам. Платформа поддерживает роли: Клиент, Мастер, Владелец Бизнеса, Менеджер, Администратор.
 
-## How can I edit this code?
+## 🛠 Технологии
 
-There are several ways of editing your application.
+- **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, shadcn/ui
+- **Backend**: Supabase (PostgreSQL, Edge Functions, Auth, Storage)
+- **PWA**: vite-plugin-pwa (Service Workers, offline support)
+- **Charts**: Recharts
+- **Maps**: MapLibre GL
 
-**Use Lovable**
+## 📦 Установка
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
+```bash
 git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
 cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+npm install
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## 🔐 Настройка секретов
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Supabase Edge Function Secrets
 
-**Use GitHub Codespaces**
+Добавьте следующие секреты в [настройках Edge Functions](https://supabase.com/dashboard/project/fttbwjuaaltomksuslyi/settings/functions):
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+| Секрет | Описание | Где получить |
+|--------|----------|--------------|
+| `CRON_SECRET` | Ключ для защиты cron-функций | Сгенерируйте любую строку |
+| `TINKOFF_TERMINAL_KEY` | Ключ терминала Тинькофф | [Личный кабинет Тинькофф](https://business.tinkoff.ru/) → Интернет-эквайринг |
+| `TINKOFF_PASSWORD` | Пароль терминала Тинькофф | Там же, в настройках терминала |
+| `VAPID_PUBLIC_KEY` | Публичный ключ Web Push | Сгенерируйте: `npx web-push generate-vapid-keys` |
+| `VAPID_PRIVATE_KEY` | Приватный ключ Web Push | Сгенерируйте вместе с публичным |
 
-## What technologies are used for this project?
+### GitHub Actions Secrets
 
-This project is built with:
+Для CI/CD в `.github/workflows/main.yml` добавьте в Settings → Secrets:
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+| Секрет | Описание |
+|--------|----------|
+| `VITE_SUPABASE_URL` | URL вашего Supabase проекта |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Anon ключ Supabase |
+| `SUPABASE_PROJECT_REF` | Reference ID проекта (e.g. `fttbwjuaaltomksuslyi`) |
+| `SUPABASE_ACCESS_TOKEN` | [Access Token](https://supabase.com/dashboard/account/tokens) |
 
-## How can I deploy this project?
+## 🧪 Тестирование
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+```bash
+npm test          # Запуск unit-тестов
+npm run lint      # Линтинг
+```
 
-## Can I connect a custom domain to my Lovable project?
+Стресс-тестирование доступно по маршруту `/admin/stress-test` (требует авторизации).
 
-Yes, you can!
+## 📱 PWA
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+Приложение устанавливается как PWA на мобильные устройства. Настройки манифеста — в `vite.config.ts`.
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+## 🏗 Структура проекта
+
+```
+src/
+  components/
+    dashboard/      # Компоненты личных кабинетов
+    landing/        # Лендинг
+    marketplace/    # Каталог и карточки
+    ui/             # shadcn/ui компоненты
+    onboarding/     # Онбординг тур
+  hooks/            # React хуки
+  pages/            # Страницы (маршруты)
+  lib/              # Утилиты (поиск, SEO, storage)
+  integrations/     # Supabase клиент и типы
+supabase/
+  functions/        # Edge Functions
+  migrations/       # SQL миграции
+```
+
+## 🌍 Деплой
+
+Через [Lovable](https://lovable.dev) → Share → Publish, или настройте CI/CD через GitHub Actions.
+
+## 📄 Лицензия
+
+Proprietary. All rights reserved.

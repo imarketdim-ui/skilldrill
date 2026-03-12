@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import ScrollToTop from "@/components/ScrollToTop";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -26,44 +27,48 @@ import CreateOrganization from "./pages/CreateOrganization";
 import Referral from "./pages/Referral";
 import NotFound from "./pages/NotFound";
 import AcceptInvite from "./pages/AcceptInvite";
+import StressTest from "./pages/StressTest";
 
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <ScrollToTop />
-          <Routes>
-            <Route path="/" element={<Catalog />} />
-            <Route path="/catalog" element={<Catalog />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/request-role" element={<RequestRole />} />
-            <Route path="/create-account" element={<CreateBusinessAccount />} />
-            <Route path="/master/:masterId" element={<MasterDetail />} />
-            <Route path="/business/:businessId" element={<BusinessDetail />} />
-            <Route path="/subscription" element={<Subscription />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/for-business" element={<ForBusiness />} />
-            <Route path="/create-organization" element={<CreateOrganization />} />
-            <Route path="/accept-invite/:token" element={<AcceptInvite />} />
-            <Route path="/privacy" element={<Privacy />} />
-            <Route path="/terms" element={<Terms />} />
-            <Route path="/offer" element={<Offer />} />
-            <Route path="/contacts" element={<Contacts />} />
-            <Route path="/referral" element={<Referral />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-          <PWAInstallPrompt />
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
-  </QueryClientProvider>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <ScrollToTop />
+            <Routes>
+              <Route path="/" element={<Catalog />} />
+              <Route path="/catalog" element={<Catalog />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/request-role" element={<RequestRole />} />
+              <Route path="/create-account" element={<CreateBusinessAccount />} />
+              <Route path="/master/:masterId" element={<MasterDetail />} />
+              <Route path="/business/:businessId" element={<BusinessDetail />} />
+              <Route path="/subscription" element={<Subscription />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/for-business" element={<ForBusiness />} />
+              <Route path="/create-organization" element={<CreateOrganization />} />
+              <Route path="/accept-invite/:token" element={<AcceptInvite />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/terms" element={<Terms />} />
+              <Route path="/offer" element={<Offer />} />
+              <Route path="/contacts" element={<Contacts />} />
+              <Route path="/referral" element={<Referral />} />
+              <Route path="/admin/stress-test" element={<StressTest />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+            <PWAInstallPrompt />
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;

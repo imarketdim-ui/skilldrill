@@ -34,7 +34,7 @@ import BusinessWriteOffs from './business/BusinessWriteOffs';
 import BusinessProductSales from './business/BusinessProductSales';
 import TeachingChats from './teaching/TeachingChats';
 import BusinessAnalytics from './business/BusinessAnalytics';
-// Inline notifications for business
+import BusinessOnboardingTour from '../onboarding/BusinessOnboardingTour';
 const BusinessNotifications = () => {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showArchive, setShowArchive] = useState(false);
@@ -344,6 +344,7 @@ const BusinessDashboard = () => {
       case 'overview':
         return (
           <div className="space-y-6">
+            <BusinessOnboardingTour onNavigate={setActiveSection} />
             {!canActivate && selectedBusiness && (
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />

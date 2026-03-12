@@ -1676,6 +1676,7 @@ export type Database = {
           city: string | null
           created_at: string
           description: string | null
+          fts: unknown
           grace_start_date: string | null
           hashtags: string[] | null
           id: string
@@ -1713,6 +1714,7 @@ export type Database = {
           city?: string | null
           created_at?: string
           description?: string | null
+          fts?: unknown
           grace_start_date?: string | null
           hashtags?: string[] | null
           id?: string
@@ -1750,6 +1752,7 @@ export type Database = {
           city?: string | null
           created_at?: string
           description?: string | null
+          fts?: unknown
           grace_start_date?: string | null
           hashtags?: string[] | null
           id?: string
@@ -3522,6 +3525,7 @@ export type Database = {
           created_at: string
           description: string | null
           duration_minutes: number | null
+          fts: unknown
           hashtags: string[] | null
           id: string
           is_active: boolean
@@ -3539,6 +3543,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           duration_minutes?: number | null
+          fts?: unknown
           hashtags?: string[] | null
           id?: string
           is_active?: boolean
@@ -3556,6 +3561,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           duration_minutes?: number | null
+          fts?: unknown
           hashtags?: string[] | null
           id?: string
           is_active?: boolean
