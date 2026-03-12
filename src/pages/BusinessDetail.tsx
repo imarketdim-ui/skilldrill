@@ -91,6 +91,18 @@ const BusinessDetail = () => {
     fetch();
   }, [businessId, user]);
 
+  // Dynamic SEO meta tags
+  useEffect(() => {
+    if (!business) return;
+    const topService = services[0];
+    const priceStr = topService ? `от ${topService.price} ₽` : '';
+    updatePageMeta({
+      title: `${business.name}${business.city ? ` в ${business.city}` : ''} — SkillSpot`,
+      description: `${business.description || business.name}${topService ? `. ${topService.name} ${priceStr}` : ''}. Онлайн-запись.`,
+      url: window.location.href,
+    });
+  }, [business, services]);
+
   useEffect(() => {
     if (!mapOpen || !mapRef.current || !business?.latitude || !business?.longitude) return;
     const map = new maplibregl.Map({
