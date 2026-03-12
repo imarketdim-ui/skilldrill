@@ -379,6 +379,10 @@ const BusinessMasters = ({ businessId, freeMasters, extraMasterPrice }: Props) =
         <TabsContent value="permissions" className="mt-4">
           <RolePermissionsEditor businessId={businessId} />
         </TabsContent>
+
+        <TabsContent value="invites" className="mt-4">
+          <BusinessInviteForm businessId={businessId} />
+        </TabsContent>
       </Tabs>
 
       {/* Invite dialog */}
