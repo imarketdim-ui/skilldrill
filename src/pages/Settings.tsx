@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Loader2, Camera } from 'lucide-react';
+import PushNotificationToggle from '@/components/dashboard/PushNotificationToggle';
 import { z } from 'zod';
 
 const profileSchema = z.object({
