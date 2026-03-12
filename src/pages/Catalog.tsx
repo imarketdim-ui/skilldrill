@@ -582,7 +582,7 @@ const Catalog = () => {
   const hasMore = visibleCount < currentCount;
 
   // Reset visible count when filters change
-  useEffect(() => { setVisibleCount(24); }, [tab, searchQuery, categoryFilter, locationFilter, selectedTags, priceRange, sortBy]);
+  useEffect(() => { setVisibleCount(20); }, [tab, searchQuery, categoryFilter, locationFilter, selectedTags, priceRange, sortBy]);
 
   return (
     <div className="min-h-screen bg-background">
