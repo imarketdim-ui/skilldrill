@@ -104,7 +104,7 @@ export const loadSynonyms = async (): Promise<SynonymEntry[]> => {
   synonymLoadPromise = (async () => {
     let dbSynonyms: SynonymEntry[] = [];
     try {
-      const { supabase } = await import('@/integrations/supabase/client');
+      const { supabase } = await import(/* @vite-ignore */ '@/integrations/supabase/client');
       const { data } = await supabase.from('search_synonyms').select('term, synonyms');
       dbSynonyms = (data || []) as SynonymEntry[];
     } catch {
