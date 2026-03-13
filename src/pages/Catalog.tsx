@@ -176,7 +176,14 @@ const Catalog = () => {
         query = query.eq("category_id", categoryFilter);
       }
 
-      const { data } = await query.limit(500);
+      // Server-side FTS
+      if (searchQuery.trim()) {
+        const variants = getSearchVariants(searchQuery);
+        const ftsQuery = variants.map(v => v.replace(/\s+/g, ' & ')).join(' | ');
+        query = query.textSearch("fts", ftsQuery, { type: "websearch", config: "russian" });
+      }
+
+      const { data } = await query.range(0, visibleCount + 20 - 1);
 
       // Fetch services for all masters in parallel
       const userIds = (data || []).map((mp: any) => mp.user_id);
