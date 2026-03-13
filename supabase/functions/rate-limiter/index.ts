@@ -1,19 +1,12 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+const ALLOWED_ORIGIN = "https://skilldrill.lovable.app";
+
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
-
-/**
- * Rate limiter edge function.
- * Called from client before sensitive operations (booking, dispute, message).
- * Checks a sliding-window counter in the rate_limits table.
- *
- * POST body: { action: string }
- * Returns: { allowed: boolean, remaining: number, reset_at: string }
- */
 
 const LIMITS: Record<string, { max: number; window_seconds: number }> = {
   create_booking: { max: 10, window_seconds: 3600 },
@@ -33,7 +26,6 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Auth check
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -62,7 +54,6 @@ Deno.serve(async (req) => {
       Date.now() + config.window_seconds * 1000
     ).toISOString();
 
-    // Count recent actions
     const { count } = await supabase
       .from("rate_limits")
       .select("*", { count: "exact", head: true })
@@ -74,7 +65,6 @@ Deno.serve(async (req) => {
     const allowed = currentCount < config.max;
 
     if (allowed) {
-      // Record this action
       await supabase
         .from("rate_limits")
         .insert({ user_id: user.id, action });

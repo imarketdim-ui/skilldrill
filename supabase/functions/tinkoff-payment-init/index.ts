@@ -1,8 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+const ALLOWED_ORIGIN = "https://skilldrill.lovable.app";
+
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
@@ -33,7 +35,6 @@ serve(async (req) => {
     const { booking_id } = await req.json();
     if (!booking_id) throw new Error('booking_id is required');
 
-    // Fetch booking with service price
     const { data: booking, error: bErr } = await supabase
       .from('bookings')
       .select('*, services(name, price)')
@@ -44,22 +45,18 @@ serve(async (req) => {
     if (bErr || !booking) throw new Error('Booking not found or access denied');
     if (booking.is_paid) throw new Error('Booking is already paid');
 
-    const amount = Math.round((booking.services?.price || 0) * 100); // kopeks
+    const amount = Math.round((booking.services?.price || 0) * 100);
     if (amount <= 0) throw new Error('Invalid amount');
 
     const orderId = `booking_${booking_id}_${Date.now()}`;
 
-    // Build Tinkoff Init request
-    // Token = SHA-256 of sorted params concatenated values  
     const params: Record<string, string> = {
       TerminalKey: TERMINAL_KEY,
       Amount: String(amount),
       OrderId: orderId,
       Description: `Оплата услуги: ${booking.services?.name || 'Услуга'}`,
-      // NotificationURL is set in Tinkoff dashboard, but can also be sent here
     };
 
-    // Generate token: sort keys, concat Password + values, SHA-256
     const tokenParams = { ...params, Password: TERMINAL_PASSWORD };
     const sortedKeys = Object.keys(tokenParams).sort();
     const tokenString = sortedKeys.map(k => tokenParams[k]).join('');
@@ -84,7 +81,6 @@ serve(async (req) => {
       throw new Error(`Tinkoff error: ${tinkoffData.Message || tinkoffData.Details || 'Unknown'}`);
     }
 
-    // Save payment_id to booking
     await supabase
       .from('bookings')
       .update({ payment_id: tinkoffData.PaymentId })
@@ -99,7 +95,6 @@ serve(async (req) => {
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    console.error('tinkoff-payment-init error:', message);
     return new Response(JSON.stringify({ success: false, error: message }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
