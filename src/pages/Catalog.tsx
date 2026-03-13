@@ -228,7 +228,7 @@ const Catalog = () => {
       setIsLoading(false);
     };
     fetchMasters();
-  }, [categoryFilter]);
+  }, [categoryFilter, searchQuery, visibleCount]);
 
   // Fetch businesses (with category + counts)
   useEffect(() => {
