@@ -414,19 +414,10 @@ const Catalog = () => {
     );
   };
 
-  // Filter masters
+  // Filter masters (search is now server-side via FTS)
   const filteredMasters = useMemo(() => {
     return masters
       .filter((m) => {
-        if (searchQuery) {
-          const match =
-            fuzzyMatch(m.name, searchQuery, synonyms) ||
-            fuzzyMatch(m.bio || "", searchQuery, synonyms) ||
-            fuzzyMatch(m.location || "", searchQuery, synonyms) ||
-            fuzzyMatch(m.category_name || "", searchQuery, synonyms) ||
-            (m.hashtags || []).some((h) => fuzzyMatch(h, searchQuery, synonyms));
-          if (!match) return false;
-        }
         if (m.min_price != null) {
           if (m.min_price < priceRange[0] || m.min_price > priceRange[1]) return false;
         }
