@@ -445,7 +445,7 @@ const Catalog = () => {
           default: return 0;
         }
       });
-  }, [masters, searchQuery, priceRange, selectedTags, sortBy, locationFilter, synonyms, userLocation]);
+  }, [masters, priceRange, selectedTags, sortBy, locationFilter, userLocation]);
 
   // Filter businesses
   const filteredBusinesses = useMemo(() => {
