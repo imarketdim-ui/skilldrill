@@ -1,8 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+const ALLOWED_ORIGIN = "https://skilldrill.lovable.app";
+
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
@@ -18,13 +20,11 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    console.log('Tinkoff webhook received:', JSON.stringify(body));
 
     // Verify token
     const receivedToken = body.Token;
     const paramsForToken: Record<string, string> = {};
     
-    // Include all fields except Token for verification
     for (const [key, value] of Object.entries(body)) {
       if (key === 'Token' || typeof value === 'object') continue;
       paramsForToken[key] = String(value);
@@ -38,7 +38,6 @@ serve(async (req) => {
     const expectedToken = Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
 
     if (receivedToken !== expectedToken) {
-      console.error('Token mismatch. Expected:', expectedToken, 'Received:', receivedToken);
       throw new Error('Invalid token');
     }
 
@@ -50,7 +49,6 @@ serve(async (req) => {
     const paymentId = String(body.PaymentId);
     const status = body.Status;
 
-    // Find booking by payment_id
     const { data: booking, error: findErr } = await supabase
       .from('bookings')
       .select('id, client_id, executor_id, service_id')
@@ -58,19 +56,15 @@ serve(async (req) => {
       .maybeSingle();
 
     if (findErr || !booking) {
-      console.error('Booking not found for payment_id:', paymentId);
-      // Return OK to Tinkoff to stop retries
       return new Response('OK', { headers: corsHeaders });
     }
 
     if (status === 'CONFIRMED') {
-      // Payment successful
       await supabase
         .from('bookings')
         .update({ is_paid: true, status: 'confirmed' })
         .eq('id', booking.id);
 
-      // Notify client
       await supabase.from('notifications').insert({
         user_id: booking.client_id,
         type: 'payment_success',
@@ -79,7 +73,6 @@ serve(async (req) => {
         related_id: booking.id,
       });
 
-      // Notify master
       await supabase.from('notifications').insert({
         user_id: booking.executor_id,
         type: 'payment_received',
@@ -87,10 +80,7 @@ serve(async (req) => {
         message: 'Клиент оплатил запись.',
         related_id: booking.id,
       });
-
-      console.log('Payment confirmed for booking:', booking.id);
     } else if (status === 'REJECTED' || status === 'CANCELED') {
-      // Payment failed — keep booking, allow retry
       await supabase.from('notifications').insert({
         user_id: booking.client_id,
         type: 'payment_failed',
@@ -98,16 +88,11 @@ serve(async (req) => {
         message: 'Попробуйте оплатить снова из Личного кабинета.',
         related_id: booking.id,
       });
-
-      console.log('Payment failed for booking:', booking.id, 'Status:', status);
     }
 
-    // Tinkoff expects "OK" response
     return new Response('OK', { headers: corsHeaders });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    console.error('tinkoff-webhook error:', message);
     return new Response('OK', { headers: corsHeaders });
   }
 });
-

@@ -71,7 +71,7 @@ const sortOptions = [
   { value: "newest", label: "Новинки" },
 ];
 
-import { fuzzyMatch, loadSynonyms, haversineDistance } from '@/lib/searchUtils';
+import { haversineDistance, getSearchVariants } from '@/lib/searchUtils';
 
 const parseFiltersFromURL = (params: URLSearchParams) => ({
   searchQuery: params.get("q") || "",
@@ -108,7 +108,6 @@ const Catalog = () => {
   const [viewMode, setViewMode] = useState<"grid" | "map">("grid");
   const [visibleCount, setVisibleCount] = useState(20);
   
-  const [synonyms, setSynonyms] = useState<{ term: string; synonyms: string[] }[]>([]);
   const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
 
   const [citySearch, setCitySearch] = useState("");
@@ -139,9 +138,8 @@ const Catalog = () => {
 
   useEffect(() => { syncURL(); }, [syncURL]);
 
-  // Load synonyms + user geolocation
+  // Load user geolocation
   useEffect(() => {
-    loadSynonyms().then(setSynonyms);
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => setUserLocation({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
@@ -178,7 +176,14 @@ const Catalog = () => {
         query = query.eq("category_id", categoryFilter);
       }
 
-      const { data } = await query.limit(500);
+      // Server-side FTS
+      if (searchQuery.trim()) {
+        const variants = getSearchVariants(searchQuery);
+        const ftsQuery = variants.map(v => v.replace(/\s+/g, ' & ')).join(' | ');
+        query = query.textSearch("fts", ftsQuery, { type: "websearch", config: "russian" });
+      }
+
+      const { data } = await query.range(0, visibleCount + 20 - 1);
 
       // Fetch services for all masters in parallel
       const userIds = (data || []).map((mp: any) => mp.user_id);
@@ -223,7 +228,7 @@ const Catalog = () => {
       setIsLoading(false);
     };
     fetchMasters();
-  }, [categoryFilter]);
+  }, [categoryFilter, searchQuery, visibleCount]);
 
   // Fetch businesses (with category + counts)
   useEffect(() => {
@@ -318,14 +323,22 @@ const Catalog = () => {
   useEffect(() => {
     const fetchServices = async () => {
       // services.master_id -> profiles.id
-      const { data } = await supabase
+      let svcQuery = supabase
         .from("services")
         .select(`
           id, name, price, duration_minutes, work_photos, hashtags, is_active, master_id, organization_id,
           profiles!services_master_id_fkey(first_name, last_name, avatar_url)
         `)
-        .eq("is_active", true)
-        .limit(200);
+        .eq("is_active", true);
+
+      // Server-side FTS for services
+      if (searchQuery.trim()) {
+        const variants = getSearchVariants(searchQuery);
+        const ftsQuery = variants.map(v => v.replace(/\s+/g, ' & ')).join(' | ');
+        svcQuery = svcQuery.textSearch("fts", ftsQuery, { type: "websearch", config: "russian" });
+      }
+
+      const { data } = await svcQuery.range(0, visibleCount + 20 - 1);
 
       if (!data || data.length === 0) { setServices([]); return; }
 
@@ -386,7 +399,7 @@ const Catalog = () => {
       setServices(mapped);
     };
     fetchServices();
-  }, []);
+  }, [searchQuery, visibleCount]);
 
   // Available hashtags
   const availableTags = useMemo(() => {
@@ -401,19 +414,10 @@ const Catalog = () => {
     );
   };
 
-  // Filter masters
+  // Filter masters (search is now server-side via FTS)
   const filteredMasters = useMemo(() => {
     return masters
       .filter((m) => {
-        if (searchQuery) {
-          const match =
-            fuzzyMatch(m.name, searchQuery, synonyms) ||
-            fuzzyMatch(m.bio || "", searchQuery, synonyms) ||
-            fuzzyMatch(m.location || "", searchQuery, synonyms) ||
-            fuzzyMatch(m.category_name || "", searchQuery, synonyms) ||
-            (m.hashtags || []).some((h) => fuzzyMatch(h, searchQuery, synonyms));
-          if (!match) return false;
-        }
         if (m.min_price != null) {
           if (m.min_price < priceRange[0] || m.min_price > priceRange[1]) return false;
         }
@@ -441,18 +445,18 @@ const Catalog = () => {
           default: return 0;
         }
       });
-  }, [masters, searchQuery, priceRange, selectedTags, sortBy, locationFilter, synonyms, userLocation]);
+  }, [masters, priceRange, selectedTags, sortBy, locationFilter, userLocation]);
 
-  // Filter businesses
+  // Filter businesses (basic client-side filter since no FTS on business_locations)
   const filteredBusinesses = useMemo(() => {
     return businesses
       .filter((b) => {
         if (searchQuery) {
+          const q = searchQuery.toLowerCase();
           const match =
-            fuzzyMatch(b.name, searchQuery, synonyms) ||
-            fuzzyMatch(b.description || "", searchQuery, synonyms) ||
-            fuzzyMatch(b.address || "", searchQuery, synonyms) ||
-            fuzzyMatch(b.category_name || "", searchQuery, synonyms);
+            (b.name || "").toLowerCase().includes(q) ||
+            (b.description || "").toLowerCase().includes(q) ||
+            (b.category_name || "").toLowerCase().includes(q);
           if (!match) return false;
         }
         if (categoryFilter !== CATEGORY_ALL) {
@@ -472,20 +476,12 @@ const Catalog = () => {
         }
         return 0;
       });
-  }, [businesses, searchQuery, categoryFilter, locationFilter, synonyms, sortBy, userLocation]);
+  }, [businesses, searchQuery, categoryFilter, locationFilter, sortBy, userLocation]);
 
-  // Filter services
+  // Filter services (search is now server-side via FTS)
   const filteredServices = useMemo(() => {
     return services
       .filter((s) => {
-        if (searchQuery) {
-          const match =
-            fuzzyMatch(s.name, searchQuery, synonyms) ||
-            fuzzyMatch(s.master_name, searchQuery, synonyms) ||
-            fuzzyMatch(s.category_name || "", searchQuery, synonyms) ||
-            fuzzyMatch(s.master_location || "", searchQuery, synonyms);
-          if (!match) return false;
-        }
         if (s.price != null) {
           if (s.price < priceRange[0] || s.price > priceRange[1]) return false;
         }
@@ -511,7 +507,7 @@ const Catalog = () => {
           default: return 0;
         }
       });
-  }, [services, searchQuery, priceRange, sortBy, categoryFilter, categories, selectedTags, locationFilter, synonyms]);
+  }, [services, priceRange, sortBy, categoryFilter, categories, selectedTags, locationFilter, searchQuery]);
 
   const activeFiltersCount = [
     priceRange[0] > 0 || priceRange[1] < 50000,

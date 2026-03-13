@@ -1,27 +1,9 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-/**
- * Recalculate user ratings Edge Function
- * 
- * Schedule: Run every hour via pg_cron
- * 
- * Cron setup (run in Supabase SQL Editor):
- * 
- * SELECT cron.schedule(
- *   'recalculate-ratings-hourly',
- *   '0 * * * *',
- *   $$
- *   SELECT net.http_post(
- *     url := 'https://fttbwjuaaltomksuslyi.supabase.co/functions/v1/recalculate-ratings',
- *     headers := '{"Content-Type": "application/json", "x-cron-secret": "YOUR_CRON_SECRET"}'::jsonb,
- *     body := '{}'::jsonb
- *   ) AS request_id;
- *   $$
- * );
- */
+const ALLOWED_ORIGIN = "https://skilldrill.lovable.app";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
@@ -45,7 +27,6 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
-    // Get users with recent activity (bookings in last 30 days or new accounts)
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
     
     const { data: activeUserIds } = await supabase
@@ -70,7 +51,6 @@ Deno.serve(async (req) => {
           })
           if (calcError) {
             errors++
-            console.error(`Error calculating score for ${userId}:`, calcError.message)
           } else {
             processed++
           }
@@ -89,7 +69,6 @@ Deno.serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (err) {
-    console.error('Recalculate ratings error:', err)
     return new Response(
       JSON.stringify({ success: false, error: String(err) }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

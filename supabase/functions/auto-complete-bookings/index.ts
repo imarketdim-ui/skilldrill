@@ -1,27 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-/**
- * Auto-complete bookings Edge Function
- * 
- * Schedule: Run every hour via pg_cron
- * 
- * Cron setup (run in Supabase SQL Editor):
- * 
- * SELECT cron.schedule(
- *   'auto-complete-bookings-hourly',
- *   '0 * * * *',
- *   $$
- *   SELECT net.http_post(
- *     url := 'https://fttbwjuaaltomksuslyi.supabase.co/functions/v1/auto-complete-bookings',
- *     headers := '{"Content-Type": "application/json", "x-cron-secret": "YOUR_CRON_SECRET"}'::jsonb,
- *     body := '{}'::jsonb
- *   ) AS request_id;
- *   $$
- * );
- */
+const ALLOWED_ORIGIN = "https://skilldrill.lovable.app";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
@@ -45,7 +27,6 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Auto-complete bookings that ended more than 24 hours ago and are still confirmed/in_progress
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
     const { data: bookings, error: fetchError } = await supabase
@@ -65,7 +46,6 @@ Deno.serve(async (req) => {
         new Date(booking.scheduled_at).getTime() +
           (booking.duration_minutes || 60) * 60000
       );
-      // Only complete if end time was > 24h ago
       if (endTime.getTime() < Date.now() - 24 * 60 * 60 * 1000) {
         const { error } = await supabase
           .from("bookings")
@@ -74,10 +54,8 @@ Deno.serve(async (req) => {
 
         if (error) {
           errors++;
-          console.error(`Failed to complete booking ${booking.id}:`, error.message);
         } else {
           completed++;
-          // Notify client
           await supabase.from("notifications").insert({
             user_id: booking.client_id,
             type: "booking_completed",
@@ -85,7 +63,6 @@ Deno.serve(async (req) => {
             message: "Ваша запись была автоматически завершена. Если возникли проблемы, вы можете открыть спор.",
             related_id: booking.id,
           });
-          // Notify executor
           await supabase.from("notifications").insert({
             user_id: booking.executor_id,
             type: "booking_completed",
@@ -117,7 +94,6 @@ Deno.serve(async (req) => {
         const serviceName = (b as any).services?.name || "Услуга";
         const timeLabel = mins >= 60 ? `${Math.floor(mins / 60)} ч` : `${mins} мин`;
 
-        // Check if reminder already sent
         const { data: existing } = await supabase
           .from("notifications")
           .select("id")
@@ -151,7 +127,6 @@ Deno.serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
-    console.error("auto-complete-bookings error:", err);
     return new Response(JSON.stringify({ error: (err as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
