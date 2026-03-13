@@ -138,9 +138,8 @@ const Catalog = () => {
 
   useEffect(() => { syncURL(); }, [syncURL]);
 
-  // Load synonyms + user geolocation
+  // Load user geolocation
   useEffect(() => {
-    loadSynonyms().then(setSynonyms);
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => setUserLocation({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
