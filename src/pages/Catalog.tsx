@@ -447,16 +447,16 @@ const Catalog = () => {
       });
   }, [masters, priceRange, selectedTags, sortBy, locationFilter, userLocation]);
 
-  // Filter businesses
+  // Filter businesses (basic client-side filter since no FTS on business_locations)
   const filteredBusinesses = useMemo(() => {
     return businesses
       .filter((b) => {
         if (searchQuery) {
+          const q = searchQuery.toLowerCase();
           const match =
-            fuzzyMatch(b.name, searchQuery, synonyms) ||
-            fuzzyMatch(b.description || "", searchQuery, synonyms) ||
-            fuzzyMatch(b.address || "", searchQuery, synonyms) ||
-            fuzzyMatch(b.category_name || "", searchQuery, synonyms);
+            (b.name || "").toLowerCase().includes(q) ||
+            (b.description || "").toLowerCase().includes(q) ||
+            (b.category_name || "").toLowerCase().includes(q);
           if (!match) return false;
         }
         if (categoryFilter !== CATEGORY_ALL) {
