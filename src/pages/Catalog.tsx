@@ -476,7 +476,7 @@ const Catalog = () => {
         }
         return 0;
       });
-  }, [businesses, searchQuery, categoryFilter, locationFilter, synonyms, sortBy, userLocation]);
+  }, [businesses, searchQuery, categoryFilter, locationFilter, sortBy, userLocation]);
 
   // Filter services
   const filteredServices = useMemo(() => {
