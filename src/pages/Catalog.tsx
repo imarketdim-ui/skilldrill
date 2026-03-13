@@ -399,7 +399,7 @@ const Catalog = () => {
       setServices(mapped);
     };
     fetchServices();
-  }, []);
+  }, [searchQuery, visibleCount]);
 
   // Available hashtags
   const availableTags = useMemo(() => {
