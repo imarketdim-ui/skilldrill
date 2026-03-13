@@ -108,7 +108,6 @@ const Catalog = () => {
   const [viewMode, setViewMode] = useState<"grid" | "map">("grid");
   const [visibleCount, setVisibleCount] = useState(20);
   
-  const [synonyms, setSynonyms] = useState<{ term: string; synonyms: string[] }[]>([]);
   const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
 
   const [citySearch, setCitySearch] = useState("");
