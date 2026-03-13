@@ -478,18 +478,10 @@ const Catalog = () => {
       });
   }, [businesses, searchQuery, categoryFilter, locationFilter, sortBy, userLocation]);
 
-  // Filter services
+  // Filter services (search is now server-side via FTS)
   const filteredServices = useMemo(() => {
     return services
       .filter((s) => {
-        if (searchQuery) {
-          const match =
-            fuzzyMatch(s.name, searchQuery, synonyms) ||
-            fuzzyMatch(s.master_name, searchQuery, synonyms) ||
-            fuzzyMatch(s.category_name || "", searchQuery, synonyms) ||
-            fuzzyMatch(s.master_location || "", searchQuery, synonyms);
-          if (!match) return false;
-        }
         if (s.price != null) {
           if (s.price < priceRange[0] || s.price > priceRange[1]) return false;
         }
