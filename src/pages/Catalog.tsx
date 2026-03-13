@@ -507,7 +507,7 @@ const Catalog = () => {
           default: return 0;
         }
       });
-  }, [services, searchQuery, priceRange, sortBy, categoryFilter, categories, selectedTags, locationFilter, synonyms]);
+  }, [services, priceRange, sortBy, categoryFilter, categories, selectedTags, locationFilter, searchQuery]);
 
   const activeFiltersCount = [
     priceRange[0] > 0 || priceRange[1] < 50000,
