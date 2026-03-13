@@ -323,14 +323,22 @@ const Catalog = () => {
   useEffect(() => {
     const fetchServices = async () => {
       // services.master_id -> profiles.id
-      const { data } = await supabase
+      let svcQuery = supabase
         .from("services")
         .select(`
           id, name, price, duration_minutes, work_photos, hashtags, is_active, master_id, organization_id,
           profiles!services_master_id_fkey(first_name, last_name, avatar_url)
         `)
-        .eq("is_active", true)
-        .limit(200);
+        .eq("is_active", true);
+
+      // Server-side FTS for services
+      if (searchQuery.trim()) {
+        const variants = getSearchVariants(searchQuery);
+        const ftsQuery = variants.map(v => v.replace(/\s+/g, ' & ')).join(' | ');
+        svcQuery = svcQuery.textSearch("fts", ftsQuery, { type: "websearch", config: "russian" });
+      }
+
+      const { data } = await svcQuery.range(0, visibleCount + 20 - 1);
 
       if (!data || data.length === 0) { setServices([]); return; }
 
