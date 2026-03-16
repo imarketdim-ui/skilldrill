@@ -55,6 +55,22 @@ const TeachingChats = () => {
   useEffect(() => { if (user) { fetchContacts(); fetchGroups(); } }, [user]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
+  // Listen for open-chat-with event to auto-open a specific chat
+  useEffect(() => {
+    const handler = async (e: CustomEvent) => {
+      const contactId = e.detail;
+      if (!contactId || !user) return;
+      // Wait for contacts to load, then find and open
+      const { data: profile } = await supabase.from('profiles').select('id, first_name, last_name, email').eq('id', contactId).maybeSingle();
+      if (profile) {
+        const contact: ChatContact = { id: profile.id, first_name: profile.first_name, last_name: profile.last_name, email: profile.email, unread: 0 };
+        openChat(contact);
+      }
+    };
+    window.addEventListener('open-chat-with', handler as EventListener);
+    return () => window.removeEventListener('open-chat-with', handler as EventListener);
+  }, [user]);
+
   useEffect(() => {
     if (!user) return;
     const channel = supabase
