@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import SubscriptionPaywall from '../SubscriptionPaywall';
 import SectionHub from '../SectionHub';
 import UniversalDashboardHome from './UniversalDashboardHome';
@@ -25,6 +26,7 @@ import SupportChat from '../SupportChat';
 import BusinessMarketing from '../business/BusinessMarketing';
 import { CategoryConfig } from './categoryConfig';
 import MasterProfileEditor from './MasterProfileEditor';
+import MasterProfileView from './MasterProfileView';
 
 // Inline notifications component
 const MasterNotifications = () => {
@@ -133,7 +135,7 @@ interface Props {
 
 const mainItems = [
   { key: 'home', label: 'Главная', icon: LayoutDashboard, description: 'Обзор и быстрые действия' },
-  { key: 'profile', label: 'Профиль', icon: UserCog, description: 'Редактирование профиля' },
+  { key: 'profile', label: 'Профиль', icon: UserCog, description: 'Просмотр и редактирование профиля' },
   { key: 'notifications', label: 'Уведомления', icon: Bell, description: 'Все уведомления' },
 ];
 
@@ -157,10 +159,15 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
   const { profile } = useAuth();
   const [activeSection, setActiveSection] = useState('home');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [profileEditorOpen, setProfileEditorOpen] = useState(false);
 
   useEffect(() => {
     const handler = (e: CustomEvent) => {
-      if (e.detail) setActiveSection(e.detail);
+      if (e.detail === 'profile') {
+        setActiveSection('profile');
+      } else if (e.detail) {
+        setActiveSection(e.detail);
+      }
     };
     window.addEventListener('navigate-dashboard', handler as EventListener);
     return () => window.removeEventListener('navigate-dashboard', handler as EventListener);
@@ -185,7 +192,14 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
       );
     }
     switch (activeSection) {
-      case 'profile': return <MasterProfileEditor masterProfile={masterProfile} config={config} />;
+      case 'profile': return (
+        <MasterProfileView
+          masterProfile={masterProfile}
+          profile={profile}
+          config={config}
+          onEditClick={() => setProfileEditorOpen(true)}
+        />
+      );
       case 'crm': return (
         <SectionHub
           title="CRM"
@@ -204,7 +218,13 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
       );
       case 'schedule': return <UniversalSchedule config={config} />;
       case 'services': return <UniversalServices config={config} />;
-      case 'clients': return <UniversalClients config={config} />;
+      case 'clients': return <UniversalClients config={config} onNavigateToChat={(contactId) => {
+        setActiveSection('chats');
+        // Dispatch event to open specific chat
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('open-chat-with', { detail: contactId }));
+        }, 100);
+      }} />;
       case 'finances': return <UniversalFinances config={config} masterProfile={masterProfile} />;
       case 'chats': return (
         <Card>
@@ -267,88 +287,107 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
   };
 
   return (
-    <div className="flex flex-col lg:flex-row lg:gap-6 w-full overflow-hidden">
-      {isReadOnly && (
-        <div className="w-full bg-destructive/10 border border-destructive/20 rounded-lg p-4 mb-4 flex items-center gap-3 lg:hidden">
-          <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
-          <div className="flex-1">
-            <p className="text-sm font-medium">Подписка истекла</p>
-            <p className="text-xs text-muted-foreground">Доступ ограничен. Оплатите подписку для полного доступа.</p>
-          </div>
-          <Button size="sm" variant="destructive" onClick={() => setActiveSection('finances')}>Оплатить</Button>
-        </div>
-      )}
-
-      <aside className={`hidden lg:flex flex-col shrink-0 sticky top-20 self-start h-[calc(100vh-6rem)] transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-60'}`}>
-        <div className="flex items-center gap-3 px-3 pb-4 border-b mb-2">
-          {!sidebarCollapsed && (
-            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
-              <IconComponent className="h-5 w-5 text-primary-foreground" />
+    <>
+      <div className="flex flex-col lg:flex-row lg:gap-6 w-full overflow-hidden">
+        {isReadOnly && (
+          <div className="w-full bg-destructive/10 border border-destructive/20 rounded-lg p-4 mb-4 flex items-center gap-3 lg:hidden">
+            <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium">Подписка истекла</p>
+              <p className="text-xs text-muted-foreground">Доступ ограничен. Оплатите подписку для полного доступа.</p>
             </div>
-          )}
-          {!sidebarCollapsed && (
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm truncate">
-                {masterProfile?.service_categories?.name || config.label}
-              </p>
-              <p className="text-xs text-muted-foreground">{config.label}</p>
-            </div>
-          )}
-          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>
-            {sidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-          </Button>
-        </div>
-        {isReadOnly && !sidebarCollapsed && (
-          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 mb-4 mx-1">
-            <p className="text-xs font-medium text-destructive">Подписка истекла</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">Часть функций заблокирована</p>
+            <Button size="sm" variant="destructive" onClick={() => setActiveSection('finances')}>Оплатить</Button>
           </div>
         )}
-        <div className="space-y-0.5 overflow-y-auto flex-1">
-          {!sidebarCollapsed && <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Основное</p>}
-          {mainItems.map(item => <NavButton key={item.key} item={item} />)}
 
-          <SectionLabel label="CRM" icon={Users} sectionKey="crm" />
-          {adaptedCrmItems.map(item => <NavButton key={item.key} item={item} />)}
-
-          <SectionLabel label="ERP" icon={Database} sectionKey="erp" />
-          {erpItems.map(item => <NavButton key={item.key} item={item} />)}
-        </div>
-        {!sidebarCollapsed && (
-          <div className="mt-auto pt-6 border-t">
-            <div className="flex items-center gap-3 px-3">
-              <Avatar className="h-8 w-8">
-                <AvatarFallback className="text-xs bg-primary/10 text-primary">{getInitials()}</AvatarFallback>
-              </Avatar>
-              <div className="min-w-0">
-                <p className="text-sm font-medium truncate">{profile?.first_name}</p>
+        <aside className={`hidden lg:flex flex-col shrink-0 sticky top-20 self-start h-[calc(100vh-6rem)] transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-60'}`}>
+          <div className="flex items-center gap-3 px-3 pb-4 border-b mb-2">
+            {!sidebarCollapsed && (
+              <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
+                <IconComponent className="h-5 w-5 text-primary-foreground" />
+              </div>
+            )}
+            {!sidebarCollapsed && (
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm truncate">
+                  {masterProfile?.service_categories?.name || config.label}
+                </p>
                 <p className="text-xs text-muted-foreground">{config.label}</p>
               </div>
-            </div>
+            )}
+            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>
+              {sidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+            </Button>
           </div>
-        )}
-      </aside>
+          {isReadOnly && !sidebarCollapsed && (
+            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 mb-4 mx-1">
+              <p className="text-xs font-medium text-destructive">Подписка истекла</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Часть функций заблокирована</p>
+            </div>
+          )}
+          <div className="space-y-0.5 overflow-y-auto flex-1">
+            {!sidebarCollapsed && <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Основное</p>}
+            {mainItems.map(item => <NavButton key={item.key} item={item} />)}
 
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t z-50 safe-area-bottom">
-        <div className="flex overflow-x-auto scrollbar-hide">
-          {allItems.map(item => (
-            <button
-              key={item.key}
-              onClick={() => setActiveSection(item.key)}
-              className={`flex flex-col items-center justify-center gap-0.5 min-w-[4rem] flex-1 py-2 text-[10px] leading-tight transition-colors
-                ${activeSection === item.key ? 'text-primary' : 'text-muted-foreground'}`}
-            >
-              <item.icon className="h-4 w-4 shrink-0" />
-              <span className="truncate max-w-[3.5rem] text-center">{item.key === 'clients' ? config.clientNamePlural : item.label}</span>
-            </button>
-          ))}
+            <SectionLabel label="CRM" icon={Users} sectionKey="crm" />
+            {adaptedCrmItems.map(item => <NavButton key={item.key} item={item} />)}
+
+            <SectionLabel label="ERP" icon={Database} sectionKey="erp" />
+            {erpItems.map(item => <NavButton key={item.key} item={item} />)}
+          </div>
+          {!sidebarCollapsed && (
+            <div className="mt-auto pt-6 border-t">
+              <div className="flex items-center gap-3 px-3">
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback className="text-xs bg-primary/10 text-primary">{getInitials()}</AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{profile?.first_name}</p>
+                  <p className="text-xs text-muted-foreground">{config.label}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </aside>
+
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t z-50 safe-area-bottom">
+          <div className="flex overflow-x-auto scrollbar-hide">
+            {allItems.map(item => (
+              <button
+                key={item.key}
+                onClick={() => setActiveSection(item.key)}
+                className={`flex flex-col items-center justify-center gap-0.5 min-w-[4rem] flex-1 py-2 text-[10px] leading-tight transition-colors
+                  ${activeSection === item.key ? 'text-primary' : 'text-muted-foreground'}`}
+              >
+                <item.icon className="h-4 w-4 shrink-0" />
+                <span className="truncate max-w-[3.5rem] text-center">{item.key === 'clients' ? config.clientNamePlural : item.label}</span>
+              </button>
+            ))}
+          </div>
+        </nav>
+
+        <div className="flex-1 min-w-0 pb-20 lg:pb-0">
+          {renderContent()}
         </div>
-      </nav>
-
-      <div className="flex-1 min-w-0 pb-20 lg:pb-0">
-        {renderContent()}
       </div>
-    </div>
+
+      {/* Profile editor dialog */}
+      <Dialog open={profileEditorOpen} onOpenChange={(open) => {
+        if (!open) setProfileEditorOpen(false);
+      }}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <MasterProfileEditor
+            masterProfile={masterProfile}
+            config={config}
+            onPhotosChanged={() => {
+              // Trigger re-fetch from parent
+              window.dispatchEvent(new CustomEvent('master-profile-updated'));
+            }}
+            onClose={() => setProfileEditorOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 

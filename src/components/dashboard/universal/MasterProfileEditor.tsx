@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { getStorageReference, resolveStorageUrls } from '@/lib/storage';
+import { getStorageReference } from '@/lib/storage';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,8 +9,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Loader2, X, Plus, Upload, Eye, MapPin } from 'lucide-react';
+import { Save, Loader2, X, Plus, Upload, Eye, MapPin, Undo2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import MapPicker from '@/components/marketplace/MapPicker';
 import { CategoryConfig } from './categoryConfig';
 
@@ -18,15 +19,21 @@ interface Props {
   masterProfile: any;
   config: CategoryConfig;
   onPhotosChanged?: () => void;
+  onClose?: () => void;
 }
 
-const MasterProfileEditor = ({ masterProfile, config, onPhotosChanged }: Props) => {
+const MasterProfileEditor = ({ masterProfile, config, onPhotosChanged, onClose }: Props) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+
+  // Local photo state for optimistic display
+  const [localWorkPhotos, setLocalWorkPhotos] = useState<string[]>([]);
+  const [localInteriorPhotos, setLocalInteriorPhotos] = useState<string[]>([]);
 
   const [form, setForm] = useState({
     description: '',
@@ -40,7 +47,6 @@ const MasterProfileEditor = ({ masterProfile, config, onPhotosChanged }: Props) 
     social_links: { telegram: '', vk: '', instagram: '', youtube: '' } as Record<string, string>,
   });
   const [hashtagInput, setHashtagInput] = useState('');
-
   const [initialFormJson, setInitialFormJson] = useState('');
 
   useEffect(() => {
@@ -64,17 +70,20 @@ const MasterProfileEditor = ({ masterProfile, config, onPhotosChanged }: Props) 
     };
     setForm(newForm);
     setInitialFormJson(JSON.stringify(newForm));
+    setLocalWorkPhotos(masterProfile.work_photos || []);
+    setLocalInteriorPhotos(masterProfile.interior_photos || []);
   }, [masterProfile?.id]);
 
-  // Warn on unsaved changes
+  const isDirty = JSON.stringify(form) !== initialFormJson;
+
+  // Warn on unsaved changes (browser close)
   useEffect(() => {
-    const isDirty = JSON.stringify(form) !== initialFormJson;
     const handler = (e: BeforeUnloadEvent) => {
       if (isDirty) { e.preventDefault(); e.returnValue = ''; }
     };
     if (isDirty) window.addEventListener('beforeunload', handler);
     return () => window.removeEventListener('beforeunload', handler);
-  }, [form, initialFormJson]);
+  }, [isDirty]);
 
   const handleSave = async () => {
     if (!user) return;
@@ -92,11 +101,42 @@ const MasterProfileEditor = ({ masterProfile, config, onPhotosChanged }: Props) 
         social_links: form.social_links,
       }).eq('user_id', user.id);
       if (error) throw error;
+      // Update initial state so dirty flag resets
+      setInitialFormJson(JSON.stringify(form));
       toast({ title: 'Профиль сохранён' });
+      onPhotosChanged?.();
     } catch (err: any) {
       toast({ title: 'Ошибка', description: err.message, variant: 'destructive' });
     }
     setSaving(false);
+  };
+
+  const handleCancel = () => {
+    if (isDirty) {
+      setCancelConfirmOpen(true);
+    } else {
+      onClose?.();
+    }
+  };
+
+  const confirmCancel = () => {
+    setCancelConfirmOpen(false);
+    // Reset form to initial
+    if (masterProfile) {
+      const sl = (masterProfile.social_links as any) || {};
+      setForm({
+        description: masterProfile.description || '',
+        short_description: (masterProfile as any).short_description || '',
+        workplace_description: masterProfile.workplace_description || '',
+        address: masterProfile.address || '',
+        city: masterProfile.city || '',
+        latitude: masterProfile.latitude,
+        longitude: masterProfile.longitude,
+        hashtags: masterProfile.hashtags || [],
+        social_links: { telegram: sl.telegram || '', vk: sl.vk || '', instagram: sl.instagram || '', youtube: sl.youtube || '' },
+      });
+    }
+    onClose?.();
   };
 
   const addHashtag = () => {
@@ -120,16 +160,24 @@ const MasterProfileEditor = ({ masterProfile, config, onPhotosChanged }: Props) 
       if (!files.length || !user) return;
       setUploading(true);
       try {
-        const urls: string[] = [...(masterProfile?.[field] || [])];
+        const currentPhotos = field === 'work_photos' ? [...localWorkPhotos] : [...localInteriorPhotos];
+        const newRefs: string[] = [];
         for (const file of files) {
           const ext = file.name.split('.').pop();
           const path = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(2)}.${ext}`;
           const { error } = await supabase.storage.from(bucket).upload(path, file);
           if (error) throw error;
           const ref = getStorageReference(bucket, path);
-          urls.push(ref);
+          newRefs.push(ref);
         }
-        await supabase.from('master_profiles').update({ [field]: urls }).eq('user_id', user.id);
+        const updatedPhotos = [...currentPhotos, ...newRefs];
+        await supabase.from('master_profiles').update({ [field]: updatedPhotos }).eq('user_id', user.id);
+        // Optimistic update - show photos immediately
+        if (field === 'work_photos') {
+          setLocalWorkPhotos(updatedPhotos);
+        } else {
+          setLocalInteriorPhotos(updatedPhotos);
+        }
         toast({ title: 'Фото загружены' });
         onPhotosChanged?.();
       } catch (err: any) {
@@ -142,14 +190,21 @@ const MasterProfileEditor = ({ masterProfile, config, onPhotosChanged }: Props) 
 
   const handleRemovePhoto = async (field: 'work_photos' | 'interior_photos', url: string) => {
     if (!user) return;
-    const updated = (masterProfile?.[field] || []).filter((u: string) => u !== url);
+    const currentPhotos = field === 'work_photos' ? localWorkPhotos : localInteriorPhotos;
+    const updated = currentPhotos.filter((u: string) => u !== url);
     await supabase.from('master_profiles').update({ [field]: updated }).eq('user_id', user.id);
+    // Optimistic update
+    if (field === 'work_photos') {
+      setLocalWorkPhotos(updated);
+    } else {
+      setLocalInteriorPhotos(updated);
+    }
     toast({ title: 'Фото удалено' });
     onPhotosChanged?.();
   };
 
   const PhotoGrid = ({ field, bucket, label }: { field: 'work_photos' | 'interior_photos'; bucket: string; label: string }) => {
-    const photos: string[] = masterProfile?.[field] || [];
+    const photos = field === 'work_photos' ? localWorkPhotos : localInteriorPhotos;
     return (
       <div className="space-y-2">
         <Label>{label}</Label>
@@ -177,7 +232,7 @@ const MasterProfileEditor = ({ masterProfile, config, onPhotosChanged }: Props) 
   return (
     <>
       {lightboxUrl && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setLightboxUrl(null)}>
+        <div className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-4" onClick={() => setLightboxUrl(null)}>
           <img src={lightboxUrl} alt="" className="max-w-full max-h-full object-contain rounded-lg" />
           <button className="absolute top-4 right-4 text-white bg-black/50 rounded-full p-2" onClick={() => setLightboxUrl(null)}>
             <X className="h-6 w-6" />
@@ -186,12 +241,19 @@ const MasterProfileEditor = ({ masterProfile, config, onPhotosChanged }: Props) 
       )}
 
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <h2 className="text-2xl font-bold">Редактировать профиль</h2>
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-            Сохранить
-          </Button>
+          <div className="flex items-center gap-2">
+            {onClose && (
+              <Button variant="outline" onClick={handleCancel}>
+                <Undo2 className="h-4 w-4 mr-2" /> Отменить
+              </Button>
+            )}
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+              Сохранить
+            </Button>
+          </div>
         </div>
 
         <Card>
@@ -282,7 +344,12 @@ const MasterProfileEditor = ({ masterProfile, config, onPhotosChanged }: Props) 
           </CardContent>
         </Card>
 
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+          {onClose && (
+            <Button variant="outline" onClick={handleCancel} size="lg">
+              <Undo2 className="h-4 w-4 mr-2" /> Отменить
+            </Button>
+          )}
           <Button onClick={handleSave} disabled={saving} size="lg">
             {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
             Сохранить все изменения
@@ -304,6 +371,17 @@ const MasterProfileEditor = ({ masterProfile, config, onPhotosChanged }: Props) 
           />
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={cancelConfirmOpen}
+        onOpenChange={setCancelConfirmOpen}
+        title="Несохранённые изменения"
+        description="У вас есть несохранённые изменения. Если вы закроете окно, все изменения будут потеряны."
+        confirmLabel="Закрыть без сохранения"
+        cancelLabel="Вернуться к редактированию"
+        onConfirm={confirmCancel}
+        variant="destructive"
+      />
     </>
   );
 };

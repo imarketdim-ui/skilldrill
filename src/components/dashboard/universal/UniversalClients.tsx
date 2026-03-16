@@ -9,7 +9,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Search, User, Ban, TrendingUp, Calendar, Clock, StickyNote, Plus, Trash2, MessageSquare, Crown, Star, Moon, UserX, Banknote } from 'lucide-react';
 import { CategoryConfig } from './categoryConfig';
 import UserScoreCard from '@/components/dashboard/UserScoreCard';
@@ -27,7 +26,10 @@ interface ClientInfo {
 
 type ClientStatus = 'all' | 'vip' | 'regular' | 'new' | 'sleeping' | 'inactive' | 'blacklisted';
 
-interface Props { config: CategoryConfig; }
+interface Props {
+  config: CategoryConfig;
+  onNavigateToChat?: (contactId: string) => void;
+}
 
 const statusConfig: Record<ClientStatus, { label: string; icon: any; color: string }> = {
   all: { label: 'Все', icon: User, color: '' },
@@ -39,7 +41,7 @@ const statusConfig: Record<ClientStatus, { label: string; icon: any; color: stri
   blacklisted: { label: 'ЧС', icon: Ban, color: 'text-destructive' },
 };
 
-const UniversalClients = ({ config }: Props) => {
+const UniversalClients = ({ config, onNavigateToChat }: Props) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [clients, setClients] = useState<ClientInfo[]>([]);
@@ -67,7 +69,6 @@ const UniversalClients = ({ config }: Props) => {
     if (!user) return;
     setLoading(true);
 
-    // Fetch from BOTH lesson_bookings and marketplace bookings
     const [{ data: lessonBookings }, { data: mktBookings }, { data: blData }] = await Promise.all([
       supabase.from('lesson_bookings')
         .select('student_id, status, lesson_id, created_at, lessons!inner(teacher_id, status, price, lesson_date)')
@@ -80,7 +81,6 @@ const UniversalClients = ({ config }: Props) => {
     const blSet = new Set((blData || []).map(b => b.blocked_id));
     setBlacklistedIds(blSet);
 
-    // Build unified client interaction records
     type Interaction = { clientId: string; status: string; date: string; price: number; lessonStatus?: string };
     const interactions: Interaction[] = [];
 
@@ -192,7 +192,6 @@ const UniversalClients = ({ config }: Props) => {
         .eq('client_id', client.id).eq('tagger_id', user.id)
         .order('created_at', { ascending: false }),
     ]);
-    // Merge history into unified format
     const history: any[] = [];
     (histLessons.data || []).forEach(h => history.push({ ...h, _source: 'lesson' }));
     (histBookings.data || []).forEach(h => history.push({
@@ -242,6 +241,9 @@ const UniversalClients = ({ config }: Props) => {
       toast({ title: 'Добавлен в чёрный список' });
       setBlacklistTarget(null); setBlacklistReason('');
       fetchClients();
+      if (selectedClient?.id === blacklistTarget.id) {
+        setSelectedClient(prev => prev ? { ...prev, isBlacklisted: true } : null);
+      }
     }
   };
 
@@ -250,6 +252,44 @@ const UniversalClients = ({ config }: Props) => {
     await supabase.from('blacklists').delete().eq('blocker_id', user.id).eq('blocked_id', clientId);
     toast({ title: 'Убран из чёрного списка' });
     fetchClients();
+    if (selectedClient?.id === clientId) {
+      setSelectedClient(prev => prev ? { ...prev, isBlacklisted: false, vipByCount: prev.vipByCount } : null);
+    }
+  };
+
+  const handleSetStatus = async (client: ClientInfo, targetStatus: ClientStatus) => {
+    if (!user) return;
+    
+    if (targetStatus === 'blacklisted') {
+      if (client.isBlacklisted) {
+        handleUnblacklist(client.id);
+      } else {
+        setBlacklistTarget(client);
+      }
+      return;
+    }
+    
+    if (targetStatus === 'vip') {
+      if (client.vipByCount > 0) {
+        // Remove VIP
+        await supabase.from('client_tags').delete().eq('client_id', client.id).eq('tagger_id', user.id).eq('tag', 'vip');
+        toast({ title: 'Статус VIP снят' });
+      } else {
+        // Add VIP
+        await supabase.from('client_tags').insert({ client_id: client.id, tagger_id: user.id, tag: 'vip' });
+        toast({ title: 'Статус VIP присвоен' });
+      }
+      fetchClients();
+      setSelectedClient(null);
+      return;
+    }
+
+    // For other statuses (regular, new, sleeping, inactive) - these are computed automatically
+    // but we can allow toggling VIP off if set, and show info
+    toast({ 
+      title: 'Автоматический статус', 
+      description: `Статус "${statusConfig[targetStatus].label}" определяется автоматически на основе активности клиента.` 
+    });
   };
 
   const startChat = async (client: ClientInfo) => {
@@ -258,15 +298,27 @@ const UniversalClients = ({ config }: Props) => {
     const { data: existing } = await supabase.from('chat_messages')
       .select('id').or(`and(sender_id.eq.${user.id},recipient_id.eq.${client.id}),and(sender_id.eq.${client.id},recipient_id.eq.${user.id})`)
       .limit(1);
-    if (existing && existing.length > 0) {
-      toast({ title: 'Чат уже существует', description: 'Перейдите в раздел Чаты' });
-    } else {
+    if (!existing || existing.length === 0) {
+      // Create initial message
       const { error } = await supabase.from('chat_messages').insert({
         sender_id: user.id, recipient_id: client.id,
         message: `Здравствуйте, ${client.first_name || 'клиент'}!`,
       });
-      if (error) toast({ title: 'Ошибка', description: error.message, variant: 'destructive' });
-      else toast({ title: 'Чат создан', description: 'Перейдите в раздел Чаты для продолжения' });
+      if (error) {
+        toast({ title: 'Ошибка', description: error.message, variant: 'destructive' });
+        return;
+      }
+    }
+    // Navigate to chats section with this contact
+    setSelectedClient(null);
+    if (onNavigateToChat) {
+      onNavigateToChat(client.id);
+    } else {
+      // Fallback: dispatch event
+      window.dispatchEvent(new CustomEvent('navigate-dashboard', { detail: 'chats' }));
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('open-chat-with', { detail: client.id }));
+      }, 200);
     }
   };
 
@@ -279,7 +331,6 @@ const UniversalClients = ({ config }: Props) => {
         <Input placeholder="Поиск по имени, email или ID..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
       </div>
 
-      {/* Status filter tabs */}
       <div className="flex flex-wrap gap-1.5">
         {(Object.keys(statusConfig) as ClientStatus[]).map(s => (
           <Button
@@ -357,38 +408,35 @@ const UniversalClients = ({ config }: Props) => {
                 </div>
               </div>
 
-              {/* Status picker */}
+              {/* Status picker - now fully functional */}
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground">Статус клиента</Label>
                 <div className="flex gap-1.5 flex-wrap">
-                  {(['vip', 'regular', 'new', 'sleeping', 'inactive', 'blacklisted'] as ClientStatus[]).map(s => {
+                  {(['vip', 'blacklisted'] as ClientStatus[]).map(s => {
                     const cfg = statusConfig[s];
                     const current = getClientStatus(selectedClient);
                     const isActive = current === s;
                     return (
                       <Button key={s} size="sm" variant={isActive ? 'default' : 'outline'} className={`h-7 text-xs gap-1 ${!isActive ? cfg.color : ''}`}
-                        onClick={async () => {
-                          if (!user || !selectedClient) return;
-                          if (s === 'blacklisted' && !selectedClient.isBlacklisted) {
-                            setBlacklistTarget(selectedClient); return;
-                          }
-                          if (s === 'blacklisted' && selectedClient.isBlacklisted) {
-                            handleUnblacklist(selectedClient.id); return;
-                          }
-                          if (s === 'vip') {
-                            if (selectedClient.vipByCount > 0) {
-                              await supabase.from('client_tags').delete().eq('client_id', selectedClient.id).eq('tagger_id', user.id).eq('tag', 'vip');
-                            } else {
-                              await supabase.from('client_tags').insert({ client_id: selectedClient.id, tagger_id: user.id, tag: 'vip' });
-                            }
-                            fetchClients(); setSelectedClient(null);
-                          }
-                        }}
+                        onClick={() => handleSetStatus(selectedClient, s)}
                       >
                         <cfg.icon className="h-3 w-3" /> {cfg.label}
                       </Button>
                     );
                   })}
+                  {/* Show computed status as info badge */}
+                  {(() => {
+                    const computed = getClientStatus(selectedClient);
+                    if (computed !== 'vip' && computed !== 'blacklisted') {
+                      const cfg = statusConfig[computed];
+                      return (
+                        <Badge variant="outline" className={`text-xs ${cfg.color}`}>
+                          <cfg.icon className="h-3 w-3 mr-1" /> {cfg.label} (авто)
+                        </Badge>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
               </div>
 
