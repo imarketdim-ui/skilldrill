@@ -25,6 +25,13 @@ const MasterDashboard = () => {
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
+  // Re-fetch when profile is updated from editor dialog
+  useEffect(() => {
+    const handler = () => fetchProfile();
+    window.addEventListener('master-profile-updated', handler);
+    return () => window.removeEventListener('master-profile-updated', handler);
+  }, [fetchProfile]);
+
   const isSubscriptionActive = () => {
     if (!masterProfile) return false;
     const status = masterProfile.subscription_status;
