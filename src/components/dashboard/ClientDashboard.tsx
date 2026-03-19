@@ -313,7 +313,7 @@ const ClientDashboard = () => {
                 <CardContent className="pt-6">
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground">Клиентский баланс</p>
+                      <p className="text-sm text-muted-foreground">Баланс</p>
                       <p className="text-3xl font-bold mt-1">{Number(cabinetBalance).toLocaleString()} ₽</p>
                     </div>
                     <Wallet className="h-5 w-5 text-muted-foreground" />
