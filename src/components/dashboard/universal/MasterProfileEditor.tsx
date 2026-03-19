@@ -264,6 +264,28 @@ const MasterProfileEditor = ({ masterProfile, config, onPhotosChanged, onClose }
       )}
 
       <div className="space-y-6">
+        {/* Master cabinet avatar — separate from client avatar */}
+        <Card>
+          <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Camera className="h-5 w-5" /> Фото мастерского кабинета</CardTitle></CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-4">
+              <Avatar className="h-20 w-20">
+                <AvatarImage src={masterAvatarUrl || profile?.avatar_url || undefined} />
+                <AvatarFallback className="bg-primary/10 text-primary text-xl">
+                  {`${(profile?.first_name || '')[0] || ''}${(profile?.last_name || '')[0] || ''}`.toUpperCase() || '?'}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <Button variant="outline" size="sm" onClick={() => avatarFileRef.current?.click()} disabled={uploadingAvatar}>
+                  {uploadingAvatar ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Upload className="h-4 w-4 mr-1" />}
+                  {uploadingAvatar ? 'Загрузка...' : 'Загрузить фото'}
+                </Button>
+                <p className="text-xs text-muted-foreground mt-2">Отдельное фото для мастерского кабинета.<br />Если не задано — используется фото клиентского кабинета.</p>
+                <input ref={avatarFileRef} type="file" accept="image/*" className="hidden" onChange={handleMasterAvatarUpload} />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-2xl font-bold">Редактировать профиль</h2>
           <div className="flex items-center gap-2">
