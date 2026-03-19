@@ -4045,37 +4045,37 @@ export type Database = {
           cancel_under_3h: number | null
           completed_visits: number | null
           no_show_count: number | null
-          score_level: string | null
           status: string | null
           total_cancellations: number | null
+          total_score: number | null
           user_id: string | null
           vip_by_count: number | null
         }
         Insert: {
-          account_age_days?: number | null
-          blacklist_by_count?: number | null
-          cancel_under_1h?: number | null
-          cancel_under_3h?: number | null
-          completed_visits?: number | null
-          no_show_count?: number | null
-          score_level?: never
-          status?: string | null
-          total_cancellations?: number | null
+          account_age_days?: never
+          blacklist_by_count?: never
+          cancel_under_1h?: never
+          cancel_under_3h?: never
+          completed_visits?: never
+          no_show_count?: never
+          status?: never
+          total_cancellations?: never
+          total_score?: never
           user_id?: string | null
-          vip_by_count?: number | null
+          vip_by_count?: never
         }
         Update: {
-          account_age_days?: number | null
-          blacklist_by_count?: number | null
-          cancel_under_1h?: number | null
-          cancel_under_3h?: number | null
-          completed_visits?: number | null
-          no_show_count?: number | null
-          score_level?: never
-          status?: string | null
-          total_cancellations?: number | null
+          account_age_days?: never
+          blacklist_by_count?: never
+          cancel_under_1h?: never
+          cancel_under_3h?: never
+          completed_visits?: never
+          no_show_count?: never
+          status?: never
+          total_cancellations?: never
+          total_score?: never
           user_id?: string | null
-          vip_by_count?: number | null
+          vip_by_count?: never
         }
         Relationships: [
           {
