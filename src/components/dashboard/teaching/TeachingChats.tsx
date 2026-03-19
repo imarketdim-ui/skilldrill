@@ -223,6 +223,7 @@ const TeachingChats = ({ isClientContext = false, onUnreadChange }: Props) => {
     });
     setContacts(contactList.sort((a, b) => (b.lastMessageAt || '').localeCompare(a.lastMessageAt || '')));
     setTotalUnread(unreadTotal);
+    onUnreadChange?.(unreadTotal);
     setLoading(false);
   };
 
