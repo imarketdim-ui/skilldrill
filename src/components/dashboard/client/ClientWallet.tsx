@@ -419,6 +419,7 @@ const ClientWallet = () => {
         open={cabinetTransferOpen}
         onClose={() => setCabinetTransferOpen(false)}
         currentCabinet="client"
+        currentBalance={cabinetBalance.main_balance}
         onSuccess={loadData}
       />
     </div>
