@@ -28,7 +28,7 @@ import ClientReviews from '@/components/dashboard/client/ClientReviews';
 import ClientBonusPoints from '@/components/dashboard/client/ClientBonusPoints';
 
 
-// Desktop sidebar: no bookings, notifications, settings
+// Desktop sidebar
 const desktopMenuItems = [
   { key: 'overview', label: 'Обзор', icon: LayoutDashboard },
   { key: 'bookings', label: 'Записи', icon: Calendar },
@@ -36,8 +36,7 @@ const desktopMenuItems = [
   { key: 'reviews', label: 'Отзывы', icon: Star },
   { key: 'communication', label: 'Общение', icon: MessageSquare },
   { key: 'stats', label: 'Статистика', icon: BarChart3 },
-  { key: 'wallet', label: 'Баланс', icon: Wallet },
-  { key: 'bonus', label: 'Бонусы', icon: Gift },
+  { key: 'wallet', label: 'Баланс и бонусы', icon: Wallet },
   { key: 'settings', label: 'Настройки', icon: Settings },
 ];
 
