@@ -81,19 +81,20 @@ const ClientDashboard = () => {
         .gte('scheduled_at', new Date().toISOString())
         .order('scheduled_at', { ascending: true })
         .limit(5),
-      // Client-scoped notifications only
+      // Client-scoped notifications only (include null cabinet_type for backward compat)
       supabase.from('notifications')
         .select('*')
         .eq('user_id', user.id)
-        .eq('cabinet_type', 'client')
+        .or('cabinet_type.eq.client,cabinet_type.is.null')
         .order('created_at', { ascending: false })
         .limit(30),
-      // Unread chats count
+      // Unread chats count — client cabinet scope
       supabase.from('chat_messages')
         .select('id', { count: 'exact', head: true })
         .eq('recipient_id', user.id)
         .eq('is_read', false)
-        .neq('chat_type', 'support'),
+        .neq('chat_type', 'support')
+        .or('cabinet_type_scope.eq.client,cabinet_type_scope.is.null'),
     ]).then(([balRes, invRes, bookRes, notifRes, chatRes]) => {
       setCabinetBalance(balRes.data?.main_balance || 0);
       setPendingInvites(invRes.count || 0);
