@@ -1760,6 +1760,7 @@ export type Database = {
         Row: {
           address: string | null
           auto_booking_policy: string | null
+          avatar_url: string | null
           break_config: Json | null
           business_id: string | null
           category_id: string | null
@@ -1798,6 +1799,7 @@ export type Database = {
         Insert: {
           address?: string | null
           auto_booking_policy?: string | null
+          avatar_url?: string | null
           break_config?: Json | null
           business_id?: string | null
           category_id?: string | null
@@ -1836,6 +1838,7 @@ export type Database = {
         Update: {
           address?: string | null
           auto_booking_policy?: string | null
+          avatar_url?: string | null
           break_config?: Json | null
           business_id?: string | null
           category_id?: string | null
