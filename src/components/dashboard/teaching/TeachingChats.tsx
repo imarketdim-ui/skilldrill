@@ -184,9 +184,12 @@ const TeachingChats = ({ isClientContext = false }: Props) => {
   const fetchContacts = async () => {
     if (!user) return;
     setLoading(true);
+    // cabinet_type_scope: null = all cabinets, 'client'/'master' = scoped
+    const cabinetScope = isClientContext ? 'client' : 'master';
     const { data: msgs } = await supabase.from('chat_messages').select('*')
       .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
       .neq('chat_type', 'support')
+      .or(`cabinet_type_scope.eq.${cabinetScope},cabinet_type_scope.is.null`)
       .order('created_at', { ascending: false });
 
     if (!msgs || msgs.length === 0) {

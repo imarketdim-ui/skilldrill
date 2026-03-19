@@ -28,7 +28,7 @@ import { CategoryConfig } from './categoryConfig';
 import MasterProfileEditor from './MasterProfileEditor';
 import MasterProfileView from './MasterProfileView';
 
-// Inline notifications component
+// Inline notifications component — scoped to 'master' cabinet
 const MasterNotifications = () => {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showArchive, setShowArchive] = useState(false);
@@ -37,8 +37,11 @@ const MasterNotifications = () => {
     const fetch = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      // Fetch master-scoped + unscoped (null) notifications
       const { data } = await supabase.from('notifications').select('*')
-        .eq('user_id', user.id).order('created_at', { ascending: false }).limit(30);
+        .eq('user_id', user.id)
+        .or('cabinet_type.eq.master,cabinet_type.is.null')
+        .order('created_at', { ascending: false }).limit(50);
       setNotifications(data || []);
     };
     fetch();

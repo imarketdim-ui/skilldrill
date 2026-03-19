@@ -1,10 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { usePlatformPricing } from '@/hooks/usePlatformPricing';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Wallet, CreditCard, Banknote } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Wallet, CreditCard, Banknote, ArrowLeftRight } from 'lucide-react';
 import UniversalPayments from './UniversalPayments';
 import UniversalExpenses from './UniversalExpenses';
 import SubscriptionManager from '../SubscriptionManager';
+import CabinetTransferDialog from '../client/CabinetTransferDialog';
 import { CategoryConfig } from './categoryConfig';
 
 interface Props {
@@ -13,14 +18,55 @@ interface Props {
 }
 
 const UniversalFinances = ({ config, masterProfile }: Props) => {
+  const { user } = useAuth();
   const [tab, setTab] = useState('payments');
   const pricing = usePlatformPricing();
+  const [masterBalance, setMasterBalance] = useState(0);
+  const [transferOpen, setTransferOpen] = useState(false);
+
+  useEffect(() => {
+    if (!user || !masterProfile?.id) return;
+    supabase.from('cabinet_balances')
+      .select('main_balance')
+      .eq('user_id', user.id)
+      .eq('cabinet_type', 'master')
+      .eq('cabinet_id', masterProfile.id)
+      .maybeSingle()
+      .then(({ data }) => setMasterBalance(data?.main_balance || 0));
+  }, [user, masterProfile]);
 
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-bold flex items-center gap-2">
-        <Wallet className="h-6 w-6" /> Финансы
-      </h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold flex items-center gap-2">
+          <Wallet className="h-6 w-6" /> Финансы
+        </h2>
+      </div>
+
+      {/* Cabinet balance card */}
+      <Card className="border-primary/20 bg-primary/5">
+        <CardContent className="pt-4 pb-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground">Баланс мастерского кабинета</p>
+              <p className="text-2xl font-bold text-primary">{Number(masterBalance).toLocaleString()} ₽</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Отделён от клиентского и бизнес-балансов
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1 shrink-0"
+              onClick={() => setTransferOpen(true)}
+            >
+              <ArrowLeftRight className="h-3.5 w-3.5" />
+              Перевести
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="payments" className="gap-1.5">
@@ -48,6 +94,22 @@ const UniversalFinances = ({ config, masterProfile }: Props) => {
           />
         </TabsContent>
       </Tabs>
+
+      <CabinetTransferDialog
+        open={transferOpen}
+        onClose={() => setTransferOpen(false)}
+        currentCabinet="master"
+        currentBalance={masterBalance}
+        onSuccess={() => {
+          supabase.from('cabinet_balances')
+            .select('main_balance')
+            .eq('user_id', user!.id)
+            .eq('cabinet_type', 'master')
+            .eq('cabinet_id', masterProfile?.id)
+            .maybeSingle()
+            .then(({ data }) => setMasterBalance(data?.main_balance || 0));
+        }}
+      />
     </div>
   );
 };
