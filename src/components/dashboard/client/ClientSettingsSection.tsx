@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,7 +13,10 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Camera, Gift, ChevronRight, Copy, Share2, Check, Lock, Bell, Users, UserX } from 'lucide-react';
+import {
+  Loader2, Camera, Gift, ChevronRight, Copy, Share2, Check,
+  Lock, Bell, Users, UserX, MessageSquare
+} from 'lucide-react';
 import { z } from 'zod';
 
 const profileSchema = z.object({
@@ -56,7 +59,6 @@ const AvatarCropDialog = ({ open, onClose, imageUrl, onCrop }: AvatarCropDialogP
     const img = new Image();
     img.onload = () => {
       setImgEl(img);
-      // Fit image initially
       const fitScale = Math.max(SIZE / img.width, SIZE / img.height);
       setScale(fitScale);
       setPos({ x: (SIZE - img.width * fitScale) / 2, y: (SIZE - img.height * fitScale) / 2 });
@@ -68,14 +70,12 @@ const AvatarCropDialog = ({ open, onClose, imageUrl, onCrop }: AvatarCropDialogP
     if (!imgEl || !canvasRef.current) return;
     const ctx = canvasRef.current.getContext('2d')!;
     ctx.clearRect(0, 0, SIZE, SIZE);
-    // Clip to circle
     ctx.save();
     ctx.beginPath();
     ctx.arc(SIZE / 2, SIZE / 2, SIZE / 2, 0, Math.PI * 2);
     ctx.clip();
     ctx.drawImage(imgEl, pos.x, pos.y, imgEl.width * scale, imgEl.height * scale);
     ctx.restore();
-    // Overlay dim
     ctx.fillStyle = 'rgba(0,0,0,0.35)';
     ctx.fillRect(0, 0, SIZE, SIZE);
     ctx.save();
@@ -85,7 +85,6 @@ const AvatarCropDialog = ({ open, onClose, imageUrl, onCrop }: AvatarCropDialogP
     ctx.clearRect(0, 0, SIZE, SIZE);
     ctx.drawImage(imgEl, pos.x, pos.y, imgEl.width * scale, imgEl.height * scale);
     ctx.restore();
-    // Circle border
     ctx.strokeStyle = 'hsl(var(--primary))';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -99,7 +98,6 @@ const AvatarCropDialog = ({ open, onClose, imageUrl, onCrop }: AvatarCropDialogP
 
   const handleCrop = () => {
     if (!canvasRef.current) return;
-    // Export clean circle
     const out = document.createElement('canvas');
     out.width = SIZE; out.height = SIZE;
     const ctx = out.getContext('2d')!;
@@ -154,7 +152,6 @@ const ClientSettingsSection = () => {
   const [copiedId, setCopiedId] = useState(false);
   const [formData, setFormData] = useState<ProfileFormData>({ first_name: '', last_name: '', phone: '', bio: '', telegram: '' });
 
-  // Privacy settings
   const [privacy, setPrivacy] = useState({
     allow_group_invites: true,
     show_in_search: true,
@@ -172,7 +169,6 @@ const ClientSettingsSection = () => {
         bio: profile.bio || '',
         telegram: (profile as any)?.telegram || '',
       });
-      // Load privacy from profile extra
       const pv = (profile as any)?.privacy_settings;
       if (pv) setPrivacy(prev => ({ ...prev, ...pv }));
     }
@@ -187,7 +183,6 @@ const ClientSettingsSection = () => {
     if (formData.phone) setFormData(prev => ({ ...prev, phone: normalizePhone(prev.phone || '') }));
   };
 
-  // File select → open crop dialog
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -235,7 +230,8 @@ const ClientSettingsSection = () => {
         last_name: result.data.last_name || null,
         phone: result.data.phone ? normalizePhone(result.data.phone) : null,
         bio: result.data.bio || null,
-      }).eq('id', user!.id);
+        telegram: result.data.telegram || null,
+      } as any).eq('id', user!.id);
       if (error) throw error;
       await refreshProfile();
       toast({ title: 'Профиль обновлён', description: 'Данные успешно сохранены' });
@@ -280,8 +276,8 @@ const ClientSettingsSection = () => {
       {/* Avatar */}
       <Card>
         <CardHeader>
-          <CardTitle>Фото профиля</CardTitle>
-          <CardDescription>Фото отображается в круглой форме — выберите нужную область</CardDescription>
+          <CardTitle>Фото профиля (клиент)</CardTitle>
+          <CardDescription>Это фото используется только в клиентском кабинете</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-6">
@@ -307,7 +303,7 @@ const ClientSettingsSection = () => {
       <Card>
         <CardHeader>
           <CardTitle>SkillSpot ID</CardTitle>
-          <CardDescription>Ваш уникальный идентификатор для приглашений</CardDescription>
+          <CardDescription>Ваш уникальный идентификатор для приглашений и реферальной программы</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-2 p-3 rounded-lg bg-muted">
@@ -320,6 +316,22 @@ const ClientSettingsSection = () => {
             </Button>
           </div>
           <p className="text-xs text-muted-foreground mt-2">Можно выделить, скопировать или поделиться</p>
+        </CardContent>
+      </Card>
+
+      {/* Referral block */}
+      <Card className="cursor-pointer hover:border-primary/50 transition-colors border-primary/20 bg-primary/5" onClick={() => navigate('/referral')}>
+        <CardContent className="pt-5 pb-5">
+          <div className="flex items-center gap-4">
+            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <Gift className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold">Реферальный баланс и программа</p>
+              <p className="text-sm text-muted-foreground">Приглашайте друзей — получайте бонусы на реферальный баланс</p>
+            </div>
+            <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+          </div>
         </CardContent>
       </Card>
 
@@ -354,6 +366,12 @@ const ClientSettingsSection = () => {
               <Label htmlFor="phone">Телефон</Label>
               <Input id="phone" type="tel" placeholder="+7 (999) 123-45-67" value={formData.phone} onChange={(e) => handleChange('phone', e.target.value)} onBlur={handlePhoneBlur} className={errors.phone ? 'border-destructive' : ''} disabled={isSubmitting} />
               {errors.phone && <p className="text-sm text-destructive">{errors.phone}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="telegram">Telegram</Label>
+              <Input id="telegram" placeholder="@username" value={formData.telegram} onChange={(e) => handleChange('telegram', e.target.value)} className={errors.telegram ? 'border-destructive' : ''} disabled={isSubmitting} />
+              <p className="text-xs text-muted-foreground">Влияет на рейтинг надёжности</p>
             </div>
 
             <div className="space-y-2">
@@ -405,7 +423,7 @@ const ClientSettingsSection = () => {
           <Separator />
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label className="flex items-center gap-2"><MessageSquareIcon className="h-4 w-4" /> Сообщения от незнакомцев</Label>
+              <Label className="flex items-center gap-2"><MessageSquare className="h-4 w-4" /> Сообщения от незнакомцев</Label>
               <p className="text-xs text-muted-foreground">Разрешить писать всем пользователям</p>
             </div>
             <Switch checked={privacy.allow_messages_from_strangers} onCheckedChange={v => setPrivacy(p => ({ ...p, allow_messages_from_strangers: v }))} />
@@ -425,24 +443,6 @@ const ClientSettingsSection = () => {
         </CardContent>
       </Card>
 
-      <Separator />
-
-      {/* Referral program link */}
-      <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => navigate('/referral')}>
-        <CardContent className="pt-5 pb-5">
-          <div className="flex items-center gap-4">
-            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-              <Gift className="h-5 w-5 text-primary" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold">Реферальная программа</p>
-              <p className="text-sm text-muted-foreground">Приглашайте друзей — получайте бонусы на баланс</p>
-            </div>
-            <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Avatar crop dialog */}
       <AvatarCropDialog
         open={cropDialog.open}
@@ -453,12 +453,5 @@ const ClientSettingsSection = () => {
     </div>
   );
 };
-
-// Local icon to avoid circular imports
-const MessageSquareIcon = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-  </svg>
-);
 
 export default ClientSettingsSection;

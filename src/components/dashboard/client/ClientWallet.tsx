@@ -7,32 +7,35 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Wallet, ArrowUpRight, ArrowDownLeft, CreditCard, Clock, Loader2, Star, Gift } from 'lucide-react';
+import { Wallet, ArrowUpRight, ArrowDownLeft, CreditCard, Loader2, Star, Gift, ArrowLeftRight, History } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import CabinetTransferDialog from './CabinetTransferDialog';
 
 // ──── Helpers ────
 const TX_TYPE_MAP: Record<string, { label: string; sign: '+' | '-' | '' }> = {
-  deposit:             { label: 'Пополнение',                    sign: '+' },
-  withdrawal:          { label: 'Вывод на карту',                sign: '-' },
-  payment:             { label: 'Оплата услуги',                 sign: '-' },
-  subscription_payment:{ label: 'Оплата подписки',              sign: '-' },
-  refund:              { label: 'Возврат',                       sign: '+' },
-  referral_transfer:   { label: 'Перевод с реф. баланса',        sign: '+' },
-  referral_bonus:      { label: 'Реферальный бонус',             sign: '+' },
-  subscription:        { label: 'Подписка',                      sign: '-' },
-  bonus:               { label: 'Бонус',                         sign: '+' },
-  transfer_in:         { label: 'Входящий перевод',              sign: '+' },
-  transfer_out:        { label: 'Исходящий перевод',             sign: '-' },
+  deposit:              { label: 'Пополнение',               sign: '+' },
+  withdrawal:           { label: 'Вывод на карту',           sign: '-' },
+  payment:              { label: 'Оплата услуги',            sign: '-' },
+  subscription_payment: { label: 'Оплата подписки',          sign: '-' },
+  refund:               { label: 'Возврат',                  sign: '+' },
+  referral_transfer:    { label: 'Перевод с реф. баланса',   sign: '+' },
+  referral_bonus:       { label: 'Реферальный бонус',        sign: '+' },
+  subscription:         { label: 'Подписка',                 sign: '-' },
+  bonus:                { label: 'Бонус',                    sign: '+' },
+  transfer_in:          { label: 'Входящий перевод',         sign: '+' },
+  transfer_out:         { label: 'Исходящий перевод',        sign: '-' },
+  cabinet_transfer_in:  { label: 'Перевод между кабинетами', sign: '+' },
+  cabinet_transfer_out: { label: 'Перевод между кабинетами', sign: '-' },
 };
 
 const BONUS_TYPE_MAP: Record<string, string> = {
   earn:         'Начисление',
   spend:        'Списание',
   expire:       'Истечение срока',
-  admin_adjust: 'Корректировка',
+  admin_adjust: 'Корректировка администратором',
 };
 
 const BONUS_SOURCE_MAP: Record<string, string> = {
@@ -48,11 +51,15 @@ const ClientWallet = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [balance, setBalance] = useState({ main_balance: 0, referral_balance: 0 });
+
+  // Cabinet balances (isolated per cabinet)
+  const [cabinetBalance, setCabinetBalance] = useState({ main_balance: 0, bonus_balance: 0 });
+  const [referralBalance, setReferralBalance] = useState(0);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [bonusPoints, setBonusPoints] = useState({ balance: 0, total_earned: 0, total_spent: 0 });
   const [bonusTransactions, setBonusTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
   const [depositAmount, setDepositAmount] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [transferAmount, setTransferAmount] = useState('');
@@ -60,20 +67,36 @@ const ClientWallet = () => {
   const [depositOpen, setDepositOpen] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
+  const [cabinetTransferOpen, setCabinetTransferOpen] = useState(false);
 
   useEffect(() => { if (user) loadData(); }, [user]);
 
   const loadData = async () => {
-    const [balRes, txRes, bpRes, btRes] = await Promise.all([
-      supabase.from('user_balances').select('main_balance, referral_balance').eq('user_id', user!.id).maybeSingle(),
-      supabase.from('balance_transactions').select('*').eq('user_id', user!.id).order('created_at', { ascending: false }).limit(50),
+    setLoading(true);
+    const [cabBalRes, txRes, bpRes, btRes, refBalRes] = await Promise.all([
+      // Client cabinet balance (isolated)
+      supabase.from('cabinet_balances')
+        .select('main_balance, bonus_balance')
+        .eq('user_id', user!.id)
+        .eq('cabinet_type', 'client')
+        .is('cabinet_id', null)
+        .maybeSingle(),
+      // Transactions scoped to client cabinet
+      supabase.from('balance_transactions')
+        .select('*')
+        .eq('user_id', user!.id)
+        .eq('cabinet_type', 'client')
+        .order('created_at', { ascending: false })
+        .limit(50),
       supabase.from('bonus_points').select('balance, total_earned, total_spent').eq('user_id', user!.id).maybeSingle(),
       supabase.from('bonus_transactions').select('*').eq('user_id', user!.id).order('created_at', { ascending: false }).limit(30),
+      supabase.from('user_balances').select('referral_balance').eq('user_id', user!.id).maybeSingle(),
     ]);
-    if (balRes.data) setBalance(balRes.data);
+    if (cabBalRes.data) setCabinetBalance(cabBalRes.data);
     setTransactions(txRes.data || []);
     if (bpRes.data) setBonusPoints(bpRes.data);
     setBonusTransactions(btRes.data || []);
+    if (refBalRes.data) setReferralBalance(refBalRes.data.referral_balance || 0);
     setLoading(false);
   };
 
@@ -82,8 +105,21 @@ const ClientWallet = () => {
     if (!amount || amount <= 0) { toast({ title: 'Укажите сумму', variant: 'destructive' }); return; }
     setProcessing(true);
     try {
-      await supabase.from('balance_transactions').insert({ user_id: user!.id, amount, type: 'deposit', description: 'Пополнение баланса' });
-      await supabase.from('user_balances').update({ main_balance: balance.main_balance + amount }).eq('user_id', user!.id);
+      // Insert into cabinet_balances
+      const { data: existing } = await supabase.from('cabinet_balances')
+        .select('id, main_balance')
+        .eq('user_id', user!.id).eq('cabinet_type', 'client').is('cabinet_id', null).maybeSingle();
+
+      if (existing) {
+        await supabase.from('cabinet_balances')
+          .update({ main_balance: existing.main_balance + amount, updated_at: new Date().toISOString() })
+          .eq('id', existing.id);
+      } else {
+        await supabase.from('cabinet_balances').insert({ user_id: user!.id, cabinet_type: 'client', main_balance: amount });
+      }
+      await supabase.from('balance_transactions').insert({
+        user_id: user!.id, amount, type: 'deposit', description: 'Пополнение клиентского баланса', cabinet_type: 'client'
+      });
       toast({ title: 'Баланс пополнен', description: `+${amount} ₽` });
       setDepositOpen(false); setDepositAmount(''); loadData();
     } catch (err: any) { toast({ title: 'Ошибка', description: err.message, variant: 'destructive' }); }
@@ -93,11 +129,19 @@ const ClientWallet = () => {
   const handleWithdraw = async () => {
     const amount = Number(withdrawAmount);
     if (!amount || amount <= 0) { toast({ title: 'Укажите сумму', variant: 'destructive' }); return; }
-    if (amount > balance.main_balance) { toast({ title: 'Недостаточно средств', variant: 'destructive' }); return; }
+    if (amount > cabinetBalance.main_balance) { toast({ title: 'Недостаточно средств', variant: 'destructive' }); return; }
     setProcessing(true);
     try {
-      await supabase.from('balance_transactions').insert({ user_id: user!.id, amount: -amount, type: 'withdrawal', description: 'Вывод на карту' });
-      await supabase.from('user_balances').update({ main_balance: balance.main_balance - amount }).eq('user_id', user!.id);
+      const { data: existing } = await supabase.from('cabinet_balances')
+        .select('id, main_balance').eq('user_id', user!.id).eq('cabinet_type', 'client').is('cabinet_id', null).maybeSingle();
+      if (existing) {
+        await supabase.from('cabinet_balances')
+          .update({ main_balance: existing.main_balance - amount, updated_at: new Date().toISOString() })
+          .eq('id', existing.id);
+      }
+      await supabase.from('balance_transactions').insert({
+        user_id: user!.id, amount: -amount, type: 'withdrawal', description: 'Вывод на карту', cabinet_type: 'client'
+      });
       toast({ title: 'Заявка на вывод создана', description: `${amount} ₽ будут перечислены на карту` });
       setWithdrawOpen(false); setWithdrawAmount(''); loadData();
     } catch (err: any) { toast({ title: 'Ошибка', description: err.message, variant: 'destructive' }); }
@@ -107,15 +151,22 @@ const ClientWallet = () => {
   const handleTransferReferral = async () => {
     const amount = Number(transferAmount);
     if (!amount || amount <= 0) { toast({ title: 'Укажите сумму', variant: 'destructive' }); return; }
-    if (amount > balance.referral_balance) { toast({ title: 'Недостаточно средств на реферальном балансе', variant: 'destructive' }); return; }
+    if (amount > referralBalance) { toast({ title: 'Недостаточно средств на реферальном балансе', variant: 'destructive' }); return; }
     setProcessing(true);
     try {
-      await supabase.from('balance_transactions').insert({ user_id: user!.id, amount, type: 'referral_transfer', description: 'Перевод с реферального баланса' });
       await supabase.from('user_balances').update({
-        main_balance: balance.main_balance + amount,
-        referral_balance: balance.referral_balance - amount,
+        referral_balance: referralBalance - amount,
       }).eq('user_id', user!.id);
-      toast({ title: 'Переведено на основной баланс', description: `${amount} ₽` });
+      const { data: existing } = await supabase.from('cabinet_balances')
+        .select('id, main_balance').eq('user_id', user!.id).eq('cabinet_type', 'client').is('cabinet_id', null).maybeSingle();
+      if (existing) {
+        await supabase.from('cabinet_balances')
+          .update({ main_balance: existing.main_balance + amount, updated_at: new Date().toISOString() }).eq('id', existing.id);
+      }
+      await supabase.from('balance_transactions').insert({
+        user_id: user!.id, amount, type: 'referral_transfer', description: 'Перевод с реферального баланса', cabinet_type: 'client'
+      });
+      toast({ title: 'Переведено на клиентский баланс', description: `${amount} ₽` });
       setTransferOpen(false); setTransferAmount(''); loadData();
     } catch (err: any) { toast({ title: 'Ошибка', description: err.message, variant: 'destructive' }); }
     finally { setProcessing(false); }
@@ -125,14 +176,26 @@ const ClientWallet = () => {
 
   return (
     <div className="space-y-4">
+      {/* Cabinet isolation info */}
+      <Card className="border-primary/20 bg-primary/5">
+        <CardContent className="pt-4 pb-4">
+          <p className="text-sm text-primary font-medium mb-1">🔒 Клиентский баланс</p>
+          <p className="text-xs text-muted-foreground">
+            Это баланс вашего клиентского кабинета — он отделён от баланса мастера и организации.
+            Переводы между кабинетами доступны через кнопку «Перевести между кабинетами».
+          </p>
+        </CardContent>
+      </Card>
+
       {/* Balance cards */}
       <div className="grid gap-4 md:grid-cols-3">
+        {/* Main cabinet balance */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base"><Wallet className="h-4 w-4" /> Основной баланс</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-base"><Wallet className="h-4 w-4" /> Клиентский баланс</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold mb-3">{Number(balance.main_balance).toLocaleString()} ₽</p>
+            <p className="text-3xl font-bold mb-3">{Number(cabinetBalance.main_balance).toLocaleString()} ₽</p>
             <div className="flex gap-2 flex-wrap">
               <Dialog open={depositOpen} onOpenChange={setDepositOpen}>
                 <DialogTrigger asChild>
@@ -166,7 +229,7 @@ const ClientWallet = () => {
                 <DialogContent>
                   <DialogHeader><DialogTitle>Вывод средств</DialogTitle></DialogHeader>
                   <div className="space-y-4 pt-2">
-                    <p className="text-sm text-muted-foreground">Доступно: {Number(balance.main_balance).toLocaleString()} ₽</p>
+                    <p className="text-sm text-muted-foreground">Доступно: {Number(cabinetBalance.main_balance).toLocaleString()} ₽</p>
                     <div className="space-y-2"><Label>Сумма (₽)</Label>
                       <Input type="text" inputMode="numeric" placeholder="1000" value={withdrawAmount} onChange={e => setWithdrawAmount(e.target.value.replace(/\D/g, ''))} />
                     </div>
@@ -181,23 +244,24 @@ const ClientWallet = () => {
           </CardContent>
         </Card>
 
+        {/* Referral balance */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Реферальный баланс</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold mb-3">{Number(balance.referral_balance).toLocaleString()} ₽</p>
+            <p className="text-3xl font-bold mb-3">{Number(referralBalance).toLocaleString()} ₽</p>
             <div className="flex gap-2 flex-wrap">
               <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
                 <DialogTrigger asChild>
                   <Button size="sm" variant="outline" className="gap-1">
-                    <ArrowUpRight className="h-3.5 w-3.5" /> На основной
+                    <ArrowUpRight className="h-3.5 w-3.5" /> На клиентский
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
-                  <DialogHeader><DialogTitle>Перевод на основной баланс</DialogTitle></DialogHeader>
+                  <DialogHeader><DialogTitle>Перевод на клиентский баланс</DialogTitle></DialogHeader>
                   <div className="space-y-4 pt-2">
-                    <p className="text-sm text-muted-foreground">Реф. баланс: {Number(balance.referral_balance).toLocaleString()} ₽</p>
+                    <p className="text-sm text-muted-foreground">Реф. баланс: {Number(referralBalance).toLocaleString()} ₽</p>
                     <div className="space-y-2"><Label>Сумма (₽)</Label>
                       <Input type="text" inputMode="numeric" placeholder="500" value={transferAmount} onChange={e => setTransferAmount(e.target.value.replace(/\D/g, ''))} />
                     </div>
@@ -215,7 +279,7 @@ const ClientWallet = () => {
           </CardContent>
         </Card>
 
-        {/* Bonus points card */}
+        {/* Bonus points */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base"><Star className="h-4 w-4 text-amber-500" /> Бонусные баллы</CardTitle>
@@ -233,7 +297,22 @@ const ClientWallet = () => {
         </Card>
       </div>
 
-      {/* How to earn bonus info */}
+      {/* Inter-cabinet transfer */}
+      <Card className="border-dashed cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setCabinetTransferOpen(true)}>
+        <CardContent className="pt-5 pb-5">
+          <div className="flex items-center gap-4">
+            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <ArrowLeftRight className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold">Перевести между кабинетами</p>
+              <p className="text-sm text-muted-foreground">Перевод между клиентским, мастерским и бизнес-балансом</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* How to earn bonus */}
       <Card className="border-amber-500/20 bg-amber-500/5">
         <CardContent className="pt-4 pb-4">
           <p className="text-sm font-medium text-amber-700 dark:text-amber-400 mb-2 flex items-center gap-2">
@@ -248,7 +327,7 @@ const ClientWallet = () => {
         </CardContent>
       </Card>
 
-      {/* History tabs */}
+      {/* History */}
       <Tabs defaultValue="money">
         <TabsList className="w-full">
           <TabsTrigger value="money" className="flex-1">История рублей</TabsTrigger>
@@ -259,7 +338,7 @@ const ClientWallet = () => {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base"><History className="h-4 w-4" /> Операции</CardTitle>
-              <CardDescription>Последние 50 операций</CardDescription>
+              <CardDescription>Последние 50 операций клиентского кабинета</CardDescription>
             </CardHeader>
             <CardContent>
               {transactions.length === 0 ? (
@@ -301,7 +380,7 @@ const ClientWallet = () => {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base"><Star className="h-4 w-4 text-amber-500" /> Баллы</CardTitle>
-              <CardDescription>Последние 30 операций</CardDescription>
+              <CardDescription>Последние 30 операций с баллами</CardDescription>
             </CardHeader>
             <CardContent>
               {bonusTransactions.length === 0 ? (
@@ -314,13 +393,15 @@ const ClientWallet = () => {
                       <div key={tx.id} className="flex items-center justify-between p-3 rounded-lg border">
                         <div>
                           <p className="text-sm font-medium">{BONUS_TYPE_MAP[tx.type] || tx.type}</p>
-                          <p className="text-xs text-muted-foreground">{BONUS_SOURCE_MAP[tx.source] || tx.source}{tx.description ? ` · ${tx.description}` : ''}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {BONUS_SOURCE_MAP[tx.source] || tx.source}
+                          </p>
                         </div>
                         <div className="text-right">
-                          <p className={`font-semibold ${isPos ? 'text-primary' : 'text-destructive'}`}>
-                            {isPos ? '+' : ''}{tx.amount} балл{Math.abs(tx.amount) === 1 ? '' : 'ов'}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
+                          <Badge variant={isPos ? 'default' : 'secondary'} className="text-sm">
+                            {isPos ? '+' : ''}{tx.amount} ⭐
+                          </Badge>
+                          <p className="text-xs text-muted-foreground mt-1">
                             {new Date(tx.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
                           </p>
                         </div>
@@ -333,17 +414,16 @@ const ClientWallet = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <CabinetTransferDialog
+        open={cabinetTransferOpen}
+        onClose={() => setCabinetTransferOpen(false)}
+        currentCabinet="client"
+        currentBalance={cabinetBalance.main_balance}
+        onSuccess={loadData}
+      />
     </div>
   );
 };
-
-// Local icon
-const History = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-    <path d="M3 3v5h5" />
-    <path d="M12 7v5l4 2" />
-  </svg>
-);
 
 export default ClientWallet;
