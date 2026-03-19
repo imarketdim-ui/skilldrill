@@ -51,7 +51,8 @@ const MasterProfileView = ({ masterProfile, profile, config, onEditClick }: Prop
           <CardContent className="pt-6">
             <div className="flex items-start gap-4">
               <Avatar className="h-20 w-20 shrink-0">
-                <AvatarImage src={profile?.avatar_url || undefined} />
+                {/* Master cabinet has its own avatar; falls back to client avatar */}
+                <AvatarImage src={masterProfile?.avatar_url || profile?.avatar_url || undefined} />
                 <AvatarFallback className="text-xl bg-primary/10 text-primary">{getInitials()}</AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { getStorageReference } from '@/lib/storage';
@@ -8,8 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Loader2, X, Plus, Upload, Eye, MapPin, Undo2 } from 'lucide-react';
+import { Save, Loader2, X, Plus, Upload, Eye, MapPin, Undo2, Camera } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import MapPicker from '@/components/marketplace/MapPicker';
@@ -23,10 +24,13 @@ interface Props {
 }
 
 const MasterProfileEditor = ({ masterProfile, config, onPhotosChanged, onClose }: Props) => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
+  const avatarFileRef = useRef<HTMLInputElement>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [masterAvatarUrl, setMasterAvatarUrl] = useState<string | null>(null);
   const [mapOpen, setMapOpen] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
@@ -72,7 +76,26 @@ const MasterProfileEditor = ({ masterProfile, config, onPhotosChanged, onClose }
     setInitialFormJson(JSON.stringify(newForm));
     setLocalWorkPhotos(masterProfile.work_photos || []);
     setLocalInteriorPhotos(masterProfile.interior_photos || []);
+    setMasterAvatarUrl(masterProfile.avatar_url || null);
   }, [masterProfile?.id]);
+
+  const handleMasterAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    setUploadingAvatar(true);
+    try {
+      const path = `${user.id}/master-avatar-${Date.now()}.jpg`;
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
+      await supabase.from('master_profiles').update({ avatar_url: urlData.publicUrl } as any).eq('user_id', user.id);
+      setMasterAvatarUrl(urlData.publicUrl);
+      toast({ title: 'Фото мастерского кабинета обновлено' });
+      onPhotosChanged?.();
+    } catch (err: any) {
+      toast({ title: 'Ошибка', description: err.message, variant: 'destructive' });
+    } finally { setUploadingAvatar(false); e.target.value = ''; }
+  };
 
   const isDirty = JSON.stringify(form) !== initialFormJson;
 
@@ -241,6 +264,28 @@ const MasterProfileEditor = ({ masterProfile, config, onPhotosChanged, onClose }
       )}
 
       <div className="space-y-6">
+        {/* Master cabinet avatar — separate from client avatar */}
+        <Card>
+          <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Camera className="h-5 w-5" /> Фото мастерского кабинета</CardTitle></CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-4">
+              <Avatar className="h-20 w-20">
+                <AvatarImage src={masterAvatarUrl || profile?.avatar_url || undefined} />
+                <AvatarFallback className="bg-primary/10 text-primary text-xl">
+                  {`${(profile?.first_name || '')[0] || ''}${(profile?.last_name || '')[0] || ''}`.toUpperCase() || '?'}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <Button variant="outline" size="sm" onClick={() => avatarFileRef.current?.click()} disabled={uploadingAvatar}>
+                  {uploadingAvatar ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Upload className="h-4 w-4 mr-1" />}
+                  {uploadingAvatar ? 'Загрузка...' : 'Загрузить фото'}
+                </Button>
+                <p className="text-xs text-muted-foreground mt-2">Отдельное фото для мастерского кабинета.<br />Если не задано — используется фото клиентского кабинета.</p>
+                <input ref={avatarFileRef} type="file" accept="image/*" className="hidden" onChange={handleMasterAvatarUpload} />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-2xl font-bold">Редактировать профиль</h2>
           <div className="flex items-center gap-2">
