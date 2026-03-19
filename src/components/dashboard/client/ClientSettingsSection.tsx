@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,16 +9,19 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Camera, Gift, ChevronRight } from 'lucide-react';
-
+import { Loader2, Camera, Gift, ChevronRight, Copy, Share2, Check, Lock, Bell, Users, UserX } from 'lucide-react';
 import { z } from 'zod';
 
 const profileSchema = z.object({
-  first_name: z.string().trim().max(100, 'Максимум 100 символов').optional(),
-  last_name: z.string().trim().max(100, 'Максимум 100 символов').optional(),
-  phone: z.string().trim().max(20, 'Максимум 20 символов').optional(),
-  bio: z.string().trim().max(500, 'Максимум 500 символов').optional(),
+  first_name: z.string().trim().max(100).optional(),
+  last_name: z.string().trim().max(100).optional(),
+  phone: z.string().trim().max(20).optional(),
+  bio: z.string().trim().max(500).optional(),
+  telegram: z.string().trim().max(100).optional(),
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
@@ -29,18 +32,136 @@ const normalizePhone = (value: string): string => {
   return digits;
 };
 
+// ──────────────────────────────────────────────
+// Avatar crop dialog (circle crop UX)
+// ──────────────────────────────────────────────
+interface AvatarCropDialogProps {
+  open: boolean;
+  onClose: () => void;
+  imageUrl: string;
+  onCrop: (blob: Blob) => void;
+}
+
+const AvatarCropDialog = ({ open, onClose, imageUrl, onCrop }: AvatarCropDialogProps) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [pos, setPos] = useState({ x: 0, y: 0 });
+  const [scale, setScale] = useState(1);
+  const [dragging, setDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [imgEl, setImgEl] = useState<HTMLImageElement | null>(null);
+  const SIZE = 280;
+
+  useEffect(() => {
+    if (!imageUrl) return;
+    const img = new Image();
+    img.onload = () => {
+      setImgEl(img);
+      // Fit image initially
+      const fitScale = Math.max(SIZE / img.width, SIZE / img.height);
+      setScale(fitScale);
+      setPos({ x: (SIZE - img.width * fitScale) / 2, y: (SIZE - img.height * fitScale) / 2 });
+    };
+    img.src = imageUrl;
+  }, [imageUrl]);
+
+  useEffect(() => {
+    if (!imgEl || !canvasRef.current) return;
+    const ctx = canvasRef.current.getContext('2d')!;
+    ctx.clearRect(0, 0, SIZE, SIZE);
+    // Clip to circle
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(SIZE / 2, SIZE / 2, SIZE / 2, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.drawImage(imgEl, pos.x, pos.y, imgEl.width * scale, imgEl.height * scale);
+    ctx.restore();
+    // Overlay dim
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.fillRect(0, 0, SIZE, SIZE);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(SIZE / 2, SIZE / 2, SIZE / 2, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.clearRect(0, 0, SIZE, SIZE);
+    ctx.drawImage(imgEl, pos.x, pos.y, imgEl.width * scale, imgEl.height * scale);
+    ctx.restore();
+    // Circle border
+    ctx.strokeStyle = 'hsl(var(--primary))';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(SIZE / 2, SIZE / 2, SIZE / 2 - 1, 0, Math.PI * 2);
+    ctx.stroke();
+  }, [imgEl, pos, scale]);
+
+  const onMouseDown = (e: React.MouseEvent) => { setDragging(true); setDragStart({ x: e.clientX - pos.x, y: e.clientY - pos.y }); };
+  const onMouseMove = (e: React.MouseEvent) => { if (!dragging) return; setPos({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y }); };
+  const onMouseUp = () => setDragging(false);
+
+  const handleCrop = () => {
+    if (!canvasRef.current) return;
+    // Export clean circle
+    const out = document.createElement('canvas');
+    out.width = SIZE; out.height = SIZE;
+    const ctx = out.getContext('2d')!;
+    ctx.beginPath();
+    ctx.arc(SIZE / 2, SIZE / 2, SIZE / 2, 0, Math.PI * 2);
+    ctx.clip();
+    if (imgEl) ctx.drawImage(imgEl, pos.x, pos.y, imgEl.width * scale, imgEl.height * scale);
+    out.toBlob(blob => { if (blob) onCrop(blob); }, 'image/jpeg', 0.92);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader><DialogTitle>Выберите область фото</DialogTitle></DialogHeader>
+        <div className="flex flex-col items-center gap-4">
+          <canvas
+            ref={canvasRef} width={SIZE} height={SIZE}
+            className="rounded-full cursor-grab active:cursor-grabbing border"
+            style={{ width: SIZE, height: SIZE }}
+            onMouseDown={onMouseDown} onMouseMove={onMouseMove}
+            onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
+          />
+          <div className="w-full space-y-2">
+            <Label className="text-xs text-muted-foreground">Масштаб</Label>
+            <input type="range" min="0.5" max="3" step="0.05"
+              value={scale} onChange={e => setScale(Number(e.target.value))}
+              className="w-full accent-primary" />
+          </div>
+          <p className="text-xs text-muted-foreground">Перетаскивайте фото для выбора области</p>
+          <div className="flex gap-2 w-full">
+            <Button variant="outline" className="flex-1" onClick={onClose}>Отмена</Button>
+            <Button className="flex-1" onClick={handleCrop}>Применить</Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+// ──────────────────────────────────────────────
+// Main settings component
+// ──────────────────────────────────────────────
 const ClientSettingsSection = () => {
   const { user, profile, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const formRef = useRef<HTMLFormElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [formData, setFormData] = useState<ProfileFormData>({
-    first_name: '', last_name: '', phone: '', bio: '',
+  const [cropDialog, setCropDialog] = useState<{ open: boolean; url: string; file: File | null }>({ open: false, url: '', file: null });
+  const [copiedId, setCopiedId] = useState(false);
+  const [formData, setFormData] = useState<ProfileFormData>({ first_name: '', last_name: '', phone: '', bio: '', telegram: '' });
+
+  // Privacy settings
+  const [privacy, setPrivacy] = useState({
+    allow_group_invites: true,
+    show_in_search: true,
+    allow_messages_from_strangers: true,
+    show_phone: false,
   });
+  const [savingPrivacy, setSavingPrivacy] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -49,7 +170,11 @@ const ClientSettingsSection = () => {
         last_name: profile.last_name || '',
         phone: profile.phone || '',
         bio: profile.bio || '',
+        telegram: (profile as any)?.telegram || '',
       });
+      // Load privacy from profile extra
+      const pv = (profile as any)?.privacy_settings;
+      if (pv) setPrivacy(prev => ({ ...prev, ...pv }));
     }
   }, [profile]);
 
@@ -62,16 +187,24 @@ const ClientSettingsSection = () => {
     if (formData.phone) setFormData(prev => ({ ...prev, phone: normalizePhone(prev.phone || '') }));
   };
 
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // File select → open crop dialog
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !user) return;
-    if (file.size > 5 * 1024 * 1024) { toast({ title: 'Файл слишком большой', description: 'Максимум 5 МБ', variant: 'destructive' }); return; }
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) { toast({ title: 'Файл слишком большой', description: 'Максимум 10 МБ', variant: 'destructive' }); return; }
     if (!file.type.startsWith('image/')) { toast({ title: 'Неверный формат', description: 'Загрузите изображение', variant: 'destructive' }); return; }
+    const url = URL.createObjectURL(file);
+    setCropDialog({ open: true, url, file });
+    e.target.value = '';
+  };
+
+  const handleCropDone = async (blob: Blob) => {
+    setCropDialog(prev => ({ ...prev, open: false }));
+    if (!user) return;
     setUploadingAvatar(true);
     try {
-      const ext = file.name.split('.').pop();
-      const path = `${user.id}/avatar-${Date.now()}.${ext}`;
-      const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
+      const path = `${user.id}/avatar-${Date.now()}.jpg`;
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
       if (uploadError) throw uploadError;
       const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
       const { error: updateError } = await supabase.from('profiles').update({ avatar_url: urlData.publicUrl }).eq('id', user.id);
@@ -80,11 +213,14 @@ const ClientSettingsSection = () => {
       toast({ title: 'Фото обновлено' });
     } catch (err: any) {
       toast({ title: 'Ошибка', description: err.message, variant: 'destructive' });
-    } finally { setUploadingAvatar(false); }
+    } finally {
+      setUploadingAvatar(false);
+      URL.revokeObjectURL(cropDialog.url);
+    }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     const result = profileSchema.safeParse(formData);
     if (!result.success) {
       const newErrors: Record<string, string> = {};
@@ -102,10 +238,41 @@ const ClientSettingsSection = () => {
       }).eq('id', user!.id);
       if (error) throw error;
       await refreshProfile();
-      toast({ title: 'Профиль обновлён', description: 'Ваши данные успешно сохранены' });
+      toast({ title: 'Профиль обновлён', description: 'Данные успешно сохранены' });
     } catch (error: any) {
-      toast({ title: 'Ошибка', description: error.message || 'Не удалось обновить профиль', variant: 'destructive' });
+      toast({ title: 'Ошибка', description: error.message, variant: 'destructive' });
     } finally { setIsSubmitting(false); }
+  };
+
+  const handleSavePrivacy = async () => {
+    setSavingPrivacy(true);
+    try {
+      const { error } = await supabase.from('profiles').update({
+        privacy_settings: privacy,
+      } as any).eq('id', user!.id);
+      if (error) throw error;
+      toast({ title: 'Настройки конфиденциальности сохранены' });
+    } catch (err: any) {
+      toast({ title: 'Ошибка', description: err.message, variant: 'destructive' });
+    } finally { setSavingPrivacy(false); }
+  };
+
+  const handleCopyId = () => {
+    if (!profile?.skillspot_id) return;
+    navigator.clipboard.writeText(profile.skillspot_id);
+    setCopiedId(true);
+    toast({ title: 'SkillSpot ID скопирован' });
+    setTimeout(() => setCopiedId(false), 2000);
+  };
+
+  const handleShareId = () => {
+    const text = `Мой SkillSpot ID: ${profile?.skillspot_id}`;
+    if (navigator.share) {
+      navigator.share({ title: 'SkillSpot ID', text });
+    } else {
+      navigator.clipboard.writeText(text);
+      toast({ title: 'Скопировано для отправки' });
+    }
   };
 
   return (
@@ -114,7 +281,7 @@ const ClientSettingsSection = () => {
       <Card>
         <CardHeader>
           <CardTitle>Фото профиля</CardTitle>
-          <CardDescription>Ваше фото будет видно другим пользователям</CardDescription>
+          <CardDescription>Фото отображается в круглой форме — выберите нужную область</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-6">
@@ -129,10 +296,30 @@ const ClientSettingsSection = () => {
                 {uploadingAvatar ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Camera className="h-4 w-4 mr-2" />}
                 {uploadingAvatar ? 'Загрузка...' : 'Загрузить фото'}
               </Button>
-              <p className="text-xs text-muted-foreground mt-2">JPG, PNG, WebP · до 5 МБ</p>
+              <p className="text-xs text-muted-foreground mt-2">JPG, PNG, WebP · до 10 МБ<br />Можно выбрать область отображения</p>
             </div>
-            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
           </div>
+        </CardContent>
+      </Card>
+
+      {/* SkillSpot ID */}
+      <Card>
+        <CardHeader>
+          <CardTitle>SkillSpot ID</CardTitle>
+          <CardDescription>Ваш уникальный идентификатор для приглашений</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-muted">
+            <span className="font-mono text-lg font-bold flex-1 select-all cursor-text">{profile?.skillspot_id || '—'}</span>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleCopyId} title="Скопировать ID">
+              {copiedId ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleShareId} title="Поделиться">
+              <Share2 className="h-4 w-4" />
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">Можно выделить, скопировать или поделиться</p>
         </CardContent>
       </Card>
 
@@ -143,7 +330,7 @@ const ClientSettingsSection = () => {
           <CardDescription>Обновите вашу контактную информацию</CardDescription>
         </CardHeader>
         <CardContent>
-          <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="first_name">Имя</Label>
@@ -160,7 +347,7 @@ const ClientSettingsSection = () => {
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input id="email" type="email" value={profile?.email || ''} disabled className="bg-muted" />
-              <p className="text-sm text-muted-foreground">Email нельзя изменить</p>
+              <p className="text-xs text-muted-foreground">Email нельзя изменить</p>
             </div>
 
             <div className="space-y-2">
@@ -171,59 +358,107 @@ const ClientSettingsSection = () => {
 
             <div className="space-y-2">
               <Label htmlFor="bio">О себе</Label>
-              <Textarea id="bio" placeholder="Расскажите о себе..." value={formData.bio} onChange={(e) => handleChange('bio', e.target.value)} className={errors.bio ? 'border-destructive' : ''} disabled={isSubmitting} rows={4} />
+              <Textarea id="bio" placeholder="Расскажите о себе..." value={formData.bio} onChange={(e) => handleChange('bio', e.target.value)} className={errors.bio ? 'border-destructive' : ''} disabled={isSubmitting} rows={3} />
               {errors.bio && <p className="text-sm text-destructive">{errors.bio}</p>}
-              <p className="text-sm text-muted-foreground">{formData.bio?.length || 0}/500 символов</p>
-            </div>
-
-            <div className="space-y-2">
-              <Label>SkillSpot ID</Label>
-              <Input value={profile?.skillspot_id || ''} disabled className="bg-muted font-mono" />
-              <p className="text-sm text-muted-foreground">Ваш уникальный ID для приглашений</p>
+              <p className="text-xs text-muted-foreground">{formData.bio?.length || 0}/500</p>
             </div>
 
             <div className="space-y-2">
               <Label>KYC верификация</Label>
-              <div className="p-3 rounded-lg border bg-muted/50">
-                {(profile as any)?.kyc_verified ? (
-                  <p className="text-sm text-primary font-medium">✓ Верифицирован</p>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Верификация положительно влияет на вашу репутацию. Пока недоступна.</p>
-                )}
+              <div className="p-3 rounded-lg border bg-muted/50 flex items-center gap-2">
+                {(profile as any)?.kyc_verified
+                  ? <Badge className="gap-1"><Check className="h-3 w-3" /> Верифицирован</Badge>
+                  : <p className="text-sm text-muted-foreground flex items-center gap-2"><Lock className="h-4 w-4" /> Верификация увеличивает доверие мастеров к вам</p>
+                }
               </div>
             </div>
 
+            <Button type="submit" disabled={isSubmitting} className="w-full">
+              {isSubmitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Сохранение...</> : 'Сохранить изменения'}
+            </Button>
           </form>
+        </CardContent>
+      </Card>
+
+      {/* Privacy Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Lock className="h-5 w-5" /> Конфиденциальность</CardTitle>
+          <CardDescription>Управляйте тем, что видят другие пользователи</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label className="flex items-center gap-2"><Users className="h-4 w-4" /> Добавление в групповые чаты</Label>
+              <p className="text-xs text-muted-foreground">Разрешить другим добавлять вас в группы</p>
+            </div>
+            <Switch checked={privacy.allow_group_invites} onCheckedChange={v => setPrivacy(p => ({ ...p, allow_group_invites: v }))} />
+          </div>
+          <Separator />
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label className="flex items-center gap-2"><Bell className="h-4 w-4" /> Отображение в поиске</Label>
+              <p className="text-xs text-muted-foreground">Ваш профиль виден другим пользователям</p>
+            </div>
+            <Switch checked={privacy.show_in_search} onCheckedChange={v => setPrivacy(p => ({ ...p, show_in_search: v }))} />
+          </div>
+          <Separator />
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label className="flex items-center gap-2"><MessageSquareIcon className="h-4 w-4" /> Сообщения от незнакомцев</Label>
+              <p className="text-xs text-muted-foreground">Разрешить писать всем пользователям</p>
+            </div>
+            <Switch checked={privacy.allow_messages_from_strangers} onCheckedChange={v => setPrivacy(p => ({ ...p, allow_messages_from_strangers: v }))} />
+          </div>
+          <Separator />
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label className="flex items-center gap-2"><UserX className="h-4 w-4" /> Показывать телефон</Label>
+              <p className="text-xs text-muted-foreground">Ваш телефон виден мастерам в записях</p>
+            </div>
+            <Switch checked={privacy.show_phone} onCheckedChange={v => setPrivacy(p => ({ ...p, show_phone: v }))} />
+          </div>
+          <Button variant="outline" className="w-full" onClick={handleSavePrivacy} disabled={savingPrivacy}>
+            {savingPrivacy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+            Сохранить настройки конфиденциальности
+          </Button>
         </CardContent>
       </Card>
 
       <Separator />
 
-      {/* Referral program teaser */}
+      {/* Referral program link */}
       <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => navigate('/referral')}>
-        <CardContent className="pt-6">
+        <CardContent className="pt-5 pb-5">
           <div className="flex items-center gap-4">
             <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
               <Gift className="h-5 w-5 text-primary" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-semibold">Реферальная программа</p>
-              <p className="text-sm text-muted-foreground">Приглашайте друзей и получайте бонусы</p>
+              <p className="text-sm text-muted-foreground">Приглашайте друзей — получайте бонусы на баланс</p>
             </div>
             <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
           </div>
         </CardContent>
       </Card>
 
-      <Button
-        onClick={() => formRef.current?.requestSubmit()}
-        disabled={isSubmitting}
-        className="w-full"
-      >
-        {isSubmitting ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" />Сохранение...</>) : 'Сохранить изменения'}
-      </Button>
+      {/* Avatar crop dialog */}
+      <AvatarCropDialog
+        open={cropDialog.open}
+        onClose={() => { setCropDialog(p => ({ ...p, open: false })); URL.revokeObjectURL(cropDialog.url); }}
+        imageUrl={cropDialog.url}
+        onCrop={handleCropDone}
+      />
     </div>
   );
 };
+
+// Local icon to avoid circular imports
+const MessageSquareIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+  </svg>
+);
 
 export default ClientSettingsSection;
