@@ -62,6 +62,8 @@ export type Database = {
       balance_transactions: {
         Row: {
           amount: number
+          cabinet_id: string | null
+          cabinet_type: string | null
           created_at: string
           description: string | null
           id: string
@@ -71,6 +73,8 @@ export type Database = {
         }
         Insert: {
           amount: number
+          cabinet_id?: string | null
+          cabinet_type?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -80,6 +84,8 @@ export type Database = {
         }
         Update: {
           amount?: number
+          cabinet_id?: string | null
+          cabinet_type?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -701,6 +707,88 @@ export type Database = {
           },
         ]
       }
+      cabinet_balances: {
+        Row: {
+          bonus_balance: number
+          cabinet_id: string | null
+          cabinet_type: string
+          id: string
+          main_balance: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bonus_balance?: number
+          cabinet_id?: string | null
+          cabinet_type: string
+          id?: string
+          main_balance?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bonus_balance?: number
+          cabinet_id?: string | null
+          cabinet_type?: string
+          id?: string
+          main_balance?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cabinet_balances_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cabinet_transfers: {
+        Row: {
+          amount: number
+          created_at: string
+          from_cabinet_id: string | null
+          from_cabinet_type: string
+          id: string
+          note: string | null
+          to_cabinet_id: string | null
+          to_cabinet_type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          from_cabinet_id?: string | null
+          from_cabinet_type: string
+          id?: string
+          note?: string | null
+          to_cabinet_id?: string | null
+          to_cabinet_type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          from_cabinet_id?: string | null
+          from_cabinet_type?: string
+          id?: string
+          note?: string | null
+          to_cabinet_id?: string | null
+          to_cabinet_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cabinet_transfers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cash_register_transactions: {
         Row: {
           amount: number
@@ -916,6 +1004,7 @@ export type Database = {
         Row: {
           attachment_type: string | null
           attachment_url: string | null
+          cabinet_type_scope: string | null
           chat_type: string
           created_at: string
           id: string
@@ -929,6 +1018,7 @@ export type Database = {
         Insert: {
           attachment_type?: string | null
           attachment_url?: string | null
+          cabinet_type_scope?: string | null
           chat_type?: string
           created_at?: string
           id?: string
@@ -942,6 +1032,7 @@ export type Database = {
         Update: {
           attachment_type?: string | null
           attachment_url?: string | null
+          cabinet_type_scope?: string | null
           chat_type?: string
           created_at?: string
           id?: string
@@ -1937,6 +2028,7 @@ export type Database = {
       }
       notifications: {
         Row: {
+          cabinet_type: string | null
           created_at: string
           id: string
           is_read: boolean
@@ -1947,6 +2039,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          cabinet_type?: string | null
           created_at?: string
           id?: string
           is_read?: boolean
@@ -1957,6 +2050,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          cabinet_type?: string | null
           created_at?: string
           id?: string
           is_read?: boolean
@@ -2338,9 +2432,11 @@ export type Database = {
           last_name: string | null
           phone: string | null
           platform_role: Database["public"]["Enums"]["platform_role"]
+          privacy_settings: Json | null
           referred_by: string | null
           reminder_minutes: number | null
           skillspot_id: string
+          telegram: string | null
           updated_at: string
         }
         Insert: {
@@ -2355,9 +2451,11 @@ export type Database = {
           last_name?: string | null
           phone?: string | null
           platform_role?: Database["public"]["Enums"]["platform_role"]
+          privacy_settings?: Json | null
           referred_by?: string | null
           reminder_minutes?: number | null
           skillspot_id: string
+          telegram?: string | null
           updated_at?: string
         }
         Update: {
@@ -2372,9 +2470,11 @@ export type Database = {
           last_name?: string | null
           phone?: string | null
           platform_role?: Database["public"]["Enums"]["platform_role"]
+          privacy_settings?: Json | null
           referred_by?: string | null
           reminder_minutes?: number | null
           skillspot_id?: string
+          telegram?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -4044,6 +4144,7 @@ export type Database = {
           cancel_under_1h: number | null
           cancel_under_3h: number | null
           completed_visits: number | null
+          last_calculated_at: string | null
           no_show_count: number | null
           status: string | null
           total_cancellations: number | null
@@ -4052,30 +4153,32 @@ export type Database = {
           vip_by_count: number | null
         }
         Insert: {
-          account_age_days?: never
-          blacklist_by_count?: never
-          cancel_under_1h?: never
-          cancel_under_3h?: never
-          completed_visits?: never
-          no_show_count?: never
-          status?: never
-          total_cancellations?: never
-          total_score?: never
+          account_age_days?: number | null
+          blacklist_by_count?: number | null
+          cancel_under_1h?: number | null
+          cancel_under_3h?: number | null
+          completed_visits?: number | null
+          last_calculated_at?: string | null
+          no_show_count?: number | null
+          status?: string | null
+          total_cancellations?: number | null
+          total_score?: number | null
           user_id?: string | null
-          vip_by_count?: never
+          vip_by_count?: number | null
         }
         Update: {
-          account_age_days?: never
-          blacklist_by_count?: never
-          cancel_under_1h?: never
-          cancel_under_3h?: never
-          completed_visits?: never
-          no_show_count?: never
-          status?: never
-          total_cancellations?: never
-          total_score?: never
+          account_age_days?: number | null
+          blacklist_by_count?: number | null
+          cancel_under_1h?: number | null
+          cancel_under_3h?: number | null
+          completed_visits?: number | null
+          last_calculated_at?: string | null
+          no_show_count?: number | null
+          status?: string | null
+          total_cancellations?: number | null
+          total_score?: number | null
           user_id?: string | null
-          vip_by_count?: never
+          vip_by_count?: number | null
         }
         Relationships: [
           {
@@ -4117,6 +4220,10 @@ export type Database = {
           score: number
           status: string
         }[]
+      }
+      can_view_user_score: {
+        Args: { _target: string; _viewer: string }
+        Returns: boolean
       }
       check_availability: {
         Args: {
