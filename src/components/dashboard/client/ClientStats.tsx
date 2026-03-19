@@ -83,12 +83,14 @@ export default function ClientStats({ userId }: Props) {
   const recalculate = async () => {
     setRecalculating(true);
     try {
-      const { error } = await supabase.rpc('calculate_user_score', { _user_id: userId });
+      // calculate_user_score returns a TABLE, not a single value
+      const { data, error } = await supabase.rpc('calculate_user_score', { _user_id: userId });
       if (error) throw error;
+      // After recalc, reload from user_scores_public which was updated
       await loadScore();
       toast({ title: 'Статистика обновлена' });
     } catch (err: any) {
-      toast({ title: 'Ошибка', description: err.message, variant: 'destructive' });
+      toast({ title: 'Ошибка обновления', description: err.message, variant: 'destructive' });
     } finally { setRecalculating(false); }
   };
 
