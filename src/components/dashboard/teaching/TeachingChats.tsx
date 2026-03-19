@@ -253,6 +253,7 @@ const TeachingChats = ({ isClientContext = false }: Props) => {
       chat_type: 'direct',
       attachment_url: attachmentUrl || null,
       attachment_type: attachmentType || null,
+      cabinet_type_scope: isClientContext ? 'client' : null,
     });
     if (!error) { setNewMessage(''); setShowEmoji(false); }
   };
