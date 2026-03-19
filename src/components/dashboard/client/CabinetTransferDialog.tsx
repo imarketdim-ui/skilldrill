@@ -37,7 +37,7 @@ const CabinetTransferDialog = ({ open, onClose, currentCabinet, currentBalance, 
   const [toCabinet, setToCabinet] = useState<string>('');
   const [processing, setProcessing] = useState(false);
 
-  const otherCabinets = Object.keys(CABINET_LABELS).filter(k => k !== currentCabinet);
+  const otherCabinets = (ALLOWED_TRANSFERS[currentCabinet] || []).filter(k => k in CABINET_LABELS);
 
   const handleTransfer = async () => {
     if (!user || !toCabinet || !amount) return;
