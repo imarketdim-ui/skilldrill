@@ -162,7 +162,7 @@ const ClientDashboard = () => {
         return <ClientWallet />;
 
       case 'bonus':
-        return <ClientBonusPoints />;
+        return <ClientWallet />;
 
       case 'settings':
         return <ClientSettingsSection />;
