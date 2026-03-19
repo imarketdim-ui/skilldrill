@@ -272,8 +272,8 @@ const ClientWallet = () => {
                   </div>
                 </DialogContent>
               </Dialog>
-              <Button size="sm" variant="ghost" className="text-xs text-muted-foreground" onClick={() => navigate('/referral')}>
-                Реф. программа →
+              <Button size="sm" variant="outline" className="gap-1" onClick={() => navigate('/referral')}>
+                Реферальная программа
               </Button>
             </div>
           </CardContent>
