@@ -24,10 +24,13 @@ interface Props {
 }
 
 const MasterProfileEditor = ({ masterProfile, config, onPhotosChanged, onClose }: Props) => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
+  const avatarFileRef = useRef<HTMLInputElement>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [masterAvatarUrl, setMasterAvatarUrl] = useState<string | null>(null);
   const [mapOpen, setMapOpen] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
