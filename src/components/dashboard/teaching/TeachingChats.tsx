@@ -118,9 +118,10 @@ const FileAttachDialog = ({ open, onClose, onSend, uploading }: FileAttachDialog
 
 interface Props {
   isClientContext?: boolean;
+  onUnreadChange?: (count: number) => void;
 }
 
-const TeachingChats = ({ isClientContext = false }: Props) => {
+const TeachingChats = ({ isClientContext = false, onUnreadChange }: Props) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [contacts, setContacts] = useState<ChatContact[]>([]);
@@ -222,6 +223,7 @@ const TeachingChats = ({ isClientContext = false }: Props) => {
     });
     setContacts(contactList.sort((a, b) => (b.lastMessageAt || '').localeCompare(a.lastMessageAt || '')));
     setTotalUnread(unreadTotal);
+    onUnreadChange?.(unreadTotal);
     setLoading(false);
   };
 

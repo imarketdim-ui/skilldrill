@@ -272,8 +272,8 @@ const ClientWallet = () => {
                   </div>
                 </DialogContent>
               </Dialog>
-              <Button size="sm" variant="ghost" className="text-xs text-muted-foreground" onClick={() => navigate('/referral')}>
-                Реф. программа →
+              <Button size="sm" variant="outline" className="gap-1" onClick={() => navigate('/referral')}>
+                Реферальная программа
               </Button>
             </div>
           </CardContent>
@@ -290,9 +290,6 @@ const ClientWallet = () => {
               <span className="text-primary">+{bonusPoints.total_earned} начислено</span>
               <span>−{bonusPoints.total_spent} потрачено</span>
             </div>
-            <Button size="sm" variant="outline" className="gap-1 w-full" onClick={() => navigate('/referral')}>
-              <Gift className="h-3.5 w-3.5" /> Реферальная программа
-            </Button>
           </CardContent>
         </Card>
       </div>

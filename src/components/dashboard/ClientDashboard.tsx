@@ -81,19 +81,20 @@ const ClientDashboard = () => {
         .gte('scheduled_at', new Date().toISOString())
         .order('scheduled_at', { ascending: true })
         .limit(5),
-      // Client-scoped notifications only
+      // Client-scoped notifications only (include null cabinet_type for backward compat)
       supabase.from('notifications')
         .select('*')
         .eq('user_id', user.id)
-        .eq('cabinet_type', 'client')
+        .or('cabinet_type.eq.client,cabinet_type.is.null')
         .order('created_at', { ascending: false })
         .limit(30),
-      // Unread chats count
+      // Unread chats count — client cabinet scope
       supabase.from('chat_messages')
         .select('id', { count: 'exact', head: true })
         .eq('recipient_id', user.id)
         .eq('is_read', false)
-        .neq('chat_type', 'support'),
+        .neq('chat_type', 'support')
+        .or('cabinet_type_scope.eq.client,cabinet_type_scope.is.null'),
     ]).then(([balRes, invRes, bookRes, notifRes, chatRes]) => {
       setCabinetBalance(balRes.data?.main_balance || 0);
       setPendingInvites(invRes.count || 0);
@@ -114,6 +115,16 @@ const ClientDashboard = () => {
 
   const getInitials = () =>
     `${(profile?.first_name || '')[0] || ''}${(profile?.last_name || '')[0] || ''}`.toUpperCase() || '?';
+
+  // Fix notification messages to use first-person perspective
+  const fixNotifMessage = (msg: string) => {
+    if (!msg) return msg;
+    return msg
+      .replace(/записался/gi, 'вы записались')
+      .replace(/записалась/gi, 'вы записались')
+      .replace(/вы записались к/gi, 'вы записались к')
+      .replace(/клиент записался/gi, 'вы записались');
+  };
 
   const totalUnread = (notifications.filter(n => !n.is_read).length) + unreadChats + pendingInvites;
 
@@ -154,8 +165,8 @@ const ClientDashboard = () => {
                 </TabsList>
                 <div className="p-0 md:p-4">
                   <TabsContent value="chats" className="mt-0">
-                    {/* isClientContext disables group creation */}
-                    <TeachingChats isClientContext />
+                    {/* isClientContext disables group creation, onUnreadChange syncs count */}
+                    <TeachingChats isClientContext onUnreadChange={setUnreadChats} />
                   </TabsContent>
                   <TabsContent value="requests" className="mt-0 p-4 md:p-0"><ClientRequests /></TabsContent>
                   <TabsContent value="support" className="mt-0 p-4 md:p-0"><SupportChat /></TabsContent>
@@ -211,7 +222,7 @@ const ClientDashboard = () => {
                         <div className="flex items-start justify-between gap-2">
                           <div>
                             <p className="font-medium text-sm">{n.title}</p>
-                            <p className="text-sm text-muted-foreground mt-1">{n.message}</p>
+                            <p className="text-sm text-muted-foreground mt-1">{fixNotifMessage(n.message)}</p>
                             <p className="text-xs text-muted-foreground mt-1">{new Date(n.created_at).toLocaleString('ru-RU')}</p>
                           </div>
                           {navTarget && <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />}
@@ -313,7 +324,7 @@ const ClientDashboard = () => {
                 <CardContent className="pt-6">
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground">Клиентский баланс</p>
+                      <p className="text-sm text-muted-foreground">Баланс</p>
                       <p className="text-3xl font-bold mt-1">{Number(cabinetBalance).toLocaleString()} ₽</p>
                     </div>
                     <Wallet className="h-5 w-5 text-muted-foreground" />

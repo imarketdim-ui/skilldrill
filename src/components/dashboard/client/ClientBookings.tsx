@@ -223,17 +223,17 @@ export default function ClientBookings({ userId }: Props) {
 
   useEffect(() => { loadBookings(); }, [userId]);
 
-  const now = new Date();
-  const active = useMemo(() =>
-    bookings.filter(b => new Date(b.date) >= now || ['pending', 'confirmed', 'in_progress'].includes(b.status))
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
-    [bookings]
-  );
-  const archive = useMemo(() =>
-    bookings.filter(b => new Date(b.date) < now && !['pending', 'confirmed', 'in_progress'].includes(b.status))
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-    [bookings]
-  );
+  const active = useMemo(() => {
+    const now = new Date();
+    return bookings.filter(b => ['pending', 'confirmed', 'in_progress'].includes(b.status) || new Date(b.date) >= now)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [bookings]);
+
+  const archive = useMemo(() => {
+    const now = new Date();
+    return bookings.filter(b => !['pending', 'confirmed', 'in_progress'].includes(b.status) && new Date(b.date) < now)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [bookings]);
 
   // Group by day
   const groupByDay = (items: BookingItem[]) => {
