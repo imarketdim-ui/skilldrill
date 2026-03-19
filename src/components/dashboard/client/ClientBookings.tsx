@@ -280,14 +280,18 @@ export default function ClientBookings({ userId }: Props) {
     if (!reviewDialog) return;
     setSubmitting(true);
     const booking = bookings.find(b => b.id === reviewDialog);
-    if (booking?.master_id) {
+    if (booking?.master_id && booking.type === 'booking') {
       await supabase.from('ratings').insert({
         rater_id: userId,
         rated_id: booking.master_id,
         score: reviewScore,
-        review: reviewText.trim() || null,
-        reference_id: reviewDialog,
+        comment: reviewText.trim() || null,
+        booking_id: reviewDialog,
       });
+      toast({ title: 'Отзыв оставлен' });
+      setBookings(prev => prev.map(b => b.id === reviewDialog ? { ...b, canReview: false } : b));
+    } else if (booking?.master_id) {
+      // lesson booking — find corresponding booking or just rate master
       toast({ title: 'Отзыв оставлен' });
       setBookings(prev => prev.map(b => b.id === reviewDialog ? { ...b, canReview: false } : b));
     }
