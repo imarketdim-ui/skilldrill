@@ -76,7 +76,26 @@ const MasterProfileEditor = ({ masterProfile, config, onPhotosChanged, onClose }
     setInitialFormJson(JSON.stringify(newForm));
     setLocalWorkPhotos(masterProfile.work_photos || []);
     setLocalInteriorPhotos(masterProfile.interior_photos || []);
+    setMasterAvatarUrl(masterProfile.avatar_url || null);
   }, [masterProfile?.id]);
+
+  const handleMasterAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    setUploadingAvatar(true);
+    try {
+      const path = `${user.id}/master-avatar-${Date.now()}.jpg`;
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
+      await supabase.from('master_profiles').update({ avatar_url: urlData.publicUrl } as any).eq('user_id', user.id);
+      setMasterAvatarUrl(urlData.publicUrl);
+      toast({ title: 'Фото мастерского кабинета обновлено' });
+      onPhotosChanged?.();
+    } catch (err: any) {
+      toast({ title: 'Ошибка', description: err.message, variant: 'destructive' });
+    } finally { setUploadingAvatar(false); e.target.value = ''; }
+  };
 
   const isDirty = JSON.stringify(form) !== initialFormJson;
 
