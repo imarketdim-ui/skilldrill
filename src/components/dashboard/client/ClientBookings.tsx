@@ -161,10 +161,10 @@ export default function ClientBookings({ userId }: Props) {
     // Check which bookings already have reviews
     const bookingIds = (bRes.data || []).map(b => b.id);
     const { data: existingRatings } = await supabase.from('ratings')
-      .select('reference_id')
-      .in('reference_id', bookingIds)
+      .select('booking_id')
+      .in('booking_id', bookingIds)
       .eq('rater_id', userId);
-    const reviewedSet = new Set((existingRatings || []).map(r => r.reference_id));
+    const reviewedSet = new Set((existingRatings || []).map((r: any) => r.booking_id));
 
     (bRes.data || []).forEach(b => {
       const d = new Date(b.scheduled_at);
