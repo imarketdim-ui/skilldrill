@@ -141,9 +141,6 @@ const ClientDashboard = () => {
                 <TabsList className="w-full rounded-none border-b bg-transparent px-6 pt-2">
                   <TabsTrigger value="chats" className="flex-1 relative">
                     Чаты
-                    {unreadChats > 0 && (
-                      <Badge variant="destructive" className="ml-1.5 h-5 px-1.5 text-[10px]">{unreadChats}</Badge>
-                    )}
                   </TabsTrigger>
                   <TabsTrigger value="requests" className="flex-1 relative">
                     Запросы
