@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,7 +13,6 @@ import {
   LayoutDashboard, Settings, BarChart3, ChevronRight, Star,
   PanelLeftClose, PanelLeftOpen
 } from 'lucide-react';
-import { Gift } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
 import TeachingChats from '@/components/dashboard/teaching/TeachingChats';
@@ -25,27 +24,25 @@ import ClientFavorites from '@/components/dashboard/client/ClientFavorites';
 import ClientSettingsSection from '@/components/dashboard/client/ClientSettingsSection';
 import ClientBookings from '@/components/dashboard/client/ClientBookings';
 import ClientReviews from '@/components/dashboard/client/ClientReviews';
-import ClientBonusPoints from '@/components/dashboard/client/ClientBonusPoints';
-
 
 // Desktop sidebar
 const desktopMenuItems = [
-  { key: 'overview', label: 'Обзор', icon: LayoutDashboard },
-  { key: 'bookings', label: 'Записи', icon: Calendar },
-  { key: 'favorites', label: 'Избранное', icon: Heart },
-  { key: 'reviews', label: 'Отзывы', icon: Star },
-  { key: 'communication', label: 'Общение', icon: MessageSquare },
-  { key: 'stats', label: 'Статистика', icon: BarChart3 },
-  { key: 'wallet', label: 'Баланс и бонусы', icon: Wallet },
-  { key: 'settings', label: 'Настройки', icon: Settings },
+  { key: 'overview',       label: 'Обзор',         icon: LayoutDashboard },
+  { key: 'bookings',       label: 'Записи',         icon: Calendar },
+  { key: 'favorites',      label: 'Избранное',      icon: Heart },
+  { key: 'reviews',        label: 'Отзывы',         icon: Star },
+  { key: 'communication',  label: 'Общение',        icon: MessageSquare },
+  { key: 'stats',          label: 'Статистика',     icon: BarChart3 },
+  { key: 'wallet',         label: 'Баланс и бонусы',icon: Wallet },
+  { key: 'settings',       label: 'Настройки',      icon: Settings },
 ];
 
 const mobileMenuItems = [
-  { key: 'overview', label: 'Обзор', icon: LayoutDashboard },
-  { key: 'bookings', label: 'Записи', icon: Calendar },
-  { key: 'favorites', label: 'Избранное', icon: Heart },
-  { key: 'communication', label: 'Общение', icon: MessageSquare },
-  { key: 'settings', label: 'Настройки', icon: Settings },
+  { key: 'overview',      label: 'Обзор',    icon: LayoutDashboard },
+  { key: 'bookings',      label: 'Записи',   icon: Calendar },
+  { key: 'favorites',     label: 'Избранное',icon: Heart },
+  { key: 'communication', label: 'Общение',  icon: MessageSquare },
+  { key: 'settings',      label: 'Настройки',icon: Settings },
 ];
 
 const ClientDashboard = () => {
@@ -56,24 +53,53 @@ const ClientDashboard = () => {
   const [activeSection, setActiveSection] = useState('overview');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [balance, setBalance] = useState({ main_balance: 0, referral_balance: 0 });
+  const [cabinetBalance, setCabinetBalance] = useState(0);
   const [pendingInvites, setPendingInvites] = useState(0);
-  const [clientBookings, setClientBookings] = useState<any[]>([]);
+  const [upcomingBookings, setUpcomingBookings] = useState<any[]>([]);
+  // Scoped to client cabinet only
   const [notifications, setNotifications] = useState<any[]>([]);
-  const [bookingsView, setBookingsView] = useState<'day' | 'week' | 'month'>('week');
+  const [unreadChats, setUnreadChats] = useState(0);
 
   useEffect(() => {
     if (!user) return;
     Promise.all([
-      supabase.from('user_balances').select('main_balance, referral_balance').eq('user_id', user.id).maybeSingle(),
-      supabase.from('admin_assignments').select('id', { count: 'exact', head: true }).eq('assignee_id', user.id).eq('status', 'pending'),
-      supabase.from('lesson_bookings').select('id, status, lesson_id, lessons!inner(id, title, lesson_date, start_time, end_time, teacher_id), teacher:lessons!inner(profiles!lessons_teacher_id_fkey(first_name, last_name))').eq('student_id', user.id).order('created_at', { ascending: false }).limit(50),
-      supabase.from('notifications').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(30),
-    ]).then(([balanceRes, invitesRes, bookingsRes, notificationsRes]) => {
-      if (balanceRes.data) setBalance(balanceRes.data);
-      setPendingInvites(invitesRes.count || 0);
-      setClientBookings(bookingsRes.data || []);
-      setNotifications(notificationsRes.data || []);
+      // Client cabinet balance (isolated)
+      supabase.from('cabinet_balances')
+        .select('main_balance')
+        .eq('user_id', user.id)
+        .eq('cabinet_type', 'client')
+        .is('cabinet_id', null)
+        .maybeSingle(),
+      supabase.from('admin_assignments')
+        .select('id', { count: 'exact', head: true })
+        .eq('assignee_id', user.id).eq('status', 'pending'),
+      // Upcoming bookings from both bookings + lesson_bookings
+      supabase.from('bookings')
+        .select('id, scheduled_at, status, services!inner(name), executor:profiles!bookings_executor_id_fkey(first_name, last_name)')
+        .eq('client_id', user.id)
+        .in('status', ['pending', 'confirmed'])
+        .gte('scheduled_at', new Date().toISOString())
+        .order('scheduled_at', { ascending: true })
+        .limit(5),
+      // Client-scoped notifications only
+      supabase.from('notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('cabinet_type', 'client')
+        .order('created_at', { ascending: false })
+        .limit(30),
+      // Unread chats count
+      supabase.from('chat_messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('recipient_id', user.id)
+        .eq('is_read', false)
+        .neq('chat_type', 'support'),
+    ]).then(([balRes, invRes, bookRes, notifRes, chatRes]) => {
+      setCabinetBalance(balRes.data?.main_balance || 0);
+      setPendingInvites(invRes.count || 0);
+      setUpcomingBookings(bookRes.data || []);
+      setNotifications(notifRes.data || []);
+      setUnreadChats(chatRes.count || 0);
     });
   }, [user]);
 
@@ -89,31 +115,7 @@ const ClientDashboard = () => {
   const getInitials = () =>
     `${(profile?.first_name || '')[0] || ''}${(profile?.last_name || '')[0] || ''}`.toUpperCase() || '?';
 
-  // Filter bookings by view period
-  const filteredBookings = useMemo(() => {
-    const now = new Date();
-    const today = now.toISOString().slice(0, 10);
-
-    return clientBookings.filter((b) => {
-      const date = (b.lessons as any)?.lesson_date;
-      if (!date) return false;
-
-      if (bookingsView === 'day') return date === today;
-
-      if (bookingsView === 'week') {
-        const d = new Date(date);
-        const weekEnd = new Date(now);
-        weekEnd.setDate(weekEnd.getDate() + 7);
-        return d >= now && d <= weekEnd;
-      }
-
-      // month
-      const d = new Date(date);
-      const monthEnd = new Date(now);
-      monthEnd.setDate(monthEnd.getDate() + 30);
-      return d >= now && d <= monthEnd;
-    });
-  }, [clientBookings, bookingsView]);
+  const totalUnread = (notifications.filter(n => !n.is_read).length) + unreadChats + pendingInvites;
 
   const renderContent = () => {
     switch (activeSection) {
@@ -136,7 +138,12 @@ const ClientDashboard = () => {
             <CardContent className="p-0">
               <Tabs defaultValue="chats" className="w-full">
                 <TabsList className="w-full rounded-none border-b bg-transparent px-6 pt-2">
-                  <TabsTrigger value="chats" className="flex-1">Чаты</TabsTrigger>
+                  <TabsTrigger value="chats" className="flex-1 relative">
+                    Чаты
+                    {unreadChats > 0 && (
+                      <Badge variant="destructive" className="ml-1.5 h-5 px-1.5 text-[10px]">{unreadChats}</Badge>
+                    )}
+                  </TabsTrigger>
                   <TabsTrigger value="requests" className="flex-1 relative">
                     Запросы
                     {pendingInvites > 0 && (
@@ -145,10 +152,13 @@ const ClientDashboard = () => {
                   </TabsTrigger>
                   <TabsTrigger value="support" className="flex-1">Поддержка</TabsTrigger>
                 </TabsList>
-                <div className="p-6">
-                  <TabsContent value="chats" className="mt-0"><TeachingChats /></TabsContent>
-                  <TabsContent value="requests" className="mt-0"><ClientRequests /></TabsContent>
-                  <TabsContent value="support" className="mt-0"><SupportChat /></TabsContent>
+                <div className="p-0 md:p-4">
+                  <TabsContent value="chats" className="mt-0">
+                    {/* isClientContext disables group creation */}
+                    <TeachingChats isClientContext />
+                  </TabsContent>
+                  <TabsContent value="requests" className="mt-0 p-4 md:p-0"><ClientRequests /></TabsContent>
+                  <TabsContent value="support" className="mt-0 p-4 md:p-0"><SupportChat /></TabsContent>
                 </div>
               </Tabs>
             </CardContent>
@@ -159,9 +169,6 @@ const ClientDashboard = () => {
         return user ? <ClientStats userId={user.id} /> : null;
 
       case 'wallet':
-        return <ClientWallet />;
-
-      case 'bonus':
         return <ClientWallet />;
 
       case 'settings':
@@ -177,7 +184,7 @@ const ClientDashboard = () => {
                 </Button>
                 <div>
                   <CardTitle>Уведомления</CardTitle>
-                  <CardDescription>Последние уведомления по аккаунту</CardDescription>
+                  <CardDescription>Уведомления клиентского кабинета</CardDescription>
                 </div>
               </div>
             </CardHeader>
@@ -190,6 +197,7 @@ const ClientDashboard = () => {
                     const navTarget = n.type?.includes('booking') ? 'bookings'
                       : n.type?.includes('chat') || n.type?.includes('message') ? 'communication'
                       : n.type?.includes('review') ? 'reviews'
+                      : n.type?.includes('payment') || n.type?.includes('subscription') ? 'wallet'
                       : null;
                     return (
                       <div key={n.id}
@@ -197,6 +205,7 @@ const ClientDashboard = () => {
                         onClick={async () => {
                           if (!n.is_read) await supabase.from('notifications').update({ is_read: true }).eq('id', n.id);
                           if (navTarget) setActiveSection(navTarget);
+                          setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, is_read: true } : x));
                         }}
                       >
                         <div className="flex items-start justify-between gap-2">
@@ -252,7 +261,7 @@ const ClientDashboard = () => {
                             : profile?.email || 'Пользователь'}
                         </h3>
                         <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="secondary" className="font-mono text-sm">ID: {profile?.skillspot_id}</Badge>
+                          <Badge variant="secondary" className="font-mono text-sm select-all cursor-text">ID: {profile?.skillspot_id}</Badge>
                           <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleCopyId}>
                             {copied ? <Check className="h-3 w-3 text-primary" /> : <Copy className="h-3 w-3" />}
                           </Button>
@@ -265,24 +274,27 @@ const ClientDashboard = () => {
             </Card>
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {/* Bookings block — opens full bookings view */}
+              {/* Upcoming bookings */}
               <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setActiveSection('bookings')}>
                 <CardContent className="pt-6">
                   <p className="text-sm text-muted-foreground">Ближайшие записи</p>
                   <div className="mt-3 space-y-2">
-                    {clientBookings.slice(0, 3).map((b) => (
+                    {upcomingBookings.slice(0, 3).map((b) => (
                       <div key={b.id} className="text-sm p-2 rounded-md bg-muted/50">
-                        <p className="font-medium truncate">{(b.lessons as any)?.title || 'Запись'}</p>
-                        <p className="text-xs text-muted-foreground">{(b.lessons as any)?.lesson_date} · {(b.lessons as any)?.start_time?.slice(0, 5)}</p>
+                        <p className="font-medium truncate">{(b.services as any)?.name || 'Запись'}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(b.scheduled_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} ·{' '}
+                          {new Date(b.scheduled_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
                       </div>
                     ))}
-                    {clientBookings.length === 0 && <p className="text-sm text-muted-foreground">Нет предстоящих записей</p>}
+                    {upcomingBookings.length === 0 && <p className="text-sm text-muted-foreground">Нет предстоящих записей</p>}
                   </div>
                   <Button variant="outline" size="sm" className="w-full mt-3">Открыть полный список</Button>
                 </CardContent>
               </Card>
 
-              {/* Notifications block */}
+              {/* Notifications */}
               <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setActiveSection('notifications')}>
                 <CardContent className="pt-6">
                   <div className="flex items-start justify-between">
@@ -296,9 +308,22 @@ const ClientDashboard = () => {
                 </CardContent>
               </Card>
 
-              {/* Search block */}
+              {/* Balance */}
+              <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setActiveSection('wallet')}>
+                <CardContent className="pt-6">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Клиентский баланс</p>
+                      <p className="text-3xl font-bold mt-1">{Number(cabinetBalance).toLocaleString()} ₽</p>
+                    </div>
+                    <Wallet className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Search */}
               <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => navigate('/catalog')}>
-                <CardContent className="pt-6 flex flex-col items-center justify-center">
+                <CardContent className="pt-6 flex flex-col items-center justify-center min-h-[100px]">
                   <Search className="h-8 w-8 text-primary mb-2" />
                   <p className="text-sm font-medium">Поиск услуг</p>
                 </CardContent>
@@ -357,29 +382,35 @@ const ClientDashboard = () => {
         </div>
         <div className="space-y-1 overflow-y-auto flex-1">
           {!sidebarCollapsed && <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Меню</p>}
-          {desktopMenuItems.map(item => (
-            <Button
-              key={item.key}
-              variant={activeSection === item.key ? 'default' : 'ghost'}
-              className={`w-full gap-3 ${sidebarCollapsed ? 'justify-center px-2' : 'justify-start'} ${activeSection === item.key ? '' : 'text-muted-foreground'}`}
-              onClick={() => setActiveSection(item.key)}
-              title={sidebarCollapsed ? item.label : undefined}
-            >
-              <item.icon className="h-4 w-4 shrink-0" />
-              {!sidebarCollapsed && <span>{item.label}</span>}
-              {!sidebarCollapsed && item.key === 'communication' && pendingInvites > 0 && (
-                <Badge variant="destructive" className="ml-auto h-5 px-1.5 text-[10px]">{pendingInvites}</Badge>
-              )}
-              {sidebarCollapsed && item.key === 'communication' && pendingInvites > 0 && (
-                <span className="absolute top-0.5 right-0.5 h-2 w-2 rounded-full bg-destructive" />
-              )}
-            </Button>
-          ))}
+          {desktopMenuItems.map(item => {
+            const badge = item.key === 'communication' ? totalUnread
+              : item.key === 'notifications' ? notifications.filter(n => !n.is_read).length
+              : 0;
+            return (
+              <Button
+                key={item.key}
+                variant={activeSection === item.key ? 'default' : 'ghost'}
+                className={`w-full gap-3 relative ${sidebarCollapsed ? 'justify-center px-2' : 'justify-start'} ${activeSection === item.key ? '' : 'text-muted-foreground'}`}
+                onClick={() => setActiveSection(item.key)}
+                title={sidebarCollapsed ? item.label : undefined}
+              >
+                <item.icon className="h-4 w-4 shrink-0" />
+                {!sidebarCollapsed && <span>{item.label}</span>}
+                {!sidebarCollapsed && badge > 0 && (
+                  <Badge variant="destructive" className="ml-auto h-5 px-1.5 text-[10px]">{badge}</Badge>
+                )}
+                {sidebarCollapsed && badge > 0 && (
+                  <span className="absolute top-0.5 right-0.5 h-2 w-2 rounded-full bg-destructive" />
+                )}
+              </Button>
+            );
+          })}
         </div>
         {!sidebarCollapsed && (
           <div className="mt-auto pt-6 border-t">
             <div className="flex items-center gap-3 px-3">
               <Avatar className="h-8 w-8">
+                <AvatarImage src={profile?.avatar_url || undefined} />
                 <AvatarFallback className="text-xs bg-primary/10 text-primary">{getInitials()}</AvatarFallback>
               </Avatar>
               <div className="min-w-0">
@@ -394,20 +425,23 @@ const ClientDashboard = () => {
       {/* Mobile/tablet: bottom bar */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-card border-t safe-area-bottom">
         <div className="flex justify-around items-center h-14">
-          {mobileMenuItems.map(item => (
-            <button
-              key={item.key}
-              onClick={() => setActiveSection(item.key)}
-              className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full text-[10px] transition-colors relative
-                ${activeSection === item.key ? 'text-primary' : 'text-muted-foreground'}`}
-            >
-              <item.icon className="h-5 w-5" />
-              <span className="leading-tight">{item.label}</span>
-              {item.key === 'communication' && pendingInvites > 0 && (
-                <span className="absolute top-1 right-1/2 translate-x-3 h-2 w-2 rounded-full bg-destructive" />
-              )}
-            </button>
-          ))}
+          {mobileMenuItems.map(item => {
+            const badge = item.key === 'communication' ? totalUnread : 0;
+            return (
+              <button
+                key={item.key}
+                onClick={() => setActiveSection(item.key)}
+                className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full text-[10px] transition-colors relative
+                  ${activeSection === item.key ? 'text-primary' : 'text-muted-foreground'}`}
+              >
+                <item.icon className="h-5 w-5" />
+                <span className="leading-tight">{item.label}</span>
+                {badge > 0 && (
+                  <span className="absolute top-1 right-1/2 translate-x-3 h-2 w-2 rounded-full bg-destructive" />
+                )}
+              </button>
+            );
+          })}
         </div>
       </nav>
 
