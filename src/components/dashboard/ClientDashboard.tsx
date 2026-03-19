@@ -28,7 +28,7 @@ import ClientReviews from '@/components/dashboard/client/ClientReviews';
 import ClientBonusPoints from '@/components/dashboard/client/ClientBonusPoints';
 
 
-// Desktop sidebar: no bookings, notifications, settings
+// Desktop sidebar
 const desktopMenuItems = [
   { key: 'overview', label: 'Обзор', icon: LayoutDashboard },
   { key: 'bookings', label: 'Записи', icon: Calendar },
@@ -36,8 +36,7 @@ const desktopMenuItems = [
   { key: 'reviews', label: 'Отзывы', icon: Star },
   { key: 'communication', label: 'Общение', icon: MessageSquare },
   { key: 'stats', label: 'Статистика', icon: BarChart3 },
-  { key: 'wallet', label: 'Баланс', icon: Wallet },
-  { key: 'bonus', label: 'Бонусы', icon: Gift },
+  { key: 'wallet', label: 'Баланс и бонусы', icon: Wallet },
   { key: 'settings', label: 'Настройки', icon: Settings },
 ];
 
@@ -163,7 +162,7 @@ const ClientDashboard = () => {
         return <ClientWallet />;
 
       case 'bonus':
-        return <ClientBonusPoints />;
+        return <ClientWallet />;
 
       case 'settings':
         return <ClientSettingsSection />;
@@ -187,13 +186,30 @@ const ClientDashboard = () => {
                 <p className="text-center py-10 text-muted-foreground">Уведомлений пока нет</p>
               ) : (
                 <div className="space-y-3">
-                  {notifications.map((n) => (
-                    <div key={n.id} className="p-3 rounded-lg border">
-                      <p className="font-medium text-sm">{n.title}</p>
-                      <p className="text-sm text-muted-foreground mt-1">{n.message}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{new Date(n.created_at).toLocaleString('ru-RU')}</p>
-                    </div>
-                  ))}
+                  {notifications.map((n) => {
+                    const navTarget = n.type?.includes('booking') ? 'bookings'
+                      : n.type?.includes('chat') || n.type?.includes('message') ? 'communication'
+                      : n.type?.includes('review') ? 'reviews'
+                      : null;
+                    return (
+                      <div key={n.id}
+                        className={`p-3 rounded-lg border ${!n.is_read ? 'bg-primary/5 border-primary/20' : ''} ${navTarget ? 'cursor-pointer hover:border-primary/50' : ''}`}
+                        onClick={async () => {
+                          if (!n.is_read) await supabase.from('notifications').update({ is_read: true }).eq('id', n.id);
+                          if (navTarget) setActiveSection(navTarget);
+                        }}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="font-medium text-sm">{n.title}</p>
+                            <p className="text-sm text-muted-foreground mt-1">{n.message}</p>
+                            <p className="text-xs text-muted-foreground mt-1">{new Date(n.created_at).toLocaleString('ru-RU')}</p>
+                          </div>
+                          {navTarget && <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
