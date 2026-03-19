@@ -11,8 +11,6 @@ import { MessageSquare, Send, Check, CheckCheck, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 
-const SUPPORT_SYSTEM_ID = '00000000-0000-0000-0000-000000000000';
-
 interface SupportChatProps {
   isAdmin?: boolean;
 }
@@ -65,6 +63,7 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
             setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);
           }
         } else {
+          // User sees their own messages and replies
           if (msg.sender_id === user.id || msg.recipient_id === user.id) {
             setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);
           }
@@ -77,67 +76,81 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
   const fetchMessages = async () => {
     if (!user) return;
     setLoading(true);
-    const { data } = await supabase.from('chat_messages').select('*')
+    // Load messages where user is sender OR messages sent to user (admin replies)
+    const { data: sentData } = await supabase.from('chat_messages').select('*')
       .eq('chat_type', 'support')
-      .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
+      .eq('sender_id', user.id)
       .order('created_at', { ascending: true });
-    setMessages(data || []);
+
+    const { data: receivedData } = await supabase.from('chat_messages').select('*')
+      .eq('chat_type', 'support')
+      .eq('recipient_id', user.id)
+      .order('created_at', { ascending: true });
+
+    const all = [...(sentData || []), ...(receivedData || [])];
+    const unique = Array.from(new Map(all.map(m => [m.id, m])).values());
+    unique.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    setMessages(unique);
     setLoading(false);
   };
 
   const fetchThreads = async () => {
     if (!user) return;
     setLoading(true);
+    // Get all support messages
     const { data } = await supabase.from('chat_messages').select('*')
       .eq('chat_type', 'support')
       .order('created_at', { ascending: false });
-    
+
     if (!data) { setLoading(false); return; }
 
-    // Group by user (non-admin sender or recipient)
-    const userMap = new Map<string, { msgs: any[] }>();
+    // Build thread map — group by the non-admin participant
+    // Admin replies: sender is admin (has admin role), recipient is user
+    // User messages: sender is non-admin user
+    const userMap = new Map<string, any[]>();
     data.forEach(msg => {
-      // The "user" is whoever is NOT an admin. For support messages, sender could be user or admin.
-      // We identify threads by: if sender sent to SUPPORT_SYSTEM_ID, sender is the user
-      // If sender is admin replying, recipient is the user
-      let threadUserId: string;
-      if (msg.recipient_id === SUPPORT_SYSTEM_ID) {
-        threadUserId = msg.sender_id;
-      } else {
-        // Admin reply - recipient is the user
-        threadUserId = msg.recipient_id;
-      }
-      if (!userMap.has(threadUserId)) userMap.set(threadUserId, { msgs: [] });
-      userMap.get(threadUserId)!.msgs.push(msg);
+      // Determine the client user ID for this message
+      const threadKey = msg.sender_id === user.id ? msg.recipient_id : msg.sender_id;
+      if (threadKey === user.id) return; // skip self-to-self
+      if (!userMap.has(threadKey)) userMap.set(threadKey, []);
+      userMap.get(threadKey)!.push(msg);
     });
 
-    // Fetch user profiles
-    const userIds = Array.from(userMap.keys());
+    const userIds = Array.from(userMap.keys()).filter(id => id && id.length > 10);
+    if (userIds.length === 0) { setLoading(false); return; }
+
     const { data: profiles } = await supabase.from('profiles').select('id, first_name, last_name, email').in('id', userIds);
 
     const threadList: SupportThread[] = userIds.map(uid => {
       const p = profiles?.find(pr => pr.id === uid);
-      const msgs = userMap.get(uid)!.msgs;
+      const msgs = userMap.get(uid)!;
       const lastMsg = msgs[0];
       return {
         userId: uid,
         userName: p ? `${p.first_name || ''} ${p.last_name || ''}`.trim() || p.email || 'Пользователь' : 'Пользователь',
         lastMessage: lastMsg?.message || '',
         lastMessageAt: lastMsg?.created_at || '',
-        unread: msgs.filter(m => m.recipient_id !== user.id ? false : !m.is_read).length,
+        unread: msgs.filter(m => m.recipient_id === user.id && !m.is_read).length,
       };
-    });
+    }).filter(t => t.userName);
 
     setThreads(threadList.sort((a, b) => b.lastMessageAt.localeCompare(a.lastMessageAt)));
     setLoading(false);
   };
 
   const fetchAdminMessages = async (userId: string) => {
-    const { data } = await supabase.from('chat_messages').select('*')
+    const { data: sentData } = await supabase.from('chat_messages').select('*')
       .eq('chat_type', 'support')
-      .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
+      .eq('sender_id', userId)
       .order('created_at', { ascending: true });
-    setMessages(data || []);
+    const { data: receivedData } = await supabase.from('chat_messages').select('*')
+      .eq('chat_type', 'support')
+      .eq('recipient_id', userId)
+      .order('created_at', { ascending: true });
+    const all = [...(sentData || []), ...(receivedData || [])];
+    const unique = Array.from(new Map(all.map(m => [m.id, m])).values());
+    unique.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    setMessages(unique);
     // Mark as read
     if (user) {
       await supabase.from('chat_messages').update({ is_read: true })
@@ -152,22 +165,52 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
     setSending(true);
     try {
       if (isAdmin && selectedUserId) {
-        await supabase.from('chat_messages').insert({
+        // Admin replies directly to the user
+        const { error } = await supabase.from('chat_messages').insert({
           sender_id: user.id,
           recipient_id: selectedUserId,
           message: newMessage.trim(),
           chat_type: 'support',
         });
+        if (error) throw error;
+        setNewMessage('');
+        fetchAdminMessages(selectedUserId);
       } else {
-        await supabase.from('chat_messages').insert({
-          sender_id: user.id,
-          recipient_id: SUPPORT_SYSTEM_ID,
-          message: newMessage.trim(),
-          chat_type: 'support',
-        });
+        // Get all admin users to broadcast the support message
+        const { data: adminRoles } = await supabase
+          .from('user_roles')
+          .select('user_id')
+          .in('role', ['platform_admin', 'super_admin'])
+          .eq('is_active', true);
+
+        const adminIds = (adminRoles || []).map(r => r.user_id).filter(id => id !== user.id);
+
+        if (adminIds.length === 0) {
+          // Fallback: insert with self as recipient so message is visible
+          await supabase.from('chat_messages').insert({
+            sender_id: user.id,
+            recipient_id: user.id,
+            message: newMessage.trim(),
+            chat_type: 'support',
+          });
+        } else {
+          // Send to all admins
+          await Promise.all(adminIds.map(adminId =>
+            supabase.from('chat_messages').insert({
+              sender_id: user.id,
+              recipient_id: adminId,
+              message: newMessage.trim(),
+              chat_type: 'support',
+            })
+          ));
+        }
+        setNewMessage('');
+        // Reload messages to show what was sent
+        await fetchMessages();
       }
-      setNewMessage('');
-    } catch { /* ignore */ }
+    } catch (err: any) {
+      console.error('Support send error:', err);
+    }
     setSending(false);
   };
 
@@ -175,13 +218,37 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
-  const getInitials = (name: string) => name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?';
-
   const getMessageStatus = (msg: any) => {
     if (msg.sender_id !== user?.id) return null;
     if (msg.is_read) return <CheckCheck className="h-3 w-3 text-primary" />;
     return <Check className="h-3 w-3 text-muted-foreground" />;
   };
+
+  const renderMessages = (msgList: any[]) => (
+    <div className="space-y-2">
+      {msgList.map(msg => (
+        <div key={msg.id} className={`flex ${msg.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}>
+          <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm ${
+            msg.sender_id === user?.id ? 'bg-primary text-primary-foreground rounded-br-sm' : 'bg-muted rounded-bl-sm'
+          }`}>
+            {msg.sender_id !== user?.id && (
+              <p className="text-[10px] font-medium mb-0.5 text-muted-foreground">
+                {isAdmin ? 'Пользователь' : 'Поддержка'}
+              </p>
+            )}
+            <p className="whitespace-pre-wrap">{msg.message}</p>
+            <div className="flex items-center gap-1 mt-1 justify-end">
+              <span className={`text-[10px] ${msg.sender_id === user?.id ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>
+                {format(new Date(msg.created_at), 'HH:mm')}
+              </span>
+              {getMessageStatus(msg)}
+            </div>
+          </div>
+        </div>
+      ))}
+      <div ref={messagesEndRef} />
+    </div>
+  );
 
   // Admin view with thread list
   if (isAdmin) {
@@ -190,7 +257,6 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
         <CardHeader><CardTitle>Техподдержка — обращения</CardTitle></CardHeader>
         <CardContent>
           <div className="flex h-[500px] gap-0 rounded-lg border overflow-hidden">
-            {/* Thread list */}
             <div className={`w-72 border-r flex flex-col shrink-0 ${selectedUserId ? 'hidden md:flex' : 'flex'}`}>
               <ScrollArea className="flex-1">
                 {loading ? (
@@ -210,7 +276,6 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
                 ))}
               </ScrollArea>
             </div>
-            {/* Messages */}
             <div className={`flex-1 flex flex-col ${!selectedUserId ? 'hidden md:flex' : 'flex'}`}>
               {!selectedUserId ? (
                 <div className="flex-1 flex items-center justify-center text-muted-foreground">
@@ -222,26 +287,7 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
                     <Button variant="ghost" size="sm" className="md:hidden" onClick={() => setSelectedUserId(null)}>←</Button>
                     <p className="font-medium text-sm">{threads.find(t => t.userId === selectedUserId)?.userName}</p>
                   </div>
-                  <ScrollArea className="flex-1 p-3">
-                    <div className="space-y-2">
-                      {messages.map(msg => (
-                        <div key={msg.id} className={`flex ${msg.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}>
-                          <div className={`max-w-[75%] px-3 py-2 rounded-2xl text-sm ${
-                            msg.sender_id === user?.id ? 'bg-primary text-primary-foreground rounded-br-sm' : 'bg-muted rounded-bl-sm'
-                          }`}>
-                            <p className="whitespace-pre-wrap">{msg.message}</p>
-                            <div className="flex items-center gap-1 mt-1 justify-end">
-                              <span className={`text-[10px] ${msg.sender_id === user?.id ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>
-                                {format(new Date(msg.created_at), 'HH:mm')}
-                              </span>
-                              {getMessageStatus(msg)}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                      <div ref={messagesEndRef} />
-                    </div>
-                  </ScrollArea>
+                  <ScrollArea className="flex-1 p-3">{renderMessages(messages)}</ScrollArea>
                   <div className="p-3 border-t flex gap-2">
                     <Input value={newMessage} onChange={e => setNewMessage(e.target.value)} onKeyDown={handleKeyDown} placeholder="Ответить..." />
                     <Button size="icon" onClick={sendMessage} disabled={sending || !newMessage.trim()}>
@@ -274,35 +320,14 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
               <div className="text-center py-12 text-muted-foreground">
                 <MessageSquare className="h-10 w-10 mx-auto mb-3 opacity-30" />
                 <p className="text-sm">Напишите нам, если у вас есть вопросы</p>
+                <p className="text-xs mt-1 opacity-70">Все администраторы платформы получат ваше сообщение</p>
               </div>
-            ) : (
-              <div className="space-y-2">
-                {messages.map(msg => (
-                  <div key={msg.id} className={`flex ${msg.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm ${
-                      msg.sender_id === user?.id ? 'bg-primary text-primary-foreground rounded-br-sm' : 'bg-muted rounded-bl-sm'
-                    }`}>
-                      {msg.sender_id !== user?.id && (
-                        <p className={`text-[10px] font-medium mb-0.5 ${msg.sender_id === user?.id ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>Поддержка</p>
-                      )}
-                      <p className="whitespace-pre-wrap">{msg.message}</p>
-                      <div className="flex items-center gap-1 mt-1 justify-end">
-                        <span className={`text-[10px] ${msg.sender_id === user?.id ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>
-                          {format(new Date(msg.created_at), 'HH:mm')}
-                        </span>
-                        {getMessageStatus(msg)}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                <div ref={messagesEndRef} />
-              </div>
-            )}
+            ) : renderMessages(messages)}
           </ScrollArea>
           <div className="p-3 border-t flex gap-2">
             <Input value={newMessage} onChange={e => setNewMessage(e.target.value)} onKeyDown={handleKeyDown} placeholder="Написать в поддержку..." />
             <Button size="icon" onClick={sendMessage} disabled={sending || !newMessage.trim()}>
-              <Send className="h-4 w-4" />
+              {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </Button>
           </div>
         </div>
