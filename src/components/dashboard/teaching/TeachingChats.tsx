@@ -118,9 +118,10 @@ const FileAttachDialog = ({ open, onClose, onSend, uploading }: FileAttachDialog
 
 interface Props {
   isClientContext?: boolean;
+  onUnreadChange?: (count: number) => void;
 }
 
-const TeachingChats = ({ isClientContext = false }: Props) => {
+const TeachingChats = ({ isClientContext = false, onUnreadChange }: Props) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [contacts, setContacts] = useState<ChatContact[]>([]);
