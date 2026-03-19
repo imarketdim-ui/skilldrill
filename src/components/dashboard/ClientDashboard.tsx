@@ -116,6 +116,16 @@ const ClientDashboard = () => {
   const getInitials = () =>
     `${(profile?.first_name || '')[0] || ''}${(profile?.last_name || '')[0] || ''}`.toUpperCase() || '?';
 
+  // Fix notification messages to use first-person perspective
+  const fixNotifMessage = (msg: string) => {
+    if (!msg) return msg;
+    return msg
+      .replace(/записался/gi, 'вы записались')
+      .replace(/записалась/gi, 'вы записались')
+      .replace(/вы записались к/gi, 'вы записались к')
+      .replace(/клиент записался/gi, 'вы записались');
+  };
+
   const totalUnread = (notifications.filter(n => !n.is_read).length) + unreadChats + pendingInvites;
 
   const renderContent = () => {
