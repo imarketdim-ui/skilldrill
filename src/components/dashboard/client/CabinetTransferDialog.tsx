@@ -20,8 +20,14 @@ interface Props {
 const CABINET_LABELS: Record<string, { label: string; icon: React.ElementType }> = {
   client:   { label: 'Кабинет клиента',    icon: User },
   master:   { label: 'Кабинет мастера',    icon: Briefcase },
-  business: { label: 'Кабинет бизнеса',   icon: Building2 },
-  platform: { label: 'Кабинет площадки',  icon: Shield },
+};
+
+// Only allow client ↔ master transfers from client wallet
+const ALLOWED_TRANSFERS: Record<string, string[]> = {
+  client:   ['master'],
+  master:   ['client'],
+  business: ['client', 'master'],
+  platform: ['client', 'master', 'business'],
 };
 
 const CabinetTransferDialog = ({ open, onClose, currentCabinet, currentBalance, onSuccess }: Props) => {
