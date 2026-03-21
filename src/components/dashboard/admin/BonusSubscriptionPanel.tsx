@@ -65,7 +65,10 @@ const BonusSubscriptionPanel = ({ stats }: Props) => {
       .maybeSingle();
 
     if (entity) {
-      setSearchResult({ id: (entity as any).id, subscription_status: (entity as any).subscription_status, name: (entity as any).name, profile });
+      const entityName = entityType === 'master'
+        ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
+        : (entity as any).name;
+      setSearchResult({ id: (entity as any).id, subscription_status: (entity as any).subscription_status, name: entityName, profile });
     } else {
       setSearchResult({ profile, notFound: true });
     }
