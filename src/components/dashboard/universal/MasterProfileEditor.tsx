@@ -16,9 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import MapPicker from '@/components/marketplace/MapPicker';
 import { CategoryConfig } from './categoryConfig';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import MapPicker from '@/components/marketplace/MapPicker';
-import { CategoryConfig } from './categoryConfig';
+
 
 interface Props {
   masterProfile: any;
