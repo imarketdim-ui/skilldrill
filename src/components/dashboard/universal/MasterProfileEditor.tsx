@@ -83,23 +83,72 @@ const MasterProfileEditor = ({ masterProfile, config, onPhotosChanged, onClose }
     setMasterAvatarUrl(masterProfile.avatar_url || null);
   }, [masterProfile?.id]);
 
-  const handleMasterAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Avatar crop state
+  const [cropDialogOpen, setCropDialogOpen] = useState(false);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  const [cropScale, setCropScale] = useState(1);
+  const [cropOffsetX, setCropOffsetX] = useState(50);
+  const [cropOffsetY, setCropOffsetY] = useState(50);
+  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
+  const cropCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  const handleAvatarFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !user) return;
+    if (!file) return;
+    setPendingAvatarFile(file);
+    const url = URL.createObjectURL(file);
+    setCropImageSrc(url);
+    setCropScale(1);
+    setCropOffsetX(50);
+    setCropOffsetY(50);
+    setCropDialogOpen(true);
+    e.target.value = '';
+  };
+
+  const handleCropConfirm = useCallback(async () => {
+    if (!pendingAvatarFile || !user || !cropImageSrc) return;
     setUploadingAvatar(true);
     try {
+      // Draw cropped image on canvas
+      const canvas = document.createElement('canvas');
+      const size = 400;
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d')!;
+
+      const img = new window.Image();
+      img.crossOrigin = 'anonymous';
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = reject;
+        img.src = cropImageSrc;
+      });
+
+      const scale = cropScale;
+      const drawW = img.width * scale;
+      const drawH = img.height * scale;
+      const ox = (cropOffsetX / 100) * (drawW - size);
+      const oy = (cropOffsetY / 100) * (drawH - size);
+
+      ctx.drawImage(img, -ox, -oy, drawW, drawH);
+
+      const blob = await new Promise<Blob>((resolve) => canvas.toBlob(b => resolve(b!), 'image/jpeg', 0.9));
       const path = `${user.id}/master-avatar-${Date.now()}.jpg`;
-      const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
       if (uploadError) throw uploadError;
       const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
       await supabase.from('master_profiles').update({ avatar_url: urlData.publicUrl } as any).eq('user_id', user.id);
       setMasterAvatarUrl(urlData.publicUrl);
       toast({ title: 'Фото мастерского кабинета обновлено' });
       onPhotosChanged?.();
+      setCropDialogOpen(false);
+      URL.revokeObjectURL(cropImageSrc);
+      setCropImageSrc(null);
+      setPendingAvatarFile(null);
     } catch (err: any) {
       toast({ title: 'Ошибка', description: err.message, variant: 'destructive' });
-    } finally { setUploadingAvatar(false); e.target.value = ''; }
-  };
+    } finally { setUploadingAvatar(false); }
+  }, [pendingAvatarFile, user, cropImageSrc, cropScale, cropOffsetX, cropOffsetY]);
 
   const isDirty = JSON.stringify(form) !== initialFormJson;
 
