@@ -185,15 +185,17 @@ const TeachingChats = ({ isClientContext = false, onUnreadChange }: Props) => {
   const fetchContacts = async () => {
     if (!user) return;
     setLoading(true);
-    // cabinet_type_scope: null = all cabinets, 'client'/'master' = scoped
-    const cabinetScope = isClientContext ? 'client' : 'master';
+    // Direct messages: show ALL messages regardless of cabinet_type_scope
+    // Cabinet scope only matters for support messages (already excluded via chat_type != support)
     const { data: msgs } = await supabase.from('chat_messages').select('*')
       .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
       .neq('chat_type', 'support')
-      .or(`cabinet_type_scope.eq.${cabinetScope},cabinet_type_scope.is.null`)
       .order('created_at', { ascending: false });
 
     if (!msgs || msgs.length === 0) {
+      setContacts([]);
+      setTotalUnread(0);
+      onUnreadChange?.(0);
       setLoading(false);
       return;
     }
@@ -212,7 +214,8 @@ const TeachingChats = ({ isClientContext = false, onUnreadChange }: Props) => {
         (m.sender_id === user.id && m.recipient_id === p.id)
       );
       const lastMsg = contactMsgs[0];
-      const unread = contactMsgs.filter(m => m.recipient_id === user.id && !m.is_read).length;
+      // Only count messages FROM this contact TO me that are unread
+      const unread = contactMsgs.filter(m => m.sender_id === p.id && m.recipient_id === user.id && !m.is_read).length;
       unreadTotal += unread;
       return {
         id: p.id, first_name: p.first_name, last_name: p.last_name, email: p.email,
