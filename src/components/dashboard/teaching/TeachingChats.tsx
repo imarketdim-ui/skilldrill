@@ -238,9 +238,20 @@ const TeachingChats = ({ isClientContext = false, onUnreadChange }: Props) => {
       .or(`and(sender_id.eq.${user.id},recipient_id.eq.${contact.id}),and(sender_id.eq.${contact.id},recipient_id.eq.${user.id})`)
       .order('created_at', { ascending: true });
     setMessages(data || []);
-    await supabase.from('chat_messages').update({ is_read: true, is_delivered: true })
-      .eq('sender_id', contact.id).eq('recipient_id', user.id).eq('is_read', false);
-    setContacts(prev => prev.map(c => c.id === contact.id ? { ...c, unread: 0 } : c));
+    // Mark unread messages from this contact as read
+    const unreadIds = (data || []).filter(m => m.sender_id === contact.id && !m.is_read).map(m => m.id);
+    if (unreadIds.length > 0) {
+      await supabase.from('chat_messages').update({ is_read: true, is_delivered: true })
+        .in('id', unreadIds);
+    }
+    // Update local unread count immediately
+    setContacts(prev => {
+      const updated = prev.map(c => c.id === contact.id ? { ...c, unread: 0 } : c);
+      const newTotal = updated.reduce((sum, c) => sum + c.unread, 0);
+      setTotalUnread(newTotal);
+      onUnreadChange?.(newTotal);
+      return updated;
+    });
   };
 
   const sendMessage = async (attachmentUrl?: string, attachmentType?: string, overrideText?: string) => {
