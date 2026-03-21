@@ -53,6 +53,7 @@ const UniversalStats = ({ config }: Props) => {
       completedSessions: completed.length,
       cancelledSessions: cancelled.length,
       noShowSessions: noShow.length,
+      pendingSessions: pending.length,
       totalClients: clients.length,
       totalIncome,
       avgPrice: completed.length > 0 ? Math.round(totalIncome / completed.length) : 0,
