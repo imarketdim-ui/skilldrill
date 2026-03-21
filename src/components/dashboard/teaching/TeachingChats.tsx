@@ -185,15 +185,17 @@ const TeachingChats = ({ isClientContext = false, onUnreadChange }: Props) => {
   const fetchContacts = async () => {
     if (!user) return;
     setLoading(true);
-    // cabinet_type_scope: null = all cabinets, 'client'/'master' = scoped
-    const cabinetScope = isClientContext ? 'client' : 'master';
+    // Direct messages: show ALL messages regardless of cabinet_type_scope
+    // Cabinet scope only matters for support messages (already excluded via chat_type != support)
     const { data: msgs } = await supabase.from('chat_messages').select('*')
       .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
       .neq('chat_type', 'support')
-      .or(`cabinet_type_scope.eq.${cabinetScope},cabinet_type_scope.is.null`)
       .order('created_at', { ascending: false });
 
     if (!msgs || msgs.length === 0) {
+      setContacts([]);
+      setTotalUnread(0);
+      onUnreadChange?.(0);
       setLoading(false);
       return;
     }
@@ -212,7 +214,8 @@ const TeachingChats = ({ isClientContext = false, onUnreadChange }: Props) => {
         (m.sender_id === user.id && m.recipient_id === p.id)
       );
       const lastMsg = contactMsgs[0];
-      const unread = contactMsgs.filter(m => m.recipient_id === user.id && !m.is_read).length;
+      // Only count messages FROM this contact TO me that are unread
+      const unread = contactMsgs.filter(m => m.sender_id === p.id && m.recipient_id === user.id && !m.is_read).length;
       unreadTotal += unread;
       return {
         id: p.id, first_name: p.first_name, last_name: p.last_name, email: p.email,
@@ -235,9 +238,20 @@ const TeachingChats = ({ isClientContext = false, onUnreadChange }: Props) => {
       .or(`and(sender_id.eq.${user.id},recipient_id.eq.${contact.id}),and(sender_id.eq.${contact.id},recipient_id.eq.${user.id})`)
       .order('created_at', { ascending: true });
     setMessages(data || []);
-    await supabase.from('chat_messages').update({ is_read: true, is_delivered: true })
-      .eq('sender_id', contact.id).eq('recipient_id', user.id).eq('is_read', false);
-    setContacts(prev => prev.map(c => c.id === contact.id ? { ...c, unread: 0 } : c));
+    // Mark unread messages from this contact as read
+    const unreadIds = (data || []).filter(m => m.sender_id === contact.id && !m.is_read).map(m => m.id);
+    if (unreadIds.length > 0) {
+      await supabase.from('chat_messages').update({ is_read: true, is_delivered: true })
+        .in('id', unreadIds);
+    }
+    // Update local unread count immediately
+    setContacts(prev => {
+      const updated = prev.map(c => c.id === contact.id ? { ...c, unread: 0 } : c);
+      const newTotal = updated.reduce((sum, c) => sum + c.unread, 0);
+      setTotalUnread(newTotal);
+      onUnreadChange?.(newTotal);
+      return updated;
+    });
   };
 
   const sendMessage = async (attachmentUrl?: string, attachmentType?: string, overrideText?: string) => {
@@ -255,7 +269,6 @@ const TeachingChats = ({ isClientContext = false, onUnreadChange }: Props) => {
       chat_type: 'direct',
       attachment_url: attachmentUrl || null,
       attachment_type: attachmentType || null,
-      cabinet_type_scope: isClientContext ? 'client' : null,
     });
     if (!error) { setNewMessage(''); setShowEmoji(false); }
   };

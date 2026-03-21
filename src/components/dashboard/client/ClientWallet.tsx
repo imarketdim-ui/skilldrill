@@ -29,6 +29,9 @@ const TX_TYPE_MAP: Record<string, { label: string; sign: '+' | '-' | '' }> = {
   transfer_out:         { label: 'Исходящий перевод',        sign: '-' },
   cabinet_transfer_in:  { label: 'Перевод между кабинетами', sign: '+' },
   cabinet_transfer_out: { label: 'Перевод между кабинетами', sign: '-' },
+  campaign_hold:        { label: 'Резерв на рассылку',       sign: '-' },
+  campaign_release:     { label: 'Возврат резерва',          sign: '+' },
+  campaign_charge:      { label: 'Списание за рассылку',     sign: '-' },
 };
 
 const BONUS_TYPE_MAP: Record<string, string> = {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { getStorageReference } from '@/lib/storage';
@@ -9,12 +9,14 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Loader2, X, Plus, Upload, Eye, MapPin, Undo2, Camera } from 'lucide-react';
+import { Save, Loader2, X, Plus, Upload, Eye, MapPin, Undo2, Camera, ZoomIn } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import MapPicker from '@/components/marketplace/MapPicker';
 import { CategoryConfig } from './categoryConfig';
+
 
 interface Props {
   masterProfile: any;
@@ -79,23 +81,72 @@ const MasterProfileEditor = ({ masterProfile, config, onPhotosChanged, onClose }
     setMasterAvatarUrl(masterProfile.avatar_url || null);
   }, [masterProfile?.id]);
 
-  const handleMasterAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Avatar crop state
+  const [cropDialogOpen, setCropDialogOpen] = useState(false);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  const [cropScale, setCropScale] = useState(1);
+  const [cropOffsetX, setCropOffsetX] = useState(50);
+  const [cropOffsetY, setCropOffsetY] = useState(50);
+  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
+  const cropCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  const handleAvatarFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !user) return;
+    if (!file) return;
+    setPendingAvatarFile(file);
+    const url = URL.createObjectURL(file);
+    setCropImageSrc(url);
+    setCropScale(1);
+    setCropOffsetX(50);
+    setCropOffsetY(50);
+    setCropDialogOpen(true);
+    e.target.value = '';
+  };
+
+  const handleCropConfirm = useCallback(async () => {
+    if (!pendingAvatarFile || !user || !cropImageSrc) return;
     setUploadingAvatar(true);
     try {
+      // Draw cropped image on canvas
+      const canvas = document.createElement('canvas');
+      const size = 400;
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d')!;
+
+      const img = new window.Image();
+      img.crossOrigin = 'anonymous';
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = reject;
+        img.src = cropImageSrc;
+      });
+
+      const scale = cropScale;
+      const drawW = img.width * scale;
+      const drawH = img.height * scale;
+      const ox = (cropOffsetX / 100) * (drawW - size);
+      const oy = (cropOffsetY / 100) * (drawH - size);
+
+      ctx.drawImage(img, -ox, -oy, drawW, drawH);
+
+      const blob = await new Promise<Blob>((resolve) => canvas.toBlob(b => resolve(b!), 'image/jpeg', 0.9));
       const path = `${user.id}/master-avatar-${Date.now()}.jpg`;
-      const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
       if (uploadError) throw uploadError;
       const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
       await supabase.from('master_profiles').update({ avatar_url: urlData.publicUrl } as any).eq('user_id', user.id);
       setMasterAvatarUrl(urlData.publicUrl);
       toast({ title: 'Фото мастерского кабинета обновлено' });
       onPhotosChanged?.();
+      setCropDialogOpen(false);
+      URL.revokeObjectURL(cropImageSrc);
+      setCropImageSrc(null);
+      setPendingAvatarFile(null);
     } catch (err: any) {
       toast({ title: 'Ошибка', description: err.message, variant: 'destructive' });
-    } finally { setUploadingAvatar(false); e.target.value = ''; }
-  };
+    } finally { setUploadingAvatar(false); }
+  }, [pendingAvatarFile, user, cropImageSrc, cropScale, cropOffsetX, cropOffsetY]);
 
   const isDirty = JSON.stringify(form) !== initialFormJson;
 
@@ -281,11 +332,66 @@ const MasterProfileEditor = ({ masterProfile, config, onPhotosChanged, onClose }
                   {uploadingAvatar ? 'Загрузка...' : 'Загрузить фото'}
                 </Button>
                 <p className="text-xs text-muted-foreground mt-2">Отдельное фото для мастерского кабинета.<br />Если не задано — используется фото клиентского кабинета.</p>
-                <input ref={avatarFileRef} type="file" accept="image/*" className="hidden" onChange={handleMasterAvatarUpload} />
+                <input ref={avatarFileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarFileSelect} />
               </div>
             </div>
           </CardContent>
         </Card>
+
+        {/* Crop dialog */}
+        <Dialog open={cropDialogOpen} onOpenChange={(open) => {
+          if (!open) {
+            setCropDialogOpen(false);
+            if (cropImageSrc) { URL.revokeObjectURL(cropImageSrc); setCropImageSrc(null); }
+            setPendingAvatarFile(null);
+          }
+        }}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader><DialogTitle>Выберите область отображения</DialogTitle></DialogHeader>
+            <div className="space-y-4">
+              <div className="relative w-64 h-64 mx-auto rounded-full overflow-hidden border-2 border-primary bg-muted">
+                {cropImageSrc && (
+                  <img
+                    src={cropImageSrc}
+                    alt="Предпросмотр"
+                    className="absolute"
+                    style={{
+                      width: `${cropScale * 100}%`,
+                      height: `${cropScale * 100}%`,
+                      objectFit: 'cover',
+                      left: `${-(cropOffsetX / 100) * (cropScale * 100 - 100)}%`,
+                      top: `${-(cropOffsetY / 100) * (cropScale * 100 - 100)}%`,
+                    }}
+                    draggable={false}
+                  />
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs flex items-center gap-1"><ZoomIn className="h-3 w-3" /> Масштаб</Label>
+                <Slider value={[cropScale]} onValueChange={([v]) => setCropScale(v)} min={1} max={3} step={0.05} />
+              </div>
+              {cropScale > 1 && (
+                <>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Горизонтально</Label>
+                    <Slider value={[cropOffsetX]} onValueChange={([v]) => setCropOffsetX(v)} min={0} max={100} step={1} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Вертикально</Label>
+                    <Slider value={[cropOffsetY]} onValueChange={([v]) => setCropOffsetY(v)} min={0} max={100} step={1} />
+                  </div>
+                </>
+              )}
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={() => { setCropDialogOpen(false); if (cropImageSrc) URL.revokeObjectURL(cropImageSrc); setCropImageSrc(null); }}>Отмена</Button>
+                <Button className="flex-1" onClick={handleCropConfirm} disabled={uploadingAvatar}>
+                  {uploadingAvatar ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}
+                  Сохранить
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-2xl font-bold">Редактировать профиль</h2>
           <div className="flex items-center gap-2">

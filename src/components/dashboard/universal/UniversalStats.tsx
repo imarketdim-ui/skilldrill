@@ -33,6 +33,7 @@ const UniversalStats = ({ config }: Props) => {
     const completed = filtered.filter(b => b.status === 'completed');
     const cancelled = filtered.filter(b => b.status === 'cancelled');
     const noShow = filtered.filter(b => b.status === 'no_show');
+    const pending = filtered.filter(b => b.status === 'pending' || b.status === 'confirmed' || b.status === 'in_progress');
     const clients = getUniqueClients(filtered);
     const totalIncome = completed.reduce((s, b) => s + b.price, 0);
 
@@ -52,6 +53,7 @@ const UniversalStats = ({ config }: Props) => {
       completedSessions: completed.length,
       cancelledSessions: cancelled.length,
       noShowSessions: noShow.length,
+      pendingSessions: pending.length,
       totalClients: clients.length,
       totalIncome,
       avgPrice: completed.length > 0 ? Math.round(totalIncome / completed.length) : 0,
@@ -122,9 +124,10 @@ const UniversalStats = ({ config }: Props) => {
       <Card>
         <CardHeader><CardTitle>Статусы</CardTitle></CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
             <div className="text-center p-4 rounded-lg bg-primary/10"><p className="text-2xl font-bold">{stats.completedSessions}</p><p className="text-sm text-muted-foreground">Завершено</p></div>
-            <div className="text-center p-4 rounded-lg bg-muted"><p className="text-2xl font-bold">{stats.totalSessions - stats.completedSessions - stats.cancelledSessions - stats.noShowSessions}</p><p className="text-sm text-muted-foreground">Запланировано</p></div>
+            <div className="text-center p-4 rounded-lg bg-blue-500/10"><p className="text-2xl font-bold">{stats.pendingSessions}</p><p className="text-sm text-muted-foreground">Запланировано</p></div>
+            <div className="text-center p-4 rounded-lg bg-muted"><p className="text-2xl font-bold">{stats.totalSessions - stats.completedSessions - stats.cancelledSessions - stats.noShowSessions - stats.pendingSessions}</p><p className="text-sm text-muted-foreground">Прочие</p></div>
             <div className="text-center p-4 rounded-lg bg-destructive/10"><p className="text-2xl font-bold">{stats.cancelledSessions}</p><p className="text-sm text-muted-foreground">Отменено</p></div>
             <div className="text-center p-4 rounded-lg bg-accent/10"><p className="text-2xl font-bold">{stats.noShowSessions}</p><p className="text-sm text-muted-foreground">Неявка</p></div>
           </div>
