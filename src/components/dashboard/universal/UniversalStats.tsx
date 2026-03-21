@@ -33,6 +33,7 @@ const UniversalStats = ({ config }: Props) => {
     const completed = filtered.filter(b => b.status === 'completed');
     const cancelled = filtered.filter(b => b.status === 'cancelled');
     const noShow = filtered.filter(b => b.status === 'no_show');
+    const pending = filtered.filter(b => b.status === 'pending' || b.status === 'confirmed' || b.status === 'in_progress');
     const clients = getUniqueClients(filtered);
     const totalIncome = completed.reduce((s, b) => s + b.price, 0);
 
