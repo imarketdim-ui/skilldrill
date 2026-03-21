@@ -334,11 +334,66 @@ const MasterProfileEditor = ({ masterProfile, config, onPhotosChanged, onClose }
                   {uploadingAvatar ? 'Загрузка...' : 'Загрузить фото'}
                 </Button>
                 <p className="text-xs text-muted-foreground mt-2">Отдельное фото для мастерского кабинета.<br />Если не задано — используется фото клиентского кабинета.</p>
-                <input ref={avatarFileRef} type="file" accept="image/*" className="hidden" onChange={handleMasterAvatarUpload} />
+                <input ref={avatarFileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarFileSelect} />
               </div>
             </div>
           </CardContent>
         </Card>
+
+        {/* Crop dialog */}
+        <Dialog open={cropDialogOpen} onOpenChange={(open) => {
+          if (!open) {
+            setCropDialogOpen(false);
+            if (cropImageSrc) { URL.revokeObjectURL(cropImageSrc); setCropImageSrc(null); }
+            setPendingAvatarFile(null);
+          }
+        }}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader><DialogTitle>Выберите область отображения</DialogTitle></DialogHeader>
+            <div className="space-y-4">
+              <div className="relative w-64 h-64 mx-auto rounded-full overflow-hidden border-2 border-primary bg-muted">
+                {cropImageSrc && (
+                  <img
+                    src={cropImageSrc}
+                    alt="Предпросмотр"
+                    className="absolute"
+                    style={{
+                      width: `${cropScale * 100}%`,
+                      height: `${cropScale * 100}%`,
+                      objectFit: 'cover',
+                      left: `${-(cropOffsetX / 100) * (cropScale * 100 - 100)}%`,
+                      top: `${-(cropOffsetY / 100) * (cropScale * 100 - 100)}%`,
+                    }}
+                    draggable={false}
+                  />
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs flex items-center gap-1"><ZoomIn className="h-3 w-3" /> Масштаб</Label>
+                <Slider value={[cropScale]} onValueChange={([v]) => setCropScale(v)} min={1} max={3} step={0.05} />
+              </div>
+              {cropScale > 1 && (
+                <>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Горизонтально</Label>
+                    <Slider value={[cropOffsetX]} onValueChange={([v]) => setCropOffsetX(v)} min={0} max={100} step={1} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Вертикально</Label>
+                    <Slider value={[cropOffsetY]} onValueChange={([v]) => setCropOffsetY(v)} min={0} max={100} step={1} />
+                  </div>
+                </>
+              )}
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={() => { setCropDialogOpen(false); if (cropImageSrc) URL.revokeObjectURL(cropImageSrc); setCropImageSrc(null); }}>Отмена</Button>
+                <Button className="flex-1" onClick={handleCropConfirm} disabled={uploadingAvatar}>
+                  {uploadingAvatar ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}
+                  Сохранить
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-2xl font-bold">Редактировать профиль</h2>
           <div className="flex items-center gap-2">
