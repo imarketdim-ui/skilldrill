@@ -198,6 +198,12 @@ const mainItems = [
   { key: 'notifications', label: 'Уведомления', icon: Bell },
 ];
 
+const sidebarSections = [
+  { key: 'crm', label: 'CRM', icon: Users },
+  { key: 'erp', label: 'ERP', icon: Database },
+  { key: 'directories', label: 'Справочники', icon: Briefcase },
+];
+
 const crmItems = [
   { key: 'bookings', label: 'Записи', icon: Calendar, description: 'Все записи клиентов' },
   { key: 'schedule', label: 'Расписание', icon: Calendar, description: 'Календарь событий' },
@@ -220,7 +226,12 @@ const erpItems = [
   { key: 'subscription', label: 'Подписка', icon: CreditCard, description: 'Тарифы и оплата' },
 ];
 
-const allItems = [...mainItems, ...crmItems, ...erpItems];
+const directoryItems = [
+  { key: 'dir_client_types', label: 'Типы клиентов', icon: Users, description: 'Системные и пользовательские типы' },
+  { key: 'dir_stats', label: 'Статистика справочников', icon: BarChart3, description: 'Обзор справочных данных' },
+];
+
+const allItems = [...mainItems, ...sidebarSections];
 
 const BusinessDashboard = () => {
   const { user, profile, activeEntityId } = useAuth();
