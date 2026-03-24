@@ -56,6 +56,8 @@ const UniversalClients = ({ config, onNavigateToChat }: Props) => {
   const [blacklistedIds, setBlacklistedIds] = useState<Set<string>>(new Set());
   const [blacklistTarget, setBlacklistTarget] = useState<ClientInfo | null>(null);
   const [blacklistReason, setBlacklistReason] = useState('');
+  const [customStatusInput, setCustomStatusInput] = useState('');
+  const [clientCustomTags, setClientCustomTags] = useState<any[]>([]);
 
   useEffect(() => { if (user) { fetchClients(); fetchBlacklist(); } }, [user]);
 
