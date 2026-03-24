@@ -268,7 +268,7 @@ const UniversalDashboardHome = ({ config }: Props) => {
           </CardContent>
         </Card>
 
-        <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => { window.dispatchEvent(new CustomEvent('navigate-dashboard', { detail: 'clients' })); }}>
+        <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-lg">Последняя активность</CardTitle>
           </CardHeader>
@@ -278,7 +278,7 @@ const UniversalDashboardHome = ({ config }: Props) => {
             ) : (
               <div className="space-y-4">
                 {recentEvents.map(event => (
-                  <div key={event.id} className="flex items-start gap-3">
+                  <div key={event.id} className="flex items-start gap-3 border-b pb-3 last:border-0 last:pb-0">
                     {getActivityIcon(event.status)}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium">{getActivityText(event)}</p>
@@ -286,6 +286,14 @@ const UniversalDashboardHome = ({ config }: Props) => {
                         {formatDistanceToNow(new Date(event.date), { addSuffix: true, locale: ru })}
                       </p>
                     </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="shrink-0 text-xs"
+                      onClick={() => { window.dispatchEvent(new CustomEvent('navigate-dashboard', { detail: getActivityTarget(event) })); }}
+                    >
+                      {getActivityButtonLabel(event)}
+                    </Button>
                   </div>
                 ))}
               </div>
