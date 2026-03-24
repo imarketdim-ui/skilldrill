@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   LayoutDashboard, Calendar, Users, MessageSquare, BarChart3, Wallet,
   Package, Bell, ClipboardList, UserCog, Lock, AlertTriangle,
-  PanelLeftClose, PanelLeftOpen, Database, Briefcase, Megaphone
+  PanelLeftClose, PanelLeftOpen, Database, Briefcase, Megaphone, Plus, Trash2
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
