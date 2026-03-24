@@ -142,6 +142,12 @@ const mainItems = [
   { key: 'notifications', label: 'Уведомления', icon: Bell, description: 'Все уведомления' },
 ];
 
+const sidebarSections = [
+  { key: 'crm', label: 'CRM', icon: Users, description: 'Управление клиентами' },
+  { key: 'erp', label: 'ERP', icon: Database, description: 'Управление бизнесом' },
+  { key: 'directories', label: 'Справочники', icon: Briefcase, description: 'Справочные данные' },
+];
+
 const crmItems = [
   { key: 'schedule', label: 'Расписание', icon: Calendar, description: 'Управление временем' },
   { key: 'clients', label: 'Клиенты', icon: Users, description: 'База клиентов' },
@@ -156,7 +162,12 @@ const erpItems = [
   { key: 'finances', label: 'Финансы', icon: Wallet, description: 'Доходы и расходы' },
 ];
 
-const allItems = [...mainItems, ...crmItems, ...erpItems];
+const directoryItems = [
+  { key: 'dir_client_types', label: 'Типы клиентов', icon: Users, description: 'Системные и пользовательские типы' },
+  { key: 'dir_stats', label: 'Статистика', icon: BarChart3, description: 'Обзор справочных данных' },
+];
+
+const allItems = [...mainItems, ...sidebarSections];
 
 const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config }: Props) => {
   const { profile } = useAuth();
