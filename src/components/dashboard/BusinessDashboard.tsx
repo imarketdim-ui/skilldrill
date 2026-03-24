@@ -352,6 +352,19 @@ const BusinessDashboard = () => {
             onNavigate={setActiveSection}
           />
         );
+      case 'directories':
+        return (
+          <SectionHub
+            title="Справочники"
+            description="Справочные данные и настройки"
+            items={directoryItems}
+            onNavigate={setActiveSection}
+          />
+        );
+      case 'dir_client_types':
+        return selectedBusiness ? <ClientTypeDirectory businessId={selectedBusiness.id} /> : null;
+      case 'dir_stats':
+        return selectedBusiness ? <BusinessStats businessId={selectedBusiness.id} /> : null;
       case 'overview':
         return (
           <div className="space-y-6">
