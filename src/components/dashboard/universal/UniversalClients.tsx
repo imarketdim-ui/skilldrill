@@ -203,7 +203,9 @@ const UniversalClients = ({ config, onNavigateToChat }: Props) => {
     }));
     history.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     setClientHistory(history);
-    setNotes(notesRes.data || []);
+    const allTags = notesRes.data || [];
+    setNotes(allTags.filter(t => t.tag === 'note'));
+    setClientCustomTags(allTags.filter(t => !['note', 'vip'].includes(t.tag)));
   };
 
   const addNote = async () => {
