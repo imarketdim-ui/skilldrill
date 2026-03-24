@@ -78,7 +78,7 @@ const UniversalDashboardHome = ({ config }: Props) => {
 
   const getActivityIcon = (status: string) => {
     switch (status) {
-      case 'confirmed': return <div className="p-2 rounded-full bg-primary/10"><User className="h-4 w-4 text-primary" /></div>;
+      case 'confirmed': case 'pending': return <div className="p-2 rounded-full bg-primary/10"><Calendar className="h-4 w-4 text-primary" /></div>;
       case 'completed': return <div className="p-2 rounded-full bg-primary/10"><CheckCircle className="h-4 w-4 text-primary" /></div>;
       case 'cancelled': return <div className="p-2 rounded-full bg-destructive/10"><AlertTriangle className="h-4 w-4 text-destructive" /></div>;
       default: return <div className="p-2 rounded-full bg-muted"><MessageSquare className="h-4 w-4 text-muted-foreground" /></div>;
@@ -92,6 +92,16 @@ const UniversalDashboardHome = ({ config }: Props) => {
       case 'cancelled': return `${b.clientName} отменил запись`;
       default: return `${b.clientName} — ${b.serviceName}`;
     }
+  };
+
+  const getActivityTarget = (b: typeof bookings[0]) => {
+    if (['confirmed', 'pending', 'completed', 'cancelled'].includes(b.status)) return 'schedule';
+    return 'chats';
+  };
+
+  const getActivityButtonLabel = (b: typeof bookings[0]) => {
+    if (['confirmed', 'pending', 'completed', 'cancelled'].includes(b.status)) return 'К записям';
+    return 'К чатам';
   };
 
   const IconComponent = config.icon;
