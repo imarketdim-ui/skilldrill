@@ -425,11 +425,9 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
             {!sidebarCollapsed && <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Основное</p>}
             {mainItems.map(item => <NavButton key={item.key} item={item} />)}
 
-            <SectionLabel label="CRM" icon={Users} sectionKey="crm" />
-            {adaptedCrmItems.map(item => <NavButton key={item.key} item={item} />)}
-
-            <SectionLabel label="ERP" icon={Database} sectionKey="erp" />
-            {erpItems.map(item => <NavButton key={item.key} item={item} />)}
+            {sidebarSections.map(sec => (
+              <NavButton key={sec.key} item={sec} />
+            ))}
           </div>
           {!sidebarCollapsed && (
             <div className="mt-auto pt-6 border-t">
