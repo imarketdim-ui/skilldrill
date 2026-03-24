@@ -11,8 +11,10 @@ import {
   Building2, Users, ClipboardList, Calendar, DollarSign, Settings,
   ArrowRightLeft, UserPlus, AlertTriangle, MessageSquare, LayoutDashboard,
   CreditCard, Package, Percent, Megaphone, BarChart3, Bell, Database,
-  PanelLeftClose, PanelLeftOpen, Wallet, Briefcase
+  PanelLeftClose, PanelLeftOpen, Wallet, Briefcase, Plus, Trash2
 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
 import ProfileCompletionCheck from './ProfileCompletionCheck';
 import SubscriptionManager from './SubscriptionManager';
 import SubscriptionPaywall from './SubscriptionPaywall';
