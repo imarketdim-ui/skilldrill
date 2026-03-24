@@ -31,13 +31,12 @@ import MasterProfileView from './MasterProfileView';
 // Inline notifications component — scoped to 'master' cabinet
 const MasterNotifications = () => {
   const [notifications, setNotifications] = useState<any[]>([]);
-  const [showArchive, setShowArchive] = useState(false);
+  const [tab, setTab] = useState<'active' | 'archive'>('active');
 
   useEffect(() => {
     const fetch = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      // Fetch master-scoped + unscoped (null) notifications
       const { data } = await supabase.from('notifications').select('*')
         .eq('user_id', user.id)
         .or('cabinet_type.eq.master,cabinet_type.is.null')
@@ -47,14 +46,26 @@ const MasterNotifications = () => {
     fetch();
   }, []);
 
-  const displayed = showArchive ? notifications : notifications.slice(0, 10);
+  const active = notifications.filter(n => !n.is_read).slice(0, 10);
+  const archive = notifications.slice(0, 50);
+  const displayed = tab === 'active' ? active : archive;
 
   return (
     <Card>
-      <CardHeader><CardTitle className="text-lg">Уведомления</CardTitle></CardHeader>
+      <CardHeader>
+        <CardTitle className="text-lg">Уведомления</CardTitle>
+        <Tabs value={tab} onValueChange={v => setTab(v as any)} className="mt-2">
+          <TabsList>
+            <TabsTrigger value="active">Активные{active.length > 0 ? ` (${active.length})` : ''}</TabsTrigger>
+            <TabsTrigger value="archive">Архив (50)</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </CardHeader>
       <CardContent>
         {displayed.length === 0 ? (
-          <p className="text-center py-10 text-muted-foreground">Уведомлений пока нет</p>
+          <p className="text-center py-10 text-muted-foreground">
+            {tab === 'active' ? 'Нет активных уведомлений' : 'Архив пуст'}
+          </p>
         ) : (
           <div className="space-y-3">
             {displayed.map((n: any) => (
@@ -64,15 +75,76 @@ const MasterNotifications = () => {
                 <p className="text-xs text-muted-foreground mt-1">{new Date(n.created_at).toLocaleString('ru-RU')}</p>
               </div>
             ))}
-            {!showArchive && notifications.length > 10 && (
-              <Button variant="outline" size="sm" className="w-full" onClick={() => setShowArchive(true)}>
-                Показать архив ({notifications.length - 10})
-              </Button>
-            )}
           </div>
         )}
       </CardContent>
     </Card>
+  );
+};
+
+// Master Client Type Directory
+const MasterClientTypeDirectory = () => {
+  const { user } = useAuth();
+  const [customTypes, setCustomTypes] = useState<string[]>([]);
+  const [newType, setNewType] = useState('');
+  const { toast } = useToast();
+  const systemTypes = ['VIP', 'Постоянный', 'Новый', 'Спящий', 'Неактивный', 'ЧС'];
+
+  useEffect(() => {
+    if (!user) return;
+    const saved = localStorage.getItem(`client_types_master_${user.id}`);
+    if (saved) setCustomTypes(JSON.parse(saved));
+  }, [user]);
+
+  const saveTypes = (types: string[]) => {
+    setCustomTypes(types);
+    if (user) localStorage.setItem(`client_types_master_${user.id}`, JSON.stringify(types));
+  };
+
+  const addType = () => {
+    const trimmed = newType.trim();
+    if (!trimmed || systemTypes.includes(trimmed) || customTypes.includes(trimmed)) return;
+    saveTypes([...customTypes, trimmed]);
+    setNewType('');
+    toast({ title: 'Тип добавлен' });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold">Справочник: Типы клиентов</h2>
+        <p className="text-muted-foreground">Системные типы и пользовательские</p>
+      </div>
+      <Card>
+        <CardHeader><CardTitle className="text-base">Системные типы</CardTitle></CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2">
+            {systemTypes.map(t => <Badge key={t} variant="secondary" className="text-sm">{t}</Badge>)}
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader><CardTitle className="text-base">Пользовательские типы</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2">
+            <input className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="Новый тип клиента..." value={newType} onChange={e => setNewType(e.target.value)} onKeyDown={e => e.key === 'Enter' && addType()} />
+            <Button onClick={addType} size="sm"><Plus className="h-4 w-4 mr-1" /> Добавить</Button>
+          </div>
+          {customTypes.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Нет пользовательских типов</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {customTypes.map(t => (
+                <Badge key={t} variant="outline" className="text-sm gap-1 pr-1">
+                  {t}
+                  <button onClick={() => saveTypes(customTypes.filter(x => x !== t))} className="ml-1 hover:text-destructive"><Trash2 className="h-3 w-3" /></button>
+                </Badge>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 
