@@ -303,11 +303,20 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
           onNavigate={setActiveSection}
         />
       );
+      case 'directories': return (
+        <SectionHub
+          title="Справочники"
+          description="Справочные данные и настройки"
+          items={directoryItems}
+          onNavigate={setActiveSection}
+        />
+      );
+      case 'dir_client_types': return <MasterClientTypeDirectory />;
+      case 'dir_stats': return <UniversalStats config={config} />;
       case 'schedule': return <UniversalSchedule config={config} />;
       case 'services': return <UniversalServices config={config} />;
       case 'clients': return <UniversalClients config={config} onNavigateToChat={(contactId) => {
         setActiveSection('chats');
-        // Dispatch event to open specific chat
         setTimeout(() => {
           window.dispatchEvent(new CustomEvent('open-chat-with', { detail: contactId }));
         }, 100);
