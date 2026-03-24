@@ -8,10 +8,11 @@ import { Badge } from '@/components/ui/badge';
 import {
   LayoutDashboard, Calendar, Users, MessageSquare, BarChart3, Wallet,
   Package, Bell, ClipboardList, UserCog, Lock, AlertTriangle,
-  PanelLeftClose, PanelLeftOpen, Database, Briefcase, Megaphone
+  PanelLeftClose, PanelLeftOpen, Database, Briefcase, Megaphone, Plus, Trash2
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import SubscriptionPaywall from '../SubscriptionPaywall';
 import SectionHub from '../SectionHub';
@@ -31,13 +32,12 @@ import MasterProfileView from './MasterProfileView';
 // Inline notifications component — scoped to 'master' cabinet
 const MasterNotifications = () => {
   const [notifications, setNotifications] = useState<any[]>([]);
-  const [showArchive, setShowArchive] = useState(false);
+  const [tab, setTab] = useState<'active' | 'archive'>('active');
 
   useEffect(() => {
     const fetch = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      // Fetch master-scoped + unscoped (null) notifications
       const { data } = await supabase.from('notifications').select('*')
         .eq('user_id', user.id)
         .or('cabinet_type.eq.master,cabinet_type.is.null')
@@ -47,14 +47,26 @@ const MasterNotifications = () => {
     fetch();
   }, []);
 
-  const displayed = showArchive ? notifications : notifications.slice(0, 10);
+  const active = notifications.filter(n => !n.is_read).slice(0, 10);
+  const archive = notifications.slice(0, 50);
+  const displayed = tab === 'active' ? active : archive;
 
   return (
     <Card>
-      <CardHeader><CardTitle className="text-lg">Уведомления</CardTitle></CardHeader>
+      <CardHeader>
+        <CardTitle className="text-lg">Уведомления</CardTitle>
+        <Tabs value={tab} onValueChange={v => setTab(v as any)} className="mt-2">
+          <TabsList>
+            <TabsTrigger value="active">Активные{active.length > 0 ? ` (${active.length})` : ''}</TabsTrigger>
+            <TabsTrigger value="archive">Архив (50)</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </CardHeader>
       <CardContent>
         {displayed.length === 0 ? (
-          <p className="text-center py-10 text-muted-foreground">Уведомлений пока нет</p>
+          <p className="text-center py-10 text-muted-foreground">
+            {tab === 'active' ? 'Нет активных уведомлений' : 'Архив пуст'}
+          </p>
         ) : (
           <div className="space-y-3">
             {displayed.map((n: any) => (
@@ -64,15 +76,76 @@ const MasterNotifications = () => {
                 <p className="text-xs text-muted-foreground mt-1">{new Date(n.created_at).toLocaleString('ru-RU')}</p>
               </div>
             ))}
-            {!showArchive && notifications.length > 10 && (
-              <Button variant="outline" size="sm" className="w-full" onClick={() => setShowArchive(true)}>
-                Показать архив ({notifications.length - 10})
-              </Button>
-            )}
           </div>
         )}
       </CardContent>
     </Card>
+  );
+};
+
+// Master Client Type Directory
+const MasterClientTypeDirectory = () => {
+  const { user } = useAuth();
+  const [customTypes, setCustomTypes] = useState<string[]>([]);
+  const [newType, setNewType] = useState('');
+  const { toast } = useToast();
+  const systemTypes = ['VIP', 'Постоянный', 'Новый', 'Спящий', 'Неактивный', 'ЧС'];
+
+  useEffect(() => {
+    if (!user) return;
+    const saved = localStorage.getItem(`client_types_master_${user.id}`);
+    if (saved) setCustomTypes(JSON.parse(saved));
+  }, [user]);
+
+  const saveTypes = (types: string[]) => {
+    setCustomTypes(types);
+    if (user) localStorage.setItem(`client_types_master_${user.id}`, JSON.stringify(types));
+  };
+
+  const addType = () => {
+    const trimmed = newType.trim();
+    if (!trimmed || systemTypes.includes(trimmed) || customTypes.includes(trimmed)) return;
+    saveTypes([...customTypes, trimmed]);
+    setNewType('');
+    toast({ title: 'Тип добавлен' });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold">Справочник: Типы клиентов</h2>
+        <p className="text-muted-foreground">Системные типы и пользовательские</p>
+      </div>
+      <Card>
+        <CardHeader><CardTitle className="text-base">Системные типы</CardTitle></CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2">
+            {systemTypes.map(t => <Badge key={t} variant="secondary" className="text-sm">{t}</Badge>)}
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader><CardTitle className="text-base">Пользовательские типы</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2">
+            <input className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="Новый тип клиента..." value={newType} onChange={e => setNewType(e.target.value)} onKeyDown={e => e.key === 'Enter' && addType()} />
+            <Button onClick={addType} size="sm"><Plus className="h-4 w-4 mr-1" /> Добавить</Button>
+          </div>
+          {customTypes.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Нет пользовательских типов</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {customTypes.map(t => (
+                <Badge key={t} variant="outline" className="text-sm gap-1 pr-1">
+                  {t}
+                  <button onClick={() => saveTypes(customTypes.filter(x => x !== t))} className="ml-1 hover:text-destructive"><Trash2 className="h-3 w-3" /></button>
+                </Badge>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 
@@ -142,6 +215,12 @@ const mainItems = [
   { key: 'notifications', label: 'Уведомления', icon: Bell, description: 'Все уведомления' },
 ];
 
+const sidebarSections = [
+  { key: 'crm', label: 'CRM', icon: Users, description: 'Управление клиентами' },
+  { key: 'erp', label: 'ERP', icon: Database, description: 'Управление бизнесом' },
+  { key: 'directories', label: 'Справочники', icon: Briefcase, description: 'Справочные данные' },
+];
+
 const crmItems = [
   { key: 'schedule', label: 'Расписание', icon: Calendar, description: 'Управление временем' },
   { key: 'clients', label: 'Клиенты', icon: Users, description: 'База клиентов' },
@@ -156,7 +235,12 @@ const erpItems = [
   { key: 'finances', label: 'Финансы', icon: Wallet, description: 'Доходы и расходы' },
 ];
 
-const allItems = [...mainItems, ...crmItems, ...erpItems];
+const directoryItems = [
+  { key: 'dir_client_types', label: 'Типы клиентов', icon: Users, description: 'Системные и пользовательские типы' },
+  { key: 'dir_stats', label: 'Статистика', icon: BarChart3, description: 'Обзор справочных данных' },
+];
+
+const allItems = [...mainItems, ...sidebarSections];
 
 const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config }: Props) => {
   const { profile } = useAuth();
@@ -219,11 +303,20 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
           onNavigate={setActiveSection}
         />
       );
+      case 'directories': return (
+        <SectionHub
+          title="Справочники"
+          description="Справочные данные и настройки"
+          items={directoryItems}
+          onNavigate={setActiveSection}
+        />
+      );
+      case 'dir_client_types': return <MasterClientTypeDirectory />;
+      case 'dir_stats': return <UniversalStats config={config} />;
       case 'schedule': return <UniversalSchedule config={config} />;
       case 'services': return <UniversalServices config={config} />;
       case 'clients': return <UniversalClients config={config} onNavigateToChat={(contactId) => {
         setActiveSection('chats');
-        // Dispatch event to open specific chat
         setTimeout(() => {
           window.dispatchEvent(new CustomEvent('open-chat-with', { detail: contactId }));
         }, 100);
@@ -332,11 +425,9 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
             {!sidebarCollapsed && <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Основное</p>}
             {mainItems.map(item => <NavButton key={item.key} item={item} />)}
 
-            <SectionLabel label="CRM" icon={Users} sectionKey="crm" />
-            {adaptedCrmItems.map(item => <NavButton key={item.key} item={item} />)}
-
-            <SectionLabel label="ERP" icon={Database} sectionKey="erp" />
-            {erpItems.map(item => <NavButton key={item.key} item={item} />)}
+            {sidebarSections.map(sec => (
+              <NavButton key={sec.key} item={sec} />
+            ))}
           </div>
           {!sidebarCollapsed && (
             <div className="mt-auto pt-6 border-t">

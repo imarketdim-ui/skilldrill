@@ -85,12 +85,26 @@ const MapPicker = forwardRef<HTMLDivElement, Props>(({ latitude, longitude, addr
 
   const handleGeolocate = () => {
     if (!navigator.geolocation) return;
+    // Check cached location (valid for 6 hours)
+    const cached = localStorage.getItem('skillspot_geo_cache');
+    if (cached) {
+      try {
+        const { lat, lng, ts } = JSON.parse(cached);
+        if (Date.now() - ts < 6 * 60 * 60 * 1000) {
+          const lngLat = new maplibregl.LngLat(lng, lat);
+          mapRef.current?.flyTo({ center: lngLat, zoom: 15 });
+          placeMarker(lngLat);
+          return;
+        }
+      } catch {}
+    }
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const lngLat = new maplibregl.LngLat(pos.coords.longitude, pos.coords.latitude);
         mapRef.current?.flyTo({ center: lngLat, zoom: 15 });
         placeMarker(lngLat);
+        localStorage.setItem('skillspot_geo_cache', JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude, ts: Date.now() }));
         setLocating(false);
       },
       () => setLocating(false),

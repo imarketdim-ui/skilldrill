@@ -601,7 +601,7 @@ const UniversalSchedule = ({ config }: Props) => {
           </Tabs>
 
           <Button variant="outline" size="sm" className="h-8 gap-1" onClick={() => setIsSettingsOpen(true)}>
-            <Settings2 className="h-3.5 w-3.5" />
+            <Settings2 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Редактировать расписание</span>
           </Button>
 
           <Dialog open={isBreakOpen} onOpenChange={setIsBreakOpen}>
