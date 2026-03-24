@@ -37,27 +37,39 @@ import BusinessAnalytics from './business/BusinessAnalytics';
 import BusinessOnboardingTour from '../onboarding/BusinessOnboardingTour';
 const BusinessNotifications = () => {
   const [notifications, setNotifications] = useState<any[]>([]);
-  const [showArchive, setShowArchive] = useState(false);
+  const [tab, setTab] = useState<'active' | 'archive'>('active');
 
   useEffect(() => {
     const fetch = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       const { data } = await supabase.from('notifications').select('*')
-        .eq('user_id', user.id).order('created_at', { ascending: false }).limit(30);
+        .eq('user_id', user.id).order('created_at', { ascending: false }).limit(50);
       setNotifications(data || []);
     };
     fetch();
   }, []);
 
-  const displayed = showArchive ? notifications : notifications.slice(0, 10);
+  const active = notifications.filter(n => !n.is_read).slice(0, 10);
+  const archive = notifications.slice(0, 50);
+  const displayed = tab === 'active' ? active : archive;
 
   return (
     <Card>
-      <CardHeader><CardTitle className="text-lg">Уведомления</CardTitle></CardHeader>
+      <CardHeader>
+        <CardTitle className="text-lg">Уведомления</CardTitle>
+        <Tabs value={tab} onValueChange={v => setTab(v as any)} className="mt-2">
+          <TabsList>
+            <TabsTrigger value="active">Активные{active.length > 0 ? ` (${active.length})` : ''}</TabsTrigger>
+            <TabsTrigger value="archive">Архив (50)</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </CardHeader>
       <CardContent>
         {displayed.length === 0 ? (
-          <p className="text-center py-10 text-muted-foreground">Уведомлений пока нет</p>
+          <p className="text-center py-10 text-muted-foreground">
+            {tab === 'active' ? 'Нет активных уведомлений' : 'Архив пуст'}
+          </p>
         ) : (
           <div className="space-y-3">
             {displayed.map((n: any) => (
@@ -67,15 +79,93 @@ const BusinessNotifications = () => {
                 <p className="text-xs text-muted-foreground mt-1">{new Date(n.created_at).toLocaleString('ru-RU')}</p>
               </div>
             ))}
-            {!showArchive && notifications.length > 10 && (
-              <Button variant="outline" size="sm" className="w-full" onClick={() => setShowArchive(true)}>
-                Показать архив ({notifications.length - 10})
-              </Button>
-            )}
           </div>
         )}
       </CardContent>
     </Card>
+  );
+};
+
+// Client Type Directory component
+const ClientTypeDirectory = ({ businessId }: { businessId: string }) => {
+  const [customTypes, setCustomTypes] = useState<string[]>([]);
+  const [newType, setNewType] = useState('');
+  const { toast } = useToast();
+
+  const systemTypes = ['VIP', 'Постоянный', 'Новый', 'Спящий', 'Неактивный', 'ЧС'];
+
+  useEffect(() => {
+    const saved = localStorage.getItem(`client_types_${businessId}`);
+    if (saved) setCustomTypes(JSON.parse(saved));
+  }, [businessId]);
+
+  const saveTypes = (types: string[]) => {
+    setCustomTypes(types);
+    localStorage.setItem(`client_types_${businessId}`, JSON.stringify(types));
+  };
+
+  const addType = () => {
+    const trimmed = newType.trim();
+    if (!trimmed) return;
+    if (systemTypes.includes(trimmed) || customTypes.includes(trimmed)) {
+      toast({ title: 'Такой тип уже существует', variant: 'destructive' });
+      return;
+    }
+    saveTypes([...customTypes, trimmed]);
+    setNewType('');
+    toast({ title: 'Тип добавлен' });
+  };
+
+  const removeType = (type: string) => {
+    saveTypes(customTypes.filter(t => t !== type));
+    toast({ title: 'Тип удалён' });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold">Справочник: Типы клиентов</h2>
+        <p className="text-muted-foreground">Системные типы и пользовательские</p>
+      </div>
+      <Card>
+        <CardHeader><CardTitle className="text-base">Системные типы</CardTitle></CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2">
+            {systemTypes.map(t => (
+              <Badge key={t} variant="secondary" className="text-sm">{t}</Badge>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader><CardTitle className="text-base">Пользовательские типы</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2">
+            <Input
+              placeholder="Новый тип клиента..."
+              value={newType}
+              onChange={e => setNewType(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && addType()}
+            />
+            <Button onClick={addType} size="sm"><Plus className="h-4 w-4 mr-1" /> Добавить</Button>
+          </div>
+          {customTypes.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Нет пользовательских типов</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {customTypes.map(t => (
+                <Badge key={t} variant="outline" className="text-sm gap-1 pr-1">
+                  {t}
+                  <button onClick={() => removeType(t)} className="ml-1 hover:text-destructive">
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 
