@@ -11,9 +11,14 @@ import {
   Building2, Users, ClipboardList, Calendar, DollarSign, Settings,
   ArrowRightLeft, UserPlus, AlertTriangle, MessageSquare, LayoutDashboard,
   CreditCard, Package, Percent, Megaphone, BarChart3, Bell, Database,
-  PanelLeftClose, PanelLeftOpen, Wallet, Briefcase, Plus, Trash2
+  PanelLeftClose, PanelLeftOpen, Wallet, Briefcase, Plus, Trash2, Shield,
+  Search, User, Merge
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import ProfileCompletionCheck from './ProfileCompletionCheck';
 import SubscriptionManager from './SubscriptionManager';
@@ -37,6 +42,9 @@ import BusinessProductSales from './business/BusinessProductSales';
 import TeachingChats from './teaching/TeachingChats';
 import BusinessAnalytics from './business/BusinessAnalytics';
 import BusinessOnboardingTour from '../onboarding/BusinessOnboardingTour';
+import RolePermissionsEditor from './business/RolePermissionsEditor';
+
+// ── Notifications with real counter ──
 const BusinessNotifications = () => {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [tab, setTab] = useState<'active' | 'archive'>('active');
@@ -52,8 +60,8 @@ const BusinessNotifications = () => {
     fetch();
   }, []);
 
-  const active = notifications.filter(n => !n.is_read).slice(0, 10);
-  const archive = notifications.slice(0, 50);
+  const active = notifications.filter(n => !n.is_read);
+  const archive = notifications;
   const displayed = tab === 'active' ? active : archive;
 
   return (
@@ -63,7 +71,7 @@ const BusinessNotifications = () => {
         <Tabs value={tab} onValueChange={v => setTab(v as any)} className="mt-2">
           <TabsList>
             <TabsTrigger value="active">Активные{active.length > 0 ? ` (${active.length})` : ''}</TabsTrigger>
-            <TabsTrigger value="archive">Архив (50)</TabsTrigger>
+            <TabsTrigger value="archive">Архив{archive.length > 0 ? ` (${archive.length})` : ''}</TabsTrigger>
           </TabsList>
         </Tabs>
       </CardHeader>
@@ -88,17 +96,16 @@ const BusinessNotifications = () => {
   );
 };
 
-// Client Type Directory component
+// ── Client Type Directory ──
 const ClientTypeDirectory = ({ businessId }: { businessId: string }) => {
   const [customTypes, setCustomTypes] = useState<string[]>([]);
   const [newType, setNewType] = useState('');
   const { toast } = useToast();
-
   const systemTypes = ['VIP', 'Постоянный', 'Новый', 'Спящий', 'Неактивный', 'ЧС'];
 
   useEffect(() => {
     const saved = localStorage.getItem(`client_types_${businessId}`);
-    if (saved) setCustomTypes(JSON.parse(saved));
+    if (saved) try { setCustomTypes(JSON.parse(saved)); } catch {}
   }, [businessId]);
 
   const saveTypes = (types: string[]) => {
@@ -118,24 +125,14 @@ const ClientTypeDirectory = ({ businessId }: { businessId: string }) => {
     toast({ title: 'Тип добавлен' });
   };
 
-  const removeType = (type: string) => {
-    saveTypes(customTypes.filter(t => t !== type));
-    toast({ title: 'Тип удалён' });
-  };
-
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold">Справочник: Типы клиентов</h2>
-        <p className="text-muted-foreground">Системные типы и пользовательские</p>
-      </div>
+      <h2 className="text-2xl font-bold">Справочник: Типы клиентов</h2>
       <Card>
         <CardHeader><CardTitle className="text-base">Системные типы</CardTitle></CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
-            {systemTypes.map(t => (
-              <Badge key={t} variant="secondary" className="text-sm">{t}</Badge>
-            ))}
+            {systemTypes.map(t => <Badge key={t} variant="secondary" className="text-sm">{t}</Badge>)}
           </div>
         </CardContent>
       </Card>
@@ -143,12 +140,7 @@ const ClientTypeDirectory = ({ businessId }: { businessId: string }) => {
         <CardHeader><CardTitle className="text-base">Пользовательские типы</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div className="flex gap-2">
-            <Input
-              placeholder="Новый тип клиента..."
-              value={newType}
-              onChange={e => setNewType(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && addType()}
-            />
+            <Input placeholder="Новый тип клиента..." value={newType} onChange={e => setNewType(e.target.value)} onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addType())} />
             <Button onClick={addType} size="sm"><Plus className="h-4 w-4 mr-1" /> Добавить</Button>
           </div>
           {customTypes.length === 0 ? (
@@ -158,9 +150,7 @@ const ClientTypeDirectory = ({ businessId }: { businessId: string }) => {
               {customTypes.map(t => (
                 <Badge key={t} variant="outline" className="text-sm gap-1 pr-1">
                   {t}
-                  <button onClick={() => removeType(t)} className="ml-1 hover:text-destructive">
-                    <Trash2 className="h-3 w-3" />
-                  </button>
+                  <button onClick={() => { saveTypes(customTypes.filter(x => x !== t)); toast({ title: 'Тип удалён' }); }} className="ml-1 hover:text-destructive"><Trash2 className="h-3 w-3" /></button>
                 </Badge>
               ))}
             </div>
@@ -171,63 +161,34 @@ const ClientTypeDirectory = ({ businessId }: { businessId: string }) => {
   );
 };
 
-// Business clients - extracted from bookings
-const BusinessClients = ({ businessId }: { businessId: string }) => {
-  const [clients, setClients] = useState<any[]>([]);
+// ── Products & Materials Directory ──
+const ProductsDirectory = ({ businessId }: { businessId: string }) => {
+  const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetch = async () => {
-      const { data: bookings } = await supabase
-        .from('bookings')
-        .select('client_id, scheduled_at, profiles:client_id(first_name, last_name, phone)')
-        .eq('organization_id', businessId)
-        .order('scheduled_at', { ascending: false });
-
-      const clientMap = new Map<string, any>();
-      (bookings || []).forEach((b: any) => {
-        if (!clientMap.has(b.client_id)) {
-          clientMap.set(b.client_id, {
-            id: b.client_id,
-            name: `${b.profiles?.first_name || ''} ${b.profiles?.last_name || ''}`.trim(),
-            phone: b.profiles?.phone || '—',
-            lastVisit: b.scheduled_at,
-            visitCount: 1,
-          });
-        } else {
-          clientMap.get(b.client_id).visitCount++;
-        }
-      });
-
-      setClients(Array.from(clientMap.values()));
-      setLoading(false);
-    };
-    fetch();
+    supabase.from('inventory_items').select('*').eq('business_id', businessId).order('name')
+      .then(({ data }) => { setItems(data || []); setLoading(false); });
   }, [businessId]);
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold flex items-center gap-2">
-        <Users className="h-5 w-5" /> Клиенты ({clients.length})
-      </h3>
-      {loading ? (
-        <p className="text-muted-foreground text-center py-10">Загрузка...</p>
-      ) : clients.length === 0 ? (
-        <Card><CardContent className="pt-6 text-center text-muted-foreground">Клиентов пока нет</CardContent></Card>
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold">Справочник: Товары и материалы</h2>
+      <p className="text-muted-foreground">Товары и материалы из складского учёта. Управление — в разделе ERP → Склад.</p>
+      {loading ? <p className="text-center py-8 text-muted-foreground">Загрузка...</p> : items.length === 0 ? (
+        <Card><CardContent className="py-8 text-center text-muted-foreground">Нет товаров. Добавьте в разделе «Склад».</CardContent></Card>
       ) : (
-        <div className="space-y-2">
-          {clients.map(c => (
-            <Card key={c.id}>
+        <div className="grid gap-2">
+          {items.map(item => (
+            <Card key={item.id}>
               <CardContent className="py-3 px-4 flex items-center justify-between">
                 <div>
-                  <p className="font-medium text-sm">{c.name || 'Без имени'}</p>
-                  <p className="text-xs text-muted-foreground">{c.phone}</p>
+                  <p className="font-medium text-sm">{item.name}</p>
+                  <p className="text-xs text-muted-foreground">{item.category || 'Без категории'} · {item.unit}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm">{c.visitCount} визит(ов)</p>
-                  <p className="text-xs text-muted-foreground">
-                    Последний: {new Date(c.lastVisit).toLocaleDateString('ru-RU')}
-                  </p>
+                  <p className="text-sm font-semibold">{Number(item.quantity)} {item.unit}</p>
+                  <p className="text-xs text-muted-foreground">{Number(item.price_per_unit).toLocaleString()} ₽/{item.unit}</p>
                 </div>
               </CardContent>
             </Card>
@@ -238,9 +199,242 @@ const BusinessClients = ({ businessId }: { businessId: string }) => {
   );
 };
 
-// Business stats placeholder
+// ── Cash Registers Directory ──
+const CashRegistersDirectory = ({ businessId }: { businessId: string }) => {
+  return <BusinessCashRegisters businessId={businessId} />;
+};
+
+// ── Positions / Roles Directory ──
+const PositionsDirectory = ({ businessId }: { businessId: string }) => {
+  return <RolePermissionsEditor businessId={businessId} />;
+};
+
+// ── Business Clients - aggregated from bookings + chats + manual ──
+const BusinessClients = ({ businessId }: { businessId: string }) => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [clients, setClients] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [addManualOpen, setAddManualOpen] = useState(false);
+  const [manualForm, setManualForm] = useState({ name: '', phone: '', email: '', note: '' });
+  const [mergeOpen, setMergeOpen] = useState(false);
+  const [mergeTarget, setMergeTarget] = useState<any>(null);
+  const [mergeSkillspotId, setMergeSkillspotId] = useState('');
+
+  useEffect(() => { if (user) fetchClients(); }, [user, businessId]);
+
+  const fetchClients = async () => {
+    if (!user) return;
+    setLoading(true);
+    // Get clients from bookings
+    const { data: bookings } = await supabase
+      .from('bookings')
+      .select('client_id, scheduled_at, status, services:service_id(price)')
+      .eq('organization_id', businessId)
+      .order('scheduled_at', { ascending: false });
+
+    // Get clients from chats (messages sent to business owner)
+    const { data: chatMessages } = await supabase
+      .from('chat_messages')
+      .select('sender_id, recipient_id, created_at')
+      .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
+      .order('created_at', { ascending: false })
+      .limit(500);
+
+    // Get manually added clients
+    const { data: manualClients } = await supabase
+      .from('client_tags')
+      .select('client_id, note, created_at')
+      .eq('tagger_id', user.id)
+      .eq('tag', 'manual_client');
+
+    // Collect all unique client IDs
+    const clientMap = new Map<string, any>();
+
+    (bookings || []).forEach((b: any) => {
+      if (b.client_id === user.id) return;
+      if (!clientMap.has(b.client_id)) {
+        clientMap.set(b.client_id, { id: b.client_id, sources: new Set(['booking']), visitCount: 0, lastVisit: b.scheduled_at, revenue: 0 });
+      }
+      const c = clientMap.get(b.client_id);
+      c.sources.add('booking');
+      c.visitCount++;
+      if (b.status === 'completed') c.revenue += Number((b.services as any)?.price || 0);
+      if (new Date(b.scheduled_at) > new Date(c.lastVisit)) c.lastVisit = b.scheduled_at;
+    });
+
+    (chatMessages || []).forEach((m: any) => {
+      const contactId = m.sender_id === user.id ? m.recipient_id : m.sender_id;
+      if (contactId === user.id) return;
+      if (!clientMap.has(contactId)) {
+        clientMap.set(contactId, { id: contactId, sources: new Set(['chat']), visitCount: 0, lastVisit: m.created_at, revenue: 0 });
+      } else {
+        clientMap.get(contactId).sources.add('chat');
+      }
+    });
+
+    (manualClients || []).forEach((mc: any) => {
+      if (!clientMap.has(mc.client_id)) {
+        clientMap.set(mc.client_id, { id: mc.client_id, sources: new Set(['manual']), visitCount: 0, lastVisit: mc.created_at, revenue: 0, note: mc.note });
+      } else {
+        clientMap.get(mc.client_id).sources.add('manual');
+      }
+    });
+
+    // Fetch profiles
+    const ids = Array.from(clientMap.keys());
+    if (ids.length > 0) {
+      const { data: profiles } = await supabase.from('profiles').select('id, first_name, last_name, phone, email, skillspot_id').in('id', ids);
+      (profiles || []).forEach(p => {
+        const c = clientMap.get(p.id);
+        if (c) {
+          c.name = `${p.first_name || ''} ${p.last_name || ''}`.trim() || p.email || 'Без имени';
+          c.phone = p.phone || '—';
+          c.email = p.email;
+          c.skillspot_id = p.skillspot_id;
+        }
+      });
+    }
+
+    setClients(Array.from(clientMap.values()).map(c => ({ ...c, sources: Array.from(c.sources) })));
+    setLoading(false);
+  };
+
+  const handleAddManual = async () => {
+    if (!manualForm.name.trim()) {
+      toast({ title: 'Введите имя', variant: 'destructive' });
+      return;
+    }
+    // For manual clients we need a real user profile. Show info about this.
+    toast({ title: 'Для добавления клиента вручную', description: 'Попросите клиента зарегистрироваться на платформе и сообщить свой ID. Затем используйте функцию «Объединить».' });
+    setAddManualOpen(false);
+  };
+
+  const handleMerge = async () => {
+    if (!mergeTarget || !mergeSkillspotId.trim()) {
+      toast({ title: 'Введите ID клиента', variant: 'destructive' });
+      return;
+    }
+    // Find user by skillspot_id
+    const { data: targetProfile } = await supabase.from('profiles')
+      .select('id, first_name, last_name, skillspot_id')
+      .eq('skillspot_id', mergeSkillspotId.trim())
+      .maybeSingle();
+
+    if (!targetProfile) {
+      toast({ title: 'Клиент не найден', description: 'Проверьте ID', variant: 'destructive' });
+      return;
+    }
+    if (targetProfile.id === mergeTarget.id) {
+      toast({ title: 'Это тот же клиент', variant: 'destructive' });
+      return;
+    }
+
+    // Mark as merged via tag
+    await supabase.from('client_tags').insert({
+      client_id: targetProfile.id, tagger_id: user!.id,
+      tag: 'merged_from', note: `Объединён с ${mergeTarget.name} (${mergeTarget.id})`
+    });
+
+    toast({ title: 'Клиенты отмечены для объединения', description: `${mergeTarget.name} → ${targetProfile.first_name} ${targetProfile.last_name}. История будет учитываться в рейтинге нового профиля.` });
+    setMergeOpen(false);
+    setMergeTarget(null);
+    setMergeSkillspotId('');
+    fetchClients();
+  };
+
+  const filtered = search
+    ? clients.filter(c => c.name?.toLowerCase().includes(search.toLowerCase()) || c.phone?.includes(search) || c.skillspot_id?.includes(search))
+    : clients;
+
+  const getSourceBadges = (sources: string[]) => (
+    <div className="flex gap-1">
+      {sources.includes('booking') && <Badge variant="outline" className="text-[10px]">Записи</Badge>}
+      {sources.includes('chat') && <Badge variant="outline" className="text-[10px]">Чат</Badge>}
+      {sources.includes('manual') && <Badge variant="outline" className="text-[10px]">Вручную</Badge>}
+    </div>
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h3 className="text-lg font-semibold flex items-center gap-2">
+          <Users className="h-5 w-5" /> Клиенты ({clients.length})
+        </h3>
+        <Button size="sm" variant="outline" onClick={() => setAddManualOpen(true)}>
+          <Plus className="h-4 w-4 mr-1" /> Добавить
+        </Button>
+      </div>
+
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input placeholder="Поиск по имени, телефону или ID..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+      </div>
+
+      {loading ? (
+        <p className="text-muted-foreground text-center py-10">Загрузка...</p>
+      ) : filtered.length === 0 ? (
+        <Card><CardContent className="pt-6 text-center text-muted-foreground">
+          <User className="h-10 w-10 mx-auto mb-3 opacity-50" />
+          <p>{search ? 'Не найдено' : 'Клиентов пока нет. Клиенты добавятся автоматически из записей и чатов.'}</p>
+        </CardContent></Card>
+      ) : (
+        <div className="space-y-2">
+          {filtered.map(c => (
+            <Card key={c.id}>
+              <CardContent className="py-3 px-4">
+                <div className="flex items-center justify-between">
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm truncate">{c.name || 'Без имени'}</p>
+                    <p className="text-xs text-muted-foreground">{c.phone} {c.skillspot_id ? `· ID: ${c.skillspot_id}` : ''}</p>
+                    {getSourceBadges(c.sources)}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-right">
+                      <p className="text-sm">{c.visitCount} визит(ов)</p>
+                      <p className="text-xs text-muted-foreground">{c.revenue > 0 ? `${c.revenue.toLocaleString()} ₽` : ''}</p>
+                    </div>
+                    <Button size="icon" variant="ghost" className="h-8 w-8" title="Объединить" onClick={() => { setMergeTarget(c); setMergeOpen(true); }}>
+                      <Merge className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Merge dialog */}
+      <Dialog open={mergeOpen} onOpenChange={setMergeOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Объединить клиента</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Если клиент зарегистрировался и сообщил свой ID — введите его ниже. История взаимодействий будет объединена.</p>
+          {mergeTarget && <p className="text-sm">Текущий: <strong>{mergeTarget.name}</strong></p>}
+          <div className="space-y-2">
+            <Label>SkillSpot ID нового профиля</Label>
+            <Input placeholder="Например: SS-12345" value={mergeSkillspotId} onChange={e => setMergeSkillspotId(e.target.value)} />
+          </div>
+          <Button onClick={handleMerge} className="w-full">Объединить</Button>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add manual dialog */}
+      <Dialog open={addManualOpen} onOpenChange={setAddManualOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Добавить клиента</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Клиенты добавляются автоматически из записей и чатов. Для ручного добавления попросите клиента зарегистрироваться и сообщить свой ID.</p>
+          <Button variant="outline" onClick={() => setAddManualOpen(false)}>Понятно</Button>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+// ── Business Stats ──
 const BusinessStats = ({ businessId }: { businessId: string }) => {
-  const [stats, setStats] = useState({ total: 0, completed: 0, cancelled: 0, revenue: 0 });
+  const [stats, setStats] = useState({ total: 0, completed: 0, cancelled: 0, pending: 0, noShow: 0, revenue: 0 });
 
   useEffect(() => {
     const fetch = async () => {
@@ -248,30 +442,33 @@ const BusinessStats = ({ businessId }: { businessId: string }) => {
         .from('bookings')
         .select('status, services(price)')
         .eq('organization_id', businessId);
-
       const rows = data || [];
       setStats({
         total: rows.length,
         completed: rows.filter((r: any) => r.status === 'completed').length,
         cancelled: rows.filter((r: any) => r.status === 'cancelled').length,
+        pending: rows.filter((r: any) => ['pending', 'confirmed', 'in_progress'].includes(r.status)).length,
+        noShow: rows.filter((r: any) => r.status === 'no_show').length,
         revenue: rows.filter((r: any) => r.status === 'completed').reduce((s: number, r: any) => s + (r.services?.price || 0), 0),
       });
     };
     fetch();
   }, [businessId]);
 
+  const cards = [
+    { label: 'Всего записей', value: stats.total },
+    { label: 'Завершено', value: stats.completed },
+    { label: 'Запланировано', value: stats.pending },
+    { label: 'Отменено', value: stats.cancelled },
+    { label: 'Неявки', value: stats.noShow },
+    { label: 'Доход', value: `${stats.revenue.toLocaleString()} ₽` },
+  ];
+
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold flex items-center gap-2">
-        <BarChart3 className="h-5 w-5" /> Статистика
-      </h3>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: 'Всего записей', value: stats.total },
-          { label: 'Завершено', value: stats.completed },
-          { label: 'Отменено', value: stats.cancelled },
-          { label: 'Доход', value: `${stats.revenue.toLocaleString()} ₽` },
-        ].map(s => (
+      <h3 className="text-lg font-semibold flex items-center gap-2"><BarChart3 className="h-5 w-5" /> Статистика</h3>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        {cards.map(s => (
           <Card key={s.label}>
             <CardContent className="pt-4 pb-3 text-center">
               <p className="text-2xl font-bold">{s.value}</p>
@@ -284,10 +481,11 @@ const BusinessStats = ({ businessId }: { businessId: string }) => {
   );
 };
 
+// ── Sidebar config ──
 const mainItems = [
   { key: 'overview', label: 'Главная', icon: LayoutDashboard },
   { key: 'profile', label: 'Профиль организации', icon: Settings },
-  { key: 'notifications', label: 'Уведомления', icon: Bell },
+  { key: 'messages', label: 'Сообщения', icon: MessageSquare },
 ];
 
 const sidebarSections = [
@@ -300,8 +498,8 @@ const crmItems = [
   { key: 'bookings', label: 'Записи', icon: Calendar, description: 'Все записи клиентов' },
   { key: 'schedule', label: 'Расписание', icon: Calendar, description: 'Календарь событий' },
   { key: 'clients', label: 'Клиенты', icon: Users, description: 'База клиентов' },
-  { key: 'chats', label: 'Чаты', icon: MessageSquare, description: 'Общение с клиентами' },
   { key: 'marketing', label: 'Маркетинг', icon: Megaphone, description: 'Рассылки и реклама' },
+  { key: 'promotions', label: 'Акции и Скидки', icon: Percent, description: 'Скидки и промо' },
 ];
 
 const erpItems = [
@@ -313,14 +511,15 @@ const erpItems = [
   { key: 'procurement', label: 'Закупки', icon: Package, description: 'Закупка материалов' },
   { key: 'writeoffs', label: 'Списания', icon: ClipboardList, description: 'Списание материалов' },
   { key: 'product_sales', label: 'Продажи', icon: Briefcase, description: 'Продажа товаров' },
-  { key: 'promotions', label: 'Акции', icon: Percent, description: 'Скидки и промо' },
   { key: 'finance', label: 'Финансы', icon: Wallet, description: 'Доходы и расходы' },
   { key: 'subscription', label: 'Подписка', icon: CreditCard, description: 'Тарифы и оплата' },
 ];
 
 const directoryItems = [
   { key: 'dir_client_types', label: 'Типы клиентов', icon: Users, description: 'Системные и пользовательские типы' },
-  { key: 'dir_stats', label: 'Статистика справочников', icon: BarChart3, description: 'Обзор справочных данных' },
+  { key: 'dir_products', label: 'Товары и материалы', icon: Package, description: 'Справочник товаров для склада и тех. карт' },
+  { key: 'dir_registers', label: 'Кассы', icon: Wallet, description: 'Создание и управление кассами' },
+  { key: 'dir_positions', label: 'Должности', icon: Shield, description: 'Настройка доступов по ролям' },
 ];
 
 const allItems = [...mainItems, ...sidebarSections];
@@ -341,9 +540,7 @@ const BusinessDashboard = () => {
     const { data } = await supabase.from('business_locations').select('*').eq('owner_id', user.id);
     setBusinesses(data || []);
     if (data && data.length > 0) {
-      const target = activeEntityId
-        ? data.find(b => b.id === activeEntityId) || data[0]
-        : data[0];
+      const target = activeEntityId ? data.find(b => b.id === activeEntityId) || data[0] : data[0];
       setSelectedBusiness(target);
       const [mRes, sRes] = await Promise.all([
         supabase.from('business_masters').select('id', { count: 'exact', head: true }).eq('business_id', target.id).eq('status', 'accepted'),
@@ -374,7 +571,7 @@ const BusinessDashboard = () => {
         <CardContent className="pt-6 text-center">
           <Building2 className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
           <h2 className="text-xl font-bold mb-2">Нет бизнес-точек</h2>
-          <p className="text-muted-foreground">Создайте бизнес-аккаунт в разделе Клиент.</p>
+          <p className="text-muted-foreground">Создайте бизнес-аккаунт.</p>
         </CardContent>
       </Card>
     );
@@ -411,52 +608,22 @@ const BusinessDashboard = () => {
     </Button>
   );
 
-  const SectionLabel = ({ label, icon: Icon, sectionKey }: { label: string; icon: any; sectionKey?: string }) => {
-    if (sidebarCollapsed) return <div className="border-t my-2 mx-2" />;
-    return (
-      <button
-        className={`flex items-center gap-2 px-3 mb-2 mt-4 w-full text-left hover:opacity-80 transition-opacity ${activeSection === sectionKey ? 'text-primary' : ''}`}
-        onClick={() => sectionKey && setActiveSection(sectionKey)}
-      >
-        <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{label}</p>
-      </button>
-    );
-  };
-
   const renderContent = () => {
     switch (activeSection) {
       case 'crm':
-        return (
-          <SectionHub
-            title="CRM"
-            description="Управление клиентами и коммуникациями"
-            items={crmItems}
-            onNavigate={setActiveSection}
-          />
-        );
+        return <SectionHub title="CRM" description="Управление клиентами и коммуникациями" items={crmItems} onNavigate={setActiveSection} />;
       case 'erp':
-        return (
-          <SectionHub
-            title="ERP"
-            description="Управление бизнес-процессами"
-            items={erpItems}
-            onNavigate={setActiveSection}
-          />
-        );
+        return <SectionHub title="ERP" description="Управление бизнес-процессами" items={erpItems} onNavigate={setActiveSection} />;
       case 'directories':
-        return (
-          <SectionHub
-            title="Справочники"
-            description="Справочные данные и настройки"
-            items={directoryItems}
-            onNavigate={setActiveSection}
-          />
-        );
+        return <SectionHub title="Справочники" description="Справочные данные и настройки" items={directoryItems} onNavigate={setActiveSection} />;
       case 'dir_client_types':
         return selectedBusiness ? <ClientTypeDirectory businessId={selectedBusiness.id} /> : null;
-      case 'dir_stats':
-        return selectedBusiness ? <BusinessStats businessId={selectedBusiness.id} /> : null;
+      case 'dir_products':
+        return selectedBusiness ? <ProductsDirectory businessId={selectedBusiness.id} /> : null;
+      case 'dir_registers':
+        return selectedBusiness ? <CashRegistersDirectory businessId={selectedBusiness.id} /> : null;
+      case 'dir_positions':
+        return selectedBusiness ? <PositionsDirectory businessId={selectedBusiness.id} /> : null;
       case 'overview':
         return (
           <div className="space-y-6">
@@ -465,7 +632,7 @@ const BusinessDashboard = () => {
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>
-                  Для активации бизнеса необходимо: минимум 1 принятый мастер ({masterCount}/1) и 1 активная услуга ({serviceCount}/1).
+                  Для активации: минимум 1 принятый мастер ({masterCount}/1) и 1 активная услуга ({serviceCount}/1).
                 </AlertDescription>
               </Alert>
             )}
@@ -500,12 +667,8 @@ const BusinessDashboard = () => {
               <Card>
                 <CardHeader><CardTitle>Управление</CardTitle></CardHeader>
                 <CardContent className="space-y-2">
-                  <Button variant="outline" className="w-full justify-start gap-2">
-                    <ArrowRightLeft className="h-4 w-4" /> Передать управление
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start gap-2">
-                    <UserPlus className="h-4 w-4" /> Назначить менеджера
-                  </Button>
+                  <Button variant="outline" className="w-full justify-start gap-2"><ArrowRightLeft className="h-4 w-4" /> Передать управление</Button>
+                  <Button variant="outline" className="w-full justify-start gap-2"><UserPlus className="h-4 w-4" /> Назначить менеджера</Button>
                 </CardContent>
               </Card>
             </div>
@@ -514,9 +677,7 @@ const BusinessDashboard = () => {
       case 'bookings':
         return selectedBusiness ? <BusinessBookingDetail businessId={selectedBusiness.id} /> : null;
       case 'masters':
-        return selectedBusiness ? (
-          <BusinessMasters businessId={selectedBusiness.id} freeMasters={selectedBusiness.free_masters || 3} extraMasterPrice={selectedBusiness.extra_master_price || 500} />
-        ) : null;
+        return selectedBusiness ? <BusinessMasters businessId={selectedBusiness.id} freeMasters={selectedBusiness.free_masters || 3} extraMasterPrice={selectedBusiness.extra_master_price || 500} /> : null;
       case 'services':
         return selectedBusiness ? <BusinessServices businessId={selectedBusiness.id} /> : null;
       case 'inventory':
@@ -541,20 +702,20 @@ const BusinessDashboard = () => {
         return selectedBusiness ? <BusinessClients businessId={selectedBusiness.id} /> : null;
       case 'stats':
         return selectedBusiness ? <BusinessAnalytics businessId={selectedBusiness.id} /> : null;
-      case 'notifications':
-        return <BusinessNotifications />;
-      case 'chats':
+      case 'messages':
         return (
           <Card>
-            <CardHeader><CardTitle className="text-lg">Общение</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-lg">Сообщения</CardTitle></CardHeader>
             <CardContent className="p-0">
               <Tabs defaultValue="chats" className="w-full">
                 <TabsList className="w-full rounded-none border-b bg-transparent px-6 pt-2">
                   <TabsTrigger value="chats" className="flex-1">Чаты</TabsTrigger>
+                  <TabsTrigger value="notifications" className="flex-1">Уведомления</TabsTrigger>
                   <TabsTrigger value="support" className="flex-1">Техподдержка</TabsTrigger>
                 </TabsList>
                 <div className="p-6">
                   <TabsContent value="chats" className="mt-0"><TeachingChats /></TabsContent>
+                  <TabsContent value="notifications" className="mt-0"><BusinessNotifications /></TabsContent>
                   <TabsContent value="support" className="mt-0"><SupportChat /></TabsContent>
                 </div>
               </Tabs>
@@ -583,7 +744,6 @@ const BusinessDashboard = () => {
 
   return (
     <div className="flex flex-col lg:flex-row lg:gap-6 w-full overflow-hidden">
-      {/* Desktop: collapsible sidebar */}
       <aside className={`hidden lg:flex flex-col shrink-0 sticky top-20 self-start h-[calc(100vh-6rem)] transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-60'}`}>
         <div className="flex items-center gap-3 px-3 pb-4 border-b mb-2">
           {!sidebarCollapsed && (
@@ -601,22 +761,15 @@ const BusinessDashboard = () => {
             {sidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
           </Button>
         </div>
-
         <div className="space-y-0.5 overflow-y-auto flex-1">
           {!sidebarCollapsed && <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Основное</p>}
           {mainItems.map(item => <NavButton key={item.key} item={item} />)}
-
-          {sidebarSections.map(sec => (
-            <NavButton key={sec.key} item={sec} />
-          ))}
+          {sidebarSections.map(sec => <NavButton key={sec.key} item={sec} />)}
         </div>
-
         {!sidebarCollapsed && (
           <div className="mt-auto pt-6 border-t">
             <div className="flex items-center gap-3 px-3">
-              <Avatar className="h-8 w-8">
-                <AvatarFallback className="text-xs bg-primary/10 text-primary">{getInitials()}</AvatarFallback>
-              </Avatar>
+              <Avatar className="h-8 w-8"><AvatarFallback className="text-xs bg-primary/10 text-primary">{getInitials()}</AvatarFallback></Avatar>
               <div className="min-w-0">
                 <p className="text-sm font-medium truncate">{profile?.first_name}</p>
                 <p className="text-xs text-muted-foreground">Организация</p>
@@ -625,27 +778,18 @@ const BusinessDashboard = () => {
           </div>
         )}
       </aside>
-
-      {/* Mobile/tablet: bottom bar */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t z-50 safe-area-bottom">
         <div className="flex overflow-x-auto scrollbar-hide">
           {allItems.map(item => (
-            <button
-              key={item.key}
-              onClick={() => setActiveSection(item.key)}
-              className={`flex flex-col items-center justify-center gap-0.5 min-w-[4rem] flex-1 py-2 text-[10px] leading-tight transition-colors
-                ${activeSection === item.key ? 'text-primary' : 'text-muted-foreground'}`}
-            >
+            <button key={item.key} onClick={() => setActiveSection(item.key)}
+              className={`flex flex-col items-center justify-center gap-0.5 min-w-[4rem] flex-1 py-2 text-[10px] leading-tight transition-colors ${activeSection === item.key ? 'text-primary' : 'text-muted-foreground'}`}>
               <item.icon className="h-4 w-4 shrink-0" />
               <span className="truncate max-w-[3.5rem] text-center">{item.label}</span>
             </button>
           ))}
         </div>
       </nav>
-
-      <div className="flex-1 min-w-0 pb-20 lg:pb-0">
-        {renderContent()}
-      </div>
+      <div className="flex-1 min-w-0 pb-20 lg:pb-0">{renderContent()}</div>
     </div>
   );
 };
