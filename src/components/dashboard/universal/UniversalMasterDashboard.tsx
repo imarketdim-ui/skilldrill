@@ -8,12 +8,14 @@ import { Badge } from '@/components/ui/badge';
 import {
   LayoutDashboard, Calendar, Users, MessageSquare, BarChart3, Wallet,
   Package, Bell, ClipboardList, UserCog, Lock, AlertTriangle,
-  PanelLeftClose, PanelLeftOpen, Database, Briefcase, Megaphone, Plus, Trash2
+  PanelLeftClose, PanelLeftOpen, Database, Briefcase, Megaphone, Plus, Trash2,
+  Shield, Percent
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import SubscriptionPaywall from '../SubscriptionPaywall';
 import SectionHub from '../SectionHub';
 import UniversalDashboardHome from './UniversalDashboardHome';
@@ -29,7 +31,7 @@ import { CategoryConfig } from './categoryConfig';
 import MasterProfileEditor from './MasterProfileEditor';
 import MasterProfileView from './MasterProfileView';
 
-// Inline notifications component — scoped to 'master' cabinet
+// ── Notifications with real counter ──
 const MasterNotifications = () => {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [tab, setTab] = useState<'active' | 'archive'>('active');
@@ -47,8 +49,8 @@ const MasterNotifications = () => {
     fetch();
   }, []);
 
-  const active = notifications.filter(n => !n.is_read).slice(0, 10);
-  const archive = notifications.slice(0, 50);
+  const active = notifications.filter(n => !n.is_read);
+  const archive = notifications;
   const displayed = tab === 'active' ? active : archive;
 
   return (
@@ -58,7 +60,7 @@ const MasterNotifications = () => {
         <Tabs value={tab} onValueChange={v => setTab(v as any)} className="mt-2">
           <TabsList>
             <TabsTrigger value="active">Активные{active.length > 0 ? ` (${active.length})` : ''}</TabsTrigger>
-            <TabsTrigger value="archive">Архив (50)</TabsTrigger>
+            <TabsTrigger value="archive">Архив{archive.length > 0 ? ` (${archive.length})` : ''}</TabsTrigger>
           </TabsList>
         </Tabs>
       </CardHeader>
@@ -83,7 +85,7 @@ const MasterNotifications = () => {
   );
 };
 
-// Master Client Type Directory
+// ── Client Type Directory ──
 const MasterClientTypeDirectory = () => {
   const { user } = useAuth();
   const [customTypes, setCustomTypes] = useState<string[]>([]);
@@ -94,7 +96,7 @@ const MasterClientTypeDirectory = () => {
   useEffect(() => {
     if (!user) return;
     const saved = localStorage.getItem(`client_types_master_${user.id}`);
-    if (saved) setCustomTypes(JSON.parse(saved));
+    if (saved) try { setCustomTypes(JSON.parse(saved)); } catch {}
   }, [user]);
 
   const saveTypes = (types: string[]) => {
@@ -112,10 +114,7 @@ const MasterClientTypeDirectory = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold">Справочник: Типы клиентов</h2>
-        <p className="text-muted-foreground">Системные типы и пользовательские</p>
-      </div>
+      <h2 className="text-2xl font-bold">Справочник: Типы клиентов</h2>
       <Card>
         <CardHeader><CardTitle className="text-base">Системные типы</CardTitle></CardHeader>
         <CardContent>
@@ -128,7 +127,7 @@ const MasterClientTypeDirectory = () => {
         <CardHeader><CardTitle className="text-base">Пользовательские типы</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div className="flex gap-2">
-            <input className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="Новый тип клиента..." value={newType} onChange={e => setNewType(e.target.value)} onKeyDown={e => e.key === 'Enter' && addType()} />
+            <Input placeholder="Новый тип клиента..." value={newType} onChange={e => setNewType(e.target.value)} onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addType())} />
             <Button onClick={addType} size="sm"><Plus className="h-4 w-4 mr-1" /> Добавить</Button>
           </div>
           {customTypes.length === 0 ? (
@@ -149,7 +148,7 @@ const MasterClientTypeDirectory = () => {
   );
 };
 
-// Inline requests component
+// ── Requests ──
 const MasterRequests = () => {
   const [requests, setRequests] = useState<any[]>([]);
 
@@ -210,23 +209,23 @@ interface Props {
 }
 
 const mainItems = [
-  { key: 'home', label: 'Главная', icon: LayoutDashboard, description: 'Обзор и быстрые действия' },
-  { key: 'profile', label: 'Профиль', icon: UserCog, description: 'Просмотр и редактирование профиля' },
-  { key: 'notifications', label: 'Уведомления', icon: Bell, description: 'Все уведомления' },
+  { key: 'home', label: 'Главная', icon: LayoutDashboard },
+  { key: 'profile', label: 'Профиль', icon: UserCog },
+  { key: 'messages', label: 'Сообщения', icon: MessageSquare },
 ];
 
 const sidebarSections = [
-  { key: 'crm', label: 'CRM', icon: Users, description: 'Управление клиентами' },
-  { key: 'erp', label: 'ERP', icon: Database, description: 'Управление бизнесом' },
-  { key: 'directories', label: 'Справочники', icon: Briefcase, description: 'Справочные данные' },
+  { key: 'crm', label: 'CRM', icon: Users },
+  { key: 'erp', label: 'ERP', icon: Database },
+  { key: 'directories', label: 'Справочники', icon: Briefcase },
 ];
 
 const crmItems = [
   { key: 'schedule', label: 'Расписание', icon: Calendar, description: 'Управление временем' },
   { key: 'clients', label: 'Клиенты', icon: Users, description: 'База клиентов' },
-  { key: 'chats', label: 'Чаты', icon: MessageSquare, description: 'Общение с клиентами' },
   { key: 'requests', label: 'Заявки', icon: ClipboardList, description: 'Входящие заявки' },
   { key: 'marketing', label: 'Маркетинг', icon: Megaphone, description: 'Рассылки и реклама' },
+  { key: 'promotions', label: 'Акции и Скидки', icon: Percent, description: 'Скидки и промо' },
 ];
 
 const erpItems = [
@@ -250,18 +249,14 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
 
   useEffect(() => {
     const handler = (e: CustomEvent) => {
-      if (e.detail === 'profile') {
-        setActiveSection('profile');
-      } else if (e.detail) {
-        setActiveSection(e.detail);
-      }
+      if (e.detail) setActiveSection(e.detail);
     };
     window.addEventListener('navigate-dashboard', handler as EventListener);
     return () => window.removeEventListener('navigate-dashboard', handler as EventListener);
   }, []);
 
   const isReadOnly = !isSubscriptionActive && !!masterProfile;
-  const readOnlySections = ['home', 'profile', 'notifications'];
+  const readOnlySections = ['home', 'profile', 'messages'];
 
   const adaptedCrmItems = crmItems.map(item =>
     item.key === 'clients' ? { ...item, label: config.clientNamePlural } : item
@@ -287,52 +282,31 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
           onEditClick={() => setProfileEditorOpen(true)}
         />
       );
-      case 'crm': return (
-        <SectionHub
-          title="CRM"
-          description="Управление клиентами и коммуникациями"
-          items={adaptedCrmItems}
-          onNavigate={setActiveSection}
-        />
-      );
-      case 'erp': return (
-        <SectionHub
-          title="ERP"
-          description="Управление бизнес-процессами"
-          items={erpItems}
-          onNavigate={setActiveSection}
-        />
-      );
-      case 'directories': return (
-        <SectionHub
-          title="Справочники"
-          description="Справочные данные и настройки"
-          items={directoryItems}
-          onNavigate={setActiveSection}
-        />
-      );
+      case 'crm': return <SectionHub title="CRM" description="Управление клиентами и коммуникациями" items={adaptedCrmItems} onNavigate={setActiveSection} />;
+      case 'erp': return <SectionHub title="ERP" description="Управление бизнес-процессами" items={erpItems} onNavigate={setActiveSection} />;
+      case 'directories': return <SectionHub title="Справочники" description="Справочные данные и настройки" items={directoryItems} onNavigate={setActiveSection} />;
       case 'dir_client_types': return <MasterClientTypeDirectory />;
       case 'dir_stats': return <UniversalStats config={config} />;
       case 'schedule': return <UniversalSchedule config={config} />;
       case 'services': return <UniversalServices config={config} />;
       case 'clients': return <UniversalClients config={config} onNavigateToChat={(contactId) => {
-        setActiveSection('chats');
-        setTimeout(() => {
-          window.dispatchEvent(new CustomEvent('open-chat-with', { detail: contactId }));
-        }, 100);
+        setActiveSection('messages');
+        setTimeout(() => { window.dispatchEvent(new CustomEvent('open-chat-with', { detail: contactId })); }, 100);
       }} />;
       case 'finances': return <UniversalFinances config={config} masterProfile={masterProfile} />;
-      case 'chats': return (
+      case 'messages': return (
         <Card>
-          <CardHeader><CardTitle className="text-lg">Общение</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-lg">Сообщения</CardTitle></CardHeader>
           <CardContent className="p-0">
             <Tabs defaultValue="chats" className="w-full">
               <TabsList className="w-full rounded-none border-b bg-transparent px-6 pt-2">
                 <TabsTrigger value="chats" className="flex-1">Чаты</TabsTrigger>
+                <TabsTrigger value="notifications" className="flex-1">Уведомления</TabsTrigger>
                 <TabsTrigger value="support" className="flex-1">Техподдержка</TabsTrigger>
               </TabsList>
               <div className="p-6">
                 <TabsContent value="chats" className="mt-0"><TeachingChats /></TabsContent>
+                <TabsContent value="notifications" className="mt-0"><MasterNotifications /></TabsContent>
                 <TabsContent value="support" className="mt-0"><SupportChat /></TabsContent>
               </div>
             </Tabs>
@@ -341,7 +315,7 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
       );
       case 'stats': return <UniversalStats config={config} />;
       case 'requests': return <MasterRequests />;
-      case 'notifications': return <MasterNotifications />;
+      case 'promotions': return <p className="text-center py-10 text-muted-foreground">Акции и скидки — в разработке</p>;
       case 'marketing': return <BusinessMarketing businessId={masterProfile?.id} />;
       default: return <UniversalDashboardHome config={config} />;
     }
@@ -356,7 +330,6 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
     const isLocked = isReadOnly && !readOnlySections.includes(item.key);
     return (
       <Button
-        key={item.key}
         variant={activeSection === item.key ? 'default' : 'ghost'}
         className={`w-full gap-3 ${sidebarCollapsed ? 'justify-center px-2' : 'justify-start'} ${activeSection === item.key ? '' : 'text-muted-foreground'} ${isLocked ? 'opacity-60' : ''}`}
         onClick={() => setActiveSection(item.key)}
@@ -369,19 +342,6 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
     );
   };
 
-  const SectionLabel = ({ label, icon: Icon, sectionKey }: { label: string; icon: any; sectionKey?: string }) => {
-    if (sidebarCollapsed) return <div className="border-t my-2 mx-2" />;
-    return (
-      <button
-        className={`flex items-center gap-2 px-3 mb-2 mt-4 w-full text-left hover:opacity-80 transition-opacity ${activeSection === sectionKey ? 'text-primary' : ''}`}
-        onClick={() => sectionKey && setActiveSection(sectionKey)}
-      >
-        <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{label}</p>
-      </button>
-    );
-  };
-
   return (
     <>
       <div className="flex flex-col lg:flex-row lg:gap-6 w-full overflow-hidden">
@@ -390,7 +350,7 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
             <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
             <div className="flex-1">
               <p className="text-sm font-medium">Подписка истекла</p>
-              <p className="text-xs text-muted-foreground">Доступ ограничен. Оплатите подписку для полного доступа.</p>
+              <p className="text-xs text-muted-foreground">Доступ ограничен.</p>
             </div>
             <Button size="sm" variant="destructive" onClick={() => setActiveSection('finances')}>Оплатить</Button>
           </div>
@@ -405,9 +365,7 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
             )}
             {!sidebarCollapsed && (
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm truncate">
-                  {masterProfile?.service_categories?.name || config.label}
-                </p>
+                <p className="font-semibold text-sm truncate">{masterProfile?.service_categories?.name || config.label}</p>
                 <p className="text-xs text-muted-foreground">{config.label}</p>
               </div>
             )}
@@ -424,17 +382,12 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
           <div className="space-y-0.5 overflow-y-auto flex-1">
             {!sidebarCollapsed && <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Основное</p>}
             {mainItems.map(item => <NavButton key={item.key} item={item} />)}
-
-            {sidebarSections.map(sec => (
-              <NavButton key={sec.key} item={sec} />
-            ))}
+            {sidebarSections.map(sec => <NavButton key={sec.key} item={sec} />)}
           </div>
           {!sidebarCollapsed && (
             <div className="mt-auto pt-6 border-t">
               <div className="flex items-center gap-3 px-3">
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback className="text-xs bg-primary/10 text-primary">{getInitials()}</AvatarFallback>
-                </Avatar>
+                <Avatar className="h-8 w-8"><AvatarFallback className="text-xs bg-primary/10 text-primary">{getInitials()}</AvatarFallback></Avatar>
                 <div className="min-w-0">
                   <p className="text-sm font-medium truncate">{profile?.first_name}</p>
                   <p className="text-xs text-muted-foreground">{config.label}</p>
@@ -447,36 +400,24 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
         <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t z-50 safe-area-bottom">
           <div className="flex overflow-x-auto scrollbar-hide">
             {allItems.map(item => (
-              <button
-                key={item.key}
-                onClick={() => setActiveSection(item.key)}
-                className={`flex flex-col items-center justify-center gap-0.5 min-w-[4rem] flex-1 py-2 text-[10px] leading-tight transition-colors
-                  ${activeSection === item.key ? 'text-primary' : 'text-muted-foreground'}`}
-              >
+              <button key={item.key} onClick={() => setActiveSection(item.key)}
+                className={`flex flex-col items-center justify-center gap-0.5 min-w-[4rem] flex-1 py-2 text-[10px] leading-tight transition-colors ${activeSection === item.key ? 'text-primary' : 'text-muted-foreground'}`}>
                 <item.icon className="h-4 w-4 shrink-0" />
-                <span className="truncate max-w-[3.5rem] text-center">{item.key === 'clients' ? config.clientNamePlural : item.label}</span>
+                <span className="truncate max-w-[3.5rem] text-center">{item.label}</span>
               </button>
             ))}
           </div>
         </nav>
 
-        <div className="flex-1 min-w-0 pb-20 lg:pb-0">
-          {renderContent()}
-        </div>
+        <div className="flex-1 min-w-0 pb-20 lg:pb-0">{renderContent()}</div>
       </div>
 
-      {/* Profile editor dialog */}
-      <Dialog open={profileEditorOpen} onOpenChange={(open) => {
-        if (!open) setProfileEditorOpen(false);
-      }}>
+      <Dialog open={profileEditorOpen} onOpenChange={open => { if (!open) setProfileEditorOpen(false); }}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <MasterProfileEditor
             masterProfile={masterProfile}
             config={config}
-            onPhotosChanged={() => {
-              // Trigger re-fetch from parent
-              window.dispatchEvent(new CustomEvent('master-profile-updated'));
-            }}
+            onPhotosChanged={() => { window.dispatchEvent(new CustomEvent('master-profile-updated')); }}
             onClose={() => setProfileEditorOpen(false)}
           />
         </DialogContent>

@@ -28,12 +28,6 @@ const legalForms = [
 
 type AccountType = 'master' | 'business' | 'network';
 
-const formatPhone = (value: string) => {
-  let v = value.replace(/[^\d+]/g, '');
-  if (v.startsWith('8') && v.length > 1) v = '+7' + v.slice(1);
-  return v;
-};
-
 const CreateBusinessAccount = () => {
   const { user, profile, roles, loading, refreshProfile } = useAuth();
   const pricing = usePlatformPricing();
@@ -49,8 +43,6 @@ const CreateBusinessAccount = () => {
   const [existingMasterProfiles, setExistingMasterProfiles] = useState<any[]>([]);
   const [existingBusinesses, setExistingBusinesses] = useState<any[]>([]);
   const [existingNetworks, setExistingNetworks] = useState<any[]>([]);
-  const [pendingRequests, setPendingRequests] = useState<any[]>([]);
-  // Use useRef-backed form to avoid stale closures from map callbacks
   const [form, setForm] = useState<any>({});
   const formRef = useRef<any>({});
   const updateForm = (updates: any) => {
@@ -82,6 +74,29 @@ const CreateBusinessAccount = () => {
 
   const isMaster = roles.includes('master');
 
+  // Check limits before allowing creation
+  const canCreateBusiness = () => {
+    // Check if user has active subscription or is within limits
+    const activeBusinesses = existingBusinesses.filter(b =>
+      ['trial', 'active', 'in_network'].includes(b.subscription_status)
+    );
+    // Without network subscription, limit is 1 business
+    const hasNetwork = existingNetworks.some(n =>
+      ['trial', 'active'].includes(n.subscription_status)
+    );
+    if (!hasNetwork && existingBusinesses.length >= 1) {
+      return { allowed: false, reason: 'Без подписки «Сеть» можно создать только 1 бизнес-точку. Оформите подписку для создания дополнительных точек.' };
+    }
+    // Check if any existing business has expired subscription
+    const hasExpired = existingBusinesses.some(b =>
+      !['trial', 'active', 'in_network'].includes(b.subscription_status)
+    );
+    if (hasExpired) {
+      return { allowed: false, reason: 'У вас есть бизнес с истекшей подпиской. Оплатите подписку или удалите неактивный бизнес.' };
+    }
+    return { allowed: true, reason: '' };
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!accountType || !user) return;
@@ -91,8 +106,13 @@ const CreateBusinessAccount = () => {
       return;
     }
     if (accountType === 'business') {
-      if (!form.business_name || !form.business_inn || !form.business_legal_form || !form.business_address || !form.director_name || !form.business_contact_email || !form.business_contact_phone) {
-        toast({ title: 'Заполните все обязательные поля', variant: 'destructive' });
+      const check = canCreateBusiness();
+      if (!check.allowed) {
+        toast({ title: 'Ограничение', description: check.reason, variant: 'destructive' });
+        return;
+      }
+      if (!form.business_name || !form.business_inn || !form.business_legal_form || !form.business_lat || !form.director_name || !form.business_contact_email || !form.business_contact_phone) {
+        toast({ title: 'Заполните все обязательные поля', description: 'Укажите адрес на карте', variant: 'destructive' });
         return;
       }
       const innResult = validateINN(form.business_inn);
@@ -102,8 +122,8 @@ const CreateBusinessAccount = () => {
       }
     }
     if (accountType === 'network') {
-      if (!form.network_name || !form.network_inn || !form.network_legal_form || !form.network_address || !form.director_name || !form.network_contact_email || !form.network_contact_phone) {
-        toast({ title: 'Заполните все обязательные поля', variant: 'destructive' });
+      if (!form.network_name || !form.network_inn || !form.network_legal_form || !form.network_lat || !form.director_name || !form.network_contact_email || !form.network_contact_phone) {
+        toast({ title: 'Заполните все обязательные поля', description: 'Укажите адрес на карте', variant: 'destructive' });
         return;
       }
       const innResult = validateINN(form.network_inn);
@@ -131,7 +151,7 @@ const CreateBusinessAccount = () => {
       } else if (accountType === 'business') {
         const { error: insertError } = await supabase.from('business_locations').insert({
           owner_id: user.id, name: form.business_name, inn: form.business_inn,
-          legal_form: form.business_legal_form, address: form.business_address,
+          legal_form: form.business_legal_form, address: form.business_address || '',
           city: form.business_city || null, description: form.business_description || null,
           contact_email: form.business_contact_email, contact_phone: form.business_contact_phone,
           director_name: form.director_name, moderation_status: 'draft',
@@ -142,14 +162,9 @@ const CreateBusinessAccount = () => {
         if (roleError) console.error('Role assignment failed:', roleError);
         toast({ title: 'Бизнес-аккаунт создан!', description: 'Заполните профиль и добавьте услуги.' });
       } else if (accountType === 'network') {
-        if (!form.network_name?.trim() || !form.network_inn?.trim() || !form.network_legal_form || !form.network_address?.trim() || !form.director_name?.trim() || !form.network_contact_email?.trim() || !form.network_contact_phone?.trim()) {
-          toast({ title: 'Заполните все обязательные поля', variant: 'destructive' });
-          setIsSubmitting(false);
-          return;
-        }
         const { error: insertError } = await supabase.from('networks').insert({
           owner_id: user.id, name: form.network_name.trim(), description: form.network_description || null,
-          inn: form.network_inn.trim(), legal_form: form.network_legal_form, address: form.network_address.trim(),
+          inn: form.network_inn.trim(), legal_form: form.network_legal_form, address: form.network_address || '',
           contact_email: form.network_contact_email.trim(), contact_phone: form.network_contact_phone.trim(),
           director_name: form.director_name.trim(), moderation_status: 'draft',
         });
@@ -177,6 +192,86 @@ const CreateBusinessAccount = () => {
     { type: 'network' as const, icon: Globe, title: 'Сеть', desc: `Несколько точек · ${pricing.network.toLocaleString()} ₽/мес` },
   ];
 
+  const renderEntityForm = (prefix: 'business' | 'network') => {
+    const nameKey = `${prefix}_name`;
+    const innKey = `${prefix}_inn`;
+    const legalFormKey = `${prefix}_legal_form`;
+    const addressKey = `${prefix}_address`;
+    const descKey = `${prefix}_description`;
+    const emailKey = `${prefix}_contact_email`;
+    const phoneKey = `${prefix}_contact_phone`;
+    const latKey = `${prefix}_lat`;
+    const lngKey = `${prefix}_lng`;
+    const cityKey = `${prefix}_city`;
+
+    return (
+      <>
+        <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800">
+          <div className="flex gap-2 items-start">
+            <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+            <div className="text-sm">
+              <p className="font-medium text-amber-800 dark:text-amber-200">Название только на русском языке</p>
+              <p className="text-amber-700 dark:text-amber-300 mt-1">С 1 марта 2026 г. коммерческие наименования в РФ должны быть на русском языке. <Link to="/offer#russian-naming" className="underline hover:no-underline">Подробнее в п. 7 оферты</Link></p>
+            </div>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label>Название {prefix === 'business' ? 'организации' : 'сети'} *</Label>
+          <Input required value={form[nameKey] || ''} onChange={e => updateForm({ [nameKey]: e.target.value })} placeholder={prefix === 'business' ? "Например: Салон красоты «Ромашка»" : "Например: Сеть салонов «Красота»"} />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label>ИНН *</Label>
+            <Input required value={form[innKey] || ''} onChange={e => updateForm({ [innKey]: e.target.value.replace(/\D/g, '') })} maxLength={12} />
+          </div>
+          <div className="space-y-2">
+            <Label>Правовая форма *</Label>
+            <Select value={form[legalFormKey] || ''} onValueChange={v => updateForm({ [legalFormKey]: v })}>
+              <SelectTrigger><SelectValue placeholder="Выберите" /></SelectTrigger>
+              <SelectContent>{legalForms.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label>ФИО директора *</Label>
+          <Input required value={form.director_name || ''} onChange={e => updateForm({ director_name: e.target.value })} />
+        </div>
+        {prefix === 'business' && (
+          <div className="space-y-2">
+            <Label>Город</Label>
+            <Input value={form[cityKey] || ''} onChange={e => updateForm({ [cityKey]: e.target.value })} placeholder="Москва" />
+          </div>
+        )}
+        <div className="space-y-2">
+          <Label>Адрес (укажите на карте) *</Label>
+          <MapPicker
+            latitude={form[latKey] || null}
+            longitude={form[lngKey] || null}
+            address={form[addressKey] || ''}
+            onLocationChange={(lat, lng, address) => updateForm({ [addressKey]: address, [latKey]: lat, [lngKey]: lng })}
+          />
+          {form[addressKey] && (
+            <p className="text-sm text-muted-foreground mt-1">📍 {form[addressKey]}</p>
+          )}
+        </div>
+        <div className="space-y-2">
+          <Label>Описание</Label>
+          <Textarea value={form[descKey] || ''} onChange={e => updateForm({ [descKey]: e.target.value })} />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label>Email *</Label>
+            <Input type="email" required value={form[emailKey] || ''} onChange={e => updateForm({ [emailKey]: e.target.value })} />
+          </div>
+          <div className="space-y-2">
+            <Label>Телефон *</Label>
+            <PhoneInput value={form[phoneKey] || ''} onChange={v => updateForm({ [phoneKey]: v })} />
+          </div>
+        </div>
+      </>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container-wide py-8 max-w-2xl mx-auto">
@@ -190,17 +285,20 @@ const CreateBusinessAccount = () => {
           <div className="grid gap-4">
             {typeCards.map(card => {
               const isNetworkLocked = card.type === 'network' && !pricing.network;
+              const bizCheck = card.type === 'business' ? canCreateBusiness() : { allowed: true, reason: '' };
+              const isLocked = isNetworkLocked || (card.type === 'business' && !bizCheck.allowed);
               return (
                 <Card
                   key={card.type}
-                  className={`transition-colors ${isNetworkLocked ? 'cursor-pointer hover:border-primary/50' : 'cursor-pointer hover:border-primary'}`}
+                  className={`transition-colors ${isLocked ? 'cursor-pointer hover:border-primary/50 opacity-75' : 'cursor-pointer hover:border-primary'}`}
                   onClick={() => {
                     if (isNetworkLocked) {
-                      toast({
-                        title: 'Тариф «Сеть» пока недоступен',
-                        description: 'Для создания сети необходимо подключить тариф. Перейдите на страницу тарифов для оформления подписки.',
-                      });
+                      toast({ title: 'Тариф «Сеть» пока недоступен', description: 'Для создания сети необходимо подключить тариф.' });
                       navigate('/for-business#pricing');
+                      return;
+                    }
+                    if (card.type === 'business' && !bizCheck.allowed) {
+                      toast({ title: 'Ограничение', description: bizCheck.reason, variant: 'destructive' });
                       return;
                     }
                     setAccountType(card.type);
@@ -208,18 +306,16 @@ const CreateBusinessAccount = () => {
                 >
                   <CardContent className="pt-6">
                     <div className="flex items-center gap-4">
-                      <div className={`p-3 rounded-xl ${isNetworkLocked ? 'bg-muted' : 'bg-primary/10'}`}>
-                        <card.icon className={`h-8 w-8 ${isNetworkLocked ? 'text-muted-foreground' : 'text-primary'}`} />
+                      <div className={`p-3 rounded-xl ${isLocked ? 'bg-muted' : 'bg-primary/10'}`}>
+                        <card.icon className={`h-8 w-8 ${isLocked ? 'text-muted-foreground' : 'text-primary'}`} />
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
                           <h3 className="font-semibold text-lg">{card.title}</h3>
                           {card.note && <Badge variant="secondary">{card.note}</Badge>}
-                          {isNetworkLocked && <Badge variant="outline" className="text-primary border-primary">Подключить тариф →</Badge>}
+                          {isLocked && <Badge variant="outline" className="text-destructive border-destructive">Ограничено</Badge>}
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          {isNetworkLocked ? 'Оформите подписку для создания сети' : card.desc}
-                        </p>
+                        <p className="text-sm text-muted-foreground">{card.desc}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -253,7 +349,7 @@ const CreateBusinessAccount = () => {
                 </CardTitle>
               </div>
               <CardDescription>
-                {accountType === 'master' ? 'Выберите категорию.' : 'Заполните реквизиты. Все поля со * обязательны.'}
+                {accountType === 'master' ? 'Выберите категорию.' : 'Заполните реквизиты. Все поля со * обязательны. Адрес — только через карту.'}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -285,132 +381,8 @@ const CreateBusinessAccount = () => {
                   </>
                 )}
 
-                {accountType === 'business' && (
-                  <>
-                    <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800">
-                      <div className="flex gap-2 items-start">
-                        <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-                        <div className="text-sm">
-                          <p className="font-medium text-amber-800 dark:text-amber-200">Название только на русском языке</p>
-                          <p className="text-amber-700 dark:text-amber-300 mt-1">С 1 марта 2026 г. коммерческие наименования в РФ должны быть на русском языке. <Link to="/offer#russian-naming" className="underline hover:no-underline">Подробнее в п. 7 оферты</Link></p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Название организации *</Label>
-                      <Input required value={form.business_name || ''} onChange={e => updateForm({ business_name: e.target.value })} placeholder="Например: Салон красоты «Ромашка»" />
-                    </div>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label>ИНН *</Label>
-                        <Input required value={form.business_inn || ''} onChange={e => updateForm({ business_inn: e.target.value.replace(/\D/g, '') })} maxLength={12} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Правовая форма *</Label>
-                        <Select value={form.business_legal_form || ''} onValueChange={v => updateForm({ business_legal_form: v })}>
-                          <SelectTrigger><SelectValue placeholder="Выберите" /></SelectTrigger>
-                          <SelectContent>{legalForms.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}</SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>ФИО директора *</Label>
-                      <Input required value={form.director_name || ''} onChange={e => updateForm({ director_name: e.target.value })} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Город</Label>
-                      <Input value={form.business_city || ''} onChange={e => updateForm({ business_city: e.target.value })} placeholder="Москва" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Адрес *</Label>
-                      <MapPicker
-                        latitude={form.business_lat || null}
-                        longitude={form.business_lng || null}
-                        address={form.business_address || ''}
-                        onLocationChange={(lat, lng, address) => updateForm({ business_address: address, business_lat: lat, business_lng: lng })}
-                      />
-                      <Input
-                        value={form.business_address || ''}
-                        onChange={e => updateForm({ business_address: e.target.value })}
-                        placeholder="Можно ввести или скорректировать адрес вручную"
-                        className="mt-2"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Описание</Label>
-                      <Textarea value={form.business_description || ''} onChange={e => updateForm({ business_description: e.target.value })} />
-                    </div>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label>Email *</Label>
-                        <Input type="email" required value={form.business_contact_email || ''} onChange={e => updateForm({ business_contact_email: e.target.value })} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Телефон *</Label>
-                        <PhoneInput value={form.business_contact_phone || ''} onChange={v => updateForm({ business_contact_phone: v })} />
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {accountType === 'network' && (
-                  <>
-                    <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800">
-                      <div className="flex gap-2 items-start">
-                        <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-                        <div className="text-sm">
-                          <p className="font-medium text-amber-800 dark:text-amber-200">Название только на русском языке</p>
-                          <p className="text-amber-700 dark:text-amber-300 mt-1">С 1 марта 2026 г. коммерческие наименования в РФ должны быть на русском языке. <Link to="/offer#russian-naming" className="underline hover:no-underline">Подробнее в п. 7 оферты</Link></p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Название сети *</Label>
-                      <Input required value={form.network_name || ''} onChange={e => updateForm({ network_name: e.target.value })} placeholder="Например: Сеть салонов «Красота»" />
-                    </div>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label>ИНН *</Label>
-                        <Input required value={form.network_inn || ''} onChange={e => updateForm({ network_inn: e.target.value.replace(/\D/g, '') })} maxLength={12} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Правовая форма *</Label>
-                        <Select value={form.network_legal_form || ''} onValueChange={v => updateForm({ network_legal_form: v })}>
-                          <SelectTrigger><SelectValue placeholder="Выберите" /></SelectTrigger>
-                          <SelectContent>{legalForms.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}</SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>ФИО директора *</Label>
-                      <Input required value={form.director_name || ''} onChange={e => updateForm({ director_name: e.target.value })} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Адрес *</Label>
-                      <MapPicker
-                        latitude={null}
-                        longitude={null}
-                        address={form.network_address || ''}
-                        onLocationChange={(lat, lng, address) => updateForm({ network_address: address })}
-                      />
-                      <Input value={form.network_address || ''} onChange={e => updateForm({ network_address: e.target.value })} placeholder="Можно ввести или скорректировать адрес вручную" className="mt-2" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Описание</Label>
-                      <Textarea value={form.network_description || ''} onChange={e => updateForm({ network_description: e.target.value })} />
-                    </div>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label>Email *</Label>
-                        <Input type="email" required value={form.network_contact_email || ''} onChange={e => updateForm({ network_contact_email: e.target.value })} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Телефон *</Label>
-                        <PhoneInput value={form.network_contact_phone || ''} onChange={v => updateForm({ network_contact_phone: v })} />
-                      </div>
-                    </div>
-                  </>
-                )}
+                {accountType === 'business' && renderEntityForm('business')}
+                {accountType === 'network' && renderEntityForm('network')}
 
                 <div className="flex gap-4 pt-4">
                   <Button type="button" variant="outline" onClick={() => { setAccountType(null); updateForm({}); }} className="flex-1">Назад</Button>
