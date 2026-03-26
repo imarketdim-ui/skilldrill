@@ -210,7 +210,7 @@ const PositionsDirectory = ({ businessId }: { businessId: string }) => {
 };
 
 // ── Business Clients - aggregated from bookings + chats + manual ──
-const BusinessClients = ({ businessId }: { businessId: string }) => {
+const BusinessClients = ({ businessId, onOpenChat }: { businessId: string; onOpenChat?: (clientId: string) => void }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [clients, setClients] = useState<any[]>([]);
