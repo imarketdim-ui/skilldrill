@@ -208,7 +208,7 @@ const SuperAdminDashboard = () => {
 
         <TabsContent value="admins">
           <Card>
-            <CardHeader><CardTitle>Назначить администратора</CardTitle></CardHeader>
+            <CardHeader><CardTitle>Команда платформы</CardTitle></CardHeader>
             <CardContent>
               <div className="flex gap-2 mb-4">
                 <Input placeholder="SkillSpot ID (например AB1234)" value={searchId} onChange={(e) => setSearchId(e.target.value)} />
@@ -235,6 +235,7 @@ const SuperAdminDashboard = () => {
                   </div>
                 </div>
               )}
+              <PlatformTeamList />
               <h4 className="font-semibold mt-6 mb-3">Приглашения</h4>
               {adminAssignments.length === 0 ? (
                 <p className="text-muted-foreground text-sm">Нет приглашений</p>
