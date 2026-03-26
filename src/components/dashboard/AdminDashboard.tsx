@@ -45,6 +45,7 @@ const AdminDashboard = () => {
   const [moderationItems, setModerationItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [rejectReason, setRejectReason] = useState<Record<string, string>>({});
+  const [unreadSupport, setUnreadSupport] = useState(0);
 
   const subRole = activeRole as AdminSubRole;
   const canAccess = (tab: string) => {
