@@ -752,7 +752,7 @@ const BusinessDashboard = () => {
                 </TabsList>
                 <div className="p-6">
                   <TabsContent value="chats" className="mt-0"><TeachingChats cabinetContext="business" /></TabsContent>
-                  <TabsContent value="notifications" className="mt-0"><BusinessNotifications /></TabsContent>
+                  <TabsContent value="notifications" className="mt-0"><BusinessNotifications businessId={selectedBusiness?.id} /></TabsContent>
                   <TabsContent value="support" className="mt-0"><SupportChat /></TabsContent>
                 </div>
               </Tabs>
