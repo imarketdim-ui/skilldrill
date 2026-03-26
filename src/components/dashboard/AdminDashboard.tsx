@@ -60,7 +60,7 @@ const AdminDashboard = () => {
   }, [user]);
 
   const loadData = async () => {
-    const [rr, cr, dp] = await Promise.all([
+    const [rr, cr, dp, unreadRes] = await Promise.all([
       supabase.from('role_requests').select('*, profiles!role_requests_requester_id_fkey(first_name, last_name, email, skillspot_id)').order('created_at', { ascending: false }),
       supabase.from('category_requests').select('*, profiles!category_requests_requester_id_fkey(first_name, last_name, email)').order('created_at', { ascending: false }),
       supabase.from('disputes').select('*').order('created_at', { ascending: false }),
