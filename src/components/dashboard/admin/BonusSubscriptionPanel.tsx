@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 
 interface Props {
   stats: { masters: number; businesses: number; networks: number };
+  onNavigate?: (view: string) => void;
 }
 
 const ENTITY_TYPES = [
@@ -26,7 +27,7 @@ const DURATIONS = [
   { value: '30', label: '1 месяц' },
 ];
 
-const BonusSubscriptionPanel = ({ stats }: Props) => {
+const BonusSubscriptionPanel = ({ stats, onNavigate }: Props) => {
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [searchId, setSearchId] = useState('');
@@ -41,7 +42,6 @@ const BonusSubscriptionPanel = ({ stats }: Props) => {
     setSearching(true);
     setSearchResult(null);
 
-    // Search by SkillSpot ID to find the user first
     const { data: profile } = await supabase
       .from('profiles')
       .select('id, first_name, last_name, email, skillspot_id')
@@ -94,7 +94,6 @@ const BonusSubscriptionPanel = ({ stats }: Props) => {
 
       if (error) throw error;
 
-      // Notify user
       await supabase.from('notifications').insert({
         user_id: searchResult.profile.id,
         type: 'bonus_subscription',
@@ -162,11 +161,7 @@ const BonusSubscriptionPanel = ({ stats }: Props) => {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button
-                  className="w-full"
-                  onClick={activateBonus}
-                  disabled={!searchResult || searchResult.notFound || submitting}
-                >
+                <Button className="w-full" onClick={activateBonus} disabled={!searchResult || searchResult.notFound || submitting}>
                   {submitting ? 'Активация...' : 'Активировать'}
                 </Button>
               </div>
@@ -176,9 +171,33 @@ const BonusSubscriptionPanel = ({ stats }: Props) => {
       </CardHeader>
       <CardContent>
         <div className="grid gap-4 md:grid-cols-3">
-          <div className="p-4 rounded-lg border"><p className="font-medium">Мастера</p><p className="text-sm text-muted-foreground">690 ₽/мес</p><p className="text-2xl font-bold mt-2">{stats.masters}</p></div>
-          <div className="p-4 rounded-lg border"><p className="font-medium">Бизнесы</p><p className="text-sm text-muted-foreground">от 2 490 ₽/мес</p><p className="text-2xl font-bold mt-2">{stats.businesses}</p></div>
-          <div className="p-4 rounded-lg border"><p className="font-medium">Сети</p><p className="text-sm text-muted-foreground">от 6 490 ₽/мес</p><p className="text-2xl font-bold mt-2">{stats.networks}</p></div>
+          <button
+            className="p-4 rounded-lg border hover:bg-muted/50 transition-colors text-left"
+            onClick={() => onNavigate?.('sub_masters')}
+          >
+            <p className="font-medium">Мастера</p>
+            <p className="text-sm text-muted-foreground">690 ₽/мес</p>
+            <p className="text-2xl font-bold mt-2">{stats.masters}</p>
+            {onNavigate && <p className="text-xs text-muted-foreground mt-1">Подробнее →</p>}
+          </button>
+          <button
+            className="p-4 rounded-lg border hover:bg-muted/50 transition-colors text-left"
+            onClick={() => onNavigate?.('sub_businesses')}
+          >
+            <p className="font-medium">Бизнесы</p>
+            <p className="text-sm text-muted-foreground">от 2 490 ₽/мес</p>
+            <p className="text-2xl font-bold mt-2">{stats.businesses}</p>
+            {onNavigate && <p className="text-xs text-muted-foreground mt-1">Подробнее →</p>}
+          </button>
+          <button
+            className="p-4 rounded-lg border hover:bg-muted/50 transition-colors text-left"
+            onClick={() => onNavigate?.('sub_networks')}
+          >
+            <p className="font-medium">Сети</p>
+            <p className="text-sm text-muted-foreground">от 6 490 ₽/мес</p>
+            <p className="text-2xl font-bold mt-2">{stats.networks}</p>
+            {onNavigate && <p className="text-xs text-muted-foreground mt-1">Подробнее →</p>}
+          </button>
         </div>
       </CardContent>
     </Card>

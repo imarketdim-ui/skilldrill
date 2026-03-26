@@ -5,11 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { MessageSquare, Send, Check, CheckCheck, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
-import { ru } from 'date-fns/locale';
 
 interface SupportChatProps {
   isAdmin?: boolean;
@@ -30,8 +28,6 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Admin-specific state
   const [threads, setThreads] = useState<SupportThread[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
@@ -39,18 +35,14 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
 
   useEffect(() => {
     if (!user) return;
-    if (isAdmin) {
-      fetchThreads();
-    } else {
-      fetchMessages();
-    }
+    if (isAdmin) fetchThreads();
+    else fetchMessages();
   }, [user, isAdmin]);
 
   useEffect(() => {
     if (isAdmin && selectedUserId) fetchAdminMessages(selectedUserId);
   }, [selectedUserId]);
 
-  // Realtime subscription
   useEffect(() => {
     if (!user) return;
     const channel = supabase
@@ -63,7 +55,6 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
             setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);
           }
         } else {
-          // User sees their own messages and replies
           if (msg.sender_id === user.id || msg.recipient_id === user.id) {
             setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);
           }
@@ -76,17 +67,8 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
   const fetchMessages = async () => {
     if (!user) return;
     setLoading(true);
-    // Load messages where user is sender OR messages sent to user (admin replies)
-    const { data: sentData } = await supabase.from('chat_messages').select('*')
-      .eq('chat_type', 'support')
-      .eq('sender_id', user.id)
-      .order('created_at', { ascending: true });
-
-    const { data: receivedData } = await supabase.from('chat_messages').select('*')
-      .eq('chat_type', 'support')
-      .eq('recipient_id', user.id)
-      .order('created_at', { ascending: true });
-
+    const { data: sentData } = await supabase.from('chat_messages').select('*').eq('chat_type', 'support').eq('sender_id', user.id).order('created_at', { ascending: true });
+    const { data: receivedData } = await supabase.from('chat_messages').select('*').eq('chat_type', 'support').eq('recipient_id', user.id).order('created_at', { ascending: true });
     const all = [...(sentData || []), ...(receivedData || [])];
     const unique = Array.from(new Map(all.map(m => [m.id, m])).values());
     unique.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
@@ -97,27 +79,19 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
   const fetchThreads = async () => {
     if (!user) return;
     setLoading(true);
-    // Get all support messages
-    const { data } = await supabase.from('chat_messages').select('*')
-      .eq('chat_type', 'support')
-      .order('created_at', { ascending: false });
-
+    const { data } = await supabase.from('chat_messages').select('*').eq('chat_type', 'support').order('created_at', { ascending: false });
     if (!data) { setLoading(false); return; }
 
-    // Build thread map — group by the non-admin participant
-    // Admin replies: sender is admin (has admin role), recipient is user
-    // User messages: sender is non-admin user
     const userMap = new Map<string, any[]>();
     data.forEach(msg => {
-      // Determine the client user ID for this message
       const threadKey = msg.sender_id === user.id ? msg.recipient_id : msg.sender_id;
-      if (threadKey === user.id) return; // skip self-to-self
+      if (threadKey === user.id) return;
       if (!userMap.has(threadKey)) userMap.set(threadKey, []);
       userMap.get(threadKey)!.push(msg);
     });
 
     const userIds = Array.from(userMap.keys()).filter(id => id && id.length > 10);
-    if (userIds.length === 0) { setLoading(false); return; }
+    if (userIds.length === 0) { setThreads([]); setLoading(false); return; }
 
     const { data: profiles } = await supabase.from('profiles').select('id, first_name, last_name, email').in('id', userIds);
 
@@ -139,24 +113,14 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
   };
 
   const fetchAdminMessages = async (userId: string) => {
-    const { data: sentData } = await supabase.from('chat_messages').select('*')
-      .eq('chat_type', 'support')
-      .eq('sender_id', userId)
-      .order('created_at', { ascending: true });
-    const { data: receivedData } = await supabase.from('chat_messages').select('*')
-      .eq('chat_type', 'support')
-      .eq('recipient_id', userId)
-      .order('created_at', { ascending: true });
+    const { data: sentData } = await supabase.from('chat_messages').select('*').eq('chat_type', 'support').eq('sender_id', userId).order('created_at', { ascending: true });
+    const { data: receivedData } = await supabase.from('chat_messages').select('*').eq('chat_type', 'support').eq('recipient_id', userId).order('created_at', { ascending: true });
     const all = [...(sentData || []), ...(receivedData || [])];
     const unique = Array.from(new Map(all.map(m => [m.id, m])).values());
     unique.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
     setMessages(unique);
-    // Mark as read
     if (user) {
-      await supabase.from('chat_messages').update({ is_read: true })
-        .eq('chat_type', 'support')
-        .eq('sender_id', userId)
-        .eq('is_read', false);
+      await supabase.from('chat_messages').update({ is_read: true }).eq('chat_type', 'support').eq('sender_id', userId).eq('is_read', false);
     }
   };
 
@@ -165,47 +129,35 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
     setSending(true);
     try {
       if (isAdmin && selectedUserId) {
-        // Admin replies directly to the user
-        const { error } = await supabase.from('chat_messages').insert({
-          sender_id: user.id,
-          recipient_id: selectedUserId,
-          message: newMessage.trim(),
-          chat_type: 'support',
-        });
-        if (error) throw error;
+        await supabase.from('chat_messages').insert({ sender_id: user.id, recipient_id: selectedUserId, message: newMessage.trim(), chat_type: 'support' });
         setNewMessage('');
         fetchAdminMessages(selectedUserId);
       } else {
-        // Get all admin users to broadcast the support message
-        const { data: adminRoles } = await supabase
-          .from('user_roles')
-          .select('user_id')
-          .in('role', ['platform_admin', 'super_admin'])
-          .eq('is_active', true);
-
+        const { data: adminRoles } = await supabase.from('user_roles').select('user_id').in('role', ['platform_admin', 'super_admin']).eq('is_active', true);
         const adminIds = (adminRoles || []).map(r => r.user_id).filter(id => id !== user.id);
 
         if (adminIds.length === 0) {
-          // Fallback: insert with self as recipient so message is visible
-          await supabase.from('chat_messages').insert({
-            sender_id: user.id,
-            recipient_id: user.id,
-            message: newMessage.trim(),
-            chat_type: 'support',
-          });
+          await supabase.from('chat_messages').insert({ sender_id: user.id, recipient_id: user.id, message: newMessage.trim(), chat_type: 'support' });
         } else {
-          // Send to all admins
           await Promise.all(adminIds.map(adminId =>
-            supabase.from('chat_messages').insert({
-              sender_id: user.id,
-              recipient_id: adminId,
-              message: newMessage.trim(),
-              chat_type: 'support',
-            })
+            supabase.from('chat_messages').insert({ sender_id: user.id, recipient_id: adminId, message: newMessage.trim(), chat_type: 'support' })
           ));
         }
+
+        // Auto-create support ticket on first message
+        const existingTickets = await supabase.from('support_tickets').select('id', { count: 'exact', head: true }).eq('user_id', user.id).in('status', ['open', 'in_progress']);
+        if ((existingTickets.count || 0) === 0) {
+          try {
+            await supabase.from('support_tickets').insert({
+              user_id: user.id,
+              subject: newMessage.trim().slice(0, 100),
+              category: 'support',
+              status: 'open',
+            });
+          } catch (_) { /* table may not exist */ }
+        }
+
         setNewMessage('');
-        // Reload messages to show what was sent
         await fetchMessages();
       }
     } catch (err: any) {
@@ -250,7 +202,6 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
     </div>
   );
 
-  // Admin view with thread list
   if (isAdmin) {
     return (
       <Card>
@@ -303,7 +254,6 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
     );
   }
 
-  // User view
   return (
     <Card>
       <CardHeader>

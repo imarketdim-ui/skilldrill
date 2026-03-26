@@ -45,6 +45,7 @@ const AdminDashboard = () => {
   const [moderationItems, setModerationItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [rejectReason, setRejectReason] = useState<Record<string, string>>({});
+  const [unreadSupport, setUnreadSupport] = useState(0);
 
   const subRole = activeRole as AdminSubRole;
   const canAccess = (tab: string) => {
@@ -59,12 +60,14 @@ const AdminDashboard = () => {
   }, [user]);
 
   const loadData = async () => {
-    const [rr, cr, dp] = await Promise.all([
+    const [rr, cr, dp, unreadRes] = await Promise.all([
       supabase.from('role_requests').select('*, profiles!role_requests_requester_id_fkey(first_name, last_name, email, skillspot_id)').order('created_at', { ascending: false }),
       supabase.from('category_requests').select('*, profiles!category_requests_requester_id_fkey(first_name, last_name, email)').order('created_at', { ascending: false }),
       supabase.from('disputes').select('*').order('created_at', { ascending: false }),
+      supabase.from('chat_messages').select('id', { count: 'exact', head: true }).eq('chat_type', 'support').eq('is_read', false).neq('sender_id', user!.id),
     ]);
     setRoleRequests(rr.data || []);
+    setUnreadSupport(unreadRes.count || 0);
     setCategoryRequests(cr.data || []);
     setDisputes(dp.data || []);
     await loadModerationItems();
@@ -175,7 +178,7 @@ const AdminDashboard = () => {
           {canAccess('fraud_flags') && <TabsTrigger value="fraud_flags"><Flag className="h-4 w-4 mr-1" /> Антифрод</TabsTrigger>}
           {canAccess('promo_codes') && <TabsTrigger value="promo_codes"><Ticket className="h-4 w-4 mr-1" /> Промокоды</TabsTrigger>}
           {canAccess('disputes') && <TabsTrigger value="disputes"><AlertTriangle className="h-4 w-4 mr-1" /> Споры</TabsTrigger>}
-          {canAccess('support') && <TabsTrigger value="support"><MessageSquare className="h-4 w-4 mr-1" /> Поддержка</TabsTrigger>}
+          {canAccess('support') && <TabsTrigger value="support" className="gap-1"><MessageSquare className="h-4 w-4" /> Поддержка {unreadSupport > 0 && <Badge variant="destructive" className="h-4 px-1 text-[10px]">{unreadSupport}</Badge>}</TabsTrigger>}
         </TabsList>
 
         {canAccess('moderation') && (
