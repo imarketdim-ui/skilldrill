@@ -244,63 +244,109 @@ const BusinessPromotions = ({ businessId }: Props) => {
   const skillspotCost = skillspotCount * COST_PER_CLIENT;
   const countExceeded = skillspotCount > totalPlatformUsers;
 
+  const [promoTab, setPromoTab] = useState<'active' | 'archive' | 'templates'>('active');
+
+  const activePromos = promotions.filter(p => p.is_active || (!p.end_date || new Date(p.end_date) >= new Date()));
+  const archivedPromos = promotions.filter(p => !p.is_active && p.end_date && new Date(p.end_date) < new Date());
+
+  const templates = [
+    { name: 'Скидка новым клиентам', description: 'Скидка для первого визита', discount_type: 'percent', discount_value: 15, applies_to: 'new', duration_days: 30 },
+    { name: 'Счастливые часы', description: 'Скидка в определённые часы', discount_type: 'percent', discount_value: 20, applies_to: 'all', duration_days: 14 },
+    { name: 'VIP-привилегия', description: 'Особая скидка для VIP-клиентов', discount_type: 'percent', discount_value: 10, applies_to: 'vip', duration_days: 60 },
+    { name: 'Возвращайтесь!', description: 'Скидка для давних клиентов', discount_type: 'fixed', discount_value: 500, applies_to: 'returning', duration_days: 14 },
+  ];
+
+  const createFromTemplate = (t: typeof templates[0]) => {
+    const today = new Date();
+    const end = new Date(today.getTime() + t.duration_days * 86400000);
+    setForm({
+      name: t.name, description: t.description, discount_type: t.discount_type, discount_value: t.discount_value,
+      applies_to: t.applies_to, start_date: format(today, 'yyyy-MM-dd'), end_date: format(end, 'yyyy-MM-dd'), min_rating: '',
+    });
+    setEditing(null);
+    setDialogOpen(true);
+  };
+
+  const renderPromoCard = (p: Promotion) => (
+    <Card key={p.id} className={!p.is_active ? 'opacity-60' : ''}>
+      <CardContent className="py-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="font-semibold">{p.name}</p>
+              <Badge variant={p.is_active ? 'default' : 'secondary'}>{p.is_active ? 'Активна' : 'Неактивна'}</Badge>
+              <Badge variant="outline">{p.discount_type === 'percent' ? `${p.discount_value}%` : `${p.discount_value} ₽`}</Badge>
+            </div>
+            {p.description && <p className="text-sm text-muted-foreground mt-1">{p.description}</p>}
+            <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+              {p.start_date && <span>С {format(new Date(p.start_date), 'dd.MM.yyyy')}</span>}
+              {p.end_date && <span>До {format(new Date(p.end_date), 'dd.MM.yyyy')}</span>}
+              <span>Для: {p.applies_to === 'all' ? 'Всех' : p.applies_to === 'vip' ? 'VIP' : p.applies_to === 'new' ? 'Новых' : p.applies_to}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <Button size="icon" variant="ghost" className="h-8 w-8" title="Создать рассылку" onClick={() => openMailingForPromotion(p)}><Send className="h-4 w-4" /></Button>
+            <Switch checked={p.is_active} onCheckedChange={() => toggleActive(p.id, p.is_active)} />
+            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(p)}><Edit className="h-4 w-4" /></Button>
+            <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => deletePromotion(p.id)}><Trash2 className="h-4 w-4" /></Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">Акции и скидки</h3>
-        <Button size="sm" onClick={openCreate} className="gap-1">
-          <Plus className="h-4 w-4" /> Новая акция
-        </Button>
+        <Button size="sm" onClick={openCreate} className="gap-1"><Plus className="h-4 w-4" /> Новая акция</Button>
       </div>
+
+      <Tabs value={promoTab} onValueChange={v => setPromoTab(v as any)}>
+        <TabsList>
+          <TabsTrigger value="active">Активные{activePromos.length > 0 ? ` (${activePromos.length})` : ''}</TabsTrigger>
+          <TabsTrigger value="archive">Архив{archivedPromos.length > 0 ? ` (${archivedPromos.length})` : ''}</TabsTrigger>
+          <TabsTrigger value="templates">Типовые акции</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {loading ? (
         <p className="text-center py-8 text-muted-foreground">Загрузка...</p>
-      ) : promotions.length === 0 ? (
-        <Card><CardContent className="text-center py-12">
-          <Percent className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-          <p className="text-muted-foreground">Нет акций</p>
-          <p className="text-sm text-muted-foreground mt-1">Создайте первую акцию для привлечения клиентов</p>
-        </CardContent></Card>
-      ) : (
+      ) : promoTab === 'templates' ? (
         <div className="grid gap-3">
-          {promotions.map(p => (
-            <Card key={p.id} className={!p.is_active ? 'opacity-60' : ''}>
+          {templates.map((t, i) => (
+            <Card key={i} className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => createFromTemplate(t)}>
               <CardContent className="py-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-semibold">{p.name}</p>
-                      <Badge variant={p.is_active ? 'default' : 'secondary'}>
-                        {p.is_active ? 'Активна' : 'Неактивна'}
-                      </Badge>
-                      <Badge variant="outline">
-                        {p.discount_type === 'percent' ? `${p.discount_value}%` : `${p.discount_value} ₽`}
-                      </Badge>
-                    </div>
-                    {p.description && <p className="text-sm text-muted-foreground mt-1">{p.description}</p>}
-                    <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                      {p.start_date && <span>С {format(new Date(p.start_date), 'dd.MM.yyyy')}</span>}
-                      {p.end_date && <span>До {format(new Date(p.end_date), 'dd.MM.yyyy')}</span>}
-                      <span>Для: {p.applies_to === 'all' ? 'Всех' : p.applies_to === 'vip' ? 'VIP' : p.applies_to === 'new' ? 'Новых' : p.applies_to}</span>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold">{t.name}</p>
+                    <p className="text-sm text-muted-foreground">{t.description}</p>
+                    <div className="flex gap-2 mt-1">
+                      <Badge variant="outline">{t.discount_type === 'percent' ? `${t.discount_value}%` : `${t.discount_value} ₽`}</Badge>
+                      <Badge variant="secondary">{t.duration_days} дн.</Badge>
+                      <Badge variant="secondary">{t.applies_to === 'all' ? 'Все' : t.applies_to === 'new' ? 'Новые' : t.applies_to === 'vip' ? 'VIP' : 'Возвращающиеся'}</Badge>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Button size="icon" variant="ghost" className="h-8 w-8" title="Создать рассылку" onClick={() => openMailingForPromotion(p)}>
-                      <Send className="h-4 w-4" />
-                    </Button>
-                    <Switch checked={p.is_active} onCheckedChange={() => toggleActive(p.id, p.is_active)} />
-                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(p)}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => deletePromotion(p.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  <Button size="sm" variant="outline"><Plus className="h-4 w-4 mr-1" /> Создать</Button>
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
+      ) : promoTab === 'archive' ? (
+        archivedPromos.length === 0 ? (
+          <Card><CardContent className="text-center py-12 text-muted-foreground">Архив пуст</CardContent></Card>
+        ) : (
+          <div className="grid gap-3">{archivedPromos.map(renderPromoCard)}</div>
+        )
+      ) : activePromos.length === 0 ? (
+        <Card><CardContent className="text-center py-12">
+          <Percent className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+          <p className="text-muted-foreground">Нет активных акций</p>
+          <p className="text-sm text-muted-foreground mt-1">Создайте акцию или выберите из типовых</p>
+        </CardContent></Card>
+      ) : (
+        <div className="grid gap-3">{activePromos.map(renderPromoCard)}</div>
       )}
 
       {/* Promotion Create/Edit Dialog */}

@@ -303,6 +303,50 @@ const SuperAdminDashboard = () => {
   );
 };
 
+// Platform team - all users with platform roles
+const PlatformTeamList = () => {
+  const [members, setMembers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const { data: roles } = await supabase.from('user_roles').select('user_id, role, is_active')
+        .in('role', ['platform_admin', 'super_admin', 'moderator', 'support', 'integrator'] as any[])
+        .eq('is_active', true);
+      if (!roles || roles.length === 0) { setMembers([]); setLoading(false); return; }
+      const userIds = [...new Set(roles.map(r => r.user_id))];
+      const { data: profiles } = await supabase.from('profiles').select('id, first_name, last_name, email, skillspot_id').in('id', userIds);
+      const result = userIds.map(uid => {
+        const p = profiles?.find(pr => pr.id === uid);
+        const userRoles = roles.filter(r => r.user_id === uid).map(r => r.role);
+        return { ...p, roles: userRoles };
+      }).filter(m => m.first_name || m.email);
+      setMembers(result);
+      setLoading(false);
+    })();
+  }, []);
+
+  const roleLabels: Record<string, string> = { super_admin: 'Супер-админ', platform_admin: 'Администратор', moderator: 'Модератор', support: 'Поддержка', integrator: 'Интегратор' };
+
+  if (loading) return <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin" /></div>;
+  if (members.length === 0) return <p className="text-muted-foreground text-sm text-center py-4">Нет членов команды</p>;
+
+  return (
+    <div className="space-y-2">
+      <h4 className="font-semibold mb-3">Команда ({members.length})</h4>
+      {members.map((m: any) => (
+        <div key={m.id} className="flex items-center justify-between p-3 rounded-lg border">
+          <div>
+            <p className="font-medium">{m.first_name} {m.last_name}</p>
+            <p className="text-sm text-muted-foreground">{m.email} • {m.skillspot_id}</p>
+          </div>
+          <div className="flex gap-1">{m.roles.map((r: string) => <Badge key={r} variant="secondary" className="text-xs">{roleLabels[r] || r}</Badge>)}</div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 // Inline tickets list component
 const TicketsList = () => {
   const [tickets, setTickets] = useState<any[]>([]);
