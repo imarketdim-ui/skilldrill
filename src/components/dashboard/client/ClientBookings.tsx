@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar, Clock, MapPin, Wallet, Star, ChevronDown, ChevronUp, Loader2, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
@@ -20,12 +21,14 @@ const STATUS_MAP: Record<string, { label: string; variant: 'default' | 'secondar
   rejected:   { label: 'Отклонена',    variant: 'destructive' },
   no_show:    { label: 'Неявка',       variant: 'destructive' },
   dispute:    { label: 'Спор',         variant: 'destructive' },
+  awaiting_outcome: { label: 'Ожидает подтверждения', variant: 'secondary' },
 };
 
 interface BookingItem {
   id: string;
   type: 'booking' | 'lesson';
   status: string;
+  displayStatus: string;
   date: string;
   title: string;
   master: string;
@@ -37,19 +40,29 @@ interface BookingItem {
   canCancel: boolean;
   canDispute: boolean;
   canReview: boolean;
+  canMarkAttended: boolean;
+  canMarkNoShow: boolean;
+  isExpired: boolean;
 }
 
+const isBookingExpired = (scheduledAt: string, durationMin: number | null): boolean => {
+  const endTime = new Date(scheduledAt).getTime() + ((durationMin || 60) + 60) * 60000;
+  return Date.now() > endTime;
+};
+
 const BookingCard = ({
-  b, onCancel, onDispute, onReview
+  b, onCancel, onDispute, onReview, onMarkAttended, onMarkNoShow
 }: {
   b: BookingItem;
   onCancel: (id: string) => void;
   onDispute: (id: string) => void;
   onReview: (id: string) => void;
+  onMarkAttended: (id: string) => void;
+  onMarkNoShow: (id: string) => void;
 }) => {
-  const s = STATUS_MAP[b.status] || { label: b.status, variant: 'secondary' as const };
+  const s = STATUS_MAP[b.displayStatus] || STATUS_MAP[b.status] || { label: b.status, variant: 'secondary' as const };
   const d = new Date(b.date);
-  const isPast = d < new Date();
+  const hasActions = b.canCancel || b.canDispute || b.canReview || b.canMarkAttended || b.canMarkNoShow;
 
   return (
     <Card>
@@ -76,11 +89,20 @@ const BookingCard = ({
           <Badge variant={s.variant as any}>{s.label}</Badge>
         </div>
 
-        {/* Прошедшие — no "Отменить", show confirm/review/dispute */}
-        {(b.canCancel || b.canDispute || b.canReview) && (
+        {hasActions && (
           <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t">
             {b.canCancel && (
               <Button size="sm" variant="outline" onClick={() => onCancel(b.id)}>Отменить</Button>
+            )}
+            {b.canMarkAttended && (
+              <Button size="sm" variant="outline" className="gap-1 text-primary" onClick={() => onMarkAttended(b.id)}>
+                <CheckCircle2 className="h-3 w-3" />Состоялась
+              </Button>
+            )}
+            {b.canMarkNoShow && (
+              <Button size="sm" variant="outline" className="gap-1" onClick={() => onMarkNoShow(b.id)}>
+                <XCircle className="h-3 w-3" />Не состоялась
+              </Button>
             )}
             {b.canReview && (
               <Button size="sm" variant="outline" className="gap-1 text-amber-600" onClick={() => onReview(b.id)}>
@@ -89,14 +111,13 @@ const BookingCard = ({
             )}
             {b.canDispute && (
               <Button size="sm" variant="outline" className="gap-1 text-destructive" onClick={() => onDispute(b.id)}>
-                <AlertTriangle className="h-3 w-3" />Открыть спор
+                <AlertTriangle className="h-3 w-3" />Создать спор
               </Button>
             )}
           </div>
         )}
 
-        {/* Past with no actions — show appropriate icons */}
-        {isPast && !b.canCancel && !b.canReview && !b.canDispute && (
+        {!hasActions && b.isExpired && (
           <div className="mt-2 pt-2 border-t flex items-center gap-1.5">
             {b.status === 'completed'
               ? <><CheckCircle2 className="h-3.5 w-3.5 text-primary" /><span className="text-xs text-primary">Состоялась</span></>
@@ -115,6 +136,12 @@ const BookingCard = ({
 
 const INITIAL_SHOW = 10;
 
+const NO_SHOW_REASONS = [
+  { value: 'no_show_master', label: 'Неявка мастера' },
+  { value: 'cancelled_by_master', label: 'Отмена мастером' },
+  { value: 'other', label: 'Иное' },
+];
+
 export default function ClientBookings({ userId }: Props) {
   const { toast } = useToast();
   const [bookings, setBookings] = useState<BookingItem[]>([]);
@@ -125,6 +152,9 @@ export default function ClientBookings({ userId }: Props) {
   const [cancelDialog, setCancelDialog] = useState<string | null>(null);
   const [disputeDialog, setDisputeDialog] = useState<string | null>(null);
   const [reviewDialog, setReviewDialog] = useState<string | null>(null);
+  const [noShowDialog, setNoShowDialog] = useState<string | null>(null);
+  const [noShowReason, setNoShowReason] = useState('no_show_master');
+  const [noShowDescription, setNoShowDescription] = useState('');
   const [reason, setReason] = useState('');
   const [reviewScore, setReviewScore] = useState(5);
   const [reviewText, setReviewText] = useState('');
@@ -155,10 +185,6 @@ export default function ClientBookings({ userId }: Props) {
         .limit(300),
     ]);
 
-    const now = new Date();
-    const unified: BookingItem[] = [];
-
-    // Check which bookings already have reviews
     const bookingIds = (bRes.data || []).map(b => b.id);
     const { data: existingRatings } = await supabase.from('ratings')
       .select('booking_id')
@@ -166,18 +192,29 @@ export default function ClientBookings({ userId }: Props) {
       .eq('rater_id', userId);
     const reviewedSet = new Set((existingRatings || []).map((r: any) => r.booking_id));
 
+    const unified: BookingItem[] = [];
+
     (bRes.data || []).forEach(b => {
-      const d = new Date(b.scheduled_at);
-      const isPast = d < now;
-      const isActive = ['pending', 'confirmed', 'in_progress'].includes(b.status);
       const svc = (b as any).services;
       const prof = (b as any).profiles;
       const loc = (b as any).business_locations;
       const alreadyReviewed = reviewedSet.has(b.id);
+      const expired = isBookingExpired(b.scheduled_at, b.duration_minutes);
+      const isActiveStatus = ['pending', 'confirmed', 'in_progress'].includes(b.status);
+      const isConfirmedExpired = expired && b.status === 'confirmed';
+      
+      // Determine available actions
+      const canCancel = isActiveStatus && !expired;
+      const canMarkAttended = isConfirmedExpired || (expired && b.status === 'in_progress');
+      const canMarkNoShow = isConfirmedExpired || (expired && b.status === 'in_progress');
+      const canDispute = expired && ['completed', 'confirmed', 'in_progress'].includes(b.status);
+      const canReview = b.status === 'completed' && !alreadyReviewed;
+
       unified.push({
         id: b.id,
         type: 'booking',
         status: b.status,
+        displayStatus: isConfirmedExpired ? 'awaiting_outcome' : b.status,
         date: b.scheduled_at,
         title: svc?.name || 'Услуга',
         master: `${prof?.first_name || ''} ${prof?.last_name || ''}`.trim(),
@@ -186,33 +223,46 @@ export default function ClientBookings({ userId }: Props) {
         price: svc?.price ?? null,
         address: loc?.address ?? null,
         service_desc: svc?.description ?? null,
-        canCancel: isActive && !isPast,
-        canDispute: isPast && b.status === 'completed',
-        canReview: isPast && b.status === 'completed' && !alreadyReviewed,
+        canCancel,
+        canDispute,
+        canReview,
+        canMarkAttended,
+        canMarkNoShow,
+        isExpired: expired,
       });
     });
 
     (lbRes.data || []).forEach(lb => {
       const lesson = (lb as any).lessons;
-      const d = new Date(`${lesson?.lesson_date}T${lesson?.start_time}`);
-      const isPast = d < now;
-      const isActive = ['pending', 'confirmed'].includes(lb.status);
+      const dateStr = `${lesson?.lesson_date}T${lesson?.start_time}`;
+      const d = new Date(dateStr);
+      const durationMin = lesson?.end_time && lesson?.start_time
+        ? (new Date(`2000-01-01T${lesson.end_time}`).getTime() - new Date(`2000-01-01T${lesson.start_time}`).getTime()) / 60000
+        : 60;
+      const expired = isBookingExpired(dateStr, durationMin);
+      const isActiveStatus = ['pending', 'confirmed'].includes(lb.status);
+      const isConfirmedExpired = expired && lb.status === 'confirmed';
       const prof = lesson?.profiles;
+
       unified.push({
         id: lb.id,
         type: 'lesson',
         status: lb.status,
-        date: `${lesson?.lesson_date}T${lesson?.start_time}`,
+        displayStatus: isConfirmedExpired ? 'awaiting_outcome' : lb.status,
+        date: dateStr,
         title: lesson?.title || 'Занятие',
         master: `${prof?.first_name || ''} ${prof?.last_name || ''}`.trim(),
         master_id: lesson?.teacher_id ?? null,
-        duration: null,
+        duration: durationMin,
         price: lesson?.price ?? null,
         address: null,
         service_desc: null,
-        canCancel: isActive && !isPast,
-        canDispute: isPast && ['completed', 'no_show'].includes(lb.status),
-        canReview: isPast && lb.status === 'completed',
+        canCancel: isActiveStatus && !expired,
+        canDispute: expired && ['completed', 'confirmed'].includes(lb.status),
+        canReview: lb.status === 'completed',
+        canMarkAttended: isConfirmedExpired,
+        canMarkNoShow: isConfirmedExpired,
+        isExpired: expired,
       });
     });
 
@@ -223,19 +273,22 @@ export default function ClientBookings({ userId }: Props) {
 
   useEffect(() => { loadBookings(); }, [userId]);
 
+  // Active = status is active AND not expired
   const active = useMemo(() => {
-    const now = new Date();
-    return bookings.filter(b => ['pending', 'confirmed', 'in_progress'].includes(b.status) || new Date(b.date) >= now)
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    return bookings.filter(b => {
+      const isActiveStatus = ['pending', 'confirmed', 'in_progress'].includes(b.status);
+      return isActiveStatus && !b.isExpired;
+    }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [bookings]);
 
+  // Archive = everything else
   const archive = useMemo(() => {
-    const now = new Date();
-    return bookings.filter(b => !['pending', 'confirmed', 'in_progress'].includes(b.status) && new Date(b.date) < now)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return bookings.filter(b => {
+      const isActiveStatus = ['pending', 'confirmed', 'in_progress'].includes(b.status);
+      return !isActiveStatus || b.isExpired;
+    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [bookings]);
 
-  // Group by day
   const groupByDay = (items: BookingItem[]) => {
     const groups: Array<{ label: string; items: BookingItem[] }> = [];
     const map = new Map<string, BookingItem[]>();
@@ -258,8 +311,8 @@ export default function ClientBookings({ userId }: Props) {
       await supabase.from('lesson_bookings').update({ status: 'cancelled', cancellation_reason: reason || null, cancelled_at: new Date().toISOString() }).eq('id', cancelDialog);
     }
     toast({ title: 'Запись отменена' });
-    setBookings(prev => prev.map(b => b.id === cancelDialog ? { ...b, status: 'cancelled', canCancel: false } : b));
     setCancelDialog(null); setReason(''); setSubmitting(false);
+    loadBookings();
   };
 
   const handleDispute = async () => {
@@ -271,9 +324,52 @@ export default function ClientBookings({ userId }: Props) {
       if (booking.type === 'booking') insertData.booking_id = disputeDialog;
       else insertData.lesson_booking_id = disputeDialog;
       await supabase.from('disputes').insert(insertData);
+      
+      // Create support ticket for dispute
+      try {
+        await supabase.from('support_tickets').insert({
+          user_id: userId,
+          subject: `Спор: ${booking.title}`,
+          category: 'dispute',
+          status: 'open',
+        });
+      } catch (_) { /* ticket table may not exist yet */ }
+      
       toast({ title: 'Спор открыт', description: 'Мы рассмотрим вашу заявку' });
     }
     setDisputeDialog(null); setReason(''); setSubmitting(false);
+    loadBookings();
+  };
+
+  const handleMarkAttended = async (id: string) => {
+    const booking = bookings.find(b => b.id === id);
+    if (!booking) return;
+    if (booking.type === 'booking') {
+      await supabase.from('bookings').update({ status: 'completed' }).eq('id', id);
+    } else {
+      await supabase.from('lesson_bookings').update({ status: 'completed' }).eq('id', id);
+    }
+    toast({ title: 'Запись отмечена как состоявшаяся' });
+    loadBookings();
+  };
+
+  const handleMarkNoShow = async () => {
+    if (!noShowDialog) return;
+    setSubmitting(true);
+    const booking = bookings.find(b => b.id === noShowDialog);
+    if (!booking) { setSubmitting(false); return; }
+    
+    const newStatus = noShowReason === 'cancelled_by_master' ? 'cancelled' : 'no_show';
+    const reasonText = `${NO_SHOW_REASONS.find(r => r.value === noShowReason)?.label || noShowReason}${noShowDescription ? ': ' + noShowDescription : ''}`;
+    
+    if (booking.type === 'booking') {
+      await supabase.from('bookings').update({ status: newStatus as any, cancellation_reason: reasonText }).eq('id', noShowDialog);
+    } else {
+      await supabase.from('lesson_bookings').update({ status: newStatus as any, cancellation_reason: reasonText }).eq('id', noShowDialog);
+    }
+    toast({ title: 'Статус обновлён' });
+    setNoShowDialog(null); setNoShowReason('no_show_master'); setNoShowDescription(''); setSubmitting(false);
+    loadBookings();
   };
 
   const handleReview = async () => {
@@ -282,20 +378,13 @@ export default function ClientBookings({ userId }: Props) {
     const booking = bookings.find(b => b.id === reviewDialog);
     if (booking?.master_id && booking.type === 'booking') {
       await supabase.from('ratings').insert({
-        rater_id: userId,
-        rated_id: booking.master_id,
-        score: reviewScore,
-        comment: reviewText.trim() || null,
-        booking_id: reviewDialog,
+        rater_id: userId, rated_id: booking.master_id,
+        score: reviewScore, comment: reviewText.trim() || null, booking_id: reviewDialog,
       });
       toast({ title: 'Отзыв оставлен' });
-      setBookings(prev => prev.map(b => b.id === reviewDialog ? { ...b, canReview: false } : b));
-    } else if (booking?.master_id) {
-      // lesson booking — find corresponding booking or just rate master
-      toast({ title: 'Отзыв оставлен' });
-      setBookings(prev => prev.map(b => b.id === reviewDialog ? { ...b, canReview: false } : b));
     }
     setReviewDialog(null); setReviewText(''); setReviewScore(5); setSubmitting(false);
+    loadBookings();
   };
 
   if (loading) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
@@ -315,7 +404,10 @@ export default function ClientBookings({ userId }: Props) {
             Активные
             {active.length > 0 && <Badge variant="secondary" className="text-[10px] h-4 px-1">{active.length}</Badge>}
           </TabsTrigger>
-          <TabsTrigger value="archive" className="flex-1">Архив</TabsTrigger>
+          <TabsTrigger value="archive" className="flex-1 gap-1.5">
+            Архив
+            {archive.length > 0 && <Badge variant="secondary" className="text-[10px] h-4 px-1">{archive.length}</Badge>}
+          </TabsTrigger>
         </TabsList>
       </Tabs>
 
@@ -339,6 +431,8 @@ export default function ClientBookings({ userId }: Props) {
                     onCancel={setCancelDialog}
                     onDispute={setDisputeDialog}
                     onReview={setReviewDialog}
+                    onMarkAttended={handleMarkAttended}
+                    onMarkNoShow={setNoShowDialog}
                   />
                 ))}
               </div>
@@ -373,13 +467,41 @@ export default function ClientBookings({ userId }: Props) {
       {/* Dispute */}
       <Dialog open={!!disputeDialog} onOpenChange={() => { setDisputeDialog(null); setReason(''); }}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Открыть спор</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Создать спор</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Опишите проблему. Будет создан тикет в техподдержку.</p>
           <Textarea placeholder="Опишите проблему *" value={reason} onChange={e => setReason(e.target.value)} />
           <div className="flex gap-2 justify-end">
             <Button variant="outline" onClick={() => setDisputeDialog(null)}>Назад</Button>
             <Button onClick={handleDispute} disabled={submitting || !reason.trim()}>
-              {submitting ? 'Отправка...' : 'Открыть спор'}
+              {submitting ? 'Отправка...' : 'Создать спор'}
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* No-show / Not attended */}
+      <Dialog open={!!noShowDialog} onOpenChange={() => { setNoShowDialog(null); setNoShowReason('no_show_master'); setNoShowDescription(''); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Запись не состоялась</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Причина</p>
+              <Select value={noShowReason} onValueChange={setNoShowReason}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {NO_SHOW_REASONS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            {noShowReason === 'other' && (
+              <Textarea placeholder="Опишите причину" value={noShowDescription} onChange={e => setNoShowDescription(e.target.value)} />
+            )}
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setNoShowDialog(null)}>Назад</Button>
+              <Button onClick={handleMarkNoShow} disabled={submitting || (noShowReason === 'other' && !noShowDescription.trim())}>
+                {submitting ? 'Сохранение...' : 'Подтвердить'}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -399,11 +521,11 @@ export default function ClientBookings({ userId }: Props) {
                 ))}
               </div>
             </div>
-            <Textarea placeholder="Ваш отзыв (необязательно)" value={reviewText} onChange={e => setReviewText(e.target.value)} rows={3} />
+            <Textarea placeholder="Ваш отзыв" value={reviewText} onChange={e => setReviewText(e.target.value)} />
             <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setReviewDialog(null)}>Отмена</Button>
+              <Button variant="outline" onClick={() => setReviewDialog(null)}>Назад</Button>
               <Button onClick={handleReview} disabled={submitting}>
-                {submitting ? 'Отправка...' : 'Отправить отзыв'}
+                {submitting ? 'Отправка...' : 'Отправить'}
               </Button>
             </div>
           </div>
