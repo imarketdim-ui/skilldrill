@@ -3742,6 +3742,56 @@ export type Database = {
           },
         ]
       }
+      support_tickets: {
+        Row: {
+          admin_id: string | null
+          category: string
+          chat_message_id: string | null
+          created_at: string | null
+          dispute_id: string | null
+          id: string
+          resolved_at: string | null
+          status: string
+          subject: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          admin_id?: string | null
+          category?: string
+          chat_message_id?: string | null
+          created_at?: string | null
+          dispute_id?: string | null
+          id?: string
+          resolved_at?: string | null
+          status?: string
+          subject?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          admin_id?: string | null
+          category?: string
+          chat_message_id?: string | null
+          created_at?: string | null
+          dispute_id?: string | null
+          id?: string
+          resolved_at?: string | null
+          status?: string
+          subject?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_tickets_dispute_id_fkey"
+            columns: ["dispute_id"]
+            isOneToOne: false
+            referencedRelation: "disputes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       teaching_expenses: {
         Row: {
           amount: number
