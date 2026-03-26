@@ -227,62 +227,109 @@ const AdminDashboard = () => {
 
         {canAccess('moderation') && (
           <TabsContent value="moderation">
-            <Card>
-              <CardHeader>
-                <CardTitle>Модерация профилей</CardTitle>
-                <CardDescription>Проверка и одобрение мастеров, бизнесов и сетей</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {moderationItems.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Eye className="h-10 w-10 mx-auto mb-3 opacity-50" />
-                    <p>Нет записей на модерации</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {moderationItems.map(item => (
-                      <div key={item.id} className="p-4 rounded-lg border space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Badge>{moderationTypeLabels[item._type]}</Badge>
-                            <span className="font-medium">{item._type === 'master' ? `${item.profiles?.first_name || ''} ${item.profiles?.last_name || ''}` : item.name}</span>
-                          </div>
-                          <p className="text-xs text-muted-foreground">{item.profiles?.email} · {item.profiles?.skillspot_id}</p>
-                        </div>
-                        <div className="grid gap-2 text-sm">
-                          {item._type === 'master' && (<><div><span className="text-muted-foreground">Категория:</span> {item.service_categories?.name || '—'}</div><div><span className="text-muted-foreground">Адрес:</span> {item.address || '—'}</div><div><span className="text-muted-foreground">Описание:</span> {item.description || '—'}</div></>)}
-                          {item._type === 'business' && (<><div><span className="text-muted-foreground">ИНН:</span> {item.inn}</div><div><span className="text-muted-foreground">Адрес:</span> {item.address || '—'}</div><div><span className="text-muted-foreground">ФИО директора:</span> {item.director_name || '—'}</div><div><span className="text-muted-foreground">Email:</span> {item.contact_email || '—'}</div><div><span className="text-muted-foreground">Телефон:</span> {item.contact_phone || '—'}</div></>)}
-                          {item._type === 'network' && (<><div><span className="text-muted-foreground">ИНН:</span> {item.inn || '—'}</div><div><span className="text-muted-foreground">Адрес:</span> {item.address || '—'}</div><div><span className="text-muted-foreground">ФИО директора:</span> {item.director_name || '—'}</div></>)}
-                          {/* Missing data warnings */}
-                          {item._type === 'business' && (
-                            <div className="flex flex-wrap gap-1.5 mt-2">
-                              {!item.address && <Badge variant="destructive" className="text-[10px]"><AlertTriangle className="h-3 w-3 mr-0.5" />Нет адреса</Badge>}
-                              {!item.director_name && <Badge variant="destructive" className="text-[10px]"><AlertTriangle className="h-3 w-3 mr-0.5" />Нет директора</Badge>}
-                              {(!item.work_photos || item.work_photos.length === 0) && (!item.interior_photos || item.interior_photos.length === 0) && <Badge variant="destructive" className="text-[10px]"><AlertTriangle className="h-3 w-3 mr-0.5" />Нет фото</Badge>}
-                              {!item.contact_phone && <Badge variant="destructive" className="text-[10px]"><AlertTriangle className="h-3 w-3 mr-0.5" />Нет телефона</Badge>}
+            <div className="space-y-6">
+              {/* Profiles moderation */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Модерация профилей</CardTitle>
+                  <CardDescription>Проверка и одобрение мастеров, бизнесов и сетей</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {moderationItems.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground"><Eye className="h-10 w-10 mx-auto mb-3 opacity-50" /><p>Нет записей на модерации</p></div>
+                  ) : (
+                    <div className="space-y-4">
+                      {moderationItems.map(item => (
+                        <div key={item.id} className="p-4 rounded-lg border space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Badge>{moderationTypeLabels[item._type]}</Badge>
+                              <span className="font-medium">{item._type === 'master' ? `${item.profiles?.first_name || ''} ${item.profiles?.last_name || ''}` : item.name}</span>
                             </div>
-                          )}
-                          {(item.hashtags?.length > 0) && (<div className="flex flex-wrap gap-1">{item.hashtags.map((t: string) => <Badge key={t} variant="outline">#{t}</Badge>)}</div>)}
-                          {(item.work_photos?.length > 0 || item.interior_photos?.length > 0 || item.certificate_photos?.length > 0) && (
-                            <div className="flex flex-wrap gap-2 mt-1">
-                              {[...(item.work_photos || []), ...(item.interior_photos || [])].map((url: string, i: number) => (<img key={`pub-${i}`} src={url} alt="" className="w-16 h-16 rounded object-cover border" />))}
-                              {(item.certificate_photos || []).map((url: string, i: number) => (<SignedImage key={`cert-${i}`} bucket="certificates" storageSrc={url} alt="" className="w-16 h-16 rounded object-cover border" />))}
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex gap-2 items-end">
-                          <div className="flex-1">
-                            <Input placeholder="Причина отклонения (при отказе)" value={rejectReason[item.id] || ''} onChange={(e) => setRejectReason(prev => ({ ...prev, [item.id]: e.target.value }))} />
+                            <p className="text-xs text-muted-foreground">{item.profiles?.email} · {item.profiles?.skillspot_id}</p>
                           </div>
-                          <Button size="sm" onClick={() => handleModeration(item, true)}><CheckCircle className="h-4 w-4 mr-1" /> Одобрить</Button>
-                          <Button size="sm" variant="destructive" onClick={() => handleModeration(item, false)}><XCircle className="h-4 w-4 mr-1" /> Отклонить</Button>
+                          <div className="grid gap-2 text-sm">
+                            {item._type === 'master' && (<><div><span className="text-muted-foreground">Категория:</span> {item.service_categories?.name || '—'}</div><div><span className="text-muted-foreground">Адрес:</span> {item.address || '—'}</div><div><span className="text-muted-foreground">Описание:</span> {item.description || '—'}</div></>)}
+                            {item._type === 'business' && (<><div><span className="text-muted-foreground">ИНН:</span> {item.inn}</div><div><span className="text-muted-foreground">Адрес:</span> {item.address || '—'}</div><div><span className="text-muted-foreground">ФИО директора:</span> {item.director_name || '—'}</div><div><span className="text-muted-foreground">Email:</span> {item.contact_email || '—'}</div><div><span className="text-muted-foreground">Телефон:</span> {item.contact_phone || '—'}</div></>)}
+                            {item._type === 'network' && (<><div><span className="text-muted-foreground">ИНН:</span> {item.inn || '—'}</div><div><span className="text-muted-foreground">Адрес:</span> {item.address || '—'}</div><div><span className="text-muted-foreground">ФИО директора:</span> {item.director_name || '—'}</div></>)}
+                            {item._type === 'business' && (
+                              <div className="flex flex-wrap gap-1.5 mt-2">
+                                {!item.address && <Badge variant="destructive" className="text-[10px]"><AlertTriangle className="h-3 w-3 mr-0.5" />Нет адреса</Badge>}
+                                {!item.director_name && <Badge variant="destructive" className="text-[10px]"><AlertTriangle className="h-3 w-3 mr-0.5" />Нет директора</Badge>}
+                                {(!item.work_photos || item.work_photos.length === 0) && (!item.interior_photos || item.interior_photos.length === 0) && <Badge variant="destructive" className="text-[10px]"><AlertTriangle className="h-3 w-3 mr-0.5" />Нет фото</Badge>}
+                                {!item.contact_phone && <Badge variant="destructive" className="text-[10px]"><AlertTriangle className="h-3 w-3 mr-0.5" />Нет телефона</Badge>}
+                              </div>
+                            )}
+                            {(item.hashtags?.length > 0) && (<div className="flex flex-wrap gap-1">{item.hashtags.map((t: string) => <Badge key={t} variant="outline">#{t}</Badge>)}</div>)}
+                            {(item.work_photos?.length > 0 || item.interior_photos?.length > 0 || item.certificate_photos?.length > 0) && (
+                              <div className="flex flex-wrap gap-2 mt-1">
+                                {[...(item.work_photos || []), ...(item.interior_photos || [])].map((url: string, i: number) => (<img key={`pub-${i}`} src={url} alt="" className="w-16 h-16 rounded object-cover border" />))}
+                                {(item.certificate_photos || []).map((url: string, i: number) => (<SignedImage key={`cert-${i}`} bucket="certificates" storageSrc={url} alt="" className="w-16 h-16 rounded object-cover border" />))}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex gap-2 items-end">
+                            <div className="flex-1"><Input placeholder="Причина отклонения (при отказе)" value={rejectReason[item.id] || ''} onChange={(e) => setRejectReason(prev => ({ ...prev, [item.id]: e.target.value }))} /></div>
+                            <Button size="sm" onClick={() => handleModeration(item, true)}><CheckCircle className="h-4 w-4 mr-1" /> Одобрить</Button>
+                            <Button size="sm" variant="destructive" onClick={() => handleModeration(item, false)}><XCircle className="h-4 w-4 mr-1" /> Отклонить</Button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Role requests merged into moderation */}
+              <Card>
+                <CardHeader><CardTitle>Заявки на роли</CardTitle><CardDescription>Мастер / Бизнес / Сеть</CardDescription></CardHeader>
+                <CardContent>
+                  {roleRequests.filter(r => r.status === 'pending').length === 0 ? (
+                    <p className="text-center py-4 text-muted-foreground text-sm">Нет заявок на роли</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {roleRequests.filter(r => r.status === 'pending').map((req) => (
+                        <div key={req.id} className="flex items-center justify-between p-4 rounded-lg border">
+                          <div>
+                            <div className="flex items-center gap-2"><Badge>{requestTypeLabels[req.request_type]}</Badge></div>
+                            <p className="mt-1 font-medium">{req.profiles?.first_name} {req.profiles?.last_name} ({req.profiles?.email})</p>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button size="sm" onClick={() => handleRoleRequest(req.id, true, req.request_type, req.requester_id, req)}><CheckCircle className="h-4 w-4 mr-1" /> Одобрить</Button>
+                            <Button size="sm" variant="destructive" onClick={() => handleRoleRequest(req.id, false, req.request_type, req.requester_id, req)}><XCircle className="h-4 w-4 mr-1" /> Отклонить</Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Category requests merged into moderation */}
+              <Card>
+                <CardHeader><CardTitle>Заявки на категории</CardTitle></CardHeader>
+                <CardContent>
+                  {categoryRequests.filter(r => r.status === 'pending').length === 0 ? (
+                    <p className="text-center py-4 text-muted-foreground text-sm">Нет заявок на категории</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {categoryRequests.filter(r => r.status === 'pending').map((req) => (
+                        <div key={req.id} className="flex items-center justify-between p-4 rounded-lg border">
+                          <div>
+                            <p className="font-medium">{req.name}</p>
+                            <p className="text-sm text-muted-foreground">{req.description}</p>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button size="sm" onClick={() => handleCategoryRequest(req.id, true, req.name, req.description)}><CheckCircle className="h-4 w-4" /></Button>
+                            <Button size="sm" variant="destructive" onClick={() => handleCategoryRequest(req.id, false, req.name, req.description)}><XCircle className="h-4 w-4" /></Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         )}
 
