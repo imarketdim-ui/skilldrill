@@ -696,16 +696,16 @@ const BusinessDashboard = () => {
                   <div><span className="text-muted-foreground">Телефон:</span> {selectedBusiness?.contact_phone || '—'}</div>
                 </CardContent>
               </Card>
-              <Card>
-                <CardHeader><CardTitle>Управление</CardTitle></CardHeader>
-                <CardContent className="space-y-2">
-                  <Button variant="outline" className="w-full justify-start gap-2"><ArrowRightLeft className="h-4 w-4" /> Передать управление</Button>
-                  <Button variant="outline" className="w-full justify-start gap-2"><UserPlus className="h-4 w-4" /> Назначить менеджера</Button>
-                </CardContent>
-              </Card>
             </div>
           </div>
         );
+      case 'commissions':
+        return selectedBusiness ? (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2"><DollarSign className="h-5 w-5" /> Настройки комиссий</h3>
+            <BusinessSettings business={selectedBusiness} onUpdated={fetchBusinesses} defaultTab="commissions" />
+          </div>
+        ) : null;
       case 'bookings':
         return selectedBusiness ? <BusinessBookingDetail businessId={selectedBusiness.id} /> : null;
       case 'masters':
