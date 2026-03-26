@@ -510,12 +510,11 @@ const crmItems = [
 const erpItems = [
   { key: 'stats', label: 'Статистика', icon: BarChart3, description: 'Аналитика и отчёты' },
   { key: 'services', label: 'Услуги', icon: ClipboardList, description: 'Услуги и прайс' },
-  { key: 'masters', label: 'Команда', icon: Users, description: 'Сотрудники' },
+  { key: 'commissions', label: 'Комиссии', icon: DollarSign, description: 'Настройки комиссий' },
   { key: 'inventory', label: 'Склад', icon: Package, description: 'Товары и материалы' },
   { key: 'registers', label: 'Кассы', icon: Wallet, description: 'Наличные и безналичные' },
   { key: 'product_sales', label: 'Продажи', icon: Briefcase, description: 'Продажа товаров' },
   { key: 'finance', label: 'Финансы', icon: Wallet, description: 'Доходы и расходы' },
-  { key: 'subscription', label: 'Подписка', icon: CreditCard, description: 'Тарифы и оплата' },
 ];
 
 const directoryItems = [
@@ -523,6 +522,12 @@ const directoryItems = [
   { key: 'dir_products', label: 'Товары и материалы', icon: Package, description: 'Справочник товаров для склада и тех. карт' },
   { key: 'dir_registers', label: 'Кассы', icon: Wallet, description: 'Создание и управление кассами' },
   { key: 'dir_positions', label: 'Должности', icon: Shield, description: 'Настройка доступов по ролям' },
+];
+
+// Profile sub-items (team, subscription, transfer, manager)
+const profileItems = [
+  { key: 'masters', label: 'Команда', icon: Users, description: 'Сотрудники организации' },
+  { key: 'subscription', label: 'Подписка', icon: CreditCard, description: 'Тарифы и оплата' },
 ];
 
 const allItems = [...mainItems, ...sidebarSections];
