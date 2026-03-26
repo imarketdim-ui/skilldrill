@@ -395,6 +395,11 @@ const BusinessClients = ({ businessId }: { businessId: string }) => {
                       <p className="text-sm">{c.visitCount} визит(ов)</p>
                       <p className="text-xs text-muted-foreground">{c.revenue > 0 ? `${c.revenue.toLocaleString()} ₽` : ''}</p>
                     </div>
+                    <Button size="icon" variant="ghost" className="h-8 w-8" title="Написать" onClick={() => {
+                      if (onOpenChat) onOpenChat(c.id);
+                    }}>
+                      <MessageSquare className="h-4 w-4" />
+                    </Button>
                     <Button size="icon" variant="ghost" className="h-8 w-8" title="Объединить" onClick={() => { setMergeTarget(c); setMergeOpen(true); }}>
                       <Merge className="h-4 w-4" />
                     </Button>
@@ -410,7 +415,7 @@ const BusinessClients = ({ businessId }: { businessId: string }) => {
       <Dialog open={mergeOpen} onOpenChange={setMergeOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Объединить клиента</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground">Если клиент зарегистрировался и сообщил свой ID — введите его ниже. История взаимодействий будет объединена.</p>
+          <p className="text-sm text-muted-foreground">Если клиент зарегистрировался и сообщил свой ID — введите его ниже.</p>
           {mergeTarget && <p className="text-sm">Текущий: <strong>{mergeTarget.name}</strong></p>}
           <div className="space-y-2">
             <Label>SkillSpot ID нового профиля</Label>
