@@ -1,162 +1,141 @@
 
 
-# Plan: Cabinet Isolation, Chat Scoping, Booking Auto-Archive, Admin Tickets, Wallet Rework
+# Plan: Client Notifications, Business Restructuring, Admin Dashboard, and Fixes
 
 ## Summary
-
-This plan addresses full cabinet isolation (chats, notifications, balances), booking lifecycle improvements, admin ticket system, SuperAdmin interactive blocks, and wallet UX changes. It also captures unrealized items from the last 5 requests.
-
----
-
-## Phase 1: Chat Isolation by Cabinet Role
-
-**Problem:** `TeachingChats.tsx` shows ALL direct messages regardless of which cabinet the user is in. Chats from client context bleed into master/business context and vice versa.
-
-**Solution:**
-- Add a `cabinetContext` prop to `TeachingChats`: `'client' | 'master' | 'business' | 'platform'`
-- In `fetchContacts()`, filter contacts by their roles:
-  - **Client cabinet** → only show contacts who are masters, business staff, or platform admins
-  - **Master/Business cabinet** → only show clients and platform admins
-  - **Platform cabinet** → show clients and business users
-- Use `user_roles` table join to determine each contact's role category
-- Pass `cabinetContext` from `ClientDashboard` ('client'), `UniversalMasterDashboard` ('master'), `BusinessDashboard` ('business'), `AdminDashboard`/`SuperAdminDashboard` ('platform')
-- When sending messages, stamp `cabinet_type_scope` with the sender's current cabinet context
-
-**Files:** `TeachingChats.tsx`, `ClientDashboard.tsx`, `UniversalMasterDashboard.tsx`, `BusinessDashboard.tsx`, `AdminDashboard.tsx`, `SuperAdminDashboard.tsx`
+Multi-area fixes: restore client notifications to sidebar, auto-refresh stats, restructure business dashboard (transfer/manager, commissions, team, subscription), add admin dashboard blocks, improve moderation UI, rename admin tabs.
 
 ---
 
-## Phase 2: Notification Isolation by Cabinet
+## 1. Client Dashboard — Notifications in Sidebar
 
-**Problem:** `BusinessNotifications` and `MasterNotifications` fetch notifications without strict cabinet filtering, causing cross-cabinet leaks.
+**Problem:** Notifications section exists (`case 'notifications'`) but is missing from `desktopMenuItems` and `mobileMenuItems`.
 
-**Solution:**
-- `BusinessNotifications`: filter by `cabinet_type = 'business'` AND `cabinet_id = selectedBusiness.id` (or null for backward compat)
-- `MasterNotifications`: filter by `cabinet_type = 'master'` (already partially done, enforce strictly)
-- `ClientDashboard` notifications: already filtered by `cabinet_type = 'client'` — verify
-- When inserting notifications from triggers/functions, always set `cabinet_type` and `cabinet_id`
+**Fix in `ClientDashboard.tsx`:**
+- Add `{ key: 'notifications', label: 'Уведомления', icon: Bell }` to `desktopMenuItems` (after "Общение")
+- Remove `bookings` and `favorites` from sidebar menus (keep as clickable blocks in overview)
+- Notification click → navigate to correct section based on `n.type` (already implemented in the `notifications` case)
 
-**Files:** `BusinessDashboard.tsx` (BusinessNotifications), `UniversalMasterDashboard.tsx` (MasterNotifications)
+## 2. Client Dashboard — Remove Bookings & Favorites from Sidebar
 
----
+**Fix:** Remove `bookings` and `favorites` entries from `desktopMenuItems` and `mobileMenuItems`. They remain as active blocks in the overview grid (already clickable cards there).
 
-## Phase 3: Admin — Unread Indicators + Ticket System
+## 3. Client Stats — Auto-refresh on Entry
 
-**Problem:** Admin doesn't see unread counts for support requests. No ticket lifecycle management.
+**Problem:** `loadScore()` runs on mount + interval, but the `calculate_user_score` RPC is only called manually.
 
-**Solution:**
-- **AdminDashboard**: Add unread badge on "Поддержка" tab by counting unread `chat_messages` where `chat_type = 'support'` and `is_read = false`
-- **SuperAdminDashboard**: Same unread indicator on support tab
-- **Ticket system (DB migration):**
-  - Create `support_tickets` table: `id, user_id, admin_id, subject, status (open/in_progress/resolved/closed), category (support/dispute/general), created_at, resolved_at, chat_message_id`
-  - RLS: admins/super_admins can read all; users can read own
-- **SupportChat modifications:** When user sends first support message, auto-create a ticket. Admin can close tickets. SuperAdmin sees "Задачи" tab with tickets grouped by admin.
-- **Dispute → Ticket:** When a dispute is created, also create a `support_ticket` with category 'dispute'
+**Fix in `ClientStats.tsx`:**
+- Call `recalculate()` automatically on mount (first render), not just `loadScore()`
+- Keep manual refresh button as well
+- Remove the interval-based `loadScore` (replace with single auto-recalc on mount)
 
-**Files:** Migration SQL, `SupportChat.tsx`, `AdminDashboard.tsx`, `SuperAdminDashboard.tsx`
+## 4. Client Stats — Active Blocks with Drill-down
 
----
+**Fix in `ClientStats.tsx`:**
+- Make metric cards clickable → set `activeMetric` state
+- When a metric is selected, show a detail panel below with breakdown (e.g., clicking "Неявки" shows list of no-show bookings, clicking "VIP" shows which masters added to VIP)
+- Add a back button to return to overview
 
-## Phase 4: SuperAdmin — Interactive Dashboard & Subscription Blocks
+## 5. KYC Verification — "Temporarily Unavailable"
 
-**Problem:** Dashboard stats and subscription blocks are static text, not clickable.
+**Fix in `ClientStats.tsx`:**
+- For the `kyc_verified` profile item, always show status "Временно недоступна" instead of "Пусто"
+- Disable any KYC-related actions
 
-**Solution:**
-- **Dashboard tab:** Wrap each stat card (Регистрации, Активные, Доход) in clickable cards that navigate to a detail view showing:
-  - Регистрации → list of recent users (last 30 days)
-  - Активные → users with recent bookings
-  - Доход → subscription payment log
-- **Subscriptions tab:** Make `BonusSubscriptionPanel` blocks clickable → navigate to filtered lists (active subs, expired subs, masters by plan)
-- Implement as sub-views within SuperAdminDashboard using `activeSection` state pattern
+## 6. Business Dashboard — Transfer Management → Profile
 
-**Files:** `SuperAdminDashboard.tsx`, `BonusSubscriptionPanel.tsx`
+**Problem:** "Передать управление" and "Назначить менеджера" buttons in overview don't work.
 
----
+**Fix:**
+- Move both buttons from overview (`case 'overview'`) to `case 'profile'` (BusinessSettings)
+- **Transfer ownership:** Add dialog → search user by SkillSpot ID → update `business_locations.owner_id`
+- **Assign manager:** Add dialog → search user → insert into `business_managers` table
+- Move "Команда" from ERP to profile section
+- Move "Подписка" from ERP to profile section
 
-## Phase 5: Client Wallet — Balance Detail Views
+## 7. Business Dashboard — Back Button Fix
 
-**Problem:** Wallet shows "История рублей" / "История баллов" tabs. User wants clickable balance cards that expand to show history.
+**Problem:** Back button in `DashboardLayout` calls `onBackToHub` which resets to business selector.
 
-**Solution:**
-- Remove the `<Tabs>` for "История рублей"/"История баллов"
-- Make each balance card (Клиентский баланс, Реферальный, Бонусный) clickable
-- On click → set `activeBalanceView` state → show history for that specific balance type below the cards
-- Each detail view: full transaction list + action buttons (deposit, withdraw, transfer)
+**Fix in `BusinessDashboard.tsx`:**
+- Track navigation history with a `previousSection` state
+- When navigating into a sub-section (e.g., CRM → Clients), store the parent section
+- Back button returns to parent section, not to business selector
 
-**Files:** `ClientWallet.tsx`
+## 8. Business Dashboard — Commissions to ERP
 
----
+**Fix:** Move `BusinessSettings` commission section to ERP sidebar items. Add `{ key: 'commissions', label: 'Комиссии', icon: DollarSign }` to `erpItems`.
 
-## Phase 6: Booking Auto-Archive + Status Actions
+## 9. Business Dashboard — Directories: Positions Add Button
 
-**Problem:** Completed bookings stay in "Active" tab. No ability to mark as "состоялась"/"не состоялась".
+**Problem:** `PositionsDirectory` renders `RolePermissionsEditor` which only shows system roles (master/manager/admin) without an "add" button.
 
-**Solution:**
-- **Client `ClientBookings.tsx`:** Change active/archive filter:
-  - Active = `status IN (pending, confirmed, in_progress)` AND `scheduled_at + duration + 60min > now()`
-  - Archive = everything else (completed, cancelled, no_show, dispute, or time expired)
-  - Auto-classify: if `status = 'confirmed'` and `scheduled_at + duration + 60min < now()` → treat as archive, show as "Ожидает подтверждения итога"
-- **Status actions for completed/expired bookings:**
-  - "Создать спор" → opens dispute dialog (already exists), also creates support ticket
-  - "Состоялась" → update status to 'completed' (if not already)
-  - "Не состоялась" → dialog with reason select: неявка, отмена мастером, иное (free text). Updates status to 'no_show' or 'cancelled' accordingly
-- **Master bookings (`UniversalSchedule` or equivalent):** Same auto-archive logic + same status action buttons
+**Fix in `RolePermissionsEditor.tsx`:**
+- Add "Добавить должность" button
+- New custom roles stored in `business_locations.role_permissions` JSON under custom key
+- Each custom role gets same checkbox permission matrix as system roles
 
-**Files:** `ClientBookings.tsx`, `UniversalSchedule.tsx` (or create `MasterBookings.tsx`)
+## 10. Business Dashboard — Promotions Archive & Templates
 
----
+**Fix in `BusinessPromotions.tsx`:**
+- Add archive tab showing expired/completed promotions
+- Add "Типовые акции" section with template promotions (e.g., "Скидка новым клиентам", "Счастливые часы")
+- Creating from template pre-fills form fields (discount %, duration, target audience)
 
-## Phase 7: ERP Restructure — Move Procurement/WriteOffs to Склад
+## 11. Business Dashboard — Client Chat Button
 
-**Problem:** "Закупки" and "Списания" are under ERP root. Should be sub-items of "Склад".
+**Problem:** "Чат" button in BusinessClients is inactive.
 
-**Solution:**
-- In `BusinessDashboard.tsx` and `UniversalMasterDashboard.tsx`:
-  - Remove `procurement` and `writeoffs` from `erpItems`
-  - Update `BusinessInventory.tsx` to include tabs: "Остатки", "Закупки", "Списания"
-  - Render `BusinessProcurement` and `BusinessWriteOffs` as tab content inside `BusinessInventory`
+**Fix in `BusinessClients` (inside `BusinessDashboard.tsx`):**
+- Add a `MessageSquare` button per client row
+- On click → `setActiveSection('messages')` and pass the client ID to open chat with that specific contact
+- Or navigate to messages section with pre-selected contact
 
-**Files:** `BusinessDashboard.tsx`, `UniversalMasterDashboard.tsx`, `BusinessInventory.tsx`
+## 12. Admin Dashboard — Add Dashboard Tab with Active Blocks
 
----
+**Fix in `AdminDashboard.tsx`:**
+- Add `dashboard` to `TAB_ACCESS` and `visibleTabs`
+- Create dashboard view with stat cards: Pending Moderation, Open Disputes, Unread Support, Role Requests
+- Each card clickable → switches to corresponding tab
+- Set `dashboard` as default tab
 
-## Phase 8: Unrealized Items from Previous Requests
+## 13. SuperAdmin — Make All Blocks Active
 
-| Item | Action |
-|---|---|
-| Photo crop for business/service cards | Add universal crop component (reuse master avatar crop dialog) for all photo uploads in `PhotoUploader.tsx` |
-| Requests Archive — search by client/ID/date | Add search/filter inputs to `MasterRequests` and `BusinessBookingDetail` archive tab |
-| Geolocation slow determination | Already cached 6h in MapPicker — verify working |
-| Client privacy settings (добавление в группы) | `privacy_settings` column may be missing — add migration if needed, wire to `ClientSettingsSection` |
-| Telegram field save bug | Verify fix is deployed — check `ClientSettingsSection` |
-| Support chat persistence | Ensure messages persist across sessions (already using DB — verify) |
+**Current state:** Dashboard blocks already navigate via `loadDetailView`. Stat cards at top (line 182-186) are NOT clickable.
+
+**Fix:**
+- Wrap the 4 top stat cards in clickable elements → navigate to detail views (users list, masters list, businesses list, networks list)
+
+## 14. Admin/SuperAdmin — Moderation: Full Business Card
+
+**Fix in `AdminDashboard.tsx` moderation section:**
+- Show complete business info: name, INN, address, director, photos, master count, service count
+- Highlight missing items with warning badges: "Нет мастера", "Нет адреса", "Нет фото"
+- Consolidate role requests + business creation requests + category requests into single "Модерация" tab as sub-sections
+
+## 15. SuperAdmin — Rename "Администраторы" to "Команда"
+
+**Fix:** Change tab label from "Администраторы" to "Команда". Show all platform-role users (moderator, platform_admin, super_admin, integrator) with role badges.
+
+## 16. Business Creation — Skip Steps Validation
+
+**Problem:** Allows submitting for moderation without adding a master.
+
+**Fix in `CreateBusinessAccount.tsx`:**
+- Already partially handled. Enforce that step validation doesn't allow skipping required steps before "Submit to moderation"
 
 ---
 
 ## Technical Details
 
-### Database Migration
-```sql
--- Support tickets table
-CREATE TABLE public.support_tickets (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  admin_id uuid REFERENCES auth.users(id),
-  subject text NOT NULL DEFAULT '',
-  status text NOT NULL DEFAULT 'open' CHECK (status IN ('open','in_progress','resolved','closed')),
-  category text NOT NULL DEFAULT 'support' CHECK (category IN ('support','dispute','general')),
-  chat_message_id uuid,
-  dispute_id uuid,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now(),
-  resolved_at timestamptz
-);
-ALTER TABLE public.support_tickets ENABLE ROW LEVEL SECURITY;
--- Policies for admin and user access
-```
+### Files to modify:
+1. `src/components/dashboard/ClientDashboard.tsx` — sidebar items, remove bookings/favorites from menu, add notifications
+2. `src/components/dashboard/client/ClientStats.tsx` — auto-recalc on mount, clickable metric blocks, KYC "unavailable"
+3. `src/components/dashboard/BusinessDashboard.tsx` — move transfer/manager to profile, move team+subscription to profile, back button fix, client chat button, commissions to ERP
+4. `src/components/dashboard/business/RolePermissionsEditor.tsx` — add custom positions with checkbox permissions
+5. `src/components/dashboard/business/BusinessPromotions.tsx` — archive tab, template promotions
+6. `src/components/dashboard/AdminDashboard.tsx` — add dashboard tab, enhance moderation card, merge request types into moderation
+7. `src/components/dashboard/SuperAdminDashboard.tsx` — clickable top stat cards, rename "Администраторы" → "Команда"
 
-### Estimated File Changes
-- **Modified:** ~12 files (dashboards, chats, wallet, bookings, inventory)
-- **Created:** 1 migration, possibly 1 new component (TicketManager)
-- **No breaking changes** to existing data — all additive
+### No database migrations needed — all changes are UI/frontend only.
 
