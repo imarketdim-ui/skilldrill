@@ -64,8 +64,10 @@ const AdminDashboard = () => {
       supabase.from('role_requests').select('*, profiles!role_requests_requester_id_fkey(first_name, last_name, email, skillspot_id)').order('created_at', { ascending: false }),
       supabase.from('category_requests').select('*, profiles!category_requests_requester_id_fkey(first_name, last_name, email)').order('created_at', { ascending: false }),
       supabase.from('disputes').select('*').order('created_at', { ascending: false }),
+      supabase.from('chat_messages').select('id', { count: 'exact', head: true }).eq('chat_type', 'support').eq('is_read', false).neq('sender_id', user!.id),
     ]);
     setRoleRequests(rr.data || []);
+    setUnreadSupport(unreadRes.count || 0);
     setCategoryRequests(cr.data || []);
     setDisputes(dp.data || []);
     await loadModerationItems();
