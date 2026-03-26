@@ -534,6 +534,7 @@ const allItems = [...mainItems, ...sidebarSections];
 
 const BusinessDashboard = () => {
   const { user, profile, activeEntityId } = useAuth();
+  const { toast } = useToast();
   const pricing = usePlatformPricing();
   const [businesses, setBusinesses] = useState<any[]>([]);
   const [selectedBusiness, setSelectedBusiness] = useState<any>(null);
