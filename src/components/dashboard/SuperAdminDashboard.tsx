@@ -179,10 +179,10 @@ const SuperAdminDashboard = () => {
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
-        <Card><CardContent className="pt-6 text-center"><p className="text-3xl font-bold">{stats.totalUsers}</p><p className="text-sm text-muted-foreground">Пользователей</p></CardContent></Card>
-        <Card><CardContent className="pt-6 text-center"><p className="text-3xl font-bold">{stats.masters}</p><p className="text-sm text-muted-foreground">Мастеров</p></CardContent></Card>
-        <Card><CardContent className="pt-6 text-center"><p className="text-3xl font-bold">{stats.businesses}</p><p className="text-sm text-muted-foreground">Бизнесов</p></CardContent></Card>
-        <Card><CardContent className="pt-6 text-center"><p className="text-3xl font-bold">{stats.networks}</p><p className="text-sm text-muted-foreground">Сетей</p></CardContent></Card>
+        <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => loadDetailView('registrations')}><CardContent className="pt-6 text-center"><p className="text-3xl font-bold">{stats.totalUsers}</p><p className="text-sm text-muted-foreground">Пользователей →</p></CardContent></Card>
+        <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => loadDetailView('sub_masters')}><CardContent className="pt-6 text-center"><p className="text-3xl font-bold">{stats.masters}</p><p className="text-sm text-muted-foreground">Мастеров →</p></CardContent></Card>
+        <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => loadDetailView('sub_businesses')}><CardContent className="pt-6 text-center"><p className="text-3xl font-bold">{stats.businesses}</p><p className="text-sm text-muted-foreground">Бизнесов →</p></CardContent></Card>
+        <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => loadDetailView('sub_networks')}><CardContent className="pt-6 text-center"><p className="text-3xl font-bold">{stats.networks}</p><p className="text-sm text-muted-foreground">Сетей →</p></CardContent></Card>
       </div>
 
       <Tabs defaultValue="users" className="space-y-4">
@@ -191,7 +191,7 @@ const SuperAdminDashboard = () => {
           <TabsTrigger value="revocations"><ShieldBan className="h-4 w-4 mr-1" /> Аннулирование</TabsTrigger>
           <TabsTrigger value="categories"><FolderTree className="h-4 w-4 mr-1" /> Категории</TabsTrigger>
           <TabsTrigger value="reasons"><ListChecks className="h-4 w-4 mr-1" /> Причины</TabsTrigger>
-          <TabsTrigger value="admins"><Shield className="h-4 w-4 mr-1" /> Администраторы</TabsTrigger>
+          <TabsTrigger value="admins"><Shield className="h-4 w-4 mr-1" /> Команда</TabsTrigger>
           <TabsTrigger value="support" className="gap-1">
             <MessageSquare className="h-4 w-4" /> Поддержка
             {unreadSupport > 0 && <Badge variant="destructive" className="h-4 px-1 text-[10px]">{unreadSupport}</Badge>}

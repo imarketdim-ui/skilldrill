@@ -210,7 +210,7 @@ const PositionsDirectory = ({ businessId }: { businessId: string }) => {
 };
 
 // ── Business Clients - aggregated from bookings + chats + manual ──
-const BusinessClients = ({ businessId }: { businessId: string }) => {
+const BusinessClients = ({ businessId, onOpenChat }: { businessId: string; onOpenChat?: (clientId: string) => void }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [clients, setClients] = useState<any[]>([]);
@@ -395,6 +395,11 @@ const BusinessClients = ({ businessId }: { businessId: string }) => {
                       <p className="text-sm">{c.visitCount} визит(ов)</p>
                       <p className="text-xs text-muted-foreground">{c.revenue > 0 ? `${c.revenue.toLocaleString()} ₽` : ''}</p>
                     </div>
+                    <Button size="icon" variant="ghost" className="h-8 w-8" title="Написать" onClick={() => {
+                      if (onOpenChat) onOpenChat(c.id);
+                    }}>
+                      <MessageSquare className="h-4 w-4" />
+                    </Button>
                     <Button size="icon" variant="ghost" className="h-8 w-8" title="Объединить" onClick={() => { setMergeTarget(c); setMergeOpen(true); }}>
                       <Merge className="h-4 w-4" />
                     </Button>
@@ -410,7 +415,7 @@ const BusinessClients = ({ businessId }: { businessId: string }) => {
       <Dialog open={mergeOpen} onOpenChange={setMergeOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Объединить клиента</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground">Если клиент зарегистрировался и сообщил свой ID — введите его ниже. История взаимодействий будет объединена.</p>
+          <p className="text-sm text-muted-foreground">Если клиент зарегистрировался и сообщил свой ID — введите его ниже.</p>
           {mergeTarget && <p className="text-sm">Текущий: <strong>{mergeTarget.name}</strong></p>}
           <div className="space-y-2">
             <Label>SkillSpot ID нового профиля</Label>
@@ -505,12 +510,11 @@ const crmItems = [
 const erpItems = [
   { key: 'stats', label: 'Статистика', icon: BarChart3, description: 'Аналитика и отчёты' },
   { key: 'services', label: 'Услуги', icon: ClipboardList, description: 'Услуги и прайс' },
-  { key: 'masters', label: 'Команда', icon: Users, description: 'Сотрудники' },
+  { key: 'commissions', label: 'Комиссии', icon: DollarSign, description: 'Настройки комиссий' },
   { key: 'inventory', label: 'Склад', icon: Package, description: 'Товары и материалы' },
   { key: 'registers', label: 'Кассы', icon: Wallet, description: 'Наличные и безналичные' },
   { key: 'product_sales', label: 'Продажи', icon: Briefcase, description: 'Продажа товаров' },
   { key: 'finance', label: 'Финансы', icon: Wallet, description: 'Доходы и расходы' },
-  { key: 'subscription', label: 'Подписка', icon: CreditCard, description: 'Тарифы и оплата' },
 ];
 
 const directoryItems = [
@@ -518,6 +522,12 @@ const directoryItems = [
   { key: 'dir_products', label: 'Товары и материалы', icon: Package, description: 'Справочник товаров для склада и тех. карт' },
   { key: 'dir_registers', label: 'Кассы', icon: Wallet, description: 'Создание и управление кассами' },
   { key: 'dir_positions', label: 'Должности', icon: Shield, description: 'Настройка доступов по ролям' },
+];
+
+// Profile sub-items (team, subscription, transfer, manager)
+const profileItems = [
+  { key: 'masters', label: 'Команда', icon: Users, description: 'Сотрудники организации' },
+  { key: 'subscription', label: 'Подписка', icon: CreditCard, description: 'Тарифы и оплата' },
 ];
 
 const allItems = [...mainItems, ...sidebarSections];
@@ -531,7 +541,31 @@ const BusinessDashboard = () => {
   const [masterCount, setMasterCount] = useState(0);
   const [serviceCount, setServiceCount] = useState(0);
   const [activeSection, setActiveSection] = useState('overview');
+  const [previousSection, setPreviousSection] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [chatTargetId, setChatTargetId] = useState<string | null>(null);
+  // Transfer ownership dialog state
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [transferId, setTransferId] = useState('');
+  const [transferring, setTransferring] = useState(false);
+  // Assign manager dialog state
+  const [managerOpen, setManagerOpen] = useState(false);
+  const [managerId, setManagerId] = useState('');
+  const [assigningManager, setAssigningManager] = useState(false);
+
+  const navigateTo = (section: string) => {
+    setPreviousSection(activeSection);
+    setActiveSection(section);
+  };
+
+  const goBack = () => {
+    if (previousSection) {
+      setActiveSection(previousSection);
+      setPreviousSection(null);
+    } else {
+      setActiveSection('overview');
+    }
+  };
 
   const fetchBusinesses = useCallback(async () => {
     if (!user) return;
@@ -598,7 +632,7 @@ const BusinessDashboard = () => {
     <Button
       variant={activeSection === item.key ? 'default' : 'ghost'}
       className={`w-full gap-3 ${sidebarCollapsed ? 'justify-center px-2' : 'justify-start'} ${activeSection === item.key ? '' : 'text-muted-foreground'}`}
-      onClick={() => setActiveSection(item.key)}
+      onClick={() => navigateTo(item.key)}
       title={sidebarCollapsed ? item.label : undefined}
     >
       <item.icon className="h-4 w-4 shrink-0" />
@@ -609,11 +643,11 @@ const BusinessDashboard = () => {
   const renderContent = () => {
     switch (activeSection) {
       case 'crm':
-        return <SectionHub title="CRM" description="Управление клиентами и коммуникациями" items={crmItems} onNavigate={setActiveSection} />;
+        return <SectionHub title="CRM" description="Управление клиентами и коммуникациями" items={crmItems} onNavigate={navigateTo} />;
       case 'erp':
-        return <SectionHub title="ERP" description="Управление бизнес-процессами" items={erpItems} onNavigate={setActiveSection} />;
+        return <SectionHub title="ERP" description="Управление бизнес-процессами" items={erpItems} onNavigate={navigateTo} />;
       case 'directories':
-        return <SectionHub title="Справочники" description="Справочные данные и настройки" items={directoryItems} onNavigate={setActiveSection} />;
+        return <SectionHub title="Справочники" description="Справочные данные и настройки" items={directoryItems} onNavigate={navigateTo} />;
       case 'dir_client_types':
         return selectedBusiness ? <ClientTypeDirectory businessId={selectedBusiness.id} /> : null;
       case 'dir_products':
@@ -625,7 +659,7 @@ const BusinessDashboard = () => {
       case 'overview':
         return (
           <div className="space-y-6">
-            <BusinessOnboardingTour onNavigate={setActiveSection} />
+            <BusinessOnboardingTour onNavigate={navigateTo} />
             {!canActivate && selectedBusiness && (
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
@@ -662,16 +696,16 @@ const BusinessDashboard = () => {
                   <div><span className="text-muted-foreground">Телефон:</span> {selectedBusiness?.contact_phone || '—'}</div>
                 </CardContent>
               </Card>
-              <Card>
-                <CardHeader><CardTitle>Управление</CardTitle></CardHeader>
-                <CardContent className="space-y-2">
-                  <Button variant="outline" className="w-full justify-start gap-2"><ArrowRightLeft className="h-4 w-4" /> Передать управление</Button>
-                  <Button variant="outline" className="w-full justify-start gap-2"><UserPlus className="h-4 w-4" /> Назначить менеджера</Button>
-                </CardContent>
-              </Card>
             </div>
           </div>
         );
+      case 'commissions':
+        return selectedBusiness ? (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2"><DollarSign className="h-5 w-5" /> Настройки комиссий</h3>
+            <BusinessSettings business={selectedBusiness} onUpdated={fetchBusinesses} />
+          </div>
+        ) : null;
       case 'bookings':
         return selectedBusiness ? <BusinessBookingDetail businessId={selectedBusiness.id} /> : null;
       case 'masters':
@@ -697,7 +731,7 @@ const BusinessDashboard = () => {
       case 'marketing':
         return selectedBusiness ? <BusinessMarketing businessId={selectedBusiness.id} /> : null;
       case 'clients':
-        return selectedBusiness ? <BusinessClients businessId={selectedBusiness.id} /> : null;
+        return selectedBusiness ? <BusinessClients businessId={selectedBusiness.id} onOpenChat={(clientId) => { setChatTargetId(clientId); navigateTo('messages'); }} /> : null;
       case 'stats':
         return selectedBusiness ? <BusinessAnalytics businessId={selectedBusiness.id} /> : null;
       case 'messages':

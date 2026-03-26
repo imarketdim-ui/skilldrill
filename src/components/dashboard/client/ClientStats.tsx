@@ -1,14 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Shield, Info, Loader2, RefreshCw, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
+import { Shield, Info, Loader2, RefreshCw, CheckCircle2, XCircle, AlertCircle, ChevronLeft, Lock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 
-interface Props { userId: string; }
+interface Props { userId: string; onNavigate?: (section: string) => void; }
 
 interface ScoreData {
   total_score: number;
@@ -49,7 +47,6 @@ function blacklistColor(bl: number, vip: number) {
 }
 function pct(count: number, total: number) { return total === 0 ? 0 : (count / total) * 100; }
 
-// Profile completeness items that affect master decisions
 const PROFILE_ITEMS = [
   { key: 'first_name', label: 'Имя', desc: 'Мастера видят ваше имя' },
   { key: 'last_name', label: 'Фамилия', desc: 'Полное имя повышает доверие' },
@@ -59,17 +56,21 @@ const PROFILE_ITEMS = [
   { key: 'kyc_verified', label: 'KYC верификация', desc: 'Подтверждение личности — наивысший уровень доверия' },
 ];
 
-export default function ClientStats({ userId }: Props) {
+type MetricKey = 'no_show' | 'cancel_1h' | 'cancel_3h' | 'vip' | 'blacklist';
+
+export default function ClientStats({ userId, onNavigate }: Props) {
   const { toast } = useToast();
   const [score, setScore] = useState<ScoreData | null>(null);
   const [profileData, setProfileData] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [recalculating, setRecalculating] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [activeMetric, setActiveMetric] = useState<MetricKey | null>(null);
+  const [metricDetail, setMetricDetail] = useState<any[]>([]);
+  const [metricLoading, setMetricLoading] = useState(false);
 
   const loadScore = useCallback(async () => {
     const [scoreRes, profileRes] = await Promise.all([
-      // Try user_scores_public view, fall back gracefully
       supabase.from('user_scores_public').select('*').eq('user_id', userId).maybeSingle(),
       supabase.from('profiles').select('first_name, last_name, avatar_url, phone, bio, kyc_verified').eq('id', userId).maybeSingle(),
     ]);
@@ -77,7 +78,6 @@ export default function ClientStats({ userId }: Props) {
       setScore(scoreRes.data as any);
       setLastUpdated(new Date());
     } else {
-      // No score yet — that's OK, show empty state
       setScore(null);
     }
     if (profileRes.data) setProfileData(profileRes.data);
@@ -87,10 +87,8 @@ export default function ClientStats({ userId }: Props) {
   const recalculate = async () => {
     setRecalculating(true);
     try {
-      // calculate_user_score returns a TABLE, not a single value
-      const { data, error } = await supabase.rpc('calculate_user_score', { _user_id: userId });
+      const { error } = await supabase.rpc('calculate_user_score', { _user_id: userId });
       if (error) throw error;
-      // After recalc, reload from user_scores_public which was updated
       await loadScore();
       toast({ title: 'Статистика обновлена' });
     } catch (err: any) {
@@ -98,14 +96,95 @@ export default function ClientStats({ userId }: Props) {
     } finally { setRecalculating(false); }
   };
 
-  // Auto-refresh every 3 minutes while tab is active
+  // Auto-recalc on mount
   useEffect(() => {
-    loadScore();
-    const interval = setInterval(loadScore, 3 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [loadScore]);
+    (async () => {
+      setLoading(true);
+      try {
+        await supabase.rpc('calculate_user_score', { _user_id: userId });
+      } catch {}
+      await loadScore();
+    })();
+  }, [userId, loadScore]);
+
+  const loadMetricDetail = async (metric: MetricKey) => {
+    setActiveMetric(metric);
+    setMetricLoading(true);
+    setMetricDetail([]);
+    try {
+      if (metric === 'no_show') {
+        const { data } = await supabase.from('bookings').select('id, scheduled_at, services!inner(name)').eq('client_id', userId).eq('status', 'no_show').order('scheduled_at', { ascending: false }).limit(20);
+        setMetricDetail(data || []);
+      } else if (metric === 'cancel_1h' || metric === 'cancel_3h') {
+        const { data } = await supabase.from('bookings').select('id, scheduled_at, cancellation_reason, services!inner(name)').eq('client_id', userId).eq('status', 'cancelled').order('scheduled_at', { ascending: false }).limit(30);
+        setMetricDetail(data || []);
+      } else if (metric === 'vip') {
+        const { data } = await supabase.from('client_tags').select('id, tagger_id, created_at, tag, profiles:tagger_id(first_name, last_name)').eq('client_id', userId).eq('tag', 'vip').limit(20);
+        setMetricDetail(data || []);
+      } else if (metric === 'blacklist') {
+        const { data } = await supabase.from('blacklists').select('id, blocker_id, reason, created_at, profiles:blocker_id(first_name, last_name)').eq('blocked_id', userId).limit(20);
+        setMetricDetail(data || []);
+      }
+    } catch {}
+    setMetricLoading(false);
+  };
 
   if (loading) return <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>;
+
+  // Metric detail drill-down view
+  if (activeMetric) {
+    const titles: Record<MetricKey, string> = {
+      no_show: 'Неявки — подробности',
+      cancel_1h: 'Отмены менее чем за 1 час',
+      cancel_3h: 'Отмены менее чем за 3 часа',
+      vip: 'Мастера, добавившие вас в VIP',
+      blacklist: 'Чёрные списки',
+    };
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" className="gap-1" onClick={() => setActiveMetric(null)}>
+          <ChevronLeft className="h-4 w-4" /> Назад к статистике
+        </Button>
+        <h3 className="font-semibold text-lg">{titles[activeMetric]}</h3>
+        {metricLoading ? (
+          <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin" /></div>
+        ) : metricDetail.length === 0 ? (
+          <p className="text-muted-foreground text-center py-8">Нет данных</p>
+        ) : (
+          <div className="space-y-2">
+            {metricDetail.map((item: any) => (
+              <Card key={item.id}>
+                <CardContent className="py-3 px-4">
+                  {(activeMetric === 'no_show' || activeMetric === 'cancel_1h' || activeMetric === 'cancel_3h') && (
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium">{(item.services as any)?.name || 'Услуга'}</p>
+                        <p className="text-xs text-muted-foreground">{new Date(item.scheduled_at).toLocaleDateString('ru-RU')}</p>
+                        {item.cancellation_reason && <p className="text-xs text-muted-foreground mt-1">Причина: {item.cancellation_reason}</p>}
+                      </div>
+                    </div>
+                  )}
+                  {activeMetric === 'vip' && (
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium">{(item as any).profiles?.first_name} {(item as any).profiles?.last_name}</p>
+                      <p className="text-xs text-muted-foreground">{new Date(item.created_at).toLocaleDateString('ru-RU')}</p>
+                    </div>
+                  )}
+                  {activeMetric === 'blacklist' && (
+                    <div>
+                      <p className="text-sm font-medium">{(item as any).profiles?.first_name} {(item as any).profiles?.last_name}</p>
+                      {item.reason && <p className="text-xs text-muted-foreground">Причина: {item.reason}</p>}
+                      <p className="text-xs text-muted-foreground">{new Date(item.created_at).toLocaleDateString('ru-RU')}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   const totalBookings = (score?.completed_visits ?? 0) + (score?.total_cancellations ?? 0) + (score?.no_show_count ?? 0);
   const isNewUser = !score || (score.account_age_days < 90 && score.completed_visits < 20);
@@ -116,12 +195,12 @@ export default function ClientStats({ userId }: Props) {
 
   const grayStyle = 'bg-muted border-border text-muted-foreground';
 
-  const metrics = score ? [
-    { label: 'Неявки', value: `${noShowP.toFixed(1)}%`, sub: `${score.no_show_count} из ${totalBookings}`, color: isNewUser ? grayStyle : noShowColor(noShowP) },
-    { label: 'Отмены < 1 часа', value: `${cancel1hP.toFixed(1)}%`, sub: `${score.cancel_under_1h} из ${totalBookings}`, color: isNewUser ? grayStyle : cancel1hColor(cancel1hP) },
-    { label: 'Отмены < 3 часов', value: `${cancel3hP.toFixed(1)}%`, sub: `${score.cancel_under_3h} из ${totalBookings}`, color: isNewUser ? grayStyle : cancel3hColor(cancel3hP) },
-    { label: 'VIP у мастеров', value: String(score.vip_by_count), sub: 'Добавили вас в VIP', color: isNewUser ? grayStyle : 'bg-primary/10 border-primary/30 text-primary' },
-    { label: 'В чёрных списках', value: String(score.blacklist_by_count), sub: score.blacklist_by_count > 0 ? `К VIP: ${score.vip_by_count > 0 ? ((score.blacklist_by_count / score.vip_by_count) * 100).toFixed(0) : '—'}%` : 'Не в ЧС', color: isNewUser ? grayStyle : blacklistColor(score.blacklist_by_count, score.vip_by_count) },
+  const metrics: { label: string; value: string; sub: string; color: string; metricKey: MetricKey }[] = score ? [
+    { label: 'Неявки', value: `${noShowP.toFixed(1)}%`, sub: `${score.no_show_count} из ${totalBookings}`, color: isNewUser ? grayStyle : noShowColor(noShowP), metricKey: 'no_show' },
+    { label: 'Отмены < 1 часа', value: `${cancel1hP.toFixed(1)}%`, sub: `${score.cancel_under_1h} из ${totalBookings}`, color: isNewUser ? grayStyle : cancel1hColor(cancel1hP), metricKey: 'cancel_1h' },
+    { label: 'Отмены < 3 часов', value: `${cancel3hP.toFixed(1)}%`, sub: `${score.cancel_under_3h} из ${totalBookings}`, color: isNewUser ? grayStyle : cancel3hColor(cancel3hP), metricKey: 'cancel_3h' },
+    { label: 'VIP у мастеров', value: String(score.vip_by_count), sub: 'Добавили вас в VIP', color: isNewUser ? grayStyle : 'bg-primary/10 border-primary/30 text-primary', metricKey: 'vip' },
+    { label: 'В чёрных списках', value: String(score.blacklist_by_count), sub: score.blacklist_by_count > 0 ? `К VIP: ${score.vip_by_count > 0 ? ((score.blacklist_by_count / score.vip_by_count) * 100).toFixed(0) : '—'}%` : 'Не в ЧС', color: isNewUser ? grayStyle : blacklistColor(score.blacklist_by_count, score.vip_by_count), metricKey: 'blacklist' },
   ] : [];
 
   return (
@@ -139,14 +218,14 @@ export default function ClientStats({ userId }: Props) {
         </div>
       </div>
 
-      {/* Privacy notice — what masters CAN see */}
+      {/* Privacy notice */}
       <Card className="border-amber-500/30 bg-amber-500/5">
         <CardContent className="pt-4 pb-4">
           <div className="flex gap-3">
             <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
             <div className="text-sm text-amber-700 dark:text-amber-400 space-y-1">
               <p className="font-medium">Что видят мастера о вас?</p>
-              <p>Мастера видят <strong>только обобщённые данные</strong>: «часто / редко / никогда». Точные цифры (количество неявок, отмен) мастерам <strong>не показываются</strong>. Они видят уровень надёжности: Высокий / Средний / Низкий.</p>
+              <p>Мастера видят <strong>только обобщённые данные</strong>: «часто / редко / никогда». Точные цифры мастерам <strong>не показываются</strong>.</p>
             </div>
           </div>
         </CardContent>
@@ -157,7 +236,7 @@ export default function ClientStats({ userId }: Props) {
         <Card>
           <CardContent className="pt-5">
             <p className="text-sm text-muted-foreground mb-3">
-              Статистика помогает мастерам оценить вашу надёжность. Хорошие показатели дают доступ к автоматическому подтверждению записей, скидкам и бонусам.
+              Хорошие показатели дают доступ к автоматическому подтверждению записей, скидкам и бонусам.
             </p>
             <div className="flex items-center gap-4 p-3 rounded-lg bg-muted">
               <div>
@@ -173,7 +252,7 @@ export default function ClientStats({ userId }: Props) {
             {isNewUser && (
               <div className="mt-3 p-3 rounded-lg bg-muted border border-border">
                 <p className="text-sm text-muted-foreground">
-                  📊 Пока мало данных — статистика становится информативной после 20 визитов или 3 месяцев. Показатели отображаются серым — это нормально для новых аккаунтов.
+                  📊 Пока мало данных — статистика становится информативной после 20 визитов или 3 месяцев.
                 </p>
               </div>
             )}
@@ -195,11 +274,15 @@ export default function ClientStats({ userId }: Props) {
         </Card>
       )}
 
-      {/* Metrics grid */}
+      {/* Metrics grid — clickable */}
       {metrics.length > 0 && (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {metrics.map((m, i) => (
-            <div key={i} className={`p-4 rounded-xl border ${m.color}`}>
+            <div
+              key={i}
+              className={`p-4 rounded-xl border cursor-pointer hover:ring-2 hover:ring-primary/30 transition-all ${m.color}`}
+              onClick={() => loadMetricDetail(m.metricKey)}
+            >
               {isNewUser && <p className="text-[10px] uppercase tracking-wider mb-1 opacity-60">Мало данных</p>}
               <p className="text-2xl font-bold">{m.value}</p>
               <p className="text-sm font-medium mt-1">{m.label}</p>
@@ -209,34 +292,39 @@ export default function ClientStats({ userId }: Props) {
         </div>
       )}
 
-      {/* Profile completeness — what influences master decisions */}
+      {/* Profile completeness */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <CheckCircle2 className="h-5 w-5 text-primary" /> Заполненность профиля
           </CardTitle>
           <p className="text-sm text-muted-foreground mt-1">
-            Мастера учитывают заполненность профиля при принятии решений о записи. Заполненный профиль = больше доверия.
+            Заполненный профиль = больше доверия от мастеров.
           </p>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
             {PROFILE_ITEMS.map(item => {
+              const isKyc = item.key === 'kyc_verified';
               const value = profileData[item.key];
-              const filled = item.key === 'kyc_verified' ? !!value : !!value && String(value).trim() !== '';
+              const filled = isKyc ? false : !!value && String(value).trim() !== '';
               return (
                 <div key={item.key} className="flex items-center gap-3 py-1.5">
-                  {filled
-                    ? <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
-                    : <XCircle className="h-4 w-4 text-muted-foreground shrink-0" />
+                  {isKyc
+                    ? <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
+                    : filled
+                      ? <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                      : <XCircle className="h-4 w-4 text-muted-foreground shrink-0" />
                   }
                   <div className="flex-1 min-w-0">
                     <span className={`text-sm font-medium ${filled ? 'text-foreground' : 'text-muted-foreground'}`}>{item.label}</span>
                     <p className="text-xs text-muted-foreground">{item.desc}</p>
                   </div>
-                  {filled
-                    ? <Badge variant="outline" className="text-primary border-primary/30 text-[10px]">Заполнено</Badge>
-                    : <Badge variant="secondary" className="text-[10px]">Пусто</Badge>
+                  {isKyc
+                    ? <Badge variant="secondary" className="text-[10px]">Временно недоступна</Badge>
+                    : filled
+                      ? <Badge variant="outline" className="text-primary border-primary/30 text-[10px]">Заполнено</Badge>
+                      : <Badge variant="secondary" className="text-[10px]">Пусто</Badge>
                   }
                 </div>
               );
