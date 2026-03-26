@@ -1,141 +1,124 @@
 
 
-# Plan: Client Notifications, Business Restructuring, Admin Dashboard, and Fixes
+# Отчет за сегодня: что сделано и что нет
 
-## Summary
-Multi-area fixes: restore client notifications to sidebar, auto-refresh stats, restructure business dashboard (transfer/manager, commissions, team, subscription), add admin dashboard blocks, improve moderation UI, rename admin tabs.
+## СДЕЛАНО (работает в текущем коде)
 
----
+### ЛК Клиент
+1. **Уведомления в боковом меню** — добавлены в `desktopMenuItems` и `mobileMenuItems` (строки 29-44)
+2. **Записи и Избранное убраны из бокового меню** — остались только как блоки в Обзоре
+3. **Уведомления — навигация по типу** — клик по уведомлению ведет на booking/chat/review/wallet (строки 199-210)
+4. **Текст "записался" → "вы записались"** — функция `fixNotifMessage` (строка 112)
+5. **Статистика — авто-пересчет при входе** — `useEffect` вызывает `calculate_user_score` RPC на mount (строки 99-108)
+6. **Статистика — активные блоки с drill-down** — клик по метрике → детальная расшифровка (неявки, отмены, VIP, ЧС) (строки 110-186, 277-293)
+7. **KYC — "Временно недоступна"** — иконка Lock + Badge "Временно недоступна" (строки 308-328)
+8. **Баланс — clickable balance cards** — вместо табов "История рублей/баллов" теперь 3 карточки с drill-down (ClientWallet.tsx, `activeView` state)
+9. **Баланс — campaign_hold отображается** — добавлен в TX_TYPE_MAP как "Резерв на рассылку" (строка 30)
 
-## 1. Client Dashboard — Notifications in Sidebar
+### ЛК Бизнес
+10. **CRM/ERP — страницы-хабы вместо подкатегорий в меню** — `SectionHub` компонент рендерит активные блоки (строки 646-650)
+11. **Сообщения — отдельный пункт в боковом меню** (строка 493)
+12. **Акции перенесены в CRM** (строка 507)
+13. **Справочники — отдельная вкладка** с типами клиентов, товарами, кассами, должностями (строки 520-525)
+14. **Должности — RolePermissionsEditor** — кнопка "Добавить" + кастомные роли с чекбоксами (RolePermissionsEditor.tsx полностью работает)
+15. **Комиссии перенесены в ERP** (строка 513)
+16. **Команда перенесена в Профиль организации** (строка 529)
+17. **Подписка перенесена в Профиль организации** (строка 530)
+18. **Кнопка "Назад" — навигация на предыдущую секцию** через `previousSection` state (строки 556-568)
+19. **Клиенты — агрегация из записей + чатов + ручных** (строки 227-300)
+20. **Клиенты — кнопка "Чат"** — переход в сообщения с конкретным клиентом (строка 398-401, 734)
+21. **Клиенты — кнопка "Объединить"** — поиск по SkillSpot ID (строки 314-344)
+22. **Склад — закупки и списания внутри** — `BusinessInventory` включает `BusinessProcurement` и `BusinessWriteOffs` как табы
+23. **Уведомления бизнеса — реальный счетчик** (строки 48-96)
+24. **Статистика бизнеса — реальные данные** включая pending, no_show (строки 441-486)
 
-**Problem:** Notifications section exists (`case 'notifications'`) but is missing from `desktopMenuItems` and `mobileMenuItems`.
+### ЛК Мастер
+25. **Уведомления с фильтрацией по cabinet_type** — `MasterNotifications` фильтрует `cabinet_type.eq.master` (строка 45)
+26. **Структура аналогична Бизнесу** — CRM/ERP хабы
 
-**Fix in `ClientDashboard.tsx`:**
-- Add `{ key: 'notifications', label: 'Уведомления', icon: Bell }` to `desktopMenuItems` (after "Общение")
-- Remove `bookings` and `favorites` from sidebar menus (keep as clickable blocks in overview)
-- Notification click → navigate to correct section based on `n.type` (already implemented in the `notifications` case)
+### Чаты
+27. **Cabinet isolation** — `cabinetContext` prop передается в `TeachingChats` (client/master/business/platform)
 
-## 2. Client Dashboard — Remove Bookings & Favorites from Sidebar
+### Площадка — Админ
+28. **Dashboard с активными блоками** — 4 карточки (модерация, споры, поддержка, заявки) с кликабельным переходом (строки 178-215)
+29. **Unread badge на поддержке** (строка 227)
+30. **Модерация — полная карточка бизнеса** с предупреждениями "Нет адреса", "Нет фото" и т.д. (строки 259-266)
 
-**Fix:** Remove `bookings` and `favorites` entries from `desktopMenuItems` and `mobileMenuItems`. They remain as active blocks in the overview grid (already clickable cards there).
+### Площадка — Супер Админ
+31. **Топ-блоки активные** — кликабельные карточки с drill-down (строка 182-186)
+32. **"Администраторы" → "Команда"** (строка 194)
+33. **Задачи (тикеты)** — вкладка с управлением статусами open/in_progress/resolved/closed (строки 262-270, 306-355)
+34. **Дашборд** — блоки Регистрации, Активные, Доход с drill-down (строки 272-295)
+35. **Подписки — кликабельные** — через `BonusSubscriptionPanel` (строка 298)
 
-## 3. Client Stats — Auto-refresh on Entry
+### Записи (Client)
+36. **Auto-archive** — `isBookingExpired` логика (строка 48-51)
+37. **Статусы завершенных** — "Состоялась", "Не состоялась", "Создать спор" кнопки
 
-**Problem:** `loadScore()` runs on mount + interval, but the `calculate_user_score` RPC is only called manually.
-
-**Fix in `ClientStats.tsx`:**
-- Call `recalculate()` automatically on mount (first render), not just `loadScore()`
-- Keep manual refresh button as well
-- Remove the interval-based `loadScore` (replace with single auto-recalc on mount)
-
-## 4. Client Stats — Active Blocks with Drill-down
-
-**Fix in `ClientStats.tsx`:**
-- Make metric cards clickable → set `activeMetric` state
-- When a metric is selected, show a detail panel below with breakdown (e.g., clicking "Неявки" shows list of no-show bookings, clicking "VIP" shows which masters added to VIP)
-- Add a back button to return to overview
-
-## 5. KYC Verification — "Temporarily Unavailable"
-
-**Fix in `ClientStats.tsx`:**
-- For the `kyc_verified` profile item, always show status "Временно недоступна" instead of "Пусто"
-- Disable any KYC-related actions
-
-## 6. Business Dashboard — Transfer Management → Profile
-
-**Problem:** "Передать управление" and "Назначить менеджера" buttons in overview don't work.
-
-**Fix:**
-- Move both buttons from overview (`case 'overview'`) to `case 'profile'` (BusinessSettings)
-- **Transfer ownership:** Add dialog → search user by SkillSpot ID → update `business_locations.owner_id`
-- **Assign manager:** Add dialog → search user → insert into `business_managers` table
-- Move "Команда" from ERP to profile section
-- Move "Подписка" from ERP to profile section
-
-## 7. Business Dashboard — Back Button Fix
-
-**Problem:** Back button in `DashboardLayout` calls `onBackToHub` which resets to business selector.
-
-**Fix in `BusinessDashboard.tsx`:**
-- Track navigation history with a `previousSection` state
-- When navigating into a sub-section (e.g., CRM → Clients), store the parent section
-- Back button returns to parent section, not to business selector
-
-## 8. Business Dashboard — Commissions to ERP
-
-**Fix:** Move `BusinessSettings` commission section to ERP sidebar items. Add `{ key: 'commissions', label: 'Комиссии', icon: DollarSign }` to `erpItems`.
-
-## 9. Business Dashboard — Directories: Positions Add Button
-
-**Problem:** `PositionsDirectory` renders `RolePermissionsEditor` which only shows system roles (master/manager/admin) without an "add" button.
-
-**Fix in `RolePermissionsEditor.tsx`:**
-- Add "Добавить должность" button
-- New custom roles stored in `business_locations.role_permissions` JSON under custom key
-- Each custom role gets same checkbox permission matrix as system roles
-
-## 10. Business Dashboard — Promotions Archive & Templates
-
-**Fix in `BusinessPromotions.tsx`:**
-- Add archive tab showing expired/completed promotions
-- Add "Типовые акции" section with template promotions (e.g., "Скидка новым клиентам", "Счастливые часы")
-- Creating from template pre-fills form fields (discount %, duration, target audience)
-
-## 11. Business Dashboard — Client Chat Button
-
-**Problem:** "Чат" button in BusinessClients is inactive.
-
-**Fix in `BusinessClients` (inside `BusinessDashboard.tsx`):**
-- Add a `MessageSquare` button per client row
-- On click → `setActiveSection('messages')` and pass the client ID to open chat with that specific contact
-- Or navigate to messages section with pre-selected contact
-
-## 12. Admin Dashboard — Add Dashboard Tab with Active Blocks
-
-**Fix in `AdminDashboard.tsx`:**
-- Add `dashboard` to `TAB_ACCESS` and `visibleTabs`
-- Create dashboard view with stat cards: Pending Moderation, Open Disputes, Unread Support, Role Requests
-- Each card clickable → switches to corresponding tab
-- Set `dashboard` as default tab
-
-## 13. SuperAdmin — Make All Blocks Active
-
-**Current state:** Dashboard blocks already navigate via `loadDetailView`. Stat cards at top (line 182-186) are NOT clickable.
-
-**Fix:**
-- Wrap the 4 top stat cards in clickable elements → navigate to detail views (users list, masters list, businesses list, networks list)
-
-## 14. Admin/SuperAdmin — Moderation: Full Business Card
-
-**Fix in `AdminDashboard.tsx` moderation section:**
-- Show complete business info: name, INN, address, director, photos, master count, service count
-- Highlight missing items with warning badges: "Нет мастера", "Нет адреса", "Нет фото"
-- Consolidate role requests + business creation requests + category requests into single "Модерация" tab as sub-sections
-
-## 15. SuperAdmin — Rename "Администраторы" to "Команда"
-
-**Fix:** Change tab label from "Администраторы" to "Команда". Show all platform-role users (moderator, platform_admin, super_admin, integrator) with role badges.
-
-## 16. Business Creation — Skip Steps Validation
-
-**Problem:** Allows submitting for moderation without adding a master.
-
-**Fix in `CreateBusinessAccount.tsx`:**
-- Already partially handled. Enforce that step validation doesn't allow skipping required steps before "Submit to moderation"
+### Инфраструктура
+38. **support_tickets таблица** — миграция создана
+39. **Тикеты в SuperAdmin** — отображение и управление статусами
 
 ---
 
-## Technical Details
+## НЕ СДЕЛАНО (требует доработки)
 
-### Files to modify:
-1. `src/components/dashboard/ClientDashboard.tsx` — sidebar items, remove bookings/favorites from menu, add notifications
-2. `src/components/dashboard/client/ClientStats.tsx` — auto-recalc on mount, clickable metric blocks, KYC "unavailable"
-3. `src/components/dashboard/BusinessDashboard.tsx` — move transfer/manager to profile, move team+subscription to profile, back button fix, client chat button, commissions to ERP
-4. `src/components/dashboard/business/RolePermissionsEditor.tsx` — add custom positions with checkbox permissions
-5. `src/components/dashboard/business/BusinessPromotions.tsx` — archive tab, template promotions
-6. `src/components/dashboard/AdminDashboard.tsx` — add dashboard tab, enhance moderation card, merge request types into moderation
-7. `src/components/dashboard/SuperAdminDashboard.tsx` — clickable top stat cards, rename "Администраторы" → "Команда"
+### Чаты и уведомления
+1. **Изоляция чатов по кабинету** — `cabinetContext` prop передается, но `fetchContacts()` в `TeachingChats.tsx` НЕ фильтрует контакты по ролям. Нет join с `user_roles`, нет логики `isAllowedContact`. Все контакты отображаются во всех кабинетах.
+2. **Счетчик непрочитанных на каждом чате** — в интерфейсе `ChatContact` есть `unread: number`, но не проверено что корректно считается per-contact
+3. **Уведомления бизнеса — нет фильтрации по cabinet_id** (по конкретной организации), показывает все уведомления пользователя
 
-### No database migrations needed — all changes are UI/frontend only.
+### ЛК Бизнес
+4. **Передать управление** — диалог и кнопка определены в state (строки 548-554), но кнопка НЕ рендерится ни в overview, ни в profile
+5. **Назначить менеджера** — аналогично, state есть, UI отсутствует
+6. **Создание бизнеса — пропуск шагов** — валидация не усилена в `CreateBusinessAccount.tsx`
+7. **Создание бизнеса — боковое меню в середине страницы** — не исправлено
+8. **Создание бизнеса — проверка подписки/лимитов** — частично (код добавлен ранее, но не проверена работоспособность)
+9. **Акции — архив и типовые шаблоны** — `BusinessPromotions.tsx` не содержит ни архивной вкладки, ни шаблонов
+
+### ЛК Мастер
+10. **Записи мастера — auto-archive и статусы** — `UniversalSchedule.tsx` не проверен/не обновлен с новой логикой
+
+### Площадка
+11. **Админ — тикетная система интегрирована в SupportChat** — `SupportChat.tsx` не создает тикеты автоматически при первом сообщении
+12. **Модерация — объединить все типы заявок** (роли + бизнес + категории) в единую вкладку "Модерация" — сейчас 3 отдельных таба
+13. **Команда SuperAdmin** — показывает только приглашения, НЕ показывает всех пользователей с ролями платформы (модераторы, админы, интеграторы)
+
+### Общее
+14. **Фото-кроп** — универсальный компонент для выбора зоны отображения при загрузке фото НЕ реализован
+15. **Геолокация** — кэширование в MapPicker добавлено ранее, но не проверено
+16. **Приватность клиента** (добавление в группы) — не реализовано
+17. **Поиск в архиве заявок** по клиенту/ID/дате — не реализован
+
+---
+
+## ПЛАН ДОРАБОТОК (приоритет)
+
+### Фаза 1: Критические исправления
+1. **TeachingChats — реальная фильтрация по кабинету**: в `fetchContacts` добавить join с `user_roles`, фильтровать контакты по роли (клиент видит только мастеров/бизнес/админ, и т.д.)
+2. **Передать управление + Назначить менеджера**: добавить кнопки и рабочие диалоги в секцию `profile` BusinessDashboard
+3. **SupportChat — авто-создание тикетов**: при первом сообщении создавать запись в `support_tickets`
+
+### Фаза 2: UI доработки
+4. **BusinessPromotions — архив + шаблоны**: добавить вкладку архива (expired), секцию "Типовые акции" с pre-fill
+5. **Модерация — единая вкладка**: объединить role_requests + category_requests + moderation в одну вкладку с суб-секциями
+6. **Команда SuperAdmin**: загружать всех пользователей с ролями `platform_admin`, `super_admin`, `moderator`, `integrator` из `user_roles`
+
+### Фаза 3: Функциональные дополнения
+7. **Уведомления бизнеса — фильтр по cabinet_id**: добавить `.eq('cabinet_id', selectedBusiness.id)` или null fallback
+8. **CreateBusinessAccount — валидация шагов**: блокировать "Отправить на модерацию" без мастера
+9. **UniversalSchedule — auto-archive + статусы**: аналог ClientBookings для мастера
+10. **Фото-кроп**: универсальный компонент поверх `PhotoUploader` для выбора зоны
+11. **Поиск в архиве заявок**: добавить фильтры в `BusinessBookingDetail`
+
+### Файлы для модификации:
+- `src/components/dashboard/teaching/TeachingChats.tsx` — фильтрация контактов
+- `src/components/dashboard/BusinessDashboard.tsx` — передача управления, менеджер
+- `src/components/dashboard/SupportChat.tsx` — авто-тикеты
+- `src/components/dashboard/business/BusinessPromotions.tsx` — архив, шаблоны
+- `src/components/dashboard/AdminDashboard.tsx` — объединение модерации
+- `src/components/dashboard/SuperAdminDashboard.tsx` — команда платформы
+- `src/components/dashboard/universal/UniversalSchedule.tsx` — auto-archive
+- `src/pages/CreateBusinessAccount.tsx` — валидация шагов
+- `src/components/marketplace/PhotoUploader.tsx` — кроп
 
