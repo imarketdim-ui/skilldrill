@@ -178,7 +178,7 @@ const AdminDashboard = () => {
           {canAccess('fraud_flags') && <TabsTrigger value="fraud_flags"><Flag className="h-4 w-4 mr-1" /> Антифрод</TabsTrigger>}
           {canAccess('promo_codes') && <TabsTrigger value="promo_codes"><Ticket className="h-4 w-4 mr-1" /> Промокоды</TabsTrigger>}
           {canAccess('disputes') && <TabsTrigger value="disputes"><AlertTriangle className="h-4 w-4 mr-1" /> Споры</TabsTrigger>}
-          {canAccess('support') && <TabsTrigger value="support"><MessageSquare className="h-4 w-4 mr-1" /> Поддержка</TabsTrigger>}
+          {canAccess('support') && <TabsTrigger value="support" className="gap-1"><MessageSquare className="h-4 w-4" /> Поддержка {unreadSupport > 0 && <Badge variant="destructive" className="h-4 px-1 text-[10px]">{unreadSupport}</Badge>}</TabsTrigger>}
         </TabsList>
 
         {canAccess('moderation') && (
