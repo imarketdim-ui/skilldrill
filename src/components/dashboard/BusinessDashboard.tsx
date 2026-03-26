@@ -731,7 +731,7 @@ const BusinessDashboard = () => {
       case 'marketing':
         return selectedBusiness ? <BusinessMarketing businessId={selectedBusiness.id} /> : null;
       case 'clients':
-        return selectedBusiness ? <BusinessClients businessId={selectedBusiness.id} /> : null;
+        return selectedBusiness ? <BusinessClients businessId={selectedBusiness.id} onOpenChat={(clientId) => { setChatTargetId(clientId); navigateTo('messages'); }} /> : null;
       case 'stats':
         return selectedBusiness ? <BusinessAnalytics businessId={selectedBusiness.id} /> : null;
       case 'messages':
