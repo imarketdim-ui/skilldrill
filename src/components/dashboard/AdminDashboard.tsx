@@ -216,11 +216,9 @@ const AdminDashboard = () => {
 
       <Tabs defaultValue={defaultTab} className="space-y-4">
         <TabsList className="flex-wrap">
-          {canAccess('moderation') && <TabsTrigger value="moderation"><Eye className="h-4 w-4 mr-1" /> Модерация {moderationItems.length > 0 && <Badge className="ml-1" variant="destructive">{moderationItems.length}</Badge>}</TabsTrigger>}
+          {canAccess('moderation') && <TabsTrigger value="moderation"><Eye className="h-4 w-4 mr-1" /> Модерация {(moderationItems.length + pendingRoles + pendingCategories) > 0 && <Badge className="ml-1" variant="destructive">{moderationItems.length + pendingRoles + pendingCategories}</Badge>}</TabsTrigger>}
           {canAccess('users') && <TabsTrigger value="users"><Users className="h-4 w-4 mr-1" /> Пользователи</TabsTrigger>}
-          {canAccess('role_requests') && <TabsTrigger value="role_requests"><Shield className="h-4 w-4 mr-1" /> Заявки на роли</TabsTrigger>}
           {canAccess('revocations') && <TabsTrigger value="revocations"><ShieldBan className="h-4 w-4 mr-1" /> Аннулирование</TabsTrigger>}
-          {canAccess('category_requests') && <TabsTrigger value="category_requests"><Tag className="h-4 w-4 mr-1" /> Категории</TabsTrigger>}
           {canAccess('fraud_flags') && <TabsTrigger value="fraud_flags"><Flag className="h-4 w-4 mr-1" /> Антифрод</TabsTrigger>}
           {canAccess('promo_codes') && <TabsTrigger value="promo_codes"><Ticket className="h-4 w-4 mr-1" /> Промокоды</TabsTrigger>}
           {canAccess('disputes') && <TabsTrigger value="disputes"><AlertTriangle className="h-4 w-4 mr-1" /> Споры</TabsTrigger>}
