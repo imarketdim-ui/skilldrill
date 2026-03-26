@@ -25,24 +25,22 @@ import ClientSettingsSection from '@/components/dashboard/client/ClientSettingsS
 import ClientBookings from '@/components/dashboard/client/ClientBookings';
 import ClientReviews from '@/components/dashboard/client/ClientReviews';
 
-// Desktop sidebar
+// Desktop sidebar — removed bookings & favorites, added notifications
 const desktopMenuItems = [
   { key: 'overview',       label: 'Обзор',         icon: LayoutDashboard },
-  { key: 'bookings',       label: 'Записи',         icon: Calendar },
-  { key: 'favorites',      label: 'Избранное',      icon: Heart },
   { key: 'reviews',        label: 'Отзывы',         icon: Star },
   { key: 'communication',  label: 'Общение',        icon: MessageSquare },
+  { key: 'notifications',  label: 'Уведомления',    icon: Bell },
   { key: 'stats',          label: 'Статистика',     icon: BarChart3 },
   { key: 'wallet',         label: 'Баланс и бонусы',icon: Wallet },
   { key: 'settings',       label: 'Настройки',      icon: Settings },
 ];
 
 const mobileMenuItems = [
-  { key: 'overview',      label: 'Обзор',    icon: LayoutDashboard },
-  { key: 'bookings',      label: 'Записи',   icon: Calendar },
-  { key: 'favorites',     label: 'Избранное',icon: Heart },
-  { key: 'communication', label: 'Общение',  icon: MessageSquare },
-  { key: 'settings',      label: 'Настройки',icon: Settings },
+  { key: 'overview',       label: 'Обзор',    icon: LayoutDashboard },
+  { key: 'communication',  label: 'Общение',  icon: MessageSquare },
+  { key: 'notifications',  label: 'Уведомл.', icon: Bell },
+  { key: 'settings',       label: 'Настройки',icon: Settings },
 ];
 
 const ClientDashboard = () => {
@@ -56,14 +54,12 @@ const ClientDashboard = () => {
   const [cabinetBalance, setCabinetBalance] = useState(0);
   const [pendingInvites, setPendingInvites] = useState(0);
   const [upcomingBookings, setUpcomingBookings] = useState<any[]>([]);
-  // Scoped to client cabinet only
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadChats, setUnreadChats] = useState(0);
 
   useEffect(() => {
     if (!user) return;
     Promise.all([
-      // Client cabinet balance (isolated)
       supabase.from('cabinet_balances')
         .select('main_balance')
         .eq('user_id', user.id)
@@ -73,7 +69,6 @@ const ClientDashboard = () => {
       supabase.from('admin_assignments')
         .select('id', { count: 'exact', head: true })
         .eq('assignee_id', user.id).eq('status', 'pending'),
-      // Upcoming bookings from both bookings + lesson_bookings
       supabase.from('bookings')
         .select('id, scheduled_at, status, services!inner(name), executor:profiles!bookings_executor_id_fkey(first_name, last_name)')
         .eq('client_id', user.id)
@@ -81,14 +76,12 @@ const ClientDashboard = () => {
         .gte('scheduled_at', new Date().toISOString())
         .order('scheduled_at', { ascending: true })
         .limit(5),
-      // Client-scoped notifications only (include null cabinet_type for backward compat)
       supabase.from('notifications')
         .select('*')
         .eq('user_id', user.id)
         .or('cabinet_type.eq.client,cabinet_type.is.null')
         .order('created_at', { ascending: false })
         .limit(30),
-      // Unread chats count — client cabinet scope
       supabase.from('chat_messages')
         .select('id', { count: 'exact', head: true })
         .eq('recipient_id', user.id)
@@ -116,7 +109,6 @@ const ClientDashboard = () => {
   const getInitials = () =>
     `${(profile?.first_name || '')[0] || ''}${(profile?.last_name || '')[0] || ''}`.toUpperCase() || '?';
 
-  // Fix notification messages to use first-person perspective
   const fixNotifMessage = (msg: string) => {
     if (!msg) return msg;
     return msg
@@ -165,7 +157,6 @@ const ClientDashboard = () => {
                 </TabsList>
                 <div className="p-0 md:p-4">
                   <TabsContent value="chats" className="mt-0">
-                    {/* isClientContext disables group creation, onUnreadChange syncs count */}
                     <TeachingChats cabinetContext="client" onUnreadChange={setUnreadChats} />
                   </TabsContent>
                   <TabsContent value="requests" className="mt-0 p-4 md:p-0"><ClientRequests /></TabsContent>
@@ -177,7 +168,7 @@ const ClientDashboard = () => {
         );
 
       case 'stats':
-        return user ? <ClientStats userId={user.id} /> : null;
+        return user ? <ClientStats userId={user.id} onNavigate={setActiveSection} /> : null;
 
       case 'wallet':
         return <ClientWallet />;
@@ -285,7 +276,7 @@ const ClientDashboard = () => {
             </Card>
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {/* Upcoming bookings */}
+              {/* Upcoming bookings — active block */}
               <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setActiveSection('bookings')}>
                 <CardContent className="pt-6">
                   <p className="text-sm text-muted-foreground">Ближайшие записи</p>
@@ -302,6 +293,20 @@ const ClientDashboard = () => {
                     {upcomingBookings.length === 0 && <p className="text-sm text-muted-foreground">Нет предстоящих записей</p>}
                   </div>
                   <Button variant="outline" size="sm" className="w-full mt-3">Открыть полный список</Button>
+                </CardContent>
+              </Card>
+
+              {/* Favorites — active block in overview */}
+              <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setActiveSection('favorites')}>
+                <CardContent className="pt-6">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Избранное</p>
+                      <p className="text-lg font-semibold mt-1">Мастера и услуги</p>
+                      <p className="text-xs text-muted-foreground mt-1">Ваши сохранённые</p>
+                    </div>
+                    <Heart className="h-5 w-5 text-muted-foreground" />
+                  </div>
                 </CardContent>
               </Card>
 
@@ -373,7 +378,6 @@ const ClientDashboard = () => {
 
   return (
     <div className="flex flex-col lg:flex-row lg:gap-6">
-      {/* Desktop: collapsible sidebar */}
       <aside className={`hidden lg:flex shrink-0 sticky top-20 self-start flex-col h-[calc(100vh-6rem)] transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-60'}`}>
         <div className="flex items-center gap-3 px-3 pb-4 border-b mb-4">
           {!sidebarCollapsed && (
@@ -433,11 +437,12 @@ const ClientDashboard = () => {
         )}
       </aside>
 
-      {/* Mobile/tablet: bottom bar */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-card border-t safe-area-bottom">
         <div className="flex justify-around items-center h-14">
           {mobileMenuItems.map(item => {
-            const badge = item.key === 'communication' ? totalUnread : 0;
+            const badge = item.key === 'communication' ? totalUnread
+              : item.key === 'notifications' ? notifications.filter(n => !n.is_read).length
+              : 0;
             return (
               <button
                 key={item.key}

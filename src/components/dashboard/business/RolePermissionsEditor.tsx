@@ -4,21 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Shield, Wrench, Briefcase, Save, RotateCcw } from 'lucide-react';
+import { Shield, Wrench, Briefcase, Save, RotateCcw, Plus, Trash2, UserCog } from 'lucide-react';
 
-interface Props {
-  businessId: string;
-}
+interface Props { businessId: string; }
+type RoleKey = string;
 
-type RoleKey = 'master' | 'manager' | 'admin';
-
-interface PermissionItem {
-  key: string;
-  label: string;
-  description: string;
-  group: string;
-}
+interface PermissionItem { key: string; label: string; description: string; group: string; }
 
 const permissionGroups = [
   { key: 'crm', label: 'CRM' },
@@ -27,7 +21,6 @@ const permissionGroups = [
 ];
 
 const permissions: PermissionItem[] = [
-  // CRM
   { key: 'bookings:view', label: 'Просмотр записей', description: 'Просмотр записей клиентов', group: 'crm' },
   { key: 'bookings:manage', label: 'Управление записями', description: 'Создание, редактирование и отмена записей', group: 'crm' },
   { key: 'schedule:view', label: 'Просмотр расписания', description: 'Просмотр расписания сотрудников', group: 'crm' },
@@ -37,7 +30,6 @@ const permissions: PermissionItem[] = [
   { key: 'chats:view', label: 'Чаты', description: 'Переписка с клиентами', group: 'crm' },
   { key: 'marketing:view', label: 'Просмотр рассылок', description: 'Просмотр истории рассылок', group: 'crm' },
   { key: 'marketing:manage', label: 'Отправка рассылок', description: 'Создание и отправка маркетинговых сообщений', group: 'crm' },
-  // ERP
   { key: 'stats:view', label: 'Статистика', description: 'Просмотр аналитики и отчётов', group: 'erp' },
   { key: 'services:view', label: 'Просмотр услуг', description: 'Каталог услуг организации', group: 'erp' },
   { key: 'services:manage', label: 'Управление услугами', description: 'Создание и редактирование услуг', group: 'erp' },
@@ -49,7 +41,6 @@ const permissions: PermissionItem[] = [
   { key: 'promotions:manage', label: 'Управление акциями', description: 'Создание и редактирование акций', group: 'erp' },
   { key: 'finance:view', label: 'Просмотр финансов', description: 'Доходы, расходы, отчёты', group: 'erp' },
   { key: 'finance:manage', label: 'Управление финансами', description: 'Добавление записей, выплаты', group: 'erp' },
-  // System
   { key: 'notifications:view', label: 'Уведомления', description: 'Получение системных уведомлений', group: 'system' },
   { key: 'profile:view', label: 'Просмотр профиля', description: 'Просмотр настроек организации', group: 'system' },
   { key: 'profile:manage', label: 'Редактирование профиля', description: 'Изменение данных организации', group: 'system' },
@@ -57,7 +48,7 @@ const permissions: PermissionItem[] = [
   { key: 'subscription:manage', label: 'Управление подпиской', description: 'Оплата и изменение тарифа', group: 'system' },
 ];
 
-const defaultPermissions: Record<RoleKey, string[]> = {
+const defaultPermissions: Record<string, string[]> = {
   master: [
     'bookings:view', 'schedule:view', 'clients:view', 'chats:view',
     'services:view', 'notifications:view',
@@ -84,7 +75,7 @@ const defaultPermissions: Record<RoleKey, string[]> = {
   ],
 };
 
-const roles: { key: RoleKey; label: string; icon: any; description: string }[] = [
+const systemRoles = [
   { key: 'master', label: 'Мастер', icon: Wrench, description: 'Специалист, оказывающий услуги' },
   { key: 'manager', label: 'Менеджер', icon: Briefcase, description: 'Управление записями и клиентами' },
   { key: 'admin', label: 'Управляющий', icon: Shield, description: 'Полное управление организацией' },
@@ -93,9 +84,12 @@ const roles: { key: RoleKey; label: string; icon: any; description: string }[] =
 const RolePermissionsEditor = ({ businessId }: Props) => {
   const { toast } = useToast();
   const [activeRole, setActiveRole] = useState<RoleKey>('master');
-  const [rolePerms, setRolePerms] = useState<Record<RoleKey, string[]>>(defaultPermissions);
+  const [rolePerms, setRolePerms] = useState<Record<string, string[]>>(defaultPermissions);
+  const [customRoles, setCustomRoles] = useState<{ key: string; label: string }[]>([]);
   const [saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [newRoleName, setNewRoleName] = useState('');
 
   useEffect(() => {
     const load = async () => {
@@ -106,12 +100,23 @@ const RolePermissionsEditor = ({ businessId }: Props) => {
         .single();
 
       if (data?.role_permissions && Object.keys(data.role_permissions as object).length > 0) {
-        const saved = data.role_permissions as Record<string, string[]>;
-        setRolePerms({
+        const saved = data.role_permissions as Record<string, any>;
+        const perms: Record<string, string[]> = {
           master: saved.master || defaultPermissions.master,
           manager: saved.manager || defaultPermissions.manager,
           admin: saved.admin || defaultPermissions.admin,
-        });
+        };
+        // Load custom roles
+        const customs: { key: string; label: string }[] = [];
+        const customMeta = saved._custom_roles as any[];
+        if (Array.isArray(customMeta)) {
+          customMeta.forEach((cr: any) => {
+            customs.push({ key: cr.key, label: cr.label });
+            perms[cr.key] = saved[cr.key] || [];
+          });
+        }
+        setCustomRoles(customs);
+        setRolePerms(perms);
       }
       setLoaded(true);
     };
@@ -120,7 +125,7 @@ const RolePermissionsEditor = ({ businessId }: Props) => {
 
   const togglePermission = (perm: string) => {
     setRolePerms(prev => {
-      const current = prev[activeRole];
+      const current = prev[activeRole] || [];
       const updated = current.includes(perm)
         ? current.filter(p => p !== perm)
         : [...current, perm];
@@ -131,7 +136,7 @@ const RolePermissionsEditor = ({ businessId }: Props) => {
   const toggleAll = (group: string, checked: boolean) => {
     const groupPerms = permissions.filter(p => p.group === group).map(p => p.key);
     setRolePerms(prev => {
-      const current = prev[activeRole];
+      const current = prev[activeRole] || [];
       const updated = checked
         ? [...new Set([...current, ...groupPerms])]
         : current.filter(p => !groupPerms.includes(p));
@@ -141,9 +146,10 @@ const RolePermissionsEditor = ({ businessId }: Props) => {
 
   const handleSave = async () => {
     setSaving(true);
+    const payload: Record<string, any> = { ...rolePerms, _custom_roles: customRoles };
     const { error } = await supabase
       .from('business_locations')
-      .update({ role_permissions: rolePerms as any })
+      .update({ role_permissions: payload as any })
       .eq('id', businessId);
 
     if (error) {
@@ -155,14 +161,46 @@ const RolePermissionsEditor = ({ businessId }: Props) => {
   };
 
   const handleReset = () => {
-    setRolePerms(prev => ({ ...prev, [activeRole]: defaultPermissions[activeRole] }));
+    const isSystem = systemRoles.some(r => r.key === activeRole);
+    if (isSystem) {
+      setRolePerms(prev => ({ ...prev, [activeRole]: defaultPermissions[activeRole] }));
+    } else {
+      setRolePerms(prev => ({ ...prev, [activeRole]: [] }));
+    }
     toast({ title: 'Сброшено к значениям по умолчанию' });
+  };
+
+  const handleAddRole = () => {
+    const trimmed = newRoleName.trim();
+    if (!trimmed) return;
+    const key = `custom_${Date.now()}`;
+    setCustomRoles(prev => [...prev, { key, label: trimmed }]);
+    setRolePerms(prev => ({ ...prev, [key]: [] }));
+    setActiveRole(key);
+    setNewRoleName('');
+    setAddDialogOpen(false);
+    toast({ title: `Должность «${trimmed}» добавлена` });
+  };
+
+  const handleDeleteCustomRole = (roleKey: string) => {
+    setCustomRoles(prev => prev.filter(r => r.key !== roleKey));
+    setRolePerms(prev => {
+      const { [roleKey]: _, ...rest } = prev;
+      return rest;
+    });
+    if (activeRole === roleKey) setActiveRole('master');
+    toast({ title: 'Должность удалена' });
   };
 
   if (!loaded) return <p className="text-center py-10 text-muted-foreground">Загрузка...</p>;
 
-  const currentPerms = rolePerms[activeRole];
-  const activeRoleInfo = roles.find(r => r.key === activeRole)!;
+  const allRoles = [
+    ...systemRoles.map(r => ({ ...r, isSystem: true })),
+    ...customRoles.map(r => ({ key: r.key, label: r.label, icon: UserCog, description: 'Пользовательская должность', isSystem: false })),
+  ];
+
+  const currentPerms = rolePerms[activeRole] || [];
+  const activeRoleInfo = allRoles.find(r => r.key === activeRole) || allRoles[0];
 
   return (
     <div className="space-y-6">
@@ -175,9 +213,9 @@ const RolePermissionsEditor = ({ businessId }: Props) => {
         </p>
       </div>
 
-      {/* Role tabs */}
-      <div className="flex gap-2 flex-wrap">
-        {roles.map(role => {
+      {/* Role tabs + Add button */}
+      <div className="flex gap-2 flex-wrap items-center">
+        {allRoles.map(role => {
           const Icon = role.icon;
           return (
             <Button
@@ -191,19 +229,27 @@ const RolePermissionsEditor = ({ businessId }: Props) => {
             </Button>
           );
         })}
+        <Button variant="outline" size="sm" className="gap-1" onClick={() => setAddDialogOpen(true)}>
+          <Plus className="h-4 w-4" /> Добавить
+        </Button>
       </div>
 
       {/* Role description */}
       <Card>
         <CardContent className="py-3 px-4 flex items-center gap-3">
           <activeRoleInfo.icon className="h-5 w-5 text-primary shrink-0" />
-          <div>
+          <div className="flex-1 min-w-0">
             <p className="font-medium text-sm">{activeRoleInfo.label}</p>
             <p className="text-xs text-muted-foreground">{activeRoleInfo.description}</p>
           </div>
-          <Badge variant="outline" className="ml-auto shrink-0">
+          <Badge variant="outline" className="shrink-0">
             {currentPerms.length}/{permissions.length} разрешений
           </Badge>
+          {!activeRoleInfo.isSystem && (
+            <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive shrink-0" onClick={() => handleDeleteCustomRole(activeRole)}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
         </CardContent>
       </Card>
 
@@ -262,6 +308,27 @@ const RolePermissionsEditor = ({ businessId }: Props) => {
           <Save className="h-4 w-4" /> {saving ? 'Сохранение...' : 'Сохранить'}
         </Button>
       </div>
+
+      {/* Add custom role dialog */}
+      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Новая должность</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <Input
+              placeholder="Название должности..."
+              value={newRoleName}
+              onChange={e => setNewRoleName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleAddRole()}
+            />
+            <p className="text-sm text-muted-foreground">
+              После создания выберите необходимые доступы через чекбоксы.
+            </p>
+            <Button onClick={handleAddRole} disabled={!newRoleName.trim()} className="w-full gap-1">
+              <Plus className="h-4 w-4" /> Создать должность
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
