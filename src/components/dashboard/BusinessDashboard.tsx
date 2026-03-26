@@ -643,11 +643,11 @@ const BusinessDashboard = () => {
   const renderContent = () => {
     switch (activeSection) {
       case 'crm':
-        return <SectionHub title="CRM" description="Управление клиентами и коммуникациями" items={crmItems} onNavigate={setActiveSection} />;
+        return <SectionHub title="CRM" description="Управление клиентами и коммуникациями" items={crmItems} onNavigate={navigateTo} />;
       case 'erp':
-        return <SectionHub title="ERP" description="Управление бизнес-процессами" items={erpItems} onNavigate={setActiveSection} />;
+        return <SectionHub title="ERP" description="Управление бизнес-процессами" items={erpItems} onNavigate={navigateTo} />;
       case 'directories':
-        return <SectionHub title="Справочники" description="Справочные данные и настройки" items={directoryItems} onNavigate={setActiveSection} />;
+        return <SectionHub title="Справочники" description="Справочные данные и настройки" items={directoryItems} onNavigate={navigateTo} />;
       case 'dir_client_types':
         return selectedBusiness ? <ClientTypeDirectory businessId={selectedBusiness.id} /> : null;
       case 'dir_products':
