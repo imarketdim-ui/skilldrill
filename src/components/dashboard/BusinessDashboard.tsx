@@ -659,7 +659,7 @@ const BusinessDashboard = () => {
       case 'overview':
         return (
           <div className="space-y-6">
-            <BusinessOnboardingTour onNavigate={setActiveSection} />
+            <BusinessOnboardingTour onNavigate={navigateTo} />
             {!canActivate && selectedBusiness && (
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
