@@ -541,7 +541,31 @@ const BusinessDashboard = () => {
   const [masterCount, setMasterCount] = useState(0);
   const [serviceCount, setServiceCount] = useState(0);
   const [activeSection, setActiveSection] = useState('overview');
+  const [previousSection, setPreviousSection] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [chatTargetId, setChatTargetId] = useState<string | null>(null);
+  // Transfer ownership dialog state
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [transferId, setTransferId] = useState('');
+  const [transferring, setTransferring] = useState(false);
+  // Assign manager dialog state
+  const [managerOpen, setManagerOpen] = useState(false);
+  const [managerId, setManagerId] = useState('');
+  const [assigningManager, setAssigningManager] = useState(false);
+
+  const navigateTo = (section: string) => {
+    setPreviousSection(activeSection);
+    setActiveSection(section);
+  };
+
+  const goBack = () => {
+    if (previousSection) {
+      setActiveSection(previousSection);
+      setPreviousSection(null);
+    } else {
+      setActiveSection('overview');
+    }
+  };
 
   const fetchBusinesses = useCallback(async () => {
     if (!user) return;
