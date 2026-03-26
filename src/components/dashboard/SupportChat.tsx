@@ -145,17 +145,17 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
         }
 
         // Auto-create support ticket on first message
-        const existingTickets = await supabase.from('support_tickets').select('id', { count: 'exact', head: true }).eq('user_id', user.id).in('status', ['open', 'in_progress']);
-        if ((existingTickets.count || 0) === 0) {
-          try {
+        try {
+          const existingTickets = await supabase.from('support_tickets').select('id', { count: 'exact', head: true }).eq('user_id', user.id).in('status', ['open', 'in_progress']);
+          if ((existingTickets.count || 0) === 0) {
             await supabase.from('support_tickets').insert({
               user_id: user.id,
               subject: newMessage.trim().slice(0, 100),
               category: 'support',
               status: 'open',
-            });
-          } catch (_) { /* table may not exist */ }
-        }
+            } as any);
+          }
+        } catch (_) { /* table may not exist yet */ }
 
         setNewMessage('');
         await fetchMessages();

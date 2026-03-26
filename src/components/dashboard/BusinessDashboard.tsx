@@ -45,7 +45,7 @@ import BusinessOnboardingTour from '../onboarding/BusinessOnboardingTour';
 import RolePermissionsEditor from './business/RolePermissionsEditor';
 
 // ── Notifications with real counter ──
-const BusinessNotifications = () => {
+const BusinessNotifications = ({ businessId }: { businessId?: string }) => {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [tab, setTab] = useState<'active' | 'archive'>('active');
 
@@ -53,12 +53,16 @@ const BusinessNotifications = () => {
     const fetch = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { data } = await supabase.from('notifications').select('*')
+      let query = supabase.from('notifications').select('*')
         .eq('user_id', user.id).order('created_at', { ascending: false }).limit(50);
+      if (businessId) {
+        query = query.or(`cabinet_id.eq.${businessId},cabinet_id.is.null`);
+      }
+      const { data } = await query;
       setNotifications(data || []);
     };
     fetch();
-  }, []);
+  }, [businessId]);
 
   const active = notifications.filter(n => !n.is_read);
   const archive = notifications;
@@ -534,6 +538,7 @@ const allItems = [...mainItems, ...sidebarSections];
 
 const BusinessDashboard = () => {
   const { user, profile, activeEntityId } = useAuth();
+  const { toast } = useToast();
   const pricing = usePlatformPricing();
   const [businesses, setBusinesses] = useState<any[]>([]);
   const [selectedBusiness, setSelectedBusiness] = useState<any>(null);
@@ -747,7 +752,7 @@ const BusinessDashboard = () => {
                 </TabsList>
                 <div className="p-6">
                   <TabsContent value="chats" className="mt-0"><TeachingChats cabinetContext="business" /></TabsContent>
-                  <TabsContent value="notifications" className="mt-0"><BusinessNotifications /></TabsContent>
+                  <TabsContent value="notifications" className="mt-0"><BusinessNotifications businessId={selectedBusiness?.id} /></TabsContent>
                   <TabsContent value="support" className="mt-0"><SupportChat /></TabsContent>
                 </div>
               </Tabs>
@@ -768,7 +773,65 @@ const BusinessDashboard = () => {
           />
         );
       case 'profile':
-        return selectedBusiness ? <BusinessSettings business={selectedBusiness} onUpdated={fetchBusinesses} /> : null;
+        return selectedBusiness ? (
+          <div className="space-y-6">
+            <BusinessSettings business={selectedBusiness} onUpdated={fetchBusinesses} />
+            {/* Transfer ownership */}
+            <Card>
+              <CardHeader><CardTitle className="text-base">Управление</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                <Button variant="outline" className="w-full gap-2" onClick={() => setTransferOpen(true)}>
+                  <ArrowRightLeft className="h-4 w-4" /> Передать управление
+                </Button>
+                <Button variant="outline" className="w-full gap-2" onClick={() => setManagerOpen(true)}>
+                  <UserPlus className="h-4 w-4" /> Назначить менеджера
+                </Button>
+              </CardContent>
+            </Card>
+            {/* Transfer dialog */}
+            <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Передать управление</DialogTitle></DialogHeader>
+                <p className="text-sm text-muted-foreground">Введите SkillSpot ID нового владельца. Действие необратимо.</p>
+                <Input placeholder="Например: AB1234" value={transferId} onChange={e => setTransferId(e.target.value)} />
+                <Button disabled={transferring || !transferId.trim()} className="w-full" onClick={async () => {
+                  setTransferring(true);
+                  const { data: target } = await supabase.from('profiles').select('id, first_name, last_name').eq('skillspot_id', transferId.trim().toUpperCase()).maybeSingle();
+                  if (!target) { toast({ title: 'Пользователь не найден', variant: 'destructive' }); setTransferring(false); return; }
+                  const { error } = await supabase.from('business_locations').update({ owner_id: target.id }).eq('id', selectedBusiness.id);
+                  if (error) { toast({ title: 'Ошибка', description: error.message, variant: 'destructive' }); } else {
+                    toast({ title: 'Управление передано', description: `Новый владелец: ${target.first_name} ${target.last_name}` });
+                    setTransferOpen(false); setTransferId(''); fetchBusinesses();
+                  }
+                  setTransferring(false);
+                }}>
+                  {transferring ? 'Передача...' : 'Передать'}
+                </Button>
+              </DialogContent>
+            </Dialog>
+            {/* Manager dialog */}
+            <Dialog open={managerOpen} onOpenChange={setManagerOpen}>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Назначить менеджера</DialogTitle></DialogHeader>
+                <p className="text-sm text-muted-foreground">Введите SkillSpot ID пользователя для назначения менеджером.</p>
+                <Input placeholder="Например: AB1234" value={managerId} onChange={e => setManagerId(e.target.value)} />
+                <Button disabled={assigningManager || !managerId.trim()} className="w-full" onClick={async () => {
+                  setAssigningManager(true);
+                  const { data: target } = await supabase.from('profiles').select('id, first_name, last_name').eq('skillspot_id', managerId.trim().toUpperCase()).maybeSingle();
+                  if (!target) { toast({ title: 'Пользователь не найден', variant: 'destructive' }); setAssigningManager(false); return; }
+                  const { error } = await supabase.from('business_managers').insert({ business_id: selectedBusiness.id, user_id: target.id });
+                  if (error) { toast({ title: 'Ошибка', description: error.message, variant: 'destructive' }); } else {
+                    toast({ title: 'Менеджер назначен', description: `${target.first_name} ${target.last_name}` });
+                    setManagerOpen(false); setManagerId('');
+                  }
+                  setAssigningManager(false);
+                }}>
+                  {assigningManager ? 'Назначение...' : 'Назначить'}
+                </Button>
+              </DialogContent>
+            </Dialog>
+          </div>
+        ) : null;
       default:
         return null;
     }
