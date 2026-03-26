@@ -191,7 +191,7 @@ const SuperAdminDashboard = () => {
           <TabsTrigger value="revocations"><ShieldBan className="h-4 w-4 mr-1" /> Аннулирование</TabsTrigger>
           <TabsTrigger value="categories"><FolderTree className="h-4 w-4 mr-1" /> Категории</TabsTrigger>
           <TabsTrigger value="reasons"><ListChecks className="h-4 w-4 mr-1" /> Причины</TabsTrigger>
-          <TabsTrigger value="admins"><Shield className="h-4 w-4 mr-1" /> Администраторы</TabsTrigger>
+          <TabsTrigger value="admins"><Shield className="h-4 w-4 mr-1" /> Команда</TabsTrigger>
           <TabsTrigger value="support" className="gap-1">
             <MessageSquare className="h-4 w-4" /> Поддержка
             {unreadSupport > 0 && <Badge variant="destructive" className="h-4 px-1 text-[10px]">{unreadSupport}</Badge>}

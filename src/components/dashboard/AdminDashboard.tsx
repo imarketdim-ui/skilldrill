@@ -161,11 +161,57 @@ const AdminDashboard = () => {
     support: 'Поддержка',
   };
 
+  // Dashboard stats
+  const pendingModeration = moderationItems.length;
+  const openDisputes = disputes.filter(d => d.status === 'open').length;
+  const pendingRoles = roleRequests.filter(r => r.status === 'pending').length;
+  const pendingCategories = categoryRequests.filter(r => r.status === 'pending').length;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Панель администратора</h2>
         <Badge variant="outline">{roleLabel[subRole] || subRole}</Badge>
+      </div>
+
+      {/* Dashboard overview cards */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {canAccess('moderation') && (
+          <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => { const el = document.querySelector('[data-value="moderation"]') as HTMLElement; el?.click(); }}>
+            <CardContent className="pt-6 text-center">
+              <Eye className="h-6 w-6 mx-auto mb-2 text-primary" />
+              <p className="text-2xl font-bold">{pendingModeration}</p>
+              <p className="text-sm text-muted-foreground">На модерации</p>
+            </CardContent>
+          </Card>
+        )}
+        {canAccess('disputes') && (
+          <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => { const el = document.querySelector('[data-value="disputes"]') as HTMLElement; el?.click(); }}>
+            <CardContent className="pt-6 text-center">
+              <AlertTriangle className="h-6 w-6 mx-auto mb-2 text-amber-500" />
+              <p className="text-2xl font-bold">{openDisputes}</p>
+              <p className="text-sm text-muted-foreground">Открытые споры</p>
+            </CardContent>
+          </Card>
+        )}
+        {canAccess('support') && (
+          <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => { const el = document.querySelector('[data-value="support"]') as HTMLElement; el?.click(); }}>
+            <CardContent className="pt-6 text-center">
+              <MessageSquare className="h-6 w-6 mx-auto mb-2 text-blue-500" />
+              <p className="text-2xl font-bold">{unreadSupport}</p>
+              <p className="text-sm text-muted-foreground">Непрочитанных</p>
+            </CardContent>
+          </Card>
+        )}
+        {canAccess('role_requests') && (
+          <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => { const el = document.querySelector('[data-value="role_requests"]') as HTMLElement; el?.click(); }}>
+            <CardContent className="pt-6 text-center">
+              <Shield className="h-6 w-6 mx-auto mb-2 text-purple-500" />
+              <p className="text-2xl font-bold">{pendingRoles + pendingCategories}</p>
+              <p className="text-sm text-muted-foreground">Заявок</p>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       <Tabs defaultValue={defaultTab} className="space-y-4">
