@@ -45,7 +45,7 @@ import BusinessOnboardingTour from '../onboarding/BusinessOnboardingTour';
 import RolePermissionsEditor from './business/RolePermissionsEditor';
 
 // ── Notifications with real counter ──
-const BusinessNotifications = () => {
+const BusinessNotifications = ({ businessId }: { businessId?: string }) => {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [tab, setTab] = useState<'active' | 'archive'>('active');
 
@@ -53,12 +53,16 @@ const BusinessNotifications = () => {
     const fetch = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { data } = await supabase.from('notifications').select('*')
+      let query = supabase.from('notifications').select('*')
         .eq('user_id', user.id).order('created_at', { ascending: false }).limit(50);
+      if (businessId) {
+        query = query.or(`cabinet_id.eq.${businessId},cabinet_id.is.null`);
+      }
+      const { data } = await query;
       setNotifications(data || []);
     };
     fetch();
-  }, []);
+  }, [businessId]);
 
   const active = notifications.filter(n => !n.is_read);
   const archive = notifications;
