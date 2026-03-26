@@ -703,7 +703,7 @@ const BusinessDashboard = () => {
         return selectedBusiness ? (
           <div className="space-y-4">
             <h3 className="text-lg font-semibold flex items-center gap-2"><DollarSign className="h-5 w-5" /> Настройки комиссий</h3>
-            <BusinessSettings business={selectedBusiness} onUpdated={fetchBusinesses} defaultTab="commissions" />
+            <BusinessSettings business={selectedBusiness} onUpdated={fetchBusinesses} />
           </div>
         ) : null;
       case 'bookings':
