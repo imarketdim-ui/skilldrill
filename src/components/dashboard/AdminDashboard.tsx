@@ -255,6 +255,15 @@ const AdminDashboard = () => {
                           {item._type === 'master' && (<><div><span className="text-muted-foreground">Категория:</span> {item.service_categories?.name || '—'}</div><div><span className="text-muted-foreground">Адрес:</span> {item.address || '—'}</div><div><span className="text-muted-foreground">Описание:</span> {item.description || '—'}</div></>)}
                           {item._type === 'business' && (<><div><span className="text-muted-foreground">ИНН:</span> {item.inn}</div><div><span className="text-muted-foreground">Адрес:</span> {item.address || '—'}</div><div><span className="text-muted-foreground">ФИО директора:</span> {item.director_name || '—'}</div><div><span className="text-muted-foreground">Email:</span> {item.contact_email || '—'}</div><div><span className="text-muted-foreground">Телефон:</span> {item.contact_phone || '—'}</div></>)}
                           {item._type === 'network' && (<><div><span className="text-muted-foreground">ИНН:</span> {item.inn || '—'}</div><div><span className="text-muted-foreground">Адрес:</span> {item.address || '—'}</div><div><span className="text-muted-foreground">ФИО директора:</span> {item.director_name || '—'}</div></>)}
+                          {/* Missing data warnings */}
+                          {item._type === 'business' && (
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                              {!item.address && <Badge variant="destructive" className="text-[10px]"><AlertTriangle className="h-3 w-3 mr-0.5" />Нет адреса</Badge>}
+                              {!item.director_name && <Badge variant="destructive" className="text-[10px]"><AlertTriangle className="h-3 w-3 mr-0.5" />Нет директора</Badge>}
+                              {(!item.work_photos || item.work_photos.length === 0) && (!item.interior_photos || item.interior_photos.length === 0) && <Badge variant="destructive" className="text-[10px]"><AlertTriangle className="h-3 w-3 mr-0.5" />Нет фото</Badge>}
+                              {!item.contact_phone && <Badge variant="destructive" className="text-[10px]"><AlertTriangle className="h-3 w-3 mr-0.5" />Нет телефона</Badge>}
+                            </div>
+                          )}
                           {(item.hashtags?.length > 0) && (<div className="flex flex-wrap gap-1">{item.hashtags.map((t: string) => <Badge key={t} variant="outline">#{t}</Badge>)}</div>)}
                           {(item.work_photos?.length > 0 || item.interior_photos?.length > 0 || item.certificate_photos?.length > 0) && (
                             <div className="flex flex-wrap gap-2 mt-1">
