@@ -116,12 +116,15 @@ const FileAttachDialog = ({ open, onClose, onSend, uploading }: FileAttachDialog
   );
 };
 
+export type CabinetContext = 'client' | 'master' | 'business' | 'platform';
+
 interface Props {
   isClientContext?: boolean;
+  cabinetContext?: CabinetContext;
   onUnreadChange?: (count: number) => void;
 }
 
-const TeachingChats = ({ isClientContext = false, onUnreadChange }: Props) => {
+const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange }: Props) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [contacts, setContacts] = useState<ChatContact[]>([]);
@@ -136,7 +139,10 @@ const TeachingChats = ({ isClientContext = false, onUnreadChange }: Props) => {
   const [totalUnread, setTotalUnread] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { if (user) fetchContacts(); }, [user]);
+  // Determine effective cabinet context
+  const effectiveCabinet: CabinetContext = cabinetContext || (isClientContext ? 'client' : 'master');
+
+  useEffect(() => { if (user) fetchContacts(); }, [user, effectiveCabinet]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   // Listen for open-chat-with event
@@ -157,7 +163,7 @@ const TeachingChats = ({ isClientContext = false, onUnreadChange }: Props) => {
   useEffect(() => {
     if (!user) return;
     const channel = supabase
-      .channel(`teaching-chat-${user.id}`)
+      .channel(`teaching-chat-${user.id}-${effectiveCabinet}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, (payload) => {
         const msg = payload.new as any;
         if (msg.chat_type === 'support') return;
@@ -180,13 +186,13 @@ const TeachingChats = ({ isClientContext = false, onUnreadChange }: Props) => {
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [user, selectedContact]);
+  }, [user, selectedContact, effectiveCabinet]);
 
   const fetchContacts = async () => {
     if (!user) return;
     setLoading(true);
-    // Direct messages: show ALL messages regardless of cabinet_type_scope
-    // Cabinet scope only matters for support messages (already excluded via chat_type != support)
+    
+    // Fetch all direct messages
     const { data: msgs } = await supabase.from('chat_messages').select('*')
       .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
       .neq('chat_type', 'support')
@@ -200,30 +206,81 @@ const TeachingChats = ({ isClientContext = false, onUnreadChange }: Props) => {
       return;
     }
 
+    // Collect unique contact IDs
     const contactIds = new Set<string>();
     msgs.forEach(m => {
       if (m.sender_id !== user.id) contactIds.add(m.sender_id);
       if (m.recipient_id !== user.id) contactIds.add(m.recipient_id);
     });
-    const { data: profiles } = await supabase.from('profiles').select('id, first_name, last_name, email').in('id', Array.from(contactIds));
+    
+    const contactIdArr = Array.from(contactIds);
+    if (contactIdArr.length === 0) {
+      setContacts([]);
+      setTotalUnread(0);
+      onUnreadChange?.(0);
+      setLoading(false);
+      return;
+    }
+
+    // Fetch profiles AND roles for cabinet-based filtering
+    const [profilesRes, rolesRes] = await Promise.all([
+      supabase.from('profiles').select('id, first_name, last_name, email').in('id', contactIdArr),
+      supabase.from('user_roles').select('user_id, role, is_active').in('user_id', contactIdArr).eq('is_active', true),
+    ]);
+    
+    const profiles = profilesRes.data || [];
+    const roles = rolesRes.data || [];
+    
+    // Build role map
+    const roleMap = new Map<string, Set<string>>();
+    roles.forEach(r => {
+      if (!roleMap.has(r.user_id)) roleMap.set(r.user_id, new Set());
+      roleMap.get(r.user_id)!.add(r.role);
+    });
+    
+    // Filter contacts by cabinet context
+    const isAllowedContact = (contactId: string): boolean => {
+      const contactRoles = roleMap.get(contactId) || new Set();
+      
+      const isMasterOrBusiness = contactRoles.has('master') || contactRoles.has('business_owner') || contactRoles.has('business_manager') || contactRoles.has('network_owner') || contactRoles.has('network_manager');
+      const isPlatform = contactRoles.has('platform_admin') || contactRoles.has('super_admin') || contactRoles.has('platform_manager') || contactRoles.has('moderator') || contactRoles.has('support');
+      const isClient = contactRoles.has('client');
+      
+      switch (effectiveCabinet) {
+        case 'client':
+          // Clients see masters, business staff, and platform admins
+          return isMasterOrBusiness || isPlatform;
+        case 'master':
+        case 'business':
+          // Business/Master see clients and platform admins
+          return isClient || isPlatform;
+        case 'platform':
+          // Platform sees clients and business users
+          return isClient || isMasterOrBusiness;
+        default:
+          return true;
+      }
+    };
 
     let unreadTotal = 0;
-    const contactList: ChatContact[] = (profiles || []).map(p => {
-      const contactMsgs = msgs.filter(m =>
-        (m.sender_id === p.id && m.recipient_id === user.id) ||
-        (m.sender_id === user.id && m.recipient_id === p.id)
-      );
-      const lastMsg = contactMsgs[0];
-      // Only count messages FROM this contact TO me that are unread
-      const unread = contactMsgs.filter(m => m.sender_id === p.id && m.recipient_id === user.id && !m.is_read).length;
-      unreadTotal += unread;
-      return {
-        id: p.id, first_name: p.first_name, last_name: p.last_name, email: p.email,
-        lastMessage: lastMsg?.attachment_url ? '📎 Вложение' : lastMsg?.message,
-        lastMessageAt: lastMsg?.created_at,
-        unread,
-      };
-    });
+    const contactList: ChatContact[] = profiles
+      .filter(p => isAllowedContact(p.id))
+      .map(p => {
+        const contactMsgs = msgs.filter(m =>
+          (m.sender_id === p.id && m.recipient_id === user.id) ||
+          (m.sender_id === user.id && m.recipient_id === p.id)
+        );
+        const lastMsg = contactMsgs[0];
+        const unread = contactMsgs.filter(m => m.sender_id === p.id && m.recipient_id === user.id && !m.is_read).length;
+        unreadTotal += unread;
+        return {
+          id: p.id, first_name: p.first_name, last_name: p.last_name, email: p.email,
+          lastMessage: lastMsg?.attachment_url ? '📎 Вложение' : lastMsg?.message,
+          lastMessageAt: lastMsg?.created_at,
+          unread,
+        };
+      });
+    
     setContacts(contactList.sort((a, b) => (b.lastMessageAt || '').localeCompare(a.lastMessageAt || '')));
     setTotalUnread(unreadTotal);
     onUnreadChange?.(unreadTotal);
@@ -267,6 +324,7 @@ const TeachingChats = ({ isClientContext = false, onUnreadChange }: Props) => {
       sender_id: user.id, recipient_id: selectedContact.id,
       message: messageText,
       chat_type: 'direct',
+      cabinet_type_scope: effectiveCabinet,
       attachment_url: attachmentUrl || null,
       attachment_type: attachmentType || null,
     });
@@ -286,20 +344,17 @@ const TeachingChats = ({ isClientContext = false, onUnreadChange }: Props) => {
         if (error) continue;
         const { data: urlData } = supabase.storage.from('portfolio').getPublicUrl(path);
         await sendMessage(urlData.publicUrl, item.type, comment || undefined);
-        // Only send comment with first file
       }
     } catch (err: any) {
       toast({ title: 'Ошибка загрузки', description: err.message, variant: 'destructive' });
     } finally { setUploadingFile(false); }
   };
 
-  // In client context: add to contacts list (bookmark), not to master's CRM
   const handleAddToContacts = async () => {
     if (!user || !selectedContact) return;
     toast({ title: 'Контакт сохранён', description: `${selectedContact.first_name || ''} добавлен в контакты` });
   };
 
-  // In master context: add to CRM clients
   const handleAddToClients = async () => {
     if (!user || !selectedContact) return;
     const { error } = await supabase.from('client_tags').insert({
@@ -378,97 +433,101 @@ const TeachingChats = ({ isClientContext = false, onUnreadChange }: Props) => {
             <div className="text-center py-12">
               <MessageSquare className="h-8 w-8 mx-auto mb-2 text-muted-foreground opacity-50" />
               <p className="text-sm text-muted-foreground">Нет диалогов</p>
-              <p className="text-xs text-muted-foreground mt-1">Начните общение через карточку специалиста</p>
             </div>
-          ) : (
-            filteredContacts.map(contact => (
-              <div
-                key={contact.id}
-                className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-muted/50 border-b transition-colors ${selectedContact?.id === contact.id ? 'bg-muted' : ''}`}
-                onClick={() => openChat(contact)}
-              >
-                <Avatar className="h-10 w-10 shrink-0">
-                  <AvatarFallback className="bg-primary/10 text-primary text-sm">{getInitials(contact.first_name, contact.last_name)}</AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <p className="font-medium text-sm truncate">{contact.first_name || ''} {contact.last_name || contact.email || ''}</p>
-                    <span className="text-xs text-muted-foreground shrink-0">{getTimeLabel(contact.lastMessageAt)}</span>
-                  </div>
-                  <div className="flex items-center justify-between mt-0.5">
-                    <p className="text-xs text-muted-foreground truncate">{contact.lastMessage || 'Начните диалог'}</p>
-                    {contact.unread > 0 && (
-                      <span className="bg-primary text-primary-foreground text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5 shrink-0 ml-2">{contact.unread}</span>
-                    )}
-                  </div>
+          ) : filteredContacts.map(contact => (
+            <div
+              key={contact.id}
+              className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-muted/50 border-b ${selectedContact?.id === contact.id ? 'bg-muted' : ''}`}
+              onClick={() => openChat(contact)}
+            >
+              <Avatar className="h-10 w-10 shrink-0">
+                <AvatarFallback className="text-xs bg-primary/10 text-primary">{getInitials(contact.first_name, contact.last_name)}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <p className="font-medium text-sm truncate">{contact.first_name} {contact.last_name}</p>
+                  <span className="text-[10px] text-muted-foreground shrink-0 ml-2">{getTimeLabel(contact.lastMessageAt)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground truncate">{contact.lastMessage || 'Нет сообщений'}</p>
+                  {contact.unread > 0 && (
+                    <span className="bg-primary text-primary-foreground text-[10px] rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shrink-0 ml-2">
+                      {contact.unread}
+                    </span>
+                  )}
                 </div>
               </div>
-            ))
-          )}
+            </div>
+          ))}
         </ScrollArea>
       </div>
 
-      {/* Messages Panel */}
-      <div className={`flex-1 flex flex-col min-w-0 ${!selectedContact ? 'hidden md:flex' : 'flex'}`}>
+      {/* Chat Area */}
+      <div className={`flex-1 flex flex-col ${!selectedContact ? 'hidden md:flex' : 'flex'}`}>
         {!selectedContact ? (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
             <div className="text-center">
               <MessageSquare className="h-12 w-12 mx-auto mb-3 opacity-30" />
-              <p>Выберите чат</p>
+              <p className="text-sm">Выберите диалог</p>
             </div>
           </div>
         ) : (
           <>
             {/* Chat Header */}
-            <div className="p-4 border-b flex items-center justify-between">
+            <div className="p-3 border-b flex items-center justify-between bg-card/80 backdrop-blur-sm">
               <div className="flex items-center gap-3">
-                <Button variant="ghost" size="sm" className="md:hidden" onClick={() => setSelectedContact(null)}>←</Button>
-                <Avatar className="h-9 w-9">
-                  <AvatarFallback className="bg-primary/10 text-primary text-sm">{getInitials(selectedContact.first_name, selectedContact.last_name)}</AvatarFallback>
+                <Button variant="ghost" size="icon" className="md:hidden h-8 w-8" onClick={() => setSelectedContact(null)}>←</Button>
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                    {getInitials(selectedContact.first_name, selectedContact.last_name)}
+                  </AvatarFallback>
                 </Avatar>
                 <div>
                   <p className="font-medium text-sm">{selectedContact.first_name} {selectedContact.last_name}</p>
+                  <p className="text-[10px] text-muted-foreground">{selectedContact.email}</p>
                 </div>
               </div>
-              <div className="flex gap-1">
-                <Button size="icon" variant="ghost" className="h-8 w-8" title={isClientContext ? 'Добавить в контакты' : 'Добавить в клиенты'}
-                  onClick={isClientContext ? handleAddToContacts : handleAddToClients}>
-                  <UserPlus className="h-4 w-4" />
-                </Button>
-                {!isClientContext && (
-                  <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" title="Заблокировать" onClick={handleBlockInChat}>
-                    <ShieldBan className="h-4 w-4" />
+              <div className="flex items-center gap-1">
+                {effectiveCabinet === 'client' ? (
+                  <Button size="icon" variant="ghost" className="h-8 w-8" title="Сохранить контакт" onClick={handleAddToContacts}>
+                    <UserPlus className="h-4 w-4" />
+                  </Button>
+                ) : (
+                  <Button size="icon" variant="ghost" className="h-8 w-8" title="Добавить в клиенты" onClick={handleAddToClients}>
+                    <UserPlus className="h-4 w-4" />
                   </Button>
                 )}
+                <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" title="Заблокировать" onClick={handleBlockInChat}>
+                  <ShieldBan className="h-4 w-4" />
+                </Button>
               </div>
             </div>
 
             {/* Messages */}
-            <ScrollArea className="flex-1 p-4">
-              <div className="space-y-3">
+            <ScrollArea className="flex-1 p-3">
+              <div className="space-y-2">
                 {messages.map(msg => (
                   <div key={msg.id} className={`flex ${msg.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm ${
+                    <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm ${
                       msg.sender_id === user?.id
                         ? 'bg-primary text-primary-foreground rounded-br-sm'
                         : 'bg-muted rounded-bl-sm'
                     }`}>
                       {msg.attachment_url && msg.attachment_type === 'image' && (
-                        <img src={msg.attachment_url} alt="" className="max-w-full rounded-lg mb-2 max-h-60 object-cover cursor-pointer" onClick={() => window.open(msg.attachment_url, '_blank')} />
+                        <img src={msg.attachment_url} alt="" className="rounded-lg max-w-[240px] mb-1 cursor-pointer" onClick={() => window.open(msg.attachment_url, '_blank')} />
                       )}
                       {msg.attachment_url && msg.attachment_type === 'file' && (
-                        <a href={msg.attachment_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2 rounded-lg bg-background/10 mb-2 hover:bg-background/20 transition-colors">
-                          <Paperclip className="h-4 w-4" />
-                          <span className="text-xs underline">Открыть файл</span>
+                        <a href={msg.attachment_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs underline mb-1">
+                          <Paperclip className="h-3 w-3" /> Скачать файл
                         </a>
                       )}
-                      {msg.message && msg.message !== '📷 Фото' && msg.message !== '📎 Файл' && (
+                      {msg.message && !(msg.attachment_url && (msg.message === '📷 Фото' || msg.message === '📎 Файл')) && (
                         <p className="whitespace-pre-wrap">{msg.message}</p>
                       )}
-                      <div className={`flex items-center gap-1 mt-1 ${msg.sender_id === user?.id ? 'justify-end' : ''}`}>
-                        <p className={`text-[10px] ${msg.sender_id === user?.id ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>
+                      <div className="flex items-center gap-1 mt-1 justify-end">
+                        <span className={`text-[10px] ${msg.sender_id === user?.id ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>
                           {format(new Date(msg.created_at), 'HH:mm')}
-                        </p>
+                        </span>
                         {getMessageStatus(msg)}
                       </div>
                     </div>
@@ -478,28 +537,36 @@ const TeachingChats = ({ isClientContext = false, onUnreadChange }: Props) => {
               </div>
             </ScrollArea>
 
-            {/* Emoji picker */}
-            {showEmoji && (
-              <div className="border-t p-2 grid grid-cols-10 gap-0.5 max-h-40 overflow-y-auto bg-muted/30">
-                {EMOJI_LIST.map(e => (
-                  <button key={e} className="text-xl hover:scale-125 transition-transform p-1 rounded hover:bg-muted" onClick={() => setNewMessage(prev => prev + e)}>{e}</button>
-                ))}
-              </div>
-            )}
-
             {/* Input */}
-            <div className="p-3 border-t flex items-center gap-2">
-              <Button size="icon" variant="ghost" className="text-muted-foreground shrink-0" onClick={() => setShowFileDialog(true)} disabled={uploadingFile} title="Прикрепить">
+            <div className="p-3 border-t flex items-end gap-2 bg-card/80">
+              <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => setShowFileDialog(true)}>
                 <Paperclip className="h-4 w-4" />
               </Button>
-              <Button size="icon" variant="ghost" className={`shrink-0 ${showEmoji ? 'text-primary' : 'text-muted-foreground'}`} onClick={() => setShowEmoji(!showEmoji)}>
-                <Smile className="h-4 w-4" />
-              </Button>
-              <Input
-                value={newMessage} onChange={e => setNewMessage(e.target.value)} onKeyDown={handleKeyDown}
-                placeholder="Написать сообщение..." className="flex-1"
-              />
-              <Button size="icon" onClick={() => sendMessage()} disabled={!newMessage.trim()} className="shrink-0">
+              <div className="flex-1 relative">
+                <Input
+                  value={newMessage}
+                  onChange={e => setNewMessage(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Сообщение..."
+                  className="pr-10"
+                />
+                <button
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowEmoji(!showEmoji)}
+                >
+                  <Smile className="h-4 w-4" />
+                </button>
+                {showEmoji && (
+                  <div className="absolute bottom-full right-0 mb-2 p-2 bg-card rounded-lg border shadow-lg grid grid-cols-10 gap-1 max-h-48 overflow-y-auto w-[320px] z-50">
+                    {EMOJI_LIST.map(e => (
+                      <button key={e} className="text-lg hover:bg-muted rounded p-0.5" onClick={() => { setNewMessage(prev => prev + e); setShowEmoji(false); }}>
+                        {e}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <Button size="icon" className="h-9 w-9 shrink-0" onClick={() => sendMessage()} disabled={!newMessage.trim()}>
                 <Send className="h-4 w-4" />
               </Button>
             </div>
@@ -507,12 +574,7 @@ const TeachingChats = ({ isClientContext = false, onUnreadChange }: Props) => {
         )}
       </div>
 
-      <FileAttachDialog
-        open={showFileDialog}
-        onClose={() => setShowFileDialog(false)}
-        onSend={handleFileSend}
-        uploading={uploadingFile}
-      />
+      <FileAttachDialog open={showFileDialog} onClose={() => setShowFileDialog(false)} onSend={handleFileSend} uploading={uploadingFile} />
     </div>
   );
 };
