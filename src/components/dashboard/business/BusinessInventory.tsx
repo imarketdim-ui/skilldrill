@@ -7,9 +7,12 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Pencil, Trash2, Package, AlertTriangle, Search } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import BusinessProcurement from './BusinessProcurement';
+import BusinessWriteOffs from './BusinessWriteOffs';
 
 interface InventoryItem {
   id: string;
@@ -120,72 +123,92 @@ const BusinessInventory = ({ businessId }: Props) => {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Склад</h2>
-          <p className="text-sm text-muted-foreground">{items.length} позиций · на {totalValue.toLocaleString()} ₽</p>
-        </div>
-        <Button onClick={openCreate}><Plus className="h-4 w-4 mr-1" /> Добавить</Button>
-      </div>
+      <Tabs defaultValue="stock" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="stock">Остатки</TabsTrigger>
+          <TabsTrigger value="procurement">Закупки</TabsTrigger>
+          <TabsTrigger value="writeoffs">Списания</TabsTrigger>
+        </TabsList>
 
-      {lowStockItems.length > 0 && (
-        <Card className="border-destructive/30 bg-destructive/5">
-          <CardContent className="py-3 px-4 flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
-            <span className="text-sm">Низкий остаток: {lowStockItems.map(i => i.name).join(', ')}</span>
-          </CardContent>
-        </Card>
-      )}
+        <TabsContent value="stock">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold">Склад</h2>
+                <p className="text-sm text-muted-foreground">{items.length} позиций · на {totalValue.toLocaleString()} ₽</p>
+              </div>
+              <Button onClick={openCreate}><Plus className="h-4 w-4 mr-1" /> Добавить</Button>
+            </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Поиск..." className="pl-10" />
-      </div>
+            {lowStockItems.length > 0 && (
+              <Card className="border-destructive/30 bg-destructive/5">
+                <CardContent className="py-3 px-4 flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+                  <span className="text-sm">Низкий остаток: {lowStockItems.map(i => i.name).join(', ')}</span>
+                </CardContent>
+              </Card>
+            )}
 
-      {loading ? (
-        <p className="text-center py-12 text-muted-foreground">Загрузка...</p>
-      ) : filtered.length === 0 ? (
-        <Card>
-          <CardContent className="text-center py-12">
-            <Package className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-            <p className="text-muted-foreground mb-4">Склад пуст</p>
-            <Button onClick={openCreate}><Plus className="h-4 w-4 mr-1" /> Добавить позицию</Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map(item => (
-            <Card key={item.id} className={item.quantity <= item.min_quantity && item.min_quantity > 0 ? 'border-destructive/30' : ''}>
-              <CardContent className="pt-4 pb-3 px-4">
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <p className="font-medium text-sm">{item.name}</p>
-                    {item.category && <Badge variant="outline" className="text-xs mt-0.5">{item.category}</Badge>}
-                  </div>
-                  <div className="flex gap-1">
-                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(item)}>
-                      <Pencil className="h-3 w-3" />
-                    </Button>
-                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleDelete(item.id)}>
-                      <Trash2 className="h-3 w-3 text-destructive" />
-                    </Button>
-                  </div>
-                </div>
-                <div className="flex items-baseline gap-2 text-sm">
-                  <span className={`font-bold text-lg ${item.quantity <= item.min_quantity && item.min_quantity > 0 ? 'text-destructive' : ''}`}>
-                    {item.quantity}
-                  </span>
-                  <span className="text-muted-foreground">{item.unit}</span>
-                  {item.min_quantity > 0 && (
-                    <span className="text-xs text-muted-foreground">мин: {item.min_quantity}</span>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">{item.price_per_unit.toLocaleString()} ₽/{item.unit}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Поиск..." className="pl-10" />
+            </div>
+
+            {loading ? (
+              <p className="text-center py-12 text-muted-foreground">Загрузка...</p>
+            ) : filtered.length === 0 ? (
+              <Card>
+                <CardContent className="text-center py-12">
+                  <Package className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                  <p className="text-muted-foreground mb-4">Склад пуст</p>
+                  <Button onClick={openCreate}><Plus className="h-4 w-4 mr-1" /> Добавить позицию</Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {filtered.map(item => (
+                  <Card key={item.id} className={item.quantity <= item.min_quantity && item.min_quantity > 0 ? 'border-destructive/30' : ''}>
+                    <CardContent className="pt-4 pb-3 px-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <p className="font-medium text-sm">{item.name}</p>
+                          {item.category && <Badge variant="outline" className="text-xs mt-0.5">{item.category}</Badge>}
+                        </div>
+                        <div className="flex gap-1">
+                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(item)}>
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleDelete(item.id)}>
+                            <Trash2 className="h-3 w-3 text-destructive" />
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="flex items-baseline gap-2 text-sm">
+                        <span className={`font-bold text-lg ${item.quantity <= item.min_quantity && item.min_quantity > 0 ? 'text-destructive' : ''}`}>
+                          {item.quantity}
+                        </span>
+                        <span className="text-muted-foreground">{item.unit}</span>
+                        {item.min_quantity > 0 && (
+                          <span className="text-xs text-muted-foreground">мин: {item.min_quantity}</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">{item.price_per_unit.toLocaleString()} ₽/{item.unit}</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="procurement">
+          <BusinessProcurement businessId={businessId} />
+        </TabsContent>
+
+        <TabsContent value="writeoffs">
+          <BusinessWriteOffs businessId={businessId} />
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent>

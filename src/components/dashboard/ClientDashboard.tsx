@@ -166,7 +166,7 @@ const ClientDashboard = () => {
                 <div className="p-0 md:p-4">
                   <TabsContent value="chats" className="mt-0">
                     {/* isClientContext disables group creation, onUnreadChange syncs count */}
-                    <TeachingChats isClientContext onUnreadChange={setUnreadChats} />
+                    <TeachingChats cabinetContext="client" onUnreadChange={setUnreadChats} />
                   </TabsContent>
                   <TabsContent value="requests" className="mt-0 p-4 md:p-0"><ClientRequests /></TabsContent>
                   <TabsContent value="support" className="mt-0 p-4 md:p-0"><SupportChat /></TabsContent>
