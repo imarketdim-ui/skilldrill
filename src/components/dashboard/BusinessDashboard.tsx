@@ -508,8 +508,6 @@ const erpItems = [
   { key: 'masters', label: 'Команда', icon: Users, description: 'Сотрудники' },
   { key: 'inventory', label: 'Склад', icon: Package, description: 'Товары и материалы' },
   { key: 'registers', label: 'Кассы', icon: Wallet, description: 'Наличные и безналичные' },
-  { key: 'procurement', label: 'Закупки', icon: Package, description: 'Закупка материалов' },
-  { key: 'writeoffs', label: 'Списания', icon: ClipboardList, description: 'Списание материалов' },
   { key: 'product_sales', label: 'Продажи', icon: Briefcase, description: 'Продажа товаров' },
   { key: 'finance', label: 'Финансы', icon: Wallet, description: 'Доходы и расходы' },
   { key: 'subscription', label: 'Подписка', icon: CreditCard, description: 'Тарифы и оплата' },
