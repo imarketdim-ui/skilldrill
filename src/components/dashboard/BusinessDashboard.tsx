@@ -632,7 +632,7 @@ const BusinessDashboard = () => {
     <Button
       variant={activeSection === item.key ? 'default' : 'ghost'}
       className={`w-full gap-3 ${sidebarCollapsed ? 'justify-center px-2' : 'justify-start'} ${activeSection === item.key ? '' : 'text-muted-foreground'}`}
-      onClick={() => setActiveSection(item.key)}
+      onClick={() => navigateTo(item.key)}
       title={sidebarCollapsed ? item.label : undefined}
     >
       <item.icon className="h-4 w-4 shrink-0" />
