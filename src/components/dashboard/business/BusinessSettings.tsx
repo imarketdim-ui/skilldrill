@@ -231,11 +231,21 @@ const BusinessSettings = ({ business, onUpdated }: Props) => {
             </div>
             <div className="space-y-2">
               <Label>Город</Label>
-              <Input value={form.city || ''} onChange={e => setForm((p: any) => ({ ...p, city: e.target.value }))} />
+              <Input value={form.city || ''} onChange={e => setForm((p: any) => ({ ...p, city: e.target.value }))} placeholder="Москва" />
             </div>
-            <div className="space-y-2">
-              <Label>Адрес</Label>
-              <Input value={form.address || ''} onChange={e => setForm((p: any) => ({ ...p, address: e.target.value }))} />
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-2">
+                <Label>Улица</Label>
+                <Input value={form.street || ''} onChange={e => setForm((p: any) => ({ ...p, street: e.target.value }))} placeholder="ул. Ленина" />
+              </div>
+              <div className="space-y-2">
+                <Label>Дом</Label>
+                <Input value={form.house || ''} onChange={e => setForm((p: any) => ({ ...p, house: e.target.value }))} placeholder="12" />
+              </div>
+              <div className="space-y-2">
+                <Label>Офис/кв.</Label>
+                <Input value={form.office || ''} onChange={e => setForm((p: any) => ({ ...p, office: e.target.value }))} placeholder="3" />
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Описание</Label>
