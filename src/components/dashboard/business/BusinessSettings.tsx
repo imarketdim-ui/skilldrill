@@ -58,12 +58,14 @@ const BusinessSettings = ({ business, onUpdated }: Props) => {
 
   useEffect(() => {
     if (business) {
+      const addressParts = (business.address || '').split(', ');
       setForm({
         name: business.name || '', inn: business.inn || '', legal_form: business.legal_form || '',
         address: business.address || '', city: business.city || '', description: business.description || '',
         director_name: business.director_name || '', contact_email: business.contact_email || '',
         contact_phone: business.contact_phone || '',
         timezone: (business as any).timezone || 'Europe/Moscow',
+        street: addressParts[0] || '', house: addressParts[1] || '', office: addressParts[2] || '',
       });
     }
   }, [business]);
