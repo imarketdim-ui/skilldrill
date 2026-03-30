@@ -299,6 +299,18 @@ const BusinessServices = ({ businessId }: Props) => {
               <Label>Активна</Label>
               <Switch checked={form.is_active} onCheckedChange={v => setForm(p => ({ ...p, is_active: v }))} />
             </div>
+            <div className="space-y-2 border-t pt-3">
+              <div className="flex items-center justify-between">
+                <Label>Перерыв после услуги</Label>
+                <Checkbox checked={form.break_after} onCheckedChange={v => setForm(p => ({ ...p, break_after: !!v }))} />
+              </div>
+              {form.break_after && (
+                <div className="flex items-center gap-2">
+                  <Input type="number" className="w-20" value={form.break_after_minutes} onChange={e => setForm(p => ({ ...p, break_after_minutes: e.target.value }))} min={5} max={60} />
+                  <span className="text-sm text-muted-foreground">минут</span>
+                </div>
+              )}
+            </div>
             <Button className="w-full" onClick={handleSave}>{editingId ? 'Сохранить' : 'Создать'}</Button>
           </div>
         </DialogContent>
