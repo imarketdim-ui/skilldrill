@@ -49,6 +49,7 @@ const BusinessServices = ({ businessId }: Props) => {
     name: '', description: '', price: '', duration_minutes: '',
     hashtags: [] as string[], hashtagInput: '', is_active: true,
     work_photos: [] as string[], assigned_master_id: '',
+    break_after: false, break_after_minutes: '15',
   });
 
   useEffect(() => { fetchAll(); }, [businessId]);
