@@ -1,124 +1,160 @@
 
 
-# Отчет за сегодня: что сделано и что нет
+# Plan: Business Dashboard Feature Additions (19 Items)
 
-## СДЕЛАНО (работает в текущем коде)
+## Audit Summary
 
-### ЛК Клиент
-1. **Уведомления в боковом меню** — добавлены в `desktopMenuItems` и `mobileMenuItems` (строки 29-44)
-2. **Записи и Избранное убраны из бокового меню** — остались только как блоки в Обзоре
-3. **Уведомления — навигация по типу** — клик по уведомлению ведет на booking/chat/review/wallet (строки 199-210)
-4. **Текст "записался" → "вы записались"** — функция `fixNotifMessage` (строка 112)
-5. **Статистика — авто-пересчет при входе** — `useEffect` вызывает `calculate_user_score` RPC на mount (строки 99-108)
-6. **Статистика — активные блоки с drill-down** — клик по метрике → детальная расшифровка (неявки, отмены, VIP, ЧС) (строки 110-186, 277-293)
-7. **KYC — "Временно недоступна"** — иконка Lock + Badge "Временно недоступна" (строки 308-328)
-8. **Баланс — clickable balance cards** — вместо табов "История рублей/баллов" теперь 3 карточки с drill-down (ClientWallet.tsx, `activeView` state)
-9. **Баланс — campaign_hold отображается** — добавлен в TX_TYPE_MAP как "Резерв на рассылку" (строка 30)
-
-### ЛК Бизнес
-10. **CRM/ERP — страницы-хабы вместо подкатегорий в меню** — `SectionHub` компонент рендерит активные блоки (строки 646-650)
-11. **Сообщения — отдельный пункт в боковом меню** (строка 493)
-12. **Акции перенесены в CRM** (строка 507)
-13. **Справочники — отдельная вкладка** с типами клиентов, товарами, кассами, должностями (строки 520-525)
-14. **Должности — RolePermissionsEditor** — кнопка "Добавить" + кастомные роли с чекбоксами (RolePermissionsEditor.tsx полностью работает)
-15. **Комиссии перенесены в ERP** (строка 513)
-16. **Команда перенесена в Профиль организации** (строка 529)
-17. **Подписка перенесена в Профиль организации** (строка 530)
-18. **Кнопка "Назад" — навигация на предыдущую секцию** через `previousSection` state (строки 556-568)
-19. **Клиенты — агрегация из записей + чатов + ручных** (строки 227-300)
-20. **Клиенты — кнопка "Чат"** — переход в сообщения с конкретным клиентом (строка 398-401, 734)
-21. **Клиенты — кнопка "Объединить"** — поиск по SkillSpot ID (строки 314-344)
-22. **Склад — закупки и списания внутри** — `BusinessInventory` включает `BusinessProcurement` и `BusinessWriteOffs` как табы
-23. **Уведомления бизнеса — реальный счетчик** (строки 48-96)
-24. **Статистика бизнеса — реальные данные** включая pending, no_show (строки 441-486)
-
-### ЛК Мастер
-25. **Уведомления с фильтрацией по cabinet_type** — `MasterNotifications` фильтрует `cabinet_type.eq.master` (строка 45)
-26. **Структура аналогична Бизнесу** — CRM/ERP хабы
-
-### Чаты
-27. **Cabinet isolation** — `cabinetContext` prop передается в `TeachingChats` (client/master/business/platform)
-
-### Площадка — Админ
-28. **Dashboard с активными блоками** — 4 карточки (модерация, споры, поддержка, заявки) с кликабельным переходом (строки 178-215)
-29. **Unread badge на поддержке** (строка 227)
-30. **Модерация — полная карточка бизнеса** с предупреждениями "Нет адреса", "Нет фото" и т.д. (строки 259-266)
-
-### Площадка — Супер Админ
-31. **Топ-блоки активные** — кликабельные карточки с drill-down (строка 182-186)
-32. **"Администраторы" → "Команда"** (строка 194)
-33. **Задачи (тикеты)** — вкладка с управлением статусами open/in_progress/resolved/closed (строки 262-270, 306-355)
-34. **Дашборд** — блоки Регистрации, Активные, Доход с drill-down (строки 272-295)
-35. **Подписки — кликабельные** — через `BonusSubscriptionPanel` (строка 298)
-
-### Записи (Client)
-36. **Auto-archive** — `isBookingExpired` логика (строка 48-51)
-37. **Статусы завершенных** — "Состоялась", "Не состоялась", "Создать спор" кнопки
-
-### Инфраструктура
-38. **support_tickets таблица** — миграция создана
-39. **Тикеты в SuperAdmin** — отображение и управление статусами
+| # | Feature | Status | Action |
+|---|---------|--------|--------|
+| 1 | Ручное добавление клиента (телефон, ДР, пол, источник, комментарий) | Partial — dialog exists but says "register first" | Implement full form |
+| 2 | Группы клиентов | Missing | Add to Directories + Clients page |
+| 3 | Данные по клиенту (визиты, средний чек, маржинальность) | Partial — visitCount, revenue exist | Add avg check, margin |
+| 4 | Категории клиентов (постоянные, VIP, спящие, пропавшие, штрафники) | Partial — ClientTypeDirectory exists | Wire categories to clients |
+| 5 | Бонусные программы | Missing | New component |
+| 6 | Оплата бонусами | Missing | New component |
+| 7 | Подарочные сертификаты | Missing | New component |
+| 8 | Чаевые | Missing | New section |
+| 9 | Штрафы клиентов | Missing | New component |
+| 10 | Акции (эффективность) | Partial — promotions exist, no analytics | Add effectiveness tracking |
+| 11 | График работы (шахматка) | Partial — UniversalSchedule has workHours config | Add monthly chess-grid editor |
+| 12 | Онлайн запись (мин. время, рассылки, оферта) | Missing | Add settings section |
+| 13 | Уведомления бизнеса (напоминания, поздравления) | Missing — only manual notifications | Add notification templates |
+| 14 | Товары и склад | Exists — BusinessInventory ✓ | Done |
+| 15 | Настройки — адрес по частям | Partial — single address field | Split into city/street/house/office |
+| 16 | Услуги — перерыв после услуги | Missing | Add break checkbox + duration |
+| 17 | Расчет зарплаты (% от услуги, фикс, возвращаемость) | Partial — PayrollSection exists with hardcoded values | Make configurable |
+| 18 | Начисление ЗП и взаиморасчеты | Partial — PayrollSection shows accruals | Add period-based scheme switching |
+| 19 | Группы сотрудников (стажер, специалист, мастер + премирование) | Missing | New section |
 
 ---
 
-## НЕ СДЕЛАНО (требует доработки)
+## Implementation Plan
 
-### Чаты и уведомления
-1. **Изоляция чатов по кабинету** — `cabinetContext` prop передается, но `fetchContacts()` в `TeachingChats.tsx` НЕ фильтрует контакты по ролям. Нет join с `user_roles`, нет логики `isAllowedContact`. Все контакты отображаются во всех кабинетах.
-2. **Счетчик непрочитанных на каждом чате** — в интерфейсе `ChatContact` есть `unread: number`, но не проверено что корректно считается per-contact
-3. **Уведомления бизнеса — нет фильтрации по cabinet_id** (по конкретной организации), показывает все уведомления пользователя
+### Phase 1: Client Management (Items 1-4, 9)
 
-### ЛК Бизнес
-4. **Передать управление** — диалог и кнопка определены в state (строки 548-554), но кнопка НЕ рендерится ни в overview, ни в profile
-5. **Назначить менеджера** — аналогично, state есть, UI отсутствует
-6. **Создание бизнеса — пропуск шагов** — валидация не усилена в `CreateBusinessAccount.tsx`
-7. **Создание бизнеса — боковое меню в середине страницы** — не исправлено
-8. **Создание бизнеса — проверка подписки/лимитов** — частично (код добавлен ранее, но не проверена работоспособность)
-9. **Акции — архив и типовые шаблоны** — `BusinessPromotions.tsx` не содержит ни архивной вкладки, ни шаблонов
+**1. Full Manual Client Form** (`BusinessDashboard.tsx` — `BusinessClients`)
+- Replace placeholder dialog with real form: name, phone, birthday, gender (М/Ж), source (dropdown: Instagram, Авито, Рекомендация, Сайт, Другое + custom input), comment
+- Store via `client_tags` with tag `manual_client` and JSON note containing all fields
+- No registration required — store as local business contact
 
-### ЛК Мастер
-10. **Записи мастера — auto-archive и статусы** — `UniversalSchedule.tsx` не проверен/не обновлен с новой логикой
+**2. Client Groups** (`BusinessDashboard.tsx` + new directory item)
+- Add `dir_client_groups` to `directoryItems`
+- Component: create/edit/delete groups per business, stored in `business_locations.role_permissions` JSON under `client_groups` key (or new simple table if needed)
+- On Clients page: bulk assign clients to groups, filter by group
 
-### Площадка
-11. **Админ — тикетная система интегрирована в SupportChat** — `SupportChat.tsx` не создает тикеты автоматически при первом сообщении
-12. **Модерация — объединить все типы заявок** (роли + бизнес + категории) в единую вкладку "Модерация" — сейчас 3 отдельных таба
-13. **Команда SuperAdmin** — показывает только приглашения, НЕ показывает всех пользователей с ролями платформы (модераторы, админы, интеграторы)
+**3. Client Stats Enhancement** (`BusinessClients`)
+- Calculate: avg check (`revenue / visitCount`), visits per month, margin (from tech cards if available)
+- Display in client card row
 
-### Общее
-14. **Фото-кроп** — универсальный компонент для выбора зоны отображения при загрузке фото НЕ реализован
-15. **Геолокация** — кэширование в MapPicker добавлено ранее, но не проверено
-16. **Приватность клиента** (добавление в группы) — не реализовано
-17. **Поиск в архиве заявок** по клиенту/ID/дате — не реализован
+**4. Client Categories Wiring**
+- Auto-categorize: VIP (>10 visits + high spend), Постоянные (>5 visits), Спящие (no visit 60+ days), Пропавшие (90+ days), Штрафники (no_show > 2)
+- Show category badge on each client card
+- Filter dropdown in client list
+
+**9. Client Penalties**
+- Add to CRM items: `{ key: 'penalties', label: 'Штрафы' }`
+- Settings: penalty amount per no-show, per late cancel, per reschedule
+- Display penalty history per client
+- Store in `business_finances` with category `penalty`
+
+### Phase 2: Loyalty & Payments (Items 5-8)
+
+**5. Bonus Programs** (new `BusinessBonusPrograms.tsx`)
+- Add to CRM items
+- Program types: birthday discount, holiday discount, early booking, cashback %, every Nth service free
+- Config: program name, type, value, conditions, active dates
+- Store in `promotions` table with `discount_type` extended or new `bonus_programs` JSON in `business_locations`
+
+**6. Bonus Payment Settings** (add to BusinessSettings)
+- Settings: max % payable by bonuses for services, for products, allow split payment
+- Store in `business_locations.role_permissions` JSON under `bonus_settings`
+
+**7. Gift Certificates** (new `BusinessGiftCertificates.tsx`)
+- Add to CRM items
+- Create certificate: amount, recipient name, validity period, unique code
+- Track: issued, redeemed, expired
+- Store in new section of `balance_transactions` or `promotions`
+
+**8. Tips** (new section in BusinessFinances)
+- Add tips tracking: per booking, manual entry
+- Display in PayrollSection as additional income per master
+- Store in `business_finances` with category `tips`
+
+### Phase 3: Schedule & Booking (Items 11-13, 16)
+
+**11. Work Schedule Chess-Grid** (enhance `BusinessSchedule.tsx`)
+- Monthly view: rows = days, columns = masters
+- Click cell to set: working/day-off/custom hours
+- Presets: weekdays only, all days, weekends only
+- Set working hours per day, break time
+- Save per master per month
+
+**12. Online Booking Settings** (new section in BusinessSettings)
+- Min booking time before appointment (1h, 2h, 4h, 24h, custom)
+- Consent to mailing checkbox (toggle requirement)
+- Booking terms/offer text (textarea, displayed to client at booking)
+- Store in `business_locations` JSON or dedicated columns
+
+**13. Notification Templates** (new `BusinessNotificationSettings.tsx`)
+- Template types: booking reminder (configurable hours before), post-cancel invite, birthday greeting, holiday greetings, reschedule notice, cancel notice, review request
+- Enable/disable each, set timing
+- Store config in `business_locations.role_permissions` JSON under `notification_templates`
+
+**16. Service Break After** (enhance `BusinessServices.tsx`)
+- Add to service form: checkbox "Перерыв после услуги" + duration input (5-60 min)
+- Store in `services` table — use `custom_data` JSON field: `{ break_after_minutes: 15 }`
+- Display in service card
+
+### Phase 4: Payroll & Staff (Items 17-19, 15)
+
+**17. Configurable Payroll** (enhance `PayrollSection` in `BusinessFinances.tsx`)
+- Per-master settings: calculation type (% from service / fixed / mixed)
+- Options: include/exclude discount, deduct material cost
+- Client retention bonus toggle + %
+- Product sales commission %
+- Store in `business_masters` — use `commission_percent` + extend with JSON config
+
+**18. Period-Based Schemes** (enhance `PayrollSection`)
+- Add period selector (monthly)
+- Allow different calculation schemes per period
+- History of scheme changes
+- Settlement report: accrued vs paid, balance
+
+**19. Employee Groups** (new section in Directories)
+- Add `dir_employee_groups` to `directoryItems`
+- Groups: Стажер, Специалист, Мастер, Старший мастер (system + custom)
+- Per group: level premium % (e.g., +5% for Мастер, +10% for Старший)
+- Assign masters to groups
+- Integrate with payroll calculation
+
+**15. Address Parts** (enhance `BusinessSettings.tsx`)
+- Replace single `address` field with: city (select), street, house, office/apartment
+- Compose full address string for storage in `address` field
+- Pre-fill city from existing data
+
+### Phase 5: Promotions Analytics (Item 10)
+
+**10. Promotion Effectiveness** (enhance `BusinessPromotions.tsx`)
+- Track per promotion: bookings created with promo, revenue from promo bookings, conversion rate
+- Display metrics on each promotion card
+- Archive tab with historical data (already partially built)
 
 ---
 
-## ПЛАН ДОРАБОТОК (приоритет)
+## Files to Modify/Create
 
-### Фаза 1: Критические исправления
-1. **TeachingChats — реальная фильтрация по кабинету**: в `fetchContacts` добавить join с `user_roles`, фильтровать контакты по роли (клиент видит только мастеров/бизнес/админ, и т.д.)
-2. **Передать управление + Назначить менеджера**: добавить кнопки и рабочие диалоги в секцию `profile` BusinessDashboard
-3. **SupportChat — авто-создание тикетов**: при первом сообщении создавать запись в `support_tickets`
+| File | Changes |
+|------|---------|
+| `BusinessDashboard.tsx` | Add CRM items (penalties, bonus programs, certificates), directory items (client groups, employee groups), client form enhancement |
+| `BusinessServices.tsx` | Add break_after checkbox + duration to form |
+| `BusinessSettings.tsx` | Split address fields, add online booking settings section |
+| `BusinessFinances.tsx` | Configurable payroll, tips category, period schemes |
+| `BusinessPromotions.tsx` | Add effectiveness metrics per promotion |
+| `BusinessSchedule.tsx` | Monthly chess-grid schedule editor |
+| New: `BusinessBonusPrograms.tsx` | Loyalty program management |
+| New: `BusinessGiftCertificates.tsx` | Certificate creation/tracking |
+| New: `BusinessNotificationSettings.tsx` | Notification template config |
+| New: `BusinessPenalties.tsx` | Client penalty management |
 
-### Фаза 2: UI доработки
-4. **BusinessPromotions — архив + шаблоны**: добавить вкладку архива (expired), секцию "Типовые акции" с pre-fill
-5. **Модерация — единая вкладка**: объединить role_requests + category_requests + moderation в одну вкладку с суб-секциями
-6. **Команда SuperAdmin**: загружать всех пользователей с ролями `platform_admin`, `super_admin`, `moderator`, `integrator` из `user_roles`
-
-### Фаза 3: Функциональные дополнения
-7. **Уведомления бизнеса — фильтр по cabinet_id**: добавить `.eq('cabinet_id', selectedBusiness.id)` или null fallback
-8. **CreateBusinessAccount — валидация шагов**: блокировать "Отправить на модерацию" без мастера
-9. **UniversalSchedule — auto-archive + статусы**: аналог ClientBookings для мастера
-10. **Фото-кроп**: универсальный компонент поверх `PhotoUploader` для выбора зоны
-11. **Поиск в архиве заявок**: добавить фильтры в `BusinessBookingDetail`
-
-### Файлы для модификации:
-- `src/components/dashboard/teaching/TeachingChats.tsx` — фильтрация контактов
-- `src/components/dashboard/BusinessDashboard.tsx` — передача управления, менеджер
-- `src/components/dashboard/SupportChat.tsx` — авто-тикеты
-- `src/components/dashboard/business/BusinessPromotions.tsx` — архив, шаблоны
-- `src/components/dashboard/AdminDashboard.tsx` — объединение модерации
-- `src/components/dashboard/SuperAdminDashboard.tsx` — команда платформы
-- `src/components/dashboard/universal/UniversalSchedule.tsx` — auto-archive
-- `src/pages/CreateBusinessAccount.tsx` — валидация шагов
-- `src/components/marketplace/PhotoUploader.tsx` — кроп
+No database migrations required — all new data stored in existing JSON fields (`custom_data`, `role_permissions`) or existing tables (`business_finances`, `promotions`, `client_tags`).
 
