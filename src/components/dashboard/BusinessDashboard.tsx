@@ -763,6 +763,22 @@ const BusinessDashboard = () => {
         return selectedBusiness ? <CashRegistersDirectory businessId={selectedBusiness.id} /> : null;
       case 'dir_positions':
         return selectedBusiness ? <PositionsDirectory businessId={selectedBusiness.id} /> : null;
+      case 'dir_client_groups':
+        return selectedBusiness ? <ClientTypeDirectory businessId={selectedBusiness.id} /> : null;
+      case 'dir_employee_groups':
+        return selectedBusiness ? <BusinessEmployeeGroups businessId={selectedBusiness.id} /> : null;
+      case 'bonus_programs':
+        return selectedBusiness ? <BusinessBonusPrograms businessId={selectedBusiness.id} /> : null;
+      case 'gift_certs':
+        return selectedBusiness ? <BusinessGiftCertificates businessId={selectedBusiness.id} /> : null;
+      case 'penalties':
+        return selectedBusiness ? <BusinessPenalties businessId={selectedBusiness.id} /> : null;
+      case 'booking_settings':
+        return selectedBusiness ? <BusinessBookingSettings businessId={selectedBusiness.id} /> : null;
+      case 'notif_settings':
+        return selectedBusiness ? <BusinessNotificationSettings businessId={selectedBusiness.id} /> : null;
+      case 'work_schedule':
+        return selectedBusiness ? <BusinessWorkSchedule businessId={selectedBusiness.id} /> : null;
       case 'overview':
         return (
           <div className="space-y-6">
