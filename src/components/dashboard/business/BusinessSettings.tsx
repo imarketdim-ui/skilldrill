@@ -58,20 +58,23 @@ const BusinessSettings = ({ business, onUpdated }: Props) => {
 
   useEffect(() => {
     if (business) {
+      const addressParts = (business.address || '').split(', ');
       setForm({
         name: business.name || '', inn: business.inn || '', legal_form: business.legal_form || '',
         address: business.address || '', city: business.city || '', description: business.description || '',
         director_name: business.director_name || '', contact_email: business.contact_email || '',
         contact_phone: business.contact_phone || '',
         timezone: (business as any).timezone || 'Europe/Moscow',
+        street: addressParts[0] || '', house: addressParts[1] || '', office: addressParts[2] || '',
       });
     }
   }, [business]);
 
   const handleSaveInfo = async () => {
     setSaving(true);
+    const composedAddress = [form.street, form.house, form.office].filter(Boolean).join(', ');
     const { error } = await supabase.from('business_locations').update({
-      name: form.name, inn: form.inn, legal_form: form.legal_form, address: form.address,
+      name: form.name, inn: form.inn, legal_form: form.legal_form, address: composedAddress || form.address,
       city: form.city || null, description: form.description || null, director_name: form.director_name,
       contact_email: form.contact_email, contact_phone: form.contact_phone,
     }).eq('id', business.id);
@@ -231,11 +234,21 @@ const BusinessSettings = ({ business, onUpdated }: Props) => {
             </div>
             <div className="space-y-2">
               <Label>Город</Label>
-              <Input value={form.city || ''} onChange={e => setForm((p: any) => ({ ...p, city: e.target.value }))} />
+              <Input value={form.city || ''} onChange={e => setForm((p: any) => ({ ...p, city: e.target.value }))} placeholder="Москва" />
             </div>
-            <div className="space-y-2">
-              <Label>Адрес</Label>
-              <Input value={form.address || ''} onChange={e => setForm((p: any) => ({ ...p, address: e.target.value }))} />
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-2">
+                <Label>Улица</Label>
+                <Input value={form.street || ''} onChange={e => setForm((p: any) => ({ ...p, street: e.target.value }))} placeholder="ул. Ленина" />
+              </div>
+              <div className="space-y-2">
+                <Label>Дом</Label>
+                <Input value={form.house || ''} onChange={e => setForm((p: any) => ({ ...p, house: e.target.value }))} placeholder="12" />
+              </div>
+              <div className="space-y-2">
+                <Label>Офис/кв.</Label>
+                <Input value={form.office || ''} onChange={e => setForm((p: any) => ({ ...p, office: e.target.value }))} placeholder="3" />
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Описание</Label>

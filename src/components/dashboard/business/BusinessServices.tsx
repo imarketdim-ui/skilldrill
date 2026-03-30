@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -49,6 +50,7 @@ const BusinessServices = ({ businessId }: Props) => {
     name: '', description: '', price: '', duration_minutes: '',
     hashtags: [] as string[], hashtagInput: '', is_active: true,
     work_photos: [] as string[], assigned_master_id: '',
+    break_after: false, break_after_minutes: '15',
   });
 
   useEffect(() => { fetchAll(); }, [businessId]);
@@ -77,7 +79,7 @@ const BusinessServices = ({ businessId }: Props) => {
 
   const openCreate = () => {
     setEditingId(null);
-    setForm({ name: '', description: '', price: '', duration_minutes: '', hashtags: [], hashtagInput: '', is_active: true, work_photos: [], assigned_master_id: '' });
+    setForm({ name: '', description: '', price: '', duration_minutes: '', hashtags: [], hashtagInput: '', is_active: true, work_photos: [], assigned_master_id: '', break_after: false, break_after_minutes: '15' });
     setIsOpen(true);
   };
 
@@ -88,6 +90,8 @@ const BusinessServices = ({ businessId }: Props) => {
       price: s.price != null ? String(s.price) : '', duration_minutes: s.duration_minutes != null ? String(s.duration_minutes) : '',
       hashtags: s.hashtags, hashtagInput: '', is_active: s.is_active, work_photos: s.work_photos,
       assigned_master_id: s.master_id || '',
+      break_after: !!(s as any).custom_data?.break_after_minutes,
+      break_after_minutes: String((s as any).custom_data?.break_after_minutes || '15'),
     });
     setIsOpen(true);
   };
@@ -104,6 +108,7 @@ const BusinessServices = ({ businessId }: Props) => {
       business_id: businessId,
       master_id: form.assigned_master_id || null,
       work_photos: form.work_photos,
+      custom_data: form.break_after ? { break_after_minutes: Number(form.break_after_minutes) } : {},
     };
     try {
       if (editingId) {
@@ -184,6 +189,9 @@ const BusinessServices = ({ businessId }: Props) => {
                       </span>
                     )}
                   </div>
+                  {(s as any).custom_data?.break_after_minutes && (
+                    <Badge variant="secondary" className="text-xs"><Clock className="h-2.5 w-2.5 mr-1" /> +{(s as any).custom_data.break_after_minutes} мин перерыв</Badge>
+                  )}
                   {assignedMaster && (
                     <Badge variant="outline" className="text-xs">
                       <Users className="h-2.5 w-2.5 mr-1" /> {assignedMaster.name}
@@ -294,6 +302,18 @@ const BusinessServices = ({ businessId }: Props) => {
             <div className="flex items-center justify-between">
               <Label>Активна</Label>
               <Switch checked={form.is_active} onCheckedChange={v => setForm(p => ({ ...p, is_active: v }))} />
+            </div>
+            <div className="space-y-2 border-t pt-3">
+              <div className="flex items-center justify-between">
+                <Label>Перерыв после услуги</Label>
+                <Checkbox checked={form.break_after} onCheckedChange={v => setForm(p => ({ ...p, break_after: !!v }))} />
+              </div>
+              {form.break_after && (
+                <div className="flex items-center gap-2">
+                  <Input type="number" className="w-20" value={form.break_after_minutes} onChange={e => setForm(p => ({ ...p, break_after_minutes: e.target.value }))} min={5} max={60} />
+                  <span className="text-sm text-muted-foreground">минут</span>
+                </div>
+              )}
             </div>
             <Button className="w-full" onClick={handleSave}>{editingId ? 'Сохранить' : 'Создать'}</Button>
           </div>
