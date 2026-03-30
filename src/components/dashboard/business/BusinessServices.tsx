@@ -107,6 +107,7 @@ const BusinessServices = ({ businessId }: Props) => {
       business_id: businessId,
       master_id: form.assigned_master_id || null,
       work_photos: form.work_photos,
+      custom_data: form.break_after ? { break_after_minutes: Number(form.break_after_minutes) } : {},
     };
     try {
       if (editingId) {
