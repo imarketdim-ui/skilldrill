@@ -228,24 +228,32 @@ const BusinessClients = ({ businessId, onOpenChat }: { businessId: string; onOpe
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [addManualOpen, setAddManualOpen] = useState(false);
-  const [manualForm, setManualForm] = useState({ name: '', phone: '', email: '', note: '' });
+  const [manualForm, setManualForm] = useState({ name: '', phone: '', birthday: '', gender: '', source: '', sourceCustom: '', comment: '' });
   const [mergeOpen, setMergeOpen] = useState(false);
   const [mergeTarget, setMergeTarget] = useState<any>(null);
   const [mergeSkillspotId, setMergeSkillspotId] = useState('');
+  const [filterCategory, setFilterCategory] = useState('all');
+
+  // Client groups
+  const [clientGroups, setClientGroups] = useState<string[]>([]);
+  useEffect(() => {
+    const saved = localStorage.getItem(`client_groups_${businessId}`);
+    if (saved) try { setClientGroups(JSON.parse(saved)); } catch {}
+  }, [businessId]);
+
+  const sourceOptions = ['Instagram', 'Авито', 'Рекомендация', 'Сайт', 'Яндекс Карты', '2ГИС', 'Другое'];
 
   useEffect(() => { if (user) fetchClients(); }, [user, businessId]);
 
   const fetchClients = async () => {
     if (!user) return;
     setLoading(true);
-    // Get clients from bookings
     const { data: bookings } = await supabase
       .from('bookings')
       .select('client_id, scheduled_at, status, services:service_id(price)')
       .eq('organization_id', businessId)
       .order('scheduled_at', { ascending: false });
 
-    // Get clients from chats (messages sent to business owner)
     const { data: chatMessages } = await supabase
       .from('chat_messages')
       .select('sender_id, recipient_id, created_at')
@@ -253,24 +261,24 @@ const BusinessClients = ({ businessId, onOpenChat }: { businessId: string; onOpe
       .order('created_at', { ascending: false })
       .limit(500);
 
-    // Get manually added clients
     const { data: manualClients } = await supabase
       .from('client_tags')
       .select('client_id, note, created_at')
       .eq('tagger_id', user.id)
-      .eq('tag', 'manual_client');
+      .eq('tag', 'manual_client')
+      .eq('business_id', businessId);
 
-    // Collect all unique client IDs
     const clientMap = new Map<string, any>();
 
     (bookings || []).forEach((b: any) => {
       if (b.client_id === user.id) return;
       if (!clientMap.has(b.client_id)) {
-        clientMap.set(b.client_id, { id: b.client_id, sources: new Set(['booking']), visitCount: 0, lastVisit: b.scheduled_at, revenue: 0 });
+        clientMap.set(b.client_id, { id: b.client_id, sources: new Set(['booking']), visitCount: 0, lastVisit: b.scheduled_at, revenue: 0, noShowCount: 0 });
       }
       const c = clientMap.get(b.client_id);
       c.sources.add('booking');
       c.visitCount++;
+      if (b.status === 'no_show') c.noShowCount = (c.noShowCount || 0) + 1;
       if (b.status === 'completed') c.revenue += Number((b.services as any)?.price || 0);
       if (new Date(b.scheduled_at) > new Date(c.lastVisit)) c.lastVisit = b.scheduled_at;
     });
@@ -287,13 +295,14 @@ const BusinessClients = ({ businessId, onOpenChat }: { businessId: string; onOpe
 
     (manualClients || []).forEach((mc: any) => {
       if (!clientMap.has(mc.client_id)) {
-        clientMap.set(mc.client_id, { id: mc.client_id, sources: new Set(['manual']), visitCount: 0, lastVisit: mc.created_at, revenue: 0, note: mc.note });
+        let noteData: any = {};
+        try { noteData = JSON.parse(mc.note || '{}'); } catch {}
+        clientMap.set(mc.client_id, { id: mc.client_id, sources: new Set(['manual']), visitCount: 0, lastVisit: mc.created_at, revenue: 0, note: mc.note, manualData: noteData });
       } else {
         clientMap.get(mc.client_id).sources.add('manual');
       }
     });
 
-    // Fetch profiles
     const ids = Array.from(clientMap.keys());
     if (ids.length > 0) {
       const { data: profiles } = await supabase.from('profiles').select('id, first_name, last_name, phone, email, skillspot_id').in('id', ids);
@@ -308,56 +317,80 @@ const BusinessClients = ({ businessId, onOpenChat }: { businessId: string; onOpe
       });
     }
 
-    setClients(Array.from(clientMap.values()).map(c => ({ ...c, sources: Array.from(c.sources) })));
+    // Assign auto-categories
+    const now = new Date();
+    const allClients = Array.from(clientMap.values()).map(c => {
+      c.sources = Array.from(c.sources);
+      c.avgCheck = c.visitCount > 0 ? Math.round(c.revenue / c.visitCount) : 0;
+      const daysSinceLast = c.lastVisit ? Math.floor((now.getTime() - new Date(c.lastVisit).getTime()) / (1000 * 60 * 60 * 24)) : 999;
+      if (c.noShowCount > 2) c.category = 'Штрафник';
+      else if (c.visitCount > 10 && c.revenue > 50000) c.category = 'VIP';
+      else if (c.visitCount > 5) c.category = 'Постоянный';
+      else if (daysSinceLast > 90) c.category = 'Пропавший';
+      else if (daysSinceLast > 60) c.category = 'Спящий';
+      else if (c.visitCount === 0 && c.sources.includes('chat')) c.category = 'Не посещал';
+      else c.category = 'Новый';
+      return c;
+    });
+
+    setClients(allClients);
     setLoading(false);
   };
 
   const handleAddManual = async () => {
-    if (!manualForm.name.trim()) {
-      toast({ title: 'Введите имя', variant: 'destructive' });
-      return;
-    }
-    // For manual clients we need a real user profile. Show info about this.
-    toast({ title: 'Для добавления клиента вручную', description: 'Попросите клиента зарегистрироваться на платформе и сообщить свой ID. Затем используйте функцию «Объединить».' });
+    if (!manualForm.name.trim()) { toast({ title: 'Введите имя', variant: 'destructive' }); return; }
+    if (!user) return;
+    // Store manual client data as JSON in client_tags note
+    const noteData = JSON.stringify({
+      name: manualForm.name, phone: manualForm.phone, birthday: manualForm.birthday,
+      gender: manualForm.gender, source: manualForm.source === 'Другое' ? manualForm.sourceCustom : manualForm.source,
+      comment: manualForm.comment,
+    });
+    // Use user's own id as client_id placeholder (will be merged later)
+    const tempId = user.id; // Placeholder until client registers
+    await supabase.from('client_tags').insert({
+      client_id: tempId, tagger_id: user.id, business_id: businessId,
+      tag: 'manual_client', note: noteData,
+    });
+    toast({ title: 'Клиент добавлен', description: 'Данные сохранены. При регистрации клиента используйте «Объединить».' });
     setAddManualOpen(false);
+    setManualForm({ name: '', phone: '', birthday: '', gender: '', source: '', sourceCustom: '', comment: '' });
+    fetchClients();
   };
 
   const handleMerge = async () => {
-    if (!mergeTarget || !mergeSkillspotId.trim()) {
-      toast({ title: 'Введите ID клиента', variant: 'destructive' });
-      return;
-    }
-    // Find user by skillspot_id
+    if (!mergeTarget || !mergeSkillspotId.trim()) { toast({ title: 'Введите ID клиента', variant: 'destructive' }); return; }
     const { data: targetProfile } = await supabase.from('profiles')
       .select('id, first_name, last_name, skillspot_id')
-      .eq('skillspot_id', mergeSkillspotId.trim())
-      .maybeSingle();
-
-    if (!targetProfile) {
-      toast({ title: 'Клиент не найден', description: 'Проверьте ID', variant: 'destructive' });
-      return;
-    }
-    if (targetProfile.id === mergeTarget.id) {
-      toast({ title: 'Это тот же клиент', variant: 'destructive' });
-      return;
-    }
-
-    // Mark as merged via tag
+      .eq('skillspot_id', mergeSkillspotId.trim()).maybeSingle();
+    if (!targetProfile) { toast({ title: 'Клиент не найден', variant: 'destructive' }); return; }
+    if (targetProfile.id === mergeTarget.id) { toast({ title: 'Это тот же клиент', variant: 'destructive' }); return; }
     await supabase.from('client_tags').insert({
       client_id: targetProfile.id, tagger_id: user!.id,
       tag: 'merged_from', note: `Объединён с ${mergeTarget.name} (${mergeTarget.id})`
     });
-
-    toast({ title: 'Клиенты отмечены для объединения', description: `${mergeTarget.name} → ${targetProfile.first_name} ${targetProfile.last_name}. История будет учитываться в рейтинге нового профиля.` });
-    setMergeOpen(false);
-    setMergeTarget(null);
-    setMergeSkillspotId('');
+    toast({ title: 'Клиенты объединены' });
+    setMergeOpen(false); setMergeTarget(null); setMergeSkillspotId('');
     fetchClients();
   };
 
-  const filtered = search
-    ? clients.filter(c => c.name?.toLowerCase().includes(search.toLowerCase()) || c.phone?.includes(search) || c.skillspot_id?.includes(search))
-    : clients;
+  const categoryColor = (cat: string) => {
+    const map: Record<string, string> = {
+      'VIP': 'bg-yellow-100 text-yellow-800', 'Постоянный': 'bg-green-100 text-green-800',
+      'Спящий': 'bg-blue-100 text-blue-800', 'Пропавший': 'bg-red-100 text-red-800',
+      'Штрафник': 'bg-destructive/10 text-destructive', 'Не посещал': 'bg-muted text-muted-foreground',
+      'Новый': 'bg-primary/10 text-primary',
+    };
+    return map[cat] || '';
+  };
+
+  const categories = ['all', 'VIP', 'Постоянный', 'Новый', 'Спящий', 'Пропавший', 'Штрафник', 'Не посещал'];
+
+  const filtered = clients.filter(c => {
+    if (filterCategory !== 'all' && c.category !== filterCategory) return false;
+    if (search) return c.name?.toLowerCase().includes(search.toLowerCase()) || c.phone?.includes(search) || c.skillspot_id?.includes(search);
+    return true;
+  });
 
   const getSourceBadges = (sources: string[]) => (
     <div className="flex gap-1">
@@ -378,9 +411,17 @@ const BusinessClients = ({ businessId, onOpenChat }: { businessId: string; onOpe
         </Button>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Поиск по имени, телефону или ID..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+      <div className="flex gap-2 flex-wrap">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Поиск по имени, телефону или ID..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+        </div>
+        <Select value={filterCategory} onValueChange={setFilterCategory}>
+          <SelectTrigger className="w-36"><SelectValue placeholder="Категория" /></SelectTrigger>
+          <SelectContent>
+            {categories.map(c => <SelectItem key={c} value={c}>{c === 'all' ? 'Все категории' : c}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
 
       {loading ? (
@@ -388,7 +429,7 @@ const BusinessClients = ({ businessId, onOpenChat }: { businessId: string; onOpe
       ) : filtered.length === 0 ? (
         <Card><CardContent className="pt-6 text-center text-muted-foreground">
           <User className="h-10 w-10 mx-auto mb-3 opacity-50" />
-          <p>{search ? 'Не найдено' : 'Клиентов пока нет. Клиенты добавятся автоматически из записей и чатов.'}</p>
+          <p>{search ? 'Не найдено' : 'Клиентов пока нет.'}</p>
         </CardContent></Card>
       ) : (
         <div className="space-y-2">
@@ -397,18 +438,22 @@ const BusinessClients = ({ businessId, onOpenChat }: { businessId: string; onOpe
               <CardContent className="py-3 px-4">
                 <div className="flex items-center justify-between">
                   <div className="min-w-0">
-                    <p className="font-medium text-sm truncate">{c.name || 'Без имени'}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-sm truncate">{c.name || 'Без имени'}</p>
+                      <Badge variant="outline" className={`text-[10px] ${categoryColor(c.category)}`}>{c.category}</Badge>
+                    </div>
                     <p className="text-xs text-muted-foreground">{c.phone} {c.skillspot_id ? `· ID: ${c.skillspot_id}` : ''}</p>
                     {getSourceBadges(c.sources)}
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="text-right">
                       <p className="text-sm">{c.visitCount} визит(ов)</p>
-                      <p className="text-xs text-muted-foreground">{c.revenue > 0 ? `${c.revenue.toLocaleString()} ₽` : ''}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {c.revenue > 0 ? `${c.revenue.toLocaleString()} ₽` : ''}
+                        {c.avgCheck > 0 ? ` · ср. ${c.avgCheck.toLocaleString()} ₽` : ''}
+                      </p>
                     </div>
-                    <Button size="icon" variant="ghost" className="h-8 w-8" title="Написать" onClick={() => {
-                      if (onOpenChat) onOpenChat(c.id);
-                    }}>
+                    <Button size="icon" variant="ghost" className="h-8 w-8" title="Написать" onClick={() => onOpenChat?.(c.id)}>
                       <MessageSquare className="h-4 w-4" />
                     </Button>
                     <Button size="icon" variant="ghost" className="h-8 w-8" title="Объединить" onClick={() => { setMergeTarget(c); setMergeOpen(true); }}>
@@ -426,22 +471,63 @@ const BusinessClients = ({ businessId, onOpenChat }: { businessId: string; onOpe
       <Dialog open={mergeOpen} onOpenChange={setMergeOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Объединить клиента</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground">Если клиент зарегистрировался и сообщил свой ID — введите его ниже.</p>
+          <p className="text-sm text-muted-foreground">Введите SkillSpot ID зарегистрированного клиента.</p>
           {mergeTarget && <p className="text-sm">Текущий: <strong>{mergeTarget.name}</strong></p>}
           <div className="space-y-2">
-            <Label>SkillSpot ID нового профиля</Label>
+            <Label>SkillSpot ID</Label>
             <Input placeholder="Например: SS-12345" value={mergeSkillspotId} onChange={e => setMergeSkillspotId(e.target.value)} />
           </div>
           <Button onClick={handleMerge} className="w-full">Объединить</Button>
         </DialogContent>
       </Dialog>
 
-      {/* Add manual dialog */}
+      {/* Add manual client dialog — FULL FORM */}
       <Dialog open={addManualOpen} onOpenChange={setAddManualOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Добавить клиента</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground">Клиенты добавляются автоматически из записей и чатов. Для ручного добавления попросите клиента зарегистрироваться и сообщить свой ID.</p>
-          <Button variant="outline" onClick={() => setAddManualOpen(false)}>Понятно</Button>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Имя *</Label>
+              <Input value={manualForm.name} onChange={e => setManualForm(p => ({ ...p, name: e.target.value }))} placeholder="ФИО клиента" />
+            </div>
+            <div className="space-y-2">
+              <Label>Телефон</Label>
+              <Input type="tel" value={manualForm.phone} onChange={e => setManualForm(p => ({ ...p, phone: e.target.value }))} placeholder="+7 (999) 123-45-67" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>День рождения</Label>
+                <Input type="date" value={manualForm.birthday} onChange={e => setManualForm(p => ({ ...p, birthday: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Пол</Label>
+                <Select value={manualForm.gender} onValueChange={v => setManualForm(p => ({ ...p, gender: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Выберите" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="М">Мужской</SelectItem>
+                    <SelectItem value="Ж">Женский</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Источник (откуда узнал)</Label>
+              <Select value={manualForm.source} onValueChange={v => setManualForm(p => ({ ...p, source: v }))}>
+                <SelectTrigger><SelectValue placeholder="Выберите канал" /></SelectTrigger>
+                <SelectContent>
+                  {sourceOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              {manualForm.source === 'Другое' && (
+                <Input value={manualForm.sourceCustom} onChange={e => setManualForm(p => ({ ...p, sourceCustom: e.target.value }))} placeholder="Укажите источник" className="mt-2" />
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label>Комментарий</Label>
+              <Textarea value={manualForm.comment} onChange={e => setManualForm(p => ({ ...p, comment: e.target.value }))} placeholder="Важная информация: пожелания, работа, дети..." className="min-h-[80px]" />
+            </div>
+            <Button className="w-full" onClick={handleAddManual}>Добавить клиента</Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
