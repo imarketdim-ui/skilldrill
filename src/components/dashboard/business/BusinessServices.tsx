@@ -189,6 +189,9 @@ const BusinessServices = ({ businessId }: Props) => {
                       </span>
                     )}
                   </div>
+                  {(s as any).custom_data?.break_after_minutes && (
+                    <Badge variant="secondary" className="text-xs"><Clock className="h-2.5 w-2.5 mr-1" /> +{(s as any).custom_data.break_after_minutes} мин перерыв</Badge>
+                  )}
                   {assignedMaster && (
                     <Badge variant="outline" className="text-xs">
                       <Users className="h-2.5 w-2.5 mr-1" /> {assignedMaster.name}
