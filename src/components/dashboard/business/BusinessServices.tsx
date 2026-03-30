@@ -89,6 +89,8 @@ const BusinessServices = ({ businessId }: Props) => {
       price: s.price != null ? String(s.price) : '', duration_minutes: s.duration_minutes != null ? String(s.duration_minutes) : '',
       hashtags: s.hashtags, hashtagInput: '', is_active: s.is_active, work_photos: s.work_photos,
       assigned_master_id: s.master_id || '',
+      break_after: !!(s as any).custom_data?.break_after_minutes,
+      break_after_minutes: String((s as any).custom_data?.break_after_minutes || '15'),
     });
     setIsOpen(true);
   };
