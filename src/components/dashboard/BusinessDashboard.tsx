@@ -43,6 +43,13 @@ import TeachingChats from './teaching/TeachingChats';
 import BusinessAnalytics from './business/BusinessAnalytics';
 import BusinessOnboardingTour from '../onboarding/BusinessOnboardingTour';
 import RolePermissionsEditor from './business/RolePermissionsEditor';
+import BusinessPenalties from './business/BusinessPenalties';
+import BusinessBonusPrograms from './business/BusinessBonusPrograms';
+import BusinessGiftCertificates from './business/BusinessGiftCertificates';
+import BusinessNotificationSettings from './business/BusinessNotificationSettings';
+import BusinessWorkSchedule from './business/BusinessWorkSchedule';
+import BusinessBookingSettings from './business/BusinessBookingSettings';
+import BusinessEmployeeGroups from './business/BusinessEmployeeGroups';
 
 // ── Notifications with real counter ──
 const BusinessNotifications = ({ businessId }: { businessId?: string }) => {
