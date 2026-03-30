@@ -600,9 +600,15 @@ const sidebarSections = [
 const crmItems = [
   { key: 'bookings', label: 'Записи', icon: Calendar, description: 'Все записи клиентов' },
   { key: 'schedule', label: 'Расписание', icon: Calendar, description: 'Календарь событий' },
+  { key: 'work_schedule', label: 'График работы', icon: Calendar, description: 'Шахматка по мастерам' },
   { key: 'clients', label: 'Клиенты', icon: Users, description: 'База клиентов' },
   { key: 'marketing', label: 'Маркетинг', icon: Megaphone, description: 'Рассылки и реклама' },
   { key: 'promotions', label: 'Акции и Скидки', icon: Percent, description: 'Скидки и промо' },
+  { key: 'bonus_programs', label: 'Бонусные программы', icon: Gift, description: 'Лояльность и кэшбэк' },
+  { key: 'gift_certs', label: 'Подарочные сертификаты', icon: Ticket, description: 'Выпуск и погашение' },
+  { key: 'penalties', label: 'Штрафы', icon: AlertTriangle, description: 'Штрафы за нарушения' },
+  { key: 'booking_settings', label: 'Онлайн запись', icon: Globe, description: 'Настройки онлайн-записи' },
+  { key: 'notif_settings', label: 'Уведомления', icon: Bell, description: 'Шаблоны уведомлений' },
 ];
 
 const erpItems = [
@@ -617,9 +623,11 @@ const erpItems = [
 
 const directoryItems = [
   { key: 'dir_client_types', label: 'Типы клиентов', icon: Users, description: 'Системные и пользовательские типы' },
-  { key: 'dir_products', label: 'Товары и материалы', icon: Package, description: 'Справочник товаров для склада и тех. карт' },
-  { key: 'dir_registers', label: 'Кассы', icon: Wallet, description: 'Создание и управление кассами' },
-  { key: 'dir_positions', label: 'Должности', icon: Shield, description: 'Настройка доступов по ролям' },
+  { key: 'dir_client_groups', label: 'Группы клиентов', icon: Users, description: 'Ручные группы клиентов' },
+  { key: 'dir_products', label: 'Товары и материалы', icon: Package, description: 'Справочник товаров' },
+  { key: 'dir_registers', label: 'Кассы', icon: Wallet, description: 'Управление кассами' },
+  { key: 'dir_positions', label: 'Должности', icon: Shield, description: 'Настройка доступов' },
+  { key: 'dir_employee_groups', label: 'Группы сотрудников', icon: Award, description: 'Стажёр, мастер, старший...' },
 ];
 
 // Profile sub-items (team, subscription, transfer, manager)
