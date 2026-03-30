@@ -12,7 +12,7 @@ import {
   ArrowRightLeft, UserPlus, AlertTriangle, MessageSquare, LayoutDashboard,
   CreditCard, Package, Percent, Megaphone, BarChart3, Bell, Database,
   PanelLeftClose, PanelLeftOpen, Wallet, Briefcase, Plus, Trash2, Shield,
-  Search, User, Merge
+  Search, User, Merge, Gift, Ticket, Globe, Award
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
