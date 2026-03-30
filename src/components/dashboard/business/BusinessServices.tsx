@@ -78,7 +78,7 @@ const BusinessServices = ({ businessId }: Props) => {
 
   const openCreate = () => {
     setEditingId(null);
-    setForm({ name: '', description: '', price: '', duration_minutes: '', hashtags: [], hashtagInput: '', is_active: true, work_photos: [], assigned_master_id: '' });
+    setForm({ name: '', description: '', price: '', duration_minutes: '', hashtags: [], hashtagInput: '', is_active: true, work_photos: [], assigned_master_id: '', break_after: false, break_after_minutes: '15' });
     setIsOpen(true);
   };
 
