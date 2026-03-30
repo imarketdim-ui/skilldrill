@@ -72,8 +72,9 @@ const BusinessSettings = ({ business, onUpdated }: Props) => {
 
   const handleSaveInfo = async () => {
     setSaving(true);
+    const composedAddress = [form.street, form.house, form.office].filter(Boolean).join(', ');
     const { error } = await supabase.from('business_locations').update({
-      name: form.name, inn: form.inn, legal_form: form.legal_form, address: form.address,
+      name: form.name, inn: form.inn, legal_form: form.legal_form, address: composedAddress || form.address,
       city: form.city || null, description: form.description || null, director_name: form.director_name,
       contact_email: form.contact_email, contact_phone: form.contact_phone,
     }).eq('id', business.id);
