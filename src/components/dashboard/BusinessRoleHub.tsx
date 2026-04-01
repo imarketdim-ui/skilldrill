@@ -4,8 +4,12 @@ import { useAuth, UserRoleType } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Wrench, Building2, Briefcase, ChevronRight, Plus, Loader2, Crown, Lock } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Wrench, Building2, Briefcase, ChevronRight, Plus, Loader2, Crown, Lock, CreditCard, AlertTriangle } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { useSubscriptionTier } from '@/hooks/useSubscriptionTier';
+import SubscriptionManager from './SubscriptionManager';
+import { usePlatformPricing } from '@/hooks/usePlatformPricing';
 
 interface SubRole {
   id: string;
@@ -14,6 +18,7 @@ interface SubRole {
   sublabel: string;
   icon: React.ReactNode;
   role: UserRoleType;
+  disabled?: boolean;
 }
 
 interface BusinessRoleHubProps {
@@ -21,43 +26,26 @@ interface BusinessRoleHubProps {
   onBack: () => void;
 }
 
-interface Limits {
-  hasMaster: boolean;
-  businessCount: number;
-  maxBusinesses: number;
-  networkCount: number;
-  maxNetworks: number;
-  hasActiveNetworkSub: boolean;
-}
-
 const BusinessRoleHub = ({ onSelect, onBack }: BusinessRoleHubProps) => {
   const { user, roles } = useAuth();
   const navigate = useNavigate();
+  const pricing = usePlatformPricing();
+  const subscription = useSubscriptionTier(user?.id);
   const [subRoles, setSubRoles] = useState<SubRole[]>([]);
-  const [limits, setLimits] = useState<Limits>({
-    hasMaster: false,
-    businessCount: 0,
-    maxBusinesses: 1,
-    networkCount: 0,
-    maxNetworks: 0,
-    hasActiveNetworkSub: false,
-  });
   const [loading, setLoading] = useState(true);
+  const [hasMaster, setHasMaster] = useState(false);
 
   useEffect(() => {
     if (!user) return;
     fetchData();
-  }, [user]);
+  }, [user, subscription.tier, subscription.status]);
 
   const fetchData = async () => {
     if (!user) return;
     const entries: SubRole[] = [];
-    let hasMaster = false;
-    let businessCount = 0;
-    let networkCount = 0;
-    let hasActiveNetworkSub = false;
+    const isExpired = subscription.isReadOnly;
 
-    // Check master profile existence
+    // Master profile
     const { data: masterProfile } = await supabase
       .from('master_profiles')
       .select('id, business_id, subscription_status, business_locations(name)')
@@ -65,7 +53,7 @@ const BusinessRoleHub = ({ onSelect, onBack }: BusinessRoleHubProps) => {
       .maybeSingle();
 
     if (masterProfile) {
-      hasMaster = true;
+      setHasMaster(true);
       const bizName = (masterProfile.business_locations as any)?.name;
       entries.push({
         id: `master-${masterProfile.id}`,
@@ -74,17 +62,20 @@ const BusinessRoleHub = ({ onSelect, onBack }: BusinessRoleHubProps) => {
         sublabel: bizName ? 'Мастер в организации' : 'Индивидуальный специалист',
         icon: <Wrench className="h-5 w-5" />,
         role: 'master',
+        disabled: isExpired,
       });
+    } else {
+      setHasMaster(false);
     }
 
-    // Business owner - get all businesses
+    // Business owner
     const { data: businesses } = await supabase
       .from('business_locations')
       .select('id, name, subscription_status')
       .eq('owner_id', user.id);
 
-    businessCount = businesses?.length || 0;
     (businesses || []).forEach(biz => {
+      const canAccess = subscription.tier === 'network' || subscription.tier === 'business';
       entries.push({
         id: `biz-owner-${biz.id}`,
         entityId: biz.id,
@@ -92,6 +83,7 @@ const BusinessRoleHub = ({ onSelect, onBack }: BusinessRoleHubProps) => {
         sublabel: 'Владелец',
         icon: <Building2 className="h-5 w-5" />,
         role: 'business_owner',
+        disabled: isExpired || (!canAccess && subscription.tier === 'master'),
       });
     });
 
@@ -111,6 +103,7 @@ const BusinessRoleHub = ({ onSelect, onBack }: BusinessRoleHubProps) => {
         sublabel: 'Менеджер',
         icon: <Briefcase className="h-5 w-5" />,
         role: 'business_manager',
+        disabled: isExpired,
       });
     });
 
@@ -120,17 +113,15 @@ const BusinessRoleHub = ({ onSelect, onBack }: BusinessRoleHubProps) => {
       .select('id, name, subscription_status')
       .eq('owner_id', user.id);
 
-    networkCount = networks?.length || 0;
-    hasActiveNetworkSub = (networks || []).some(n => n.subscription_status === 'active' || n.subscription_status === 'trial');
-    
     (networks || []).forEach(net => {
       entries.push({
         id: `net-owner-${net.id}`,
         entityId: net.id,
         label: `«${net.name}»`,
         sublabel: 'Владелец сети',
-        icon: <Building2 className="h-5 w-5" />,
+        icon: <Crown className="h-5 w-5" />,
         role: 'network_owner',
+        disabled: isExpired,
       });
     });
 
@@ -150,39 +141,39 @@ const BusinessRoleHub = ({ onSelect, onBack }: BusinessRoleHubProps) => {
         sublabel: 'Менеджер сети',
         icon: <Briefcase className="h-5 w-5" />,
         role: 'network_manager',
+        disabled: isExpired,
       });
     });
 
-    // Determine max businesses based on subscription
-    // Basic: 1, Network subscription: unlimited within network
-    let maxBusinesses = 1;
-    if (hasActiveNetworkSub) {
-      maxBusinesses = 999; // unlimited for network owners
-    }
-
     setSubRoles(entries);
-    setLimits({
-      hasMaster,
-      businessCount,
-      maxBusinesses,
-      networkCount,
-      maxNetworks: hasActiveNetworkSub ? 1 : 0,
-      hasActiveNetworkSub,
-    });
     setLoading(false);
   };
 
-  const canCreateMaster = !limits.hasMaster;
-  const canCreateBusiness = limits.businessCount < limits.maxBusinesses;
-  const canCreateNetwork = limits.networkCount === 0; // Only 1 network per user for now
+  const handleSelect = (sr: SubRole) => {
+    if (sr.disabled) return;
+    onSelect(sr.role, sr.entityId);
+  };
 
-  if (loading) {
+  const canCreateMaster = !hasMaster;
+  const canCreateBusiness = subscription.tier === 'business' || subscription.tier === 'network';
+  const canCreateNetwork = subscription.tier !== 'network'; // can upgrade
+
+  if (loading || subscription.loading) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
+
+  const tierColors: Record<string, string> = {
+    master: 'bg-blue-500 text-white',
+    business: 'bg-primary text-primary-foreground',
+    network: 'bg-amber-500 text-white',
+    none: 'bg-muted text-muted-foreground',
+  };
+
+  const isExpired = subscription.isReadOnly;
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -191,23 +182,75 @@ const BusinessRoleHub = ({ onSelect, onBack }: BusinessRoleHubProps) => {
         <p className="text-muted-foreground mt-1">Выберите или создайте бизнес-аккаунт</p>
       </div>
 
+      {/* Subscription tier card */}
+      <Card className={isExpired ? 'border-destructive/50' : 'border-primary/30'}>
+        <CardContent className="py-4 px-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${isExpired ? 'bg-destructive/10' : 'bg-primary/10'}`}>
+                {isExpired ? <AlertTriangle className="h-5 w-5 text-destructive" /> : <CreditCard className="h-5 w-5 text-primary" />}
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold text-sm">Тариф</p>
+                  <Badge className={tierColors[subscription.tier]}>{subscription.tierLabel}</Badge>
+                  <Badge variant={isExpired ? 'destructive' : 'secondary'} className="text-xs">
+                    {subscription.status === 'active' ? 'Активен' : subscription.status === 'trial' ? 'Пробный' : subscription.status === 'grace' ? 'Льготный' : 'Истёк'}
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {subscription.tier === 'master' && 'Доступна только роль Мастера'}
+                  {subscription.tier === 'business' && 'Мастер + 1 точка'}
+                  {subscription.tier === 'network' && 'Мастер + все точки (сеть)'}
+                  {subscription.tier === 'none' && 'Оформите подписку для доступа'}
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant={isExpired ? 'default' : 'outline'}
+              onClick={() => navigate('/subscription')}
+            >
+              {isExpired ? 'Оплатить' : 'Изменить'}
+            </Button>
+          </div>
+          {isExpired && (
+            <p className="text-xs text-destructive mt-2">
+              Подписка истекла. Вы можете просматривать данные, но действия (редактирование, запись, чаты) заблокированы.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Existing sub-roles */}
       {subRoles.length > 0 && (
         <div className="grid gap-3">
           {subRoles.map(sr => (
             <Card
               key={sr.id}
-              className="cursor-pointer hover:border-primary/50 transition-colors"
-              onClick={() => onSelect(sr.role, sr.entityId)}
+              className={`transition-colors ${
+                sr.disabled
+                  ? 'opacity-60 cursor-not-allowed border-muted'
+                  : 'cursor-pointer hover:border-primary/50'
+              }`}
+              onClick={() => handleSelect(sr)}
             >
               <CardContent className="py-4 px-5">
                 <div className="flex items-center gap-4">
-                  <div className="h-11 w-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                    {sr.icon}
+                  <div className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0 ${
+                    sr.disabled ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary'
+                  }`}>
+                    {sr.disabled ? <Lock className="h-5 w-5" /> : sr.icon}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold">{sr.label}</p>
                     <p className="text-sm text-muted-foreground">{sr.sublabel}</p>
+                    {sr.disabled && subscription.tier === 'master' && sr.role !== 'master' && (
+                      <p className="text-xs text-destructive mt-0.5">Доступно на тарифе «Бизнес» и выше</p>
+                    )}
+                    {sr.disabled && isExpired && (
+                      <p className="text-xs text-destructive mt-0.5">Подписка истекла — только просмотр</p>
+                    )}
                   </div>
                   <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
                 </div>
@@ -222,7 +265,6 @@ const BusinessRoleHub = ({ onSelect, onBack }: BusinessRoleHubProps) => {
         {subRoles.length > 0 && <Separator />}
         <p className="text-sm font-medium text-muted-foreground">Создать новый аккаунт</p>
 
-        {/* Create Master - only if doesn't exist */}
         {canCreateMaster && (
           <Card
             className="cursor-pointer hover:border-primary/50 transition-colors border-dashed"
@@ -235,7 +277,7 @@ const BusinessRoleHub = ({ onSelect, onBack }: BusinessRoleHubProps) => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold">Создать профиль мастера</p>
-                  <p className="text-sm text-muted-foreground">Индивидуальный специалист</p>
+                  <p className="text-sm text-muted-foreground">Индивидуальный специалист — от {pricing.master} ₽/мес</p>
                 </div>
                 <Wrench className="h-5 w-5 text-muted-foreground shrink-0" />
               </div>
@@ -243,7 +285,6 @@ const BusinessRoleHub = ({ onSelect, onBack }: BusinessRoleHubProps) => {
           </Card>
         )}
 
-        {/* Create Business */}
         {canCreateBusiness ? (
           <Card
             className="cursor-pointer hover:border-primary/50 transition-colors border-dashed"
@@ -262,7 +303,7 @@ const BusinessRoleHub = ({ onSelect, onBack }: BusinessRoleHubProps) => {
               </div>
             </CardContent>
           </Card>
-        ) : (
+        ) : subscription.tier === 'master' ? (
           <Card className="border-dashed bg-muted/30">
             <CardContent className="py-4 px-5">
               <div className="flex items-center gap-4">
@@ -270,36 +311,35 @@ const BusinessRoleHub = ({ onSelect, onBack }: BusinessRoleHubProps) => {
                   <Lock className="h-5 w-5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-muted-foreground">Лимит организаций достигнут</p>
+                  <p className="font-semibold text-muted-foreground">Организация недоступна</p>
                   <p className="text-sm text-muted-foreground">
-                    Для создания дополнительных филиалов{' '}
-                    <Link to="/for-business#pricing" className="text-primary hover:underline">
-                      перейдите на тариф «Сеть»
-                    </Link>
+                    Для создания организации{' '}
+                    <Link to="/subscription" className="text-primary hover:underline">
+                      перейдите на тариф «Бизнес»
+                    </Link>{' '}
+                    — от {pricing.business} ₽/мес
                   </p>
                 </div>
                 <Crown className="h-5 w-5 text-primary shrink-0" />
               </div>
             </CardContent>
           </Card>
-        )}
+        ) : null}
 
-        {/* Create Network - only if no network yet */}
-        {canCreateNetwork && (
+        {subscription.tier !== 'network' && (
           <Card
             className="cursor-pointer hover:border-primary/50 transition-colors border-dashed"
-            onClick={() => navigate('/create-account?type=network')}
+            onClick={() => navigate('/subscription?upgrade=network')}
           >
             <CardContent className="py-4 px-5">
               <div className="flex items-center gap-4">
-                <div className="h-11 w-11 rounded-xl bg-accent text-accent-foreground flex items-center justify-center shrink-0">
-                  <Plus className="h-5 w-5" />
+                <div className="h-11 w-11 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
+                  <Crown className="h-5 w-5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold">Создать сеть</p>
-                  <p className="text-sm text-muted-foreground">Управление несколькими филиалами</p>
+                  <p className="font-semibold">Перейти на тариф «Сеть»</p>
+                  <p className="text-sm text-muted-foreground">Мастер + все точки — от {pricing.network} ₽/мес</p>
                 </div>
-                <Building2 className="h-5 w-5 text-muted-foreground shrink-0" />
               </div>
             </CardContent>
           </Card>
