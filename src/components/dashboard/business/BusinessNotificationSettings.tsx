@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Bell, Save, Clock, Cake, Calendar, Star, MessageSquare } from 'lucide-react';
+import { Bell, Save, Clock, Cake, Calendar, Star, MessageSquare, Loader2 } from 'lucide-react';
 
 interface Props { businessId: string; }
 
@@ -28,19 +29,37 @@ const defaultTemplates: NotifTemplate[] = [
 const BusinessNotificationSettings = ({ businessId }: Props) => {
   const { toast } = useToast();
   const [templates, setTemplates] = useState<NotifTemplate[]>(defaultTemplates);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const saved = localStorage.getItem(`notif_templates_${businessId}`);
-    if (saved) try { setTemplates(JSON.parse(saved)); } catch {}
+    supabase.from('business_settings').select('notifications').eq('business_id', businessId).maybeSingle()
+      .then(({ data }) => {
+        if (data?.notifications && Array.isArray(data.notifications)) {
+          // Merge saved state with defaults (to pick up new templates)
+          const saved = data.notifications as any[];
+          setTemplates(defaultTemplates.map(dt => {
+            const s = saved.find((st: any) => st.key === dt.key);
+            return s ? { ...dt, enabled: s.enabled, timing: s.timing ?? dt.timing } : dt;
+          }));
+        }
+        setLoading(false);
+      });
   }, [businessId]);
 
-  const save = () => {
-    localStorage.setItem(`notif_templates_${businessId}`, JSON.stringify(templates));
+  const save = async () => {
+    const serializable = templates.map(t => ({ key: t.key, enabled: t.enabled, timing: t.timing }));
+    await supabase.from('business_settings').upsert({
+      business_id: businessId,
+      notifications: serializable as any,
+      updated_at: new Date().toISOString(),
+    });
     toast({ title: 'Настройки уведомлений сохранены' });
   };
 
   const toggle = (key: string) => setTemplates(t => t.map(tp => tp.key === key ? { ...tp, enabled: !tp.enabled } : tp));
   const setTiming = (key: string, val: number) => setTemplates(t => t.map(tp => tp.key === key ? { ...tp, timing: val } : tp));
+
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
 
   return (
     <div className="space-y-6">
