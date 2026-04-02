@@ -70,7 +70,7 @@ const MasterAchievements = () => {
     }
 
     // Fetch all earned
-    const { data } = await supabase.from('master_achievements' as any)
+    const { data } = await supabase.from('master_achievements')
       .select('*').eq('user_id', user.id).order('earned_at', { ascending: true });
     setAchievements((data as any[]) || []);
     setLoading(false);

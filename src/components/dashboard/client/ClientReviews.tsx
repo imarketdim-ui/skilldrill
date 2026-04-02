@@ -60,9 +60,8 @@ export default function ClientReviews({ userId }: Props) {
       ) : (
         <div className="space-y-3">
           {reviews.map(r => {
-            const name = tab === 'given'
-              ? `${(r.profiles as any)?.first_name || ''} ${(r.profiles as any)?.last_name || ''}`.trim()
-              : `${(r.profiles as any)?.first_name || ''} ${(r.profiles as any)?.last_name || ''}`.trim();
+            const profile = tab === 'given' ? (r as any).rated_profile : (r as any).rater_profile;
+            const name = `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim();
             return (
               <Card key={r.id}>
                 <CardContent className="pt-4 pb-4">

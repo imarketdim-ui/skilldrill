@@ -182,8 +182,9 @@ const SubscriptionPaywall = ({ entityType, entityId, entityName, onPaid }: Subsc
               variant="outline"
               className="w-full h-12 text-base gap-2"
               onClick={handlePayByCard}
+              disabled={payingCard}
             >
-              <CreditCard className="h-5 w-5" />
+              {payingCard ? <Loader2 className="h-5 w-5 animate-spin" /> : <CreditCard className="h-5 w-5" />}
               Оплатить картой (Т-Банк)
             </Button>
           </div>

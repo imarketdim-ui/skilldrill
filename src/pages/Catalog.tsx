@@ -241,7 +241,7 @@ const Catalog = () => {
         `)
         .eq("is_active", true)
         .eq("moderation_status", "approved")
-        .limit(500);
+        .limit(50);
 
       if (!data || data.length === 0) { setBusinesses([]); return; }
 

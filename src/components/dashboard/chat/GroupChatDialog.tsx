@@ -36,24 +36,24 @@ const GroupChatDialog = ({ open, onOpenChange, contacts, userId, onCreated }: Pr
     setCreating(true);
     try {
       const { data: group, error: gErr } = await supabase
-        .from('chat_groups' as any)
+        .from('chat_groups')
         .insert({ name: name.trim(), created_by: userId })
         .select('id')
         .single();
       if (gErr) throw gErr;
 
       const members = [userId, ...selected].map(uid => ({
-        group_id: (group as any).id,
+        group_id: group.id,
         user_id: uid,
       }));
-      const { error: mErr } = await supabase.from('chat_group_members' as any).insert(members);
+      const { error: mErr } = await supabase.from('chat_group_members').insert(members);
       if (mErr) throw mErr;
 
       toast({ title: 'Группа создана', description: name.trim() });
       setName('');
       setSelected([]);
       onOpenChange(false);
-      onCreated((group as any).id);
+      onCreated(group.id);
     } catch (err: any) {
       toast({ title: 'Ошибка', description: err.message, variant: 'destructive' });
     }

@@ -72,7 +72,7 @@ export function usePushNotifications(userId?: string) {
       const sub = await reg.pushManager.getSubscription();
       if (sub) await sub.unsubscribe();
       
-      await supabase.from('push_subscriptions' as any)
+      await supabase.from('push_subscriptions')
         .update({ is_active: false })
         .eq('user_id', userId);
 
