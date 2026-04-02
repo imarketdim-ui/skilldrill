@@ -60,7 +60,7 @@ const MasterAchievements = () => {
       else if (def.metric === 'rating') earned = avgRating >= def.threshold && reviewCount >= 5;
 
       if (earned) {
-        await supabase.from('master_achievements' as any).upsert({
+        await supabase.from('master_achievements').upsert({
           user_id: user.id,
           achievement_type: def.type,
           title: def.title,
