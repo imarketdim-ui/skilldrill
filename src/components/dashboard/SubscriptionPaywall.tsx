@@ -68,11 +68,34 @@ const SubscriptionPaywall = ({ entityType, entityId, entityName, onPaid }: Subsc
     setPaying(false);
   };
 
-  const handlePayByCard = () => {
-    toast({
-      title: 'Оплата картой',
-      description: 'Оплата через Т-Банк скоро будет доступна. Пока используйте оплату с баланса.',
-    });
+  const [payingCard, setPayingCard] = useState(false);
+
+  const handlePayByCard = async () => {
+    if (!user) return;
+    setPayingCard(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('tinkoff-payment-init', {
+        body: {
+          amount: totalPrice * 100,
+          entityType,
+          entityId,
+          description: `Подписка «${entityName}» на ${selectedPeriod} мес.`,
+        },
+      });
+      if (error) throw error;
+      if (data?.PaymentURL) {
+        window.location.href = data.PaymentURL;
+      } else {
+        throw new Error('Не удалось получить ссылку для оплаты');
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Ошибка оплаты',
+        description: err.message || 'Не удалось инициировать оплату картой',
+        variant: 'destructive',
+      });
+    }
+    setPayingCard(false);
   };
 
   return (
