@@ -41,7 +41,7 @@ const MasterAchievements = () => {
     // Fetch stats
     const [bookingsRes, ratingsRes, clientsRes] = await Promise.all([
       supabase.from('bookings').select('id', { count: 'exact' }).eq('executor_id', user.id).eq('status', 'completed'),
-      supabase.from('ratings' as any).select('score').eq('rated_id', user.id),
+      supabase.from('ratings').select('score').eq('rated_id', user.id),
       supabase.from('bookings').select('client_id').eq('executor_id', user.id).eq('status', 'completed'),
     ]);
 
