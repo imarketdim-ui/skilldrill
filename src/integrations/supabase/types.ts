@@ -193,6 +193,53 @@ export type Database = {
           },
         ]
       }
+      bonus_programs: {
+        Row: {
+          business_id: string
+          conditions: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          type: string
+          updated_at: string | null
+          value: number
+        }
+        Insert: {
+          business_id: string
+          conditions?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          type: string
+          updated_at?: string | null
+          value?: number
+        }
+        Update: {
+          business_id?: string
+          conditions?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          type?: string
+          updated_at?: string | null
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bonus_programs_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "business_locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bonus_transactions: {
         Row: {
           amount: number
@@ -703,6 +750,38 @@ export type Database = {
             columns: ["master_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      business_settings: {
+        Row: {
+          booking: Json | null
+          business_id: string
+          id: string
+          notifications: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          booking?: Json | null
+          business_id: string
+          id?: string
+          notifications?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          booking?: Json | null
+          business_id?: string
+          id?: string
+          notifications?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_settings_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "business_locations"
             referencedColumns: ["id"]
           },
         ]
@@ -1278,6 +1357,50 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gift_certificates: {
+        Row: {
+          amount: number
+          business_id: string
+          code: string
+          created_at: string | null
+          id: string
+          recipient_name: string | null
+          redeemed_at: string | null
+          status: string | null
+          validity_days: number | null
+        }
+        Insert: {
+          amount: number
+          business_id: string
+          code: string
+          created_at?: string | null
+          id?: string
+          recipient_name?: string | null
+          redeemed_at?: string | null
+          status?: string | null
+          validity_days?: number | null
+        }
+        Update: {
+          amount?: number
+          business_id?: string
+          code?: string
+          created_at?: string | null
+          id?: string
+          recipient_name?: string | null
+          redeemed_at?: string | null
+          status?: string | null
+          validity_days?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gift_certificates_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "business_locations"
             referencedColumns: ["id"]
           },
         ]
