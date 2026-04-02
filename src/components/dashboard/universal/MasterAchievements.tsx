@@ -41,7 +41,7 @@ const MasterAchievements = () => {
     // Fetch stats
     const [bookingsRes, ratingsRes, clientsRes] = await Promise.all([
       supabase.from('bookings').select('id', { count: 'exact' }).eq('executor_id', user.id).eq('status', 'completed'),
-      supabase.from('ratings' as any).select('score').eq('rated_id', user.id),
+      supabase.from('ratings').select('score').eq('rated_id', user.id),
       supabase.from('bookings').select('client_id').eq('executor_id', user.id).eq('status', 'completed'),
     ]);
 
@@ -60,7 +60,7 @@ const MasterAchievements = () => {
       else if (def.metric === 'rating') earned = avgRating >= def.threshold && reviewCount >= 5;
 
       if (earned) {
-        await supabase.from('master_achievements' as any).upsert({
+        await supabase.from('master_achievements').upsert({
           user_id: user.id,
           achievement_type: def.type,
           title: def.title,
@@ -70,7 +70,7 @@ const MasterAchievements = () => {
     }
 
     // Fetch all earned
-    const { data } = await supabase.from('master_achievements' as any)
+    const { data } = await supabase.from('master_achievements')
       .select('*').eq('user_id', user.id).order('earned_at', { ascending: true });
     setAchievements((data as any[]) || []);
     setLoading(false);

@@ -280,7 +280,10 @@ const UniversalClients = ({ config, onNavigateToChat }: Props) => {
         toast({ title: 'Статус VIP снят' });
       } else {
         // Add VIP
-        await supabase.from('client_tags').insert({ client_id: client.id, tagger_id: user.id, tag: 'vip' });
+        await supabase.from('client_tags').upsert(
+          { client_id: client.id, tagger_id: user.id, tag: 'vip' },
+          { onConflict: 'client_id,tagger_id,tag', ignoreDuplicates: true }
+        );
         toast({ title: 'Статус VIP присвоен' });
       }
       fetchClients();

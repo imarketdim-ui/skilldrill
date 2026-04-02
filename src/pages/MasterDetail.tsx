@@ -100,7 +100,7 @@ const MasterDetail = () => {
         if (mp2) {
           const [svcRes, ratRes] = await Promise.all([
             supabase.from('services').select('*').eq('master_id', mp2.user_id).eq('is_active', true),
-            supabase.from('ratings').select('*, profiles!ratings_rater_id_fkey(first_name, last_name)').eq('rated_id', mp2.user_id).order('created_at', { ascending: false }).limit(20),
+            supabase.from('ratings').select('*, rater_profile:profiles!rater_id(first_name, last_name)').eq('rated_id', mp2.user_id).order('created_at', { ascending: false }).limit(20),
           ]);
           setServices(svcRes.data || []);
           setRatings(ratRes.data || []);
@@ -113,7 +113,7 @@ const MasterDetail = () => {
         setMaster(mp as any);
         const [svcRes, ratRes] = await Promise.all([
           supabase.from('services').select('*').eq('master_id', mp.user_id).eq('is_active', true),
-          supabase.from('ratings').select('*, profiles!ratings_rater_id_fkey(first_name, last_name)').eq('rated_id', mp.user_id).order('created_at', { ascending: false }).limit(20),
+          supabase.from('ratings').select('*, rater_profile:profiles!rater_id(first_name, last_name)').eq('rated_id', mp.user_id).order('created_at', { ascending: false }).limit(20),
         ]);
         setServices(svcRes.data || []);
         setRatings(ratRes.data || []);

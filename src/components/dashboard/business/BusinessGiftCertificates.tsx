@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,14 +8,14 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Gift, Plus, Ticket, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { Gift, Plus, Ticket, CheckCircle, Clock, XCircle, Loader2 } from 'lucide-react';
 
 interface Props { businessId: string; }
 
 interface Certificate {
-  id: string; code: string; amount: number; recipientName: string;
-  validity: string; status: 'issued' | 'redeemed' | 'expired';
-  createdAt: string; redeemedAt?: string;
+  id: string; code: string; amount: number; recipient_name: string | null;
+  validity_days: number; status: string;
+  created_at: string; redeemed_at: string | null;
 }
 
 const generateCode = () => {
@@ -28,38 +29,46 @@ const BusinessGiftCertificates = ({ businessId }: Props) => {
   const { toast } = useToast();
   const [certs, setCerts] = useState<Certificate[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ amount: 1000, recipientName: '', validity: '90' });
 
-  useEffect(() => {
-    const saved = localStorage.getItem(`gift_certs_${businessId}`);
-    if (saved) try { setCerts(JSON.parse(saved)); } catch {}
-  }, [businessId]);
+  useEffect(() => { fetchCerts(); }, [businessId]);
 
-  const save = (updated: Certificate[]) => {
-    setCerts(updated);
-    localStorage.setItem(`gift_certs_${businessId}`, JSON.stringify(updated));
+  const fetchCerts = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from('gift_certificates')
+      .select('*')
+      .eq('business_id', businessId)
+      .order('created_at', { ascending: false });
+    setCerts((data || []) as Certificate[]);
+    setLoading(false);
   };
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!form.recipientName.trim()) { toast({ title: 'Введите имя получателя', variant: 'destructive' }); return; }
-    const cert: Certificate = {
-      id: crypto.randomUUID(), code: generateCode(),
-      amount: form.amount, recipientName: form.recipientName,
-      validity: form.validity, status: 'issued',
-      createdAt: new Date().toISOString(),
-    };
-    save([cert, ...certs]);
-    toast({ title: 'Сертификат создан', description: `Код: ${cert.code}` });
+    const { error } = await supabase.from('gift_certificates').insert({
+      business_id: businessId,
+      code: generateCode(),
+      amount: form.amount,
+      recipient_name: form.recipientName,
+      validity_days: Number(form.validity),
+      status: 'issued',
+    });
+    if (error) { toast({ title: 'Ошибка', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: 'Сертификат создан' });
     setDialogOpen(false);
     setForm({ amount: 1000, recipientName: '', validity: '90' });
+    fetchCerts();
   };
 
-  const redeem = (id: string) => {
-    save(certs.map(c => c.id === id ? { ...c, status: 'redeemed' as const, redeemedAt: new Date().toISOString() } : c));
+  const redeem = async (id: string) => {
+    await supabase.from('gift_certificates').update({ status: 'redeemed', redeemed_at: new Date().toISOString() }).eq('id', id);
+    setCerts(c => c.map(cert => cert.id === id ? { ...cert, status: 'redeemed', redeemed_at: new Date().toISOString() } : cert));
     toast({ title: 'Сертификат погашен' });
   };
 
-  const statusBadge = (s: Certificate['status']) => {
+  const statusBadge = (s: string) => {
     if (s === 'issued') return <Badge variant="outline" className="gap-1"><Clock className="h-3 w-3" /> Активен</Badge>;
     if (s === 'redeemed') return <Badge variant="default" className="gap-1"><CheckCircle className="h-3 w-3" /> Погашен</Badge>;
     return <Badge variant="destructive" className="gap-1"><XCircle className="h-3 w-3" /> Истёк</Badge>;
@@ -67,6 +76,8 @@ const BusinessGiftCertificates = ({ businessId }: Props) => {
 
   const totalIssued = certs.filter(c => c.status === 'issued').reduce((s, c) => s + c.amount, 0);
   const totalRedeemed = certs.filter(c => c.status === 'redeemed').reduce((s, c) => s + c.amount, 0);
+
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
 
   return (
     <div className="space-y-6">
@@ -102,8 +113,8 @@ const BusinessGiftCertificates = ({ businessId }: Props) => {
               <CardContent className="py-3 px-4 flex items-center justify-between">
                 <div>
                   <p className="font-mono font-bold text-sm">{c.code}</p>
-                  <p className="text-sm">{c.recipientName} · {c.amount.toLocaleString()} ₽</p>
-                  <p className="text-xs text-muted-foreground">Срок: {c.validity} дней · {new Date(c.createdAt).toLocaleDateString('ru-RU')}</p>
+                  <p className="text-sm">{c.recipient_name} · {c.amount.toLocaleString()} ₽</p>
+                  <p className="text-xs text-muted-foreground">Срок: {c.validity_days} дней · {new Date(c.created_at).toLocaleDateString('ru-RU')}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   {statusBadge(c.status)}

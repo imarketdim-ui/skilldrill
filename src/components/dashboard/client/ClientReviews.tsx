@@ -17,12 +17,12 @@ export default function ClientReviews({ userId }: Props) {
     const fetch = async () => {
       const [given, received] = await Promise.all([
         supabase.from('ratings')
-          .select('id, score, review, created_at, rated_id, profiles!ratings_rated_id_fkey(first_name, last_name)')
+          .select('id, score, review, created_at, rated_id, rated_profile:profiles!rated_id(first_name, last_name)')
           .eq('rater_id', userId)
           .order('created_at', { ascending: false })
           .limit(100),
         supabase.from('ratings')
-          .select('id, score, review, created_at, rater_id, profiles!ratings_rater_id_fkey(first_name, last_name)')
+          .select('id, score, review, created_at, rater_id, rater_profile:profiles!rater_id(first_name, last_name)')
           .eq('rated_id', userId)
           .order('created_at', { ascending: false })
           .limit(100),
@@ -60,9 +60,8 @@ export default function ClientReviews({ userId }: Props) {
       ) : (
         <div className="space-y-3">
           {reviews.map(r => {
-            const name = tab === 'given'
-              ? `${(r.profiles as any)?.first_name || ''} ${(r.profiles as any)?.last_name || ''}`.trim()
-              : `${(r.profiles as any)?.first_name || ''} ${(r.profiles as any)?.last_name || ''}`.trim();
+            const profile = tab === 'given' ? (r as any).rated_profile : (r as any).rater_profile;
+            const name = `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim();
             return (
               <Card key={r.id}>
                 <CardContent className="pt-4 pb-4">

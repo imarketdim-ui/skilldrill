@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -7,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Globe, Save, Clock, FileText, Mail } from 'lucide-react';
+import { Globe, Save, Clock, FileText, Mail, Loader2 } from 'lucide-react';
 
 interface Props { businessId: string; }
 
@@ -27,16 +28,37 @@ const defaults: BookingSettings = {
 const BusinessBookingSettings = ({ businessId }: Props) => {
   const { toast } = useToast();
   const [settings, setSettings] = useState<BookingSettings>(defaults);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const saved = localStorage.getItem(`booking_settings_${businessId}`);
-    if (saved) try { setSettings(JSON.parse(saved)); } catch {}
+    supabase.from('business_settings').select('booking').eq('business_id', businessId).maybeSingle()
+      .then(({ data }) => {
+        if (data?.booking) {
+          const b = data.booking as any;
+          setSettings({
+            minBookingHours: b.minBookingHours ?? defaults.minBookingHours,
+            requireMailingConsent: b.requireMailingConsent ?? defaults.requireMailingConsent,
+            offerText: b.offerText ?? defaults.offerText,
+            autoConfirm: b.autoConfirm ?? defaults.autoConfirm,
+            maxAdvanceDays: b.maxAdvanceDays ?? defaults.maxAdvanceDays,
+          });
+        }
+        setLoading(false);
+      });
   }, [businessId]);
 
-  const save = () => {
-    localStorage.setItem(`booking_settings_${businessId}`, JSON.stringify(settings));
+  const save = async () => {
+    const { data: existing } = await supabase.from('business_settings').select('id, booking').eq('business_id', businessId).maybeSingle();
+    const booking = { ...(existing?.booking as any || {}), ...settings };
+    await supabase.from('business_settings').upsert({
+      business_id: businessId,
+      booking,
+      updated_at: new Date().toISOString(),
+    });
     toast({ title: 'Настройки онлайн-записи сохранены' });
   };
+
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
 
   return (
     <div className="space-y-6">

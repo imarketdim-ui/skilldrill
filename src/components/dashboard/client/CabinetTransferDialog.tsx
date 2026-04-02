@@ -66,7 +66,7 @@ const CabinetTransferDialog = ({ open, onClose, currentCabinet, currentBalance, 
       });
 
       // Log transfer
-      await supabase.from('cabinet_transfers' as any).insert({
+      await supabase.from('cabinet_transfers').insert({
         user_id: user.id,
         from_cabinet_type: currentCabinet,
         to_cabinet_type: toCabinet,

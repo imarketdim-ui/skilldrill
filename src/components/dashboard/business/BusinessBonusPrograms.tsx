@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,13 +10,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Gift, Plus, Trash2, Percent, Cake, Star, Clock, ShoppingBag } from 'lucide-react';
+import { Gift, Plus, Trash2, Percent, Cake, Star, Clock, ShoppingBag, Loader2 } from 'lucide-react';
 
 interface Props { businessId: string; }
 
 interface BonusProgram {
-  id: string; name: string; type: string; value: number; description: string;
-  conditions: string; is_active: boolean;
+  id: string; name: string; type: string; value: number; description: string | null;
+  conditions: string | null; is_active: boolean;
 }
 
 const programTypes = [
@@ -31,45 +32,74 @@ const BusinessBonusPrograms = ({ businessId }: Props) => {
   const { toast } = useToast();
   const [programs, setPrograms] = useState<BonusProgram[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ name: '', type: 'cashback', value: 5, description: '', conditions: '' });
 
   useEffect(() => {
-    const saved = localStorage.getItem(`bonus_programs_${businessId}`);
-    if (saved) try { setPrograms(JSON.parse(saved)); } catch {}
+    fetchPrograms();
   }, [businessId]);
 
-  const save = (updated: BonusProgram[]) => {
-    setPrograms(updated);
-    localStorage.setItem(`bonus_programs_${businessId}`, JSON.stringify(updated));
+  const fetchPrograms = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from('bonus_programs')
+      .select('*')
+      .eq('business_id', businessId)
+      .order('created_at', { ascending: false });
+    setPrograms((data || []) as BonusProgram[]);
+    setLoading(false);
   };
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!form.name.trim()) { toast({ title: 'Введите название', variant: 'destructive' }); return; }
-    const prog: BonusProgram = {
-      id: crypto.randomUUID(), name: form.name, type: form.type,
-      value: form.value, description: form.description, conditions: form.conditions, is_active: true,
-    };
-    save([...programs, prog]);
+    const { error } = await supabase.from('bonus_programs').insert({
+      business_id: businessId,
+      name: form.name,
+      type: form.type,
+      value: form.value,
+      description: form.description || null,
+      conditions: form.conditions || null,
+      is_active: true,
+    });
+    if (error) { toast({ title: 'Ошибка', description: error.message, variant: 'destructive' }); return; }
     toast({ title: 'Программа добавлена' });
     setDialogOpen(false);
     setForm({ name: '', type: 'cashback', value: 5, description: '', conditions: '' });
+    fetchPrograms();
   };
 
-  const toggle = (id: string) => save(programs.map(p => p.id === id ? { ...p, is_active: !p.is_active } : p));
-  const remove = (id: string) => { save(programs.filter(p => p.id !== id)); toast({ title: 'Программа удалена' }); };
+  const toggle = async (id: string, current: boolean) => {
+    await supabase.from('bonus_programs').update({ is_active: !current }).eq('id', id);
+    setPrograms(p => p.map(pr => pr.id === id ? { ...pr, is_active: !current } : pr));
+  };
+
+  const remove = async (id: string) => {
+    await supabase.from('bonus_programs').delete().eq('id', id);
+    setPrograms(p => p.filter(pr => pr.id !== id));
+    toast({ title: 'Программа удалена' });
+  };
 
   const getTypeInfo = (type: string) => programTypes.find(t => t.value === type);
 
-  // Bonus payment settings
+  // Bonus payment settings stored in business_settings
   const [bonusSettings, setBonusSettings] = useState({ maxServicePercent: 50, maxProductPercent: 30, allowSplit: true });
   useEffect(() => {
-    const saved = localStorage.getItem(`bonus_settings_${businessId}`);
-    if (saved) try { setBonusSettings(JSON.parse(saved)); } catch {}
+    supabase.from('business_settings').select('booking').eq('business_id', businessId).maybeSingle()
+      .then(({ data }) => {
+        if (data?.booking && (data.booking as any).bonus_settings) {
+          setBonusSettings((data.booking as any).bonus_settings);
+        }
+      });
   }, [businessId]);
-  const saveBonusSettings = () => {
-    localStorage.setItem(`bonus_settings_${businessId}`, JSON.stringify(bonusSettings));
+
+  const saveBonusSettings = async () => {
+    const { data: existing } = await supabase.from('business_settings').select('id, booking').eq('business_id', businessId).maybeSingle();
+    const booking = { ...(existing?.booking as any || {}), bonus_settings: bonusSettings };
+    await supabase.from('business_settings').upsert({ business_id: businessId, booking, updated_at: new Date().toISOString() });
     toast({ title: 'Настройки оплаты бонусами сохранены' });
   };
+
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
 
   return (
     <div className="space-y-6">
@@ -101,7 +131,7 @@ const BusinessBonusPrograms = ({ businessId }: Props) => {
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
-                      <Switch checked={p.is_active} onCheckedChange={() => toggle(p.id)} />
+                      <Switch checked={p.is_active} onCheckedChange={() => toggle(p.id, p.is_active)} />
                       <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => remove(p.id)}>
                         <Trash2 className="h-3.5 w-3.5 text-destructive" />
                       </Button>

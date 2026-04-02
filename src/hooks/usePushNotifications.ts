@@ -40,17 +40,14 @@ export function usePushNotifications(userId?: string) {
 
       const reg = await navigator.serviceWorker.ready;
       
-      // For now, we use a placeholder VAPID key. 
-      // In production, generate real VAPID keys and store in Supabase secrets.
+      const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY || 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkOs-qy2Tz0dQ04_-Dl-8ABrBMNwXj1oJNVVGgfPQ8';
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(
-          'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkOs-qy2Tz0dQ04_-Dl-8ABrBMNwXj1oJNVVGgfPQ8'
-        ),
+        applicationServerKey: urlBase64ToUint8Array(vapidKey),
       });
 
       // Save subscription to database
-      await supabase.from('push_subscriptions' as any).upsert({
+      await supabase.from('push_subscriptions').upsert({
         user_id: userId,
         endpoint: sub.endpoint,
         keys: JSON.stringify({
@@ -75,7 +72,7 @@ export function usePushNotifications(userId?: string) {
       const sub = await reg.pushManager.getSubscription();
       if (sub) await sub.unsubscribe();
       
-      await supabase.from('push_subscriptions' as any)
+      await supabase.from('push_subscriptions')
         .update({ is_active: false })
         .eq('user_id', userId);
 
