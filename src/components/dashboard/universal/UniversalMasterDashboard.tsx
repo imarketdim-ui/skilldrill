@@ -85,31 +85,55 @@ const MasterNotifications = () => {
   );
 };
 
-// ── Client Type Directory ──
+// ── Client Type Directory (Supabase-backed) ──
 const MasterClientTypeDirectory = () => {
   const { user } = useAuth();
-  const [customTypes, setCustomTypes] = useState<string[]>([]);
+  const [customTypes, setCustomTypes] = useState<{ id: string; name: string }[]>([]);
   const [newType, setNewType] = useState('');
   const { toast } = useToast();
   const systemTypes = ['VIP', 'Постоянный', 'Новый', 'Спящий', 'Неактивный', 'ЧС'];
 
   useEffect(() => {
     if (!user) return;
-    const saved = localStorage.getItem(`client_types_master_${user.id}`);
-    if (saved) try { setCustomTypes(JSON.parse(saved)); } catch {}
+    (async () => {
+      const { data } = await supabase
+        .from('master_client_types')
+        .select('id, name')
+        .eq('master_id', user.id)
+        .order('created_at', { ascending: true });
+      setCustomTypes(data || []);
+    })();
   }, [user]);
 
-  const saveTypes = (types: string[]) => {
-    setCustomTypes(types);
-    if (user) localStorage.setItem(`client_types_master_${user.id}`, JSON.stringify(types));
-  };
-
-  const addType = () => {
+  const addType = async () => {
+    if (!user) return;
     const trimmed = newType.trim();
-    if (!trimmed || systemTypes.includes(trimmed) || customTypes.includes(trimmed)) return;
-    saveTypes([...customTypes, trimmed]);
+    if (!trimmed) return;
+    if (systemTypes.includes(trimmed) || customTypes.some(t => t.name === trimmed)) {
+      toast({ title: 'Такой тип уже существует', variant: 'destructive' });
+      return;
+    }
+    const { data, error } = await supabase
+      .from('master_client_types')
+      .insert({ master_id: user.id, name: trimmed })
+      .select('id, name')
+      .single();
+    if (error) {
+      toast({ title: 'Ошибка добавления', description: error.message, variant: 'destructive' });
+      return;
+    }
+    setCustomTypes(prev => [...prev, data]);
     setNewType('');
     toast({ title: 'Тип добавлен' });
+  };
+
+  const removeType = async (id: string) => {
+    const { error } = await supabase.from('master_client_types').delete().eq('id', id);
+    if (error) {
+      toast({ title: 'Ошибка удаления', description: error.message, variant: 'destructive' });
+      return;
+    }
+    setCustomTypes(prev => prev.filter(t => t.id !== id));
   };
 
   return (
@@ -135,9 +159,9 @@ const MasterClientTypeDirectory = () => {
           ) : (
             <div className="flex flex-wrap gap-2">
               {customTypes.map(t => (
-                <Badge key={t} variant="outline" className="text-sm gap-1 pr-1">
-                  {t}
-                  <button onClick={() => saveTypes(customTypes.filter(x => x !== t))} className="ml-1 hover:text-destructive"><Trash2 className="h-3 w-3" /></button>
+                <Badge key={t.id} variant="outline" className="text-sm gap-1 pr-1">
+                  {t.name}
+                  <button onClick={() => removeType(t.id)} className="ml-1 hover:text-destructive"><Trash2 className="h-3 w-3" /></button>
                 </Badge>
               ))}
             </div>
