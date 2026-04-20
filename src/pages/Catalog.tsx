@@ -402,6 +402,28 @@ const Catalog = () => {
     fetchServices();
   }, [searchQuery, visibleCount]);
 
+  // Fetch popularity (booking counts) for masters and businesses
+  useEffect(() => {
+    const fetchPopularity = async () => {
+      const masterIds = masters.map(m => m.user_id);
+      const bizIds = businesses.map(b => b.id);
+      const [{ data: bm }, { data: bb }] = await Promise.all([
+        masterIds.length
+          ? supabase.from('bookings').select('executor_id').in('executor_id', masterIds).in('status', ['completed', 'confirmed'])
+          : Promise.resolve({ data: [] as any[] }),
+        bizIds.length
+          ? supabase.from('bookings').select('organization_id').in('organization_id', bizIds).in('status', ['completed', 'confirmed'])
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+      const mm: Record<string, number> = {};
+      (bm || []).forEach((r: any) => { mm[r.executor_id] = (mm[r.executor_id] || 0) + 1; });
+      const bb2: Record<string, number> = {};
+      (bb || []).forEach((r: any) => { if (r.organization_id) bb2[r.organization_id] = (bb2[r.organization_id] || 0) + 1; });
+      setPopularityMap({ masters: mm, businesses: bb2 });
+    };
+    if (masters.length || businesses.length) fetchPopularity();
+  }, [masters, businesses]);
+
   // Available hashtags
   const availableTags = useMemo(() => {
     const counts = new Map<string, number>();
