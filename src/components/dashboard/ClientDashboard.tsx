@@ -25,9 +25,11 @@ import ClientSettingsSection from '@/components/dashboard/client/ClientSettingsS
 import ClientBookings from '@/components/dashboard/client/ClientBookings';
 import ClientReviews from '@/components/dashboard/client/ClientReviews';
 
-// Desktop sidebar — removed bookings & favorites, added notifications
+// Desktop sidebar — full client menu
 const desktopMenuItems = [
-  { key: 'overview',       label: 'Обзор',         icon: LayoutDashboard },
+  { key: 'overview',       label: 'Обзор',          icon: LayoutDashboard },
+  { key: 'bookings',       label: 'Мои записи',     icon: Calendar },
+  { key: 'favorites',      label: 'Избранное',      icon: Heart },
   { key: 'reviews',        label: 'Отзывы',         icon: Star },
   { key: 'communication',  label: 'Общение',        icon: MessageSquare },
   { key: 'notifications',  label: 'Уведомления',    icon: Bell },
@@ -36,11 +38,13 @@ const desktopMenuItems = [
   { key: 'settings',       label: 'Настройки',      icon: Settings },
 ];
 
+// Mobile bottom nav — 5 main items, the rest is reachable from Overview cards
 const mobileMenuItems = [
-  { key: 'overview',       label: 'Обзор',    icon: LayoutDashboard },
-  { key: 'communication',  label: 'Общение',  icon: MessageSquare },
-  { key: 'notifications',  label: 'Уведомл.', icon: Bell },
-  { key: 'settings',       label: 'Настройки',icon: Settings },
+  { key: 'overview',       label: 'Обзор',     icon: LayoutDashboard },
+  { key: 'bookings',       label: 'Записи',    icon: Calendar },
+  { key: 'communication',  label: 'Общение',   icon: MessageSquare },
+  { key: 'notifications',  label: 'Уведомл.',  icon: Bell },
+  { key: 'wallet',         label: 'Баланс',    icon: Wallet },
 ];
 
 const ClientDashboard = () => {
@@ -108,15 +112,6 @@ const ClientDashboard = () => {
 
   const getInitials = () =>
     `${(profile?.first_name || '')[0] || ''}${(profile?.last_name || '')[0] || ''}`.toUpperCase() || '?';
-
-  const fixNotifMessage = (msg: string) => {
-    if (!msg) return msg;
-    return msg
-      .replace(/записался/gi, 'вы записались')
-      .replace(/записалась/gi, 'вы записались')
-      .replace(/вы записались к/gi, 'вы записались к')
-      .replace(/клиент записался/gi, 'вы записались');
-  };
 
   const totalUnread = (notifications.filter(n => !n.is_read).length) + unreadChats + pendingInvites;
 
@@ -213,7 +208,7 @@ const ClientDashboard = () => {
                         <div className="flex items-start justify-between gap-2">
                           <div>
                             <p className="font-medium text-sm">{n.title}</p>
-                            <p className="text-sm text-muted-foreground mt-1">{fixNotifMessage(n.message)}</p>
+                            <p className="text-sm text-muted-foreground mt-1">{n.message}</p>
                             <p className="text-xs text-muted-foreground mt-1">{new Date(n.created_at).toLocaleString('ru-RU')}</p>
                           </div>
                           {navTarget && <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />}

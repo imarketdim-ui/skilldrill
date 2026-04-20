@@ -60,17 +60,24 @@ const BusinessNotifications = ({ businessId }: { businessId?: string }) => {
   useEffect(() => {
     const fetch = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      let query = supabase.from('notifications').select('*')
-        .eq('user_id', user.id).order('created_at', { ascending: false }).limit(50);
-      if (businessId) {
-        query = query.or(`cabinet_id.eq.${businessId},cabinet_id.is.null`);
-      }
-      const { data } = await query;
-      setNotifications(data || []);
+      if (!user || !businessId) return;
+      // Strict business scope: only notifications for THIS business cabinet
+      const query: any = supabase.from('notifications').select('*');
+      const res = await query
+        .eq('user_id', user.id)
+        .eq('cabinet_id', businessId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      setNotifications(res.data || []);
     };
     fetch();
   }, [businessId]);
+
+  const markRead = async (n: any) => {
+    if (n.is_read) return;
+    await supabase.from('notifications').update({ is_read: true }).eq('id', n.id);
+    setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, is_read: true } : x));
+  };
 
   const active = notifications.filter(n => !n.is_read);
   const archive = notifications;
@@ -95,7 +102,11 @@ const BusinessNotifications = ({ businessId }: { businessId?: string }) => {
         ) : (
           <div className="space-y-3">
             {displayed.map((n: any) => (
-              <div key={n.id} className={`p-3 rounded-lg border ${n.is_read ? '' : 'border-primary/30 bg-primary/5'}`}>
+              <div
+                key={n.id}
+                className={`p-3 rounded-lg border cursor-pointer transition-colors ${n.is_read ? 'hover:border-muted-foreground/30' : 'border-primary/30 bg-primary/5 hover:border-primary/50'}`}
+                onClick={() => markRead(n)}
+              >
                 <p className="font-medium text-sm">{n.title}</p>
                 <p className="text-sm text-muted-foreground mt-1">{n.message}</p>
                 <p className="text-xs text-muted-foreground mt-1">{new Date(n.created_at).toLocaleString('ru-RU')}</p>

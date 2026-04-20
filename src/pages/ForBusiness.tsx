@@ -40,7 +40,7 @@ const ForBusiness = () => {
       price: pricing.master.toLocaleString(),
       description: 'Для самозанятых специалистов',
       features: ['До 10 услуг', 'До 100 записей/мес', 'Расписание и клиенты', 'Аналитика и отчёты'],
-      link: '/request-role?type=master',
+      link: '/create-account?type=master',
     },
     {
       name: 'Бизнес',
@@ -48,14 +48,14 @@ const ForBusiness = () => {
       description: 'Для организаций с одной точкой',
       popular: true,
       features: ['До 5 мастеров бесплатно', '+500 ₽/мес за доп. мастера', 'CRM + ERP + Финансы', 'Менеджеры и роли'],
-      link: '/request-role?type=business',
+      link: '/create-account?type=business',
     },
     {
       name: 'Сеть',
       price: `от ${pricing.network.toLocaleString()}`,
       description: 'Для сетей с несколькими точками',
       features: ['До 3 точек бесплатно', '+1 000 ₽/мес за точку', 'Единый дашборд', 'Централизованная CRM'],
-      link: '/request-role?type=network',
+      link: '/create-account?type=network',
     },
   ];
 

@@ -5,7 +5,7 @@ const footerLinks = {
   product: [
     { label: "Поиск услуг", href: "/" },
     { label: "Тарифы", href: "/for-business#pricing" },
-    { label: "Для специалистов", href: "/request-role?type=master" },
+    { label: "Для специалистов", href: "/create-account?type=master" },
   ],
   company: [
     { label: "О платформе", href: "/about" },

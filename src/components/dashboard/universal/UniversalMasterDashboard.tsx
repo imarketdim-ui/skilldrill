@@ -42,12 +42,18 @@ const MasterNotifications = () => {
       if (!user) return;
       const { data } = await supabase.from('notifications').select('*')
         .eq('user_id', user.id)
-        .or('cabinet_type.eq.master,cabinet_type.is.null')
+        .eq('cabinet_type', 'master')
         .order('created_at', { ascending: false }).limit(50);
       setNotifications(data || []);
     };
     fetch();
   }, []);
+
+  const markRead = async (n: any) => {
+    if (n.is_read) return;
+    await supabase.from('notifications').update({ is_read: true }).eq('id', n.id);
+    setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, is_read: true } : x));
+  };
 
   const active = notifications.filter(n => !n.is_read);
   const archive = notifications;
@@ -72,7 +78,11 @@ const MasterNotifications = () => {
         ) : (
           <div className="space-y-3">
             {displayed.map((n: any) => (
-              <div key={n.id} className={`p-3 rounded-lg border ${n.is_read ? '' : 'border-primary/30 bg-primary/5'}`}>
+              <div
+                key={n.id}
+                className={`p-3 rounded-lg border cursor-pointer transition-colors ${n.is_read ? 'hover:border-muted-foreground/30' : 'border-primary/30 bg-primary/5 hover:border-primary/50'}`}
+                onClick={() => markRead(n)}
+              >
                 <p className="font-medium text-sm">{n.title}</p>
                 <p className="text-sm text-muted-foreground mt-1">{n.message}</p>
                 <p className="text-xs text-muted-foreground mt-1">{new Date(n.created_at).toLocaleString('ru-RU')}</p>
@@ -85,31 +95,55 @@ const MasterNotifications = () => {
   );
 };
 
-// ── Client Type Directory ──
+// ── Client Type Directory (Supabase-backed) ──
 const MasterClientTypeDirectory = () => {
   const { user } = useAuth();
-  const [customTypes, setCustomTypes] = useState<string[]>([]);
+  const [customTypes, setCustomTypes] = useState<{ id: string; name: string }[]>([]);
   const [newType, setNewType] = useState('');
   const { toast } = useToast();
   const systemTypes = ['VIP', 'Постоянный', 'Новый', 'Спящий', 'Неактивный', 'ЧС'];
 
   useEffect(() => {
     if (!user) return;
-    const saved = localStorage.getItem(`client_types_master_${user.id}`);
-    if (saved) try { setCustomTypes(JSON.parse(saved)); } catch {}
+    (async () => {
+      const { data } = await supabase
+        .from('master_client_types')
+        .select('id, name')
+        .eq('master_id', user.id)
+        .order('created_at', { ascending: true });
+      setCustomTypes(data || []);
+    })();
   }, [user]);
 
-  const saveTypes = (types: string[]) => {
-    setCustomTypes(types);
-    if (user) localStorage.setItem(`client_types_master_${user.id}`, JSON.stringify(types));
-  };
-
-  const addType = () => {
+  const addType = async () => {
+    if (!user) return;
     const trimmed = newType.trim();
-    if (!trimmed || systemTypes.includes(trimmed) || customTypes.includes(trimmed)) return;
-    saveTypes([...customTypes, trimmed]);
+    if (!trimmed) return;
+    if (systemTypes.includes(trimmed) || customTypes.some(t => t.name === trimmed)) {
+      toast({ title: 'Такой тип уже существует', variant: 'destructive' });
+      return;
+    }
+    const { data, error } = await supabase
+      .from('master_client_types')
+      .insert({ master_id: user.id, name: trimmed })
+      .select('id, name')
+      .single();
+    if (error) {
+      toast({ title: 'Ошибка добавления', description: error.message, variant: 'destructive' });
+      return;
+    }
+    setCustomTypes(prev => [...prev, data]);
     setNewType('');
     toast({ title: 'Тип добавлен' });
+  };
+
+  const removeType = async (id: string) => {
+    const { error } = await supabase.from('master_client_types').delete().eq('id', id);
+    if (error) {
+      toast({ title: 'Ошибка удаления', description: error.message, variant: 'destructive' });
+      return;
+    }
+    setCustomTypes(prev => prev.filter(t => t.id !== id));
   };
 
   return (
@@ -135,9 +169,9 @@ const MasterClientTypeDirectory = () => {
           ) : (
             <div className="flex flex-wrap gap-2">
               {customTypes.map(t => (
-                <Badge key={t} variant="outline" className="text-sm gap-1 pr-1">
-                  {t}
-                  <button onClick={() => saveTypes(customTypes.filter(x => x !== t))} className="ml-1 hover:text-destructive"><Trash2 className="h-3 w-3" /></button>
+                <Badge key={t.id} variant="outline" className="text-sm gap-1 pr-1">
+                  {t.name}
+                  <button onClick={() => removeType(t.id)} className="ml-1 hover:text-destructive"><Trash2 className="h-3 w-3" /></button>
                 </Badge>
               ))}
             </div>
