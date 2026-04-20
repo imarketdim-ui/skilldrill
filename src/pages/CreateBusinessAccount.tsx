@@ -76,24 +76,33 @@ const CreateBusinessAccount = () => {
 
   // Check limits before allowing creation
   const canCreateBusiness = () => {
-    // Check if user has active subscription or is within limits
-    const activeBusinesses = existingBusinesses.filter(b =>
-      ['trial', 'active', 'in_network'].includes(b.subscription_status)
-    );
-    // Without network subscription, limit is 1 business
-    const hasNetwork = existingNetworks.some(n =>
-      ['trial', 'active'].includes(n.subscription_status)
-    );
-    if (!hasNetwork && existingBusinesses.length >= 1) {
-      return { allowed: false, reason: 'Без подписки «Сеть» можно создать только 1 бизнес-точку. Оформите подписку для создания дополнительных точек.' };
+    // Active = trial, active, or in_network
+    const activeStatuses = ['trial', 'active', 'in_network'];
+    const activeBusinesses = existingBusinesses.filter(b => activeStatuses.includes(b.subscription_status));
+    const hasActiveNetwork = existingNetworks.some(n => ['trial', 'active'].includes(n.subscription_status));
+
+    // Network owners may create unlimited business locations under their network
+    if (hasActiveNetwork) {
+      return { allowed: true, reason: '' };
     }
-    // Check if any existing business has expired subscription
-    const hasExpired = existingBusinesses.some(b =>
-      !['trial', 'active', 'in_network'].includes(b.subscription_status)
-    );
-    if (hasExpired) {
-      return { allowed: false, reason: 'У вас есть бизнес с истекшей подпиской. Оплатите подписку или удалите неактивный бизнес.' };
+
+    // Without an active network: 1 active business location max
+    if (activeBusinesses.length >= 1) {
+      return {
+        allowed: false,
+        reason: 'На текущем тарифе доступна только 1 бизнес-точка. Оформите тариф «Сеть», чтобы создавать дополнительные точки.',
+      };
     }
+
+    // Block if any existing business is in a non-active state (suspended/expired)
+    const hasInactive = existingBusinesses.some(b => !activeStatuses.includes(b.subscription_status));
+    if (hasInactive) {
+      return {
+        allowed: false,
+        reason: 'У вас есть бизнес с приостановленной подпиской. Оплатите подписку или удалите неактивный бизнес, чтобы создать новый.',
+      };
+    }
+
     return { allowed: true, reason: '' };
   };
 

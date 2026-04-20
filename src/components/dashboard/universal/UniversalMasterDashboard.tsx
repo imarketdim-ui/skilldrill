@@ -42,12 +42,18 @@ const MasterNotifications = () => {
       if (!user) return;
       const { data } = await supabase.from('notifications').select('*')
         .eq('user_id', user.id)
-        .or('cabinet_type.eq.master,cabinet_type.is.null')
+        .eq('cabinet_type', 'master')
         .order('created_at', { ascending: false }).limit(50);
       setNotifications(data || []);
     };
     fetch();
   }, []);
+
+  const markRead = async (n: any) => {
+    if (n.is_read) return;
+    await supabase.from('notifications').update({ is_read: true }).eq('id', n.id);
+    setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, is_read: true } : x));
+  };
 
   const active = notifications.filter(n => !n.is_read);
   const archive = notifications;
@@ -72,7 +78,11 @@ const MasterNotifications = () => {
         ) : (
           <div className="space-y-3">
             {displayed.map((n: any) => (
-              <div key={n.id} className={`p-3 rounded-lg border ${n.is_read ? '' : 'border-primary/30 bg-primary/5'}`}>
+              <div
+                key={n.id}
+                className={`p-3 rounded-lg border cursor-pointer transition-colors ${n.is_read ? 'hover:border-muted-foreground/30' : 'border-primary/30 bg-primary/5 hover:border-primary/50'}`}
+                onClick={() => markRead(n)}
+              >
                 <p className="font-medium text-sm">{n.title}</p>
                 <p className="text-sm text-muted-foreground mt-1">{n.message}</p>
                 <p className="text-xs text-muted-foreground mt-1">{new Date(n.created_at).toLocaleString('ru-RU')}</p>
