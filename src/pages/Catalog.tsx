@@ -456,6 +456,11 @@ const Catalog = () => {
       })
       .sort((a, b) => {
         switch (sortBy) {
+          case "popular": {
+            const pa = (popularityMap.masters[a.user_id] || 0) * 2 + (a.review_count || 0) * 3 + (a.rating || 0);
+            const pb = (popularityMap.masters[b.user_id] || 0) * 2 + (b.review_count || 0) * 3 + (b.rating || 0);
+            return pb - pa;
+          }
           case "price_asc": return (a.min_price || 0) - (b.min_price || 0);
           case "price_desc": return (b.min_price || 0) - (a.min_price || 0);
           case "rating": return (b.rating || 0) - (a.rating || 0);
@@ -468,7 +473,7 @@ const Catalog = () => {
           default: return 0;
         }
       });
-  }, [masters, priceRange, selectedTags, sortBy, locationFilter, userLocation]);
+  }, [masters, priceRange, selectedTags, sortBy, locationFilter, userLocation, popularityMap]);
 
   // Filter businesses (basic client-side filter since no FTS on business_locations)
   const filteredBusinesses = useMemo(() => {
@@ -492,6 +497,11 @@ const Catalog = () => {
         return true;
       })
       .sort((a, b) => {
+        if (sortBy === "popular") {
+          const pa = (popularityMap.businesses[a.id] || 0) * 2 + (a.review_count || 0) * 3 + (a.rating || 0);
+          const pb = (popularityMap.businesses[b.id] || 0) * 2 + (b.review_count || 0) * 3 + (b.rating || 0);
+          return pb - pa;
+        }
         if (sortBy === "nearest" && userLocation) {
           const dA = (a.latitude && a.longitude) ? haversineDistance(userLocation.lat, userLocation.lon, a.latitude, a.longitude) : 99999;
           const dB = (b.latitude && b.longitude) ? haversineDistance(userLocation.lat, userLocation.lon, b.latitude, b.longitude) : 99999;
@@ -499,7 +509,7 @@ const Catalog = () => {
         }
         return 0;
       });
-  }, [businesses, searchQuery, categoryFilter, locationFilter, sortBy, userLocation]);
+  }, [businesses, searchQuery, categoryFilter, locationFilter, sortBy, userLocation, popularityMap]);
 
   // Filter services (search is now server-side via FTS)
   const filteredServices = useMemo(() => {
@@ -525,12 +535,17 @@ const Catalog = () => {
       })
       .sort((a, b) => {
         switch (sortBy) {
+          case "popular": {
+            const pa = popularityMap.masters[a.master_id] || 0;
+            const pb = popularityMap.masters[b.master_id] || 0;
+            return pb - pa;
+          }
           case "price_asc": return (a.price || 0) - (b.price || 0);
           case "price_desc": return (b.price || 0) - (a.price || 0);
           default: return 0;
         }
       });
-  }, [services, priceRange, sortBy, categoryFilter, categories, selectedTags, locationFilter, searchQuery]);
+  }, [services, priceRange, sortBy, categoryFilter, categories, selectedTags, locationFilter, searchQuery, popularityMap]);
 
   const activeFiltersCount = [
     priceRange[0] > 0 || priceRange[1] < 50000,
