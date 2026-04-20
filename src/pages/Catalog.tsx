@@ -839,17 +839,37 @@ const Catalog = () => {
           </div>
 
           {/* Tab Toggle */}
-          <div className="flex gap-2 mb-6">
-            <Button variant={tab === "masters" ? "default" : "outline"} size="sm" onClick={() => setTab("masters")}>
-              Мастера ({filteredMasters.length})
+          <div className="flex flex-col sm:flex-row gap-2 mb-2">
+            <Button
+              variant={tab === "masters" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setTab("masters")}
+              className="flex-col h-auto py-2 sm:flex-row sm:py-1.5"
+            >
+              <span>Мастера ({filteredMasters.length})</span>
+              <span className="text-[10px] opacity-70 sm:ml-2 sm:text-xs">стилисты, тренеры, репетиторы</span>
             </Button>
-            <Button variant={tab === "businesses" ? "default" : "outline"} size="sm" onClick={() => setTab("businesses")}>
-              Организации ({filteredBusinesses.length})
+            <Button
+              variant={tab === "businesses" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setTab("businesses")}
+              className="flex-col h-auto py-2 sm:flex-row sm:py-1.5"
+            >
+              <span>Организации ({filteredBusinesses.length})</span>
+              <span className="text-[10px] opacity-70 sm:ml-2 sm:text-xs">салоны, студии, пространства</span>
             </Button>
-            <Button variant={tab === "services" ? "default" : "outline"} size="sm" onClick={() => setTab("services")}>
-              Услуги ({filteredServices.length})
+            <Button
+              variant={tab === "services" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setTab("services")}
+              className="flex-col h-auto py-2 sm:flex-row sm:py-1.5"
+            >
+              <span>Услуги ({filteredServices.length})</span>
+              <span className="text-[10px] opacity-70 sm:ml-2 sm:text-xs">конкретные услуги с ценой</span>
             </Button>
           </div>
+          <p className="text-xs text-muted-foreground mb-4 px-1">Выберите формат поиска</p>
+
 
           {/* Results */}
           {isLoading ? (
