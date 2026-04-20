@@ -10,6 +10,9 @@ import NetworkDashboard from '@/components/dashboard/NetworkDashboard';
 import AdminDashboard from '@/components/dashboard/AdminDashboard';
 import SuperAdminDashboard from '@/components/dashboard/SuperAdminDashboard';
 import ManagerDashboard from '@/components/dashboard/ManagerDashboard';
+import ModeratorDashboard from '@/components/dashboard/ModeratorDashboard';
+import SupportDashboard from '@/components/dashboard/SupportDashboard';
+import IntegratorDashboard from '@/components/dashboard/IntegratorDashboard';
 import BusinessRoleHub from '@/components/dashboard/BusinessRoleHub';
 import PlatformRoleHub from '@/components/dashboard/PlatformRoleHub';
 
@@ -111,11 +114,11 @@ const Dashboard = () => {
       case 'platform_manager':
         return roles.includes('platform_manager') ? <ManagerDashboard /> : <ClientDashboard />;
       case 'moderator':
-        return roles.includes('moderator') ? <AdminDashboard /> : <ClientDashboard />;
+        return roles.includes('moderator') ? <ModeratorDashboard /> : <ClientDashboard />;
       case 'support':
-        return roles.includes('support') ? <AdminDashboard /> : <ClientDashboard />;
+        return roles.includes('support') ? <SupportDashboard /> : <ClientDashboard />;
       case 'integrator':
-        return roles.includes('integrator') ? <AdminDashboard /> : <ClientDashboard />;
+        return roles.includes('integrator') ? <IntegratorDashboard /> : <ClientDashboard />;
       default:
         return <ClientDashboard />;
     }
