@@ -208,7 +208,7 @@ const ClientDashboard = () => {
                         <div className="flex items-start justify-between gap-2">
                           <div>
                             <p className="font-medium text-sm">{n.title}</p>
-                            <p className="text-sm text-muted-foreground mt-1">{fixNotifMessage(n.message)}</p>
+                            <p className="text-sm text-muted-foreground mt-1">{n.message}</p>
                             <p className="text-xs text-muted-foreground mt-1">{new Date(n.created_at).toLocaleString('ru-RU')}</p>
                           </div>
                           {navTarget && <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />}
