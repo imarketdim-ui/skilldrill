@@ -107,6 +107,7 @@ const Catalog = () => {
   const [showAllTags, setShowAllTags] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "map">("grid");
   const [visibleCount, setVisibleCount] = useState(20);
+  const [popularityMap, setPopularityMap] = useState<{ masters: Record<string, number>; businesses: Record<string, number> }>({ masters: {}, businesses: {} });
   
   const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
 
