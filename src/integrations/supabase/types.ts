@@ -1879,6 +1879,44 @@ export type Database = {
           },
         ]
       }
+      master_client_types: {
+        Row: {
+          color: string | null
+          created_at: string
+          description: string | null
+          id: string
+          master_id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          master_id: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          master_id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "master_client_types_master_id_fkey"
+            columns: ["master_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       master_profiles: {
         Row: {
           address: string | null
