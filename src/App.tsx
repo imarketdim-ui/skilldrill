@@ -28,6 +28,7 @@ import Referral from "./pages/Referral";
 import NotFound from "./pages/NotFound";
 import AcceptInvite from "./pages/AcceptInvite";
 import StressTest from "./pages/StressTest";
+import PrivateRoute from "@/components/PrivateRoute";
 
 const queryClient = new QueryClient();
 
@@ -60,7 +61,14 @@ const App = () => (
               <Route path="/offer" element={<Offer />} />
               <Route path="/contacts" element={<Contacts />} />
               <Route path="/referral" element={<Referral />} />
-              <Route path="/admin/stress-test" element={<StressTest />} />
+              <Route
+                path="/admin/stress-test"
+                element={
+                  <PrivateRoute roles={['super_admin', 'platform_admin']} fallback="/">
+                    <StressTest />
+                  </PrivateRoute>
+                }
+              />
               <Route path="*" element={<NotFound />} />
             </Routes>
             <PWAInstallPrompt />

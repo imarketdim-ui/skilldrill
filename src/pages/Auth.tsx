@@ -64,7 +64,7 @@ const Auth = () => {
 
     setIsLoading(true);
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: 'https://skilldrill.lovable.app/auth',
+      redirectTo: `${window.location.origin}/auth`,
     });
     if (error) {
       toast({ title: 'Ошибка', description: error.message, variant: 'destructive' });

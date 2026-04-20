@@ -136,7 +136,7 @@ const RoleSwitcher = ({ onSelectHub }: RoleSwitcherProps) => {
   // Build tabs
   const tabs: { key: TabKey; label: string; icon: React.ReactNode; show: boolean }[] = [
     { key: 'client', label: 'Клиент', icon: <User className="h-4 w-4" />, show: true },
-    { key: 'master', label: 'Мастер', icon: <Wrench className="h-4 w-4" />, show: hasMasterRole && !hasOrgRoles },
+    { key: 'master', label: 'Мастер', icon: <Wrench className="h-4 w-4" />, show: hasMasterRole },
     { key: 'business', label: 'Бизнес', icon: <Building2 className="h-4 w-4" />, show: hasBusinessRoles },
     { key: 'platform', label: 'Площадка', icon: hasPlatformRoles && roles.includes('super_admin') ? <Crown className="h-4 w-4" /> : <Shield className="h-4 w-4" />, show: hasPlatformRoles },
   ];
