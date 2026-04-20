@@ -122,9 +122,9 @@ const RoleSwitcher = ({ onSelectHub }: RoleSwitcherProps) => {
     if (tab === 'client') {
       setActiveRole('client');
     } else if (tab === 'master') {
-      // If user has master role, go directly
+      // Switch directly to master role if available
       if (hasMasterRole) {
-        onSelectHub?.('business');
+        setActiveRole('master');
       }
     } else if (tab === 'business') {
       onSelectHub?.('business');
