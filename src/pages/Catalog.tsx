@@ -107,6 +107,7 @@ const Catalog = () => {
   const [showAllTags, setShowAllTags] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "map">("grid");
   const [visibleCount, setVisibleCount] = useState(20);
+  const [popularityMap, setPopularityMap] = useState<{ masters: Record<string, number>; businesses: Record<string, number> }>({ masters: {}, businesses: {} });
   
   const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
 
@@ -401,6 +402,28 @@ const Catalog = () => {
     fetchServices();
   }, [searchQuery, visibleCount]);
 
+  // Fetch popularity (booking counts) for masters and businesses
+  useEffect(() => {
+    const fetchPopularity = async () => {
+      const masterIds = masters.map(m => m.user_id);
+      const bizIds = businesses.map(b => b.id);
+      const [{ data: bm }, { data: bb }] = await Promise.all([
+        masterIds.length
+          ? supabase.from('bookings').select('executor_id').in('executor_id', masterIds).in('status', ['completed', 'confirmed'])
+          : Promise.resolve({ data: [] as any[] }),
+        bizIds.length
+          ? supabase.from('bookings').select('organization_id').in('organization_id', bizIds).in('status', ['completed', 'confirmed'])
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+      const mm: Record<string, number> = {};
+      (bm || []).forEach((r: any) => { mm[r.executor_id] = (mm[r.executor_id] || 0) + 1; });
+      const bb2: Record<string, number> = {};
+      (bb || []).forEach((r: any) => { if (r.organization_id) bb2[r.organization_id] = (bb2[r.organization_id] || 0) + 1; });
+      setPopularityMap({ masters: mm, businesses: bb2 });
+    };
+    if (masters.length || businesses.length) fetchPopularity();
+  }, [masters, businesses]);
+
   // Available hashtags
   const availableTags = useMemo(() => {
     const counts = new Map<string, number>();
@@ -433,6 +456,11 @@ const Catalog = () => {
       })
       .sort((a, b) => {
         switch (sortBy) {
+          case "popular": {
+            const pa = (popularityMap.masters[a.user_id] || 0) * 2 + (a.review_count || 0) * 3 + (a.rating || 0);
+            const pb = (popularityMap.masters[b.user_id] || 0) * 2 + (b.review_count || 0) * 3 + (b.rating || 0);
+            return pb - pa;
+          }
           case "price_asc": return (a.min_price || 0) - (b.min_price || 0);
           case "price_desc": return (b.min_price || 0) - (a.min_price || 0);
           case "rating": return (b.rating || 0) - (a.rating || 0);
@@ -445,7 +473,7 @@ const Catalog = () => {
           default: return 0;
         }
       });
-  }, [masters, priceRange, selectedTags, sortBy, locationFilter, userLocation]);
+  }, [masters, priceRange, selectedTags, sortBy, locationFilter, userLocation, popularityMap]);
 
   // Filter businesses (basic client-side filter since no FTS on business_locations)
   const filteredBusinesses = useMemo(() => {
@@ -469,6 +497,11 @@ const Catalog = () => {
         return true;
       })
       .sort((a, b) => {
+        if (sortBy === "popular") {
+          const pa = (popularityMap.businesses[a.id] || 0) * 2 + (a.review_count || 0) * 3 + (a.rating || 0);
+          const pb = (popularityMap.businesses[b.id] || 0) * 2 + (b.review_count || 0) * 3 + (b.rating || 0);
+          return pb - pa;
+        }
         if (sortBy === "nearest" && userLocation) {
           const dA = (a.latitude && a.longitude) ? haversineDistance(userLocation.lat, userLocation.lon, a.latitude, a.longitude) : 99999;
           const dB = (b.latitude && b.longitude) ? haversineDistance(userLocation.lat, userLocation.lon, b.latitude, b.longitude) : 99999;
@@ -476,7 +509,7 @@ const Catalog = () => {
         }
         return 0;
       });
-  }, [businesses, searchQuery, categoryFilter, locationFilter, sortBy, userLocation]);
+  }, [businesses, searchQuery, categoryFilter, locationFilter, sortBy, userLocation, popularityMap]);
 
   // Filter services (search is now server-side via FTS)
   const filteredServices = useMemo(() => {
@@ -502,12 +535,17 @@ const Catalog = () => {
       })
       .sort((a, b) => {
         switch (sortBy) {
+          case "popular": {
+            const pa = popularityMap.masters[a.master_id] || 0;
+            const pb = popularityMap.masters[b.master_id] || 0;
+            return pb - pa;
+          }
           case "price_asc": return (a.price || 0) - (b.price || 0);
           case "price_desc": return (b.price || 0) - (a.price || 0);
           default: return 0;
         }
       });
-  }, [services, priceRange, sortBy, categoryFilter, categories, selectedTags, locationFilter, searchQuery]);
+  }, [services, priceRange, sortBy, categoryFilter, categories, selectedTags, locationFilter, searchQuery, popularityMap]);
 
   const activeFiltersCount = [
     priceRange[0] > 0 || priceRange[1] < 50000,
@@ -839,17 +877,37 @@ const Catalog = () => {
           </div>
 
           {/* Tab Toggle */}
-          <div className="flex gap-2 mb-6">
-            <Button variant={tab === "masters" ? "default" : "outline"} size="sm" onClick={() => setTab("masters")}>
-              Мастера ({filteredMasters.length})
+          <div className="flex flex-col sm:flex-row gap-2 mb-2">
+            <Button
+              variant={tab === "masters" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setTab("masters")}
+              className="flex-col h-auto py-2 sm:flex-row sm:py-1.5"
+            >
+              <span>Мастера ({filteredMasters.length})</span>
+              <span className="text-[10px] opacity-70 sm:ml-2 sm:text-xs">стилисты, тренеры, репетиторы</span>
             </Button>
-            <Button variant={tab === "businesses" ? "default" : "outline"} size="sm" onClick={() => setTab("businesses")}>
-              Организации ({filteredBusinesses.length})
+            <Button
+              variant={tab === "businesses" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setTab("businesses")}
+              className="flex-col h-auto py-2 sm:flex-row sm:py-1.5"
+            >
+              <span>Организации ({filteredBusinesses.length})</span>
+              <span className="text-[10px] opacity-70 sm:ml-2 sm:text-xs">салоны, студии, пространства</span>
             </Button>
-            <Button variant={tab === "services" ? "default" : "outline"} size="sm" onClick={() => setTab("services")}>
-              Услуги ({filteredServices.length})
+            <Button
+              variant={tab === "services" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setTab("services")}
+              className="flex-col h-auto py-2 sm:flex-row sm:py-1.5"
+            >
+              <span>Услуги ({filteredServices.length})</span>
+              <span className="text-[10px] opacity-70 sm:ml-2 sm:text-xs">конкретные услуги с ценой</span>
             </Button>
           </div>
+          <p className="text-xs text-muted-foreground mb-4 px-1">Выберите формат поиска</p>
+
 
           {/* Results */}
           {isLoading ? (
