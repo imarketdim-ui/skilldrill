@@ -62,9 +62,8 @@ const BusinessNotifications = ({ businessId }: { businessId?: string }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user || !businessId) return;
       // Strict business scope: only notifications for THIS business cabinet
-      const res: any = await supabase
-        .from('notifications')
-        .select('*')
+      const query: any = supabase.from('notifications').select('*');
+      const res = await query
         .eq('user_id', user.id)
         .eq('cabinet_id', businessId)
         .order('created_at', { ascending: false })
