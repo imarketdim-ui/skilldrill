@@ -8,19 +8,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { 
   Users, Shield, MessageSquare, 
-  CheckCircle, XCircle, AlertTriangle, Tag, ShieldBan, Eye, Flag, Ticket
+  CheckCircle, XCircle, AlertTriangle, Tag, ShieldBan, Eye, Flag, Ticket, Building2, Settings
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AdminUserList from './admin/AdminUserList';
 import RevocationRequests from './admin/RevocationRequests';
 import FraudFlagsPanel from './admin/FraudFlagsPanel';
 import AdminPromoCodes from './admin/AdminPromoCodes';
+import AdminOrganizations from './admin/AdminOrganizations';
+import IntegratorSetup from './admin/IntegratorSetup';
 import SupportChat from './SupportChat';
 import SignedImage from '@/components/ui/signed-image';
 
-type AdminSubRole = 'platform_admin' | 'super_admin' | 'moderator' | 'support';
+type AdminSubRole = 'platform_admin' | 'super_admin' | 'moderator' | 'support' | 'integrator';
 
-// Tab visibility by sub-role
+// Tab visibility by sub-role (по разд. 4.1 ТЗ).
 const TAB_ACCESS: Record<string, AdminSubRole[]> = {
   moderation: ['platform_admin', 'super_admin', 'moderator'],
   users: ['platform_admin', 'super_admin'],
@@ -28,13 +30,12 @@ const TAB_ACCESS: Record<string, AdminSubRole[]> = {
   revocations: ['super_admin'],
   category_requests: ['platform_admin', 'super_admin', 'moderator'],
   fraud_flags: ['platform_admin', 'super_admin'],
-  promo_codes: ['platform_admin', 'super_admin'],
+  promo_codes: ['platform_admin', 'super_admin', 'integrator'],
   disputes: ['platform_admin', 'super_admin', 'moderator'],
-  support: ['platform_admin', 'super_admin', 'support'],
+  support: ['platform_admin', 'super_admin', 'support', 'integrator'],
+  organizations: ['platform_admin', 'super_admin', 'support', 'integrator'],
+  integrator_setup: ['integrator'],
 };
-
-// Integrator role gets same access as support + promo_codes
-const INTEGRATOR_TABS = ['support', 'promo_codes'];
 
 const AdminDashboard = () => {
   const { user, activeRole } = useAuth();
