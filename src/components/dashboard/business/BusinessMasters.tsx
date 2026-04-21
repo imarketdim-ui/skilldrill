@@ -265,13 +265,34 @@ const BusinessMasters = ({ businessId, freeMasters, extraMasterPrice }: Props) =
           {/* Header */}
           <div className="flex items-start justify-between flex-wrap gap-3">
             <div>
-              <h2 className="text-2xl font-bold">Команда</h2>
-              <p className="text-muted-foreground">Мастера, менеджеры и сотрудники</p>
+              <h2 className="text-2xl font-bold flex items-center gap-2">
+                Команда
+                <Badge variant={isLimitReached ? 'destructive' : 'secondary'}>
+                  {activeCount} / {limitLabel}
+                </Badge>
+              </h2>
+              <p className="text-muted-foreground">
+                Мастера, менеджеры и сотрудники · тариф «{subscription.tierLabel}»
+              </p>
             </div>
-            <Button onClick={() => setInviteOpen(true)}>
+            <Button onClick={() => setInviteOpen(true)} disabled={isLimitReached}>
               <Plus className="h-4 w-4 mr-1" /> Добавить сотрудника
             </Button>
           </div>
+
+          {isLimitReached && (
+            <Alert variant="destructive">
+              <Lock className="h-4 w-4" />
+              <AlertDescription className="flex items-center justify-between gap-3">
+                <span>Достигнут лимит {limitLabel} активных сотрудников. Перейдите на «Сеть» для безлимита.</span>
+                <Link to="/subscription">
+                  <Button size="sm" variant="outline" className="gap-1 shrink-0">
+                    <Crown className="h-3 w-3" /> Сеть
+                  </Button>
+                </Link>
+              </AlertDescription>
+            </Alert>
+          )}
 
           {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
