@@ -26,6 +26,7 @@ import SubscriptionManager from './SubscriptionManager';
 import SubscriptionPaywall from './SubscriptionPaywall';
 import SectionHub from './SectionHub';
 import { usePlatformPricing } from '@/hooks/usePlatformPricing';
+import { useSubscriptionTier } from '@/hooks/useSubscriptionTier';
 import BusinessMasters from './business/BusinessMasters';
 import BusinessServices from './business/BusinessServices';
 import BusinessSettings from './business/BusinessSettings';
@@ -649,6 +650,22 @@ const profileItems = [
 
 const allItems = [...mainItems, ...sidebarSections];
 
+// ── Tier badge in sidebar header ──
+const TierBadge = () => {
+  const { user } = useAuth();
+  const { tierLabel, status } = useSubscriptionTier(user?.id);
+  return (
+    <div className="flex items-center gap-1.5 mt-0.5">
+      <Badge variant="outline" className="text-[10px] h-4 px-1.5 font-normal">
+        {tierLabel}
+      </Badge>
+      {status === 'trial' && <span className="text-[10px] text-muted-foreground">trial</span>}
+      {status === 'grace' && <span className="text-[10px] text-destructive">льгот.</span>}
+      {status === 'expired' && <span className="text-[10px] text-destructive">истекла</span>}
+    </div>
+  );
+};
+
 const BusinessDashboard = () => {
   const { user, profile, activeEntityId } = useAuth();
   const { toast } = useToast();
@@ -978,7 +995,7 @@ const BusinessDashboard = () => {
           {!sidebarCollapsed && (
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-sm truncate">{selectedBusiness?.name || 'Организация'}</p>
-              <p className="text-xs text-muted-foreground">Организация</p>
+              <TierBadge />
             </div>
           )}
           <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>

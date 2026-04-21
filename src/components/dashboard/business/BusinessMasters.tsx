@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { useSubscriptionTier } from '@/hooks/useSubscriptionTier';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,9 +11,10 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Users, Search, Loader2, Shield, Briefcase, Wrench, Star, Phone, Mail, MoreVertical, Calendar, Lock, Link2 } from 'lucide-react';
+import { Plus, Users, Search, Loader2, Shield, Briefcase, Wrench, Star, Phone, Mail, MoreVertical, Calendar, Lock, Link2, Crown } from 'lucide-react';
 import RolePermissionsEditor from './RolePermissionsEditor';
 import BusinessInviteForm from './BusinessInviteForm';
 
@@ -51,6 +55,8 @@ const roleLabels: Record<StaffRole, string> = {
 
 const BusinessMasters = ({ businessId, freeMasters, extraMasterPrice }: Props) => {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const subscription = useSubscriptionTier(user?.id);
   const [staff, setStaff] = useState<StaffEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -111,6 +117,14 @@ const BusinessMasters = ({ businessId, freeMasters, extraMasterPrice }: Props) =
 
   const handleInvite = async () => {
     if (!skillspotId.trim()) return;
+    if (isLimitReached) {
+      toast({
+        title: 'Лимит сотрудников достигнут',
+        description: `На тарифе «${subscription.tierLabel}» доступно ${limitLabel} активных сотрудников.`,
+        variant: 'destructive',
+      });
+      return;
+    }
     setInviting(true);
     try {
       // Ensure we have an active session before querying
@@ -217,6 +231,9 @@ const BusinessMasters = ({ businessId, freeMasters, extraMasterPrice }: Props) =
   };
 
   const activeCount = staff.filter(s => s.isActive).length;
+  const employeeLimit = subscription.employeeLimit;
+  const isLimitReached = employeeLimit !== Infinity && activeCount >= employeeLimit;
+  const limitLabel = employeeLimit === Infinity ? '∞' : employeeLimit;
 
   const filtered = staff.filter(s => {
     if (!searchQuery.trim()) return true;
@@ -248,13 +265,34 @@ const BusinessMasters = ({ businessId, freeMasters, extraMasterPrice }: Props) =
           {/* Header */}
           <div className="flex items-start justify-between flex-wrap gap-3">
             <div>
-              <h2 className="text-2xl font-bold">Команда</h2>
-              <p className="text-muted-foreground">Мастера, менеджеры и сотрудники</p>
+              <h2 className="text-2xl font-bold flex items-center gap-2">
+                Команда
+                <Badge variant={isLimitReached ? 'destructive' : 'secondary'}>
+                  {activeCount} / {limitLabel}
+                </Badge>
+              </h2>
+              <p className="text-muted-foreground">
+                Мастера, менеджеры и сотрудники · тариф «{subscription.tierLabel}»
+              </p>
             </div>
-            <Button onClick={() => setInviteOpen(true)}>
+            <Button onClick={() => setInviteOpen(true)} disabled={isLimitReached}>
               <Plus className="h-4 w-4 mr-1" /> Добавить сотрудника
             </Button>
           </div>
+
+          {isLimitReached && (
+            <Alert variant="destructive">
+              <Lock className="h-4 w-4" />
+              <AlertDescription className="flex items-center justify-between gap-3">
+                <span>Достигнут лимит {limitLabel} активных сотрудников. Перейдите на «Сеть» для безлимита.</span>
+                <Link to="/subscription">
+                  <Button size="sm" variant="outline" className="gap-1 shrink-0">
+                    <Crown className="h-3 w-3" /> Сеть
+                  </Button>
+                </Link>
+              </AlertDescription>
+            </Alert>
+          )}
 
           {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

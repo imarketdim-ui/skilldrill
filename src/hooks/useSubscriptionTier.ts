@@ -1,37 +1,54 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { usePlatformPricing } from './usePlatformPricing';
+import {
+  SubscriptionTierKey,
+  TIER_LABELS,
+  TIER_LIMITS,
+  tierAllowsSection,
+  getRequiredTier,
+} from '@/lib/tierSections';
 
-export type SubscriptionTier = 'none' | 'master' | 'business' | 'network';
+export type SubscriptionTier = SubscriptionTierKey;
 
 interface SubscriptionState {
   tier: SubscriptionTier;
+  /** UI-метка тарифа: «Мастер» / «Про» / «Сеть» / «Нет подписки». */
+  tierLabel: string;
   status: 'active' | 'trial' | 'expired' | 'grace';
   expiresAt: Date | null;
   loading: boolean;
-  /** Tier labels for display */
-  tierLabel: string;
-  /** Price for current tier */
+  /** Цена текущего тарифа. */
   price: number;
-  /** Can access master features */
+
+  // ── Лимиты тарифа ──
+  /** Сколько бизнес-точек разрешено создать (0 для Мастера). */
+  locationLimit: number;
+  /** Лимит активных сотрудников (мастера + менеджеры). */
+  employeeLimit: number;
+  /** Может ли создавать business_locations. */
+  canCreateLocation: boolean;
+  /** Может ли приглашать сотрудников в команду. */
+  canInviteEmployees: boolean;
+  /** Может ли указать адрес работы и фото интерьера (true для всех тарифов). */
+  canSetWorkAddress: boolean;
+
+  // ── Доступы старой схемы (back-compat) ──
   canAccessMaster: boolean;
-  /** Can access specific business location */
   canAccessBusiness: (businessId: string) => boolean;
-  /** Can access network features */
   canAccessNetwork: boolean;
-  /** Whether actions are blocked (read-only mode) */
+
+  /** Централизованный gating разделов по матрице tierSections. */
+  canAccessSection: (sectionKey: string) => boolean;
+  /** Минимально требуемый тариф для раздела. */
+  getRequiredTierForSection: (sectionKey: string) => SubscriptionTier;
+
+  /** Подписка истекла — режим только для чтения. */
   isReadOnly: boolean;
-  /** Primary entity ID for the active tier */
+  /** Основная сущность активного тарифа. */
   primaryEntityId: string | null;
   refetch: () => void;
 }
-
-const TIER_LABELS: Record<SubscriptionTier, string> = {
-  none: 'Нет подписки',
-  master: 'Мастер',
-  business: 'Бизнес',
-  network: 'Сеть',
-};
 
 export function useSubscriptionTier(userId?: string): SubscriptionState {
   const pricing = usePlatformPricing();
@@ -46,7 +63,7 @@ export function useSubscriptionTier(userId?: string): SubscriptionState {
   const fetchTier = async () => {
     if (!userId) { setLoading(false); return; }
 
-    // Check network subscription first (highest tier)
+    // Network — высший тариф
     const { data: networks } = await supabase
       .from('networks')
       .select('id, subscription_status, trial_start_date, last_payment_date')
@@ -61,26 +78,24 @@ export function useSubscriptionTier(userId?: string): SubscriptionState {
       setStatus(activeNetwork.subscription_status as any);
       setPrimaryEntityId(activeNetwork.id);
 
-      // All businesses under this network
       const { data: netBiz } = await supabase
         .from('business_locations')
         .select('id')
         .eq('network_id', activeNetwork.id);
-      setNetworkBusinessIds((netBiz || []).map(b => b.id));
+      const netIds = (netBiz || []).map(b => b.id);
 
-      // Also include owned businesses
       const { data: ownedBiz } = await supabase
         .from('business_locations')
         .select('id')
         .eq('owner_id', userId);
       const ownedIds = (ownedBiz || []).map(b => b.id);
-      setNetworkBusinessIds(prev => [...new Set([...prev, ...ownedIds])]);
+      setNetworkBusinessIds([...new Set([...netIds, ...ownedIds])]);
 
       setLoading(false);
       return;
     }
 
-    // Check business subscription (mid tier)
+    // Business / Pro — средний тариф
     const { data: businesses } = await supabase
       .from('business_locations')
       .select('id, subscription_status, trial_start_date, last_payment_date')
@@ -99,7 +114,7 @@ export function useSubscriptionTier(userId?: string): SubscriptionState {
       return;
     }
 
-    // Check master subscription (lowest tier)
+    // Master — минимальный тариф
     const { data: master } = await supabase
       .from('master_profiles')
       .select('id, subscription_status, trial_start_date, last_payment_date, trial_days')
@@ -122,7 +137,6 @@ export function useSubscriptionTier(userId?: string): SubscriptionState {
         return;
       }
 
-      // Expired master
       if (mStatus === 'grace' || mStatus === 'expired' || mStatus === 'suspended') {
         setTier('master');
         setStatus(mStatus === 'grace' ? 'grace' : 'expired');
@@ -132,7 +146,6 @@ export function useSubscriptionTier(userId?: string): SubscriptionState {
       }
     }
 
-    // Check if any business is expired
     const expiredBiz = (businesses || []).find(b =>
       b.subscription_status === 'grace' || b.subscription_status === 'expired' || b.subscription_status === 'suspended'
     );
@@ -166,28 +179,47 @@ export function useSubscriptionTier(userId?: string): SubscriptionState {
   const isActive = status === 'active' || status === 'trial';
   const isReadOnly = !isActive && tier !== 'none';
 
-  const canAccessMaster = tier !== 'none'; // all tiers include master
+  const canAccessMaster = tier !== 'none';
   const canAccessNetwork = tier === 'network' && isActive;
 
   const canAccessBusiness = (businessId: string): boolean => {
-    if (!isActive) return false; // read-only
-    if (tier === 'network') return true; // network = all locations
-    if (tier === 'business') return businessId === primaryBusinessId; // business = 1 location
-    return false; // master tier = no business access
+    if (!isActive) return false;
+    if (tier === 'network') return true;
+    if (tier === 'business') return businessId === primaryBusinessId;
+    return false;
   };
 
+  const limits = TIER_LIMITS[tier];
   const price = tier === 'network' ? pricing.network : tier === 'business' ? pricing.business : pricing.master;
+
+  const canAccessSection = (sectionKey: string): boolean => {
+    if (!isActive) return false;
+    return tierAllowsSection(tier, sectionKey);
+  };
+
+  const getRequiredTierForSection = (sectionKey: string): SubscriptionTier =>
+    getRequiredTier(sectionKey);
 
   return {
     tier,
+    tierLabel: TIER_LABELS[tier],
     status,
     expiresAt,
     loading,
-    tierLabel: TIER_LABELS[tier],
     price,
+
+    locationLimit: limits.locationLimit,
+    employeeLimit: limits.employeeLimit,
+    canCreateLocation: limits.canCreateLocation && isActive,
+    canInviteEmployees: limits.canInviteEmployees && isActive,
+    canSetWorkAddress: limits.canSetWorkAddress,
+
     canAccessMaster,
     canAccessBusiness,
     canAccessNetwork,
+    canAccessSection,
+    getRequiredTierForSection,
+
     isReadOnly,
     primaryEntityId,
     refetch: fetchTier,

@@ -427,7 +427,7 @@ const MasterProfileEditor = ({ masterProfile, config, onPhotosChanged, onClose }
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="text-lg">Адрес и город</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-lg">Место работы — адрес и город</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label>Город</Label>
@@ -440,6 +440,13 @@ const MasterProfileEditor = ({ masterProfile, config, onPhotosChanged, onClose }
             <Button variant="outline" size="sm" onClick={() => setMapOpen(true)}>
               <MapPin className="h-4 w-4 mr-1" /> Выбрать на карте
             </Button>
+            <div className="rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground">
+              Хотите принимать сотрудников, вести кассу и склад?{' '}
+              <a href="/subscription" className="text-primary font-medium underline-offset-2 hover:underline">
+                Перейдите на тариф «Про»
+              </a>
+              .
+            </div>
           </CardContent>
         </Card>
 

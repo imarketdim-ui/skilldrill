@@ -1,13 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Mail, Plus, Loader2, Copy, Link2, Clock } from 'lucide-react';
-import { useEffect } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import { useSubscriptionTier } from '@/hooks/useSubscriptionTier';
+import { Mail, Plus, Loader2, Copy, Link2, Clock, Lock, Crown } from 'lucide-react';
 
 interface Props {
   businessId: string;
@@ -25,14 +28,18 @@ interface Invitation {
 
 const BusinessInviteForm = ({ businessId }: Props) => {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const subscription = useSubscriptionTier(user?.id);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('master');
   const [sending, setSending] = useState(false);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeStaffCount, setActiveStaffCount] = useState(0);
 
   useEffect(() => {
     fetchInvitations();
+    fetchStaffCount();
   }, [businessId]);
 
   const fetchInvitations = async () => {
@@ -46,8 +53,30 @@ const BusinessInviteForm = ({ businessId }: Props) => {
     setLoading(false);
   };
 
+  const fetchStaffCount = async () => {
+    const [masters, managers] = await Promise.all([
+      supabase.from('business_masters').select('id', { count: 'exact', head: true })
+        .eq('business_id', businessId).eq('status', 'accepted'),
+      supabase.from('business_managers').select('id', { count: 'exact', head: true })
+        .eq('business_id', businessId).eq('is_active', true),
+    ]);
+    setActiveStaffCount((masters.count || 0) + (managers.count || 0));
+  };
+
+  const employeeLimit = subscription.employeeLimit;
+  const isLimitReached = employeeLimit !== Infinity && activeStaffCount >= employeeLimit;
+  const limitLabel = employeeLimit === Infinity ? '∞' : employeeLimit;
+
   const handleSend = async () => {
     if (!email.trim()) return;
+    if (isLimitReached) {
+      toast({
+        title: 'Лимит сотрудников достигнут',
+        description: `На тарифе «${subscription.tierLabel}» доступно ${limitLabel} активных сотрудников. Перейдите на «Сеть» для безлимита.`,
+        variant: 'destructive',
+      });
+      return;
+    }
     setSending(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -91,9 +120,25 @@ const BusinessInviteForm = ({ businessId }: Props) => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <Mail className="h-5 w-5" /> Пригласить по email
+            <Badge variant={isLimitReached ? 'destructive' : 'secondary'} className="ml-auto">
+              {activeStaffCount} / {limitLabel}
+            </Badge>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {isLimitReached && (
+            <Alert variant="destructive">
+              <Lock className="h-4 w-4" />
+              <AlertDescription className="flex items-center justify-between gap-3">
+                <span>Лимит сотрудников на тарифе «{subscription.tierLabel}» достигнут.</span>
+                <Link to="/subscription">
+                  <Button size="sm" variant="outline" className="gap-1">
+                    <Crown className="h-3 w-3" /> Перейти на «Сеть»
+                  </Button>
+                </Link>
+              </AlertDescription>
+            </Alert>
+          )}
           <div className="flex gap-3">
             <Input
               placeholder="email@example.com"
@@ -113,7 +158,7 @@ const BusinessInviteForm = ({ businessId }: Props) => {
               </SelectContent>
             </Select>
           </div>
-          <Button onClick={handleSend} disabled={sending || !email.trim()} className="w-full">
+          <Button onClick={handleSend} disabled={sending || !email.trim() || isLimitReached} className="w-full">
             {sending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
             Создать приглашение
           </Button>

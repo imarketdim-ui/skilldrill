@@ -196,9 +196,9 @@ const CreateBusinessAccount = () => {
   };
 
   const typeCards = [
-    { type: 'master' as const, icon: Wrench, title: 'Мастер', desc: `Индивидуальный специалист · ${pricing.master.toLocaleString()} ₽/мес`, note: isMaster ? 'Добавить категорию' : null },
-    { type: 'business' as const, icon: Building2, title: 'Бизнес', desc: `Салон, студия, точка · ${pricing.business.toLocaleString()} ₽/мес` },
-    { type: 'network' as const, icon: Globe, title: 'Сеть', desc: `Несколько точек · ${pricing.network.toLocaleString()} ₽/мес` },
+    { type: 'master' as const, icon: Wrench, title: 'Мастер', desc: `Индивидуальный специалист · ${pricing.master.toLocaleString()} ₽/мес · адрес и фото интерьера, без сотрудников`, note: isMaster ? 'Добавить категорию' : null },
+    { type: 'business' as const, icon: Building2, title: 'Про', desc: `Салон, студия, 1 точка · до 10 сотрудников · ${pricing.business.toLocaleString()} ₽/мес` },
+    { type: 'network' as const, icon: Globe, title: 'Сеть', desc: `Несколько точек, безлимит сотрудников · ${pricing.network.toLocaleString()} ₽/мес` },
   ];
 
   const renderEntityForm = (prefix: 'business' | 'network') => {
