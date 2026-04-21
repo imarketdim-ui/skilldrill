@@ -159,6 +159,7 @@ const AdminDashboard = () => {
     super_admin: 'Супер-админ',
     moderator: 'Модератор',
     support: 'Поддержка',
+    integrator: 'Интегратор',
   };
 
   // Dashboard stats
@@ -222,6 +223,8 @@ const AdminDashboard = () => {
           {canAccess('fraud_flags') && <TabsTrigger value="fraud_flags"><Flag className="h-4 w-4 mr-1" /> Антифрод</TabsTrigger>}
           {canAccess('promo_codes') && <TabsTrigger value="promo_codes"><Ticket className="h-4 w-4 mr-1" /> Промокоды</TabsTrigger>}
           {canAccess('disputes') && <TabsTrigger value="disputes"><AlertTriangle className="h-4 w-4 mr-1" /> Споры</TabsTrigger>}
+          {canAccess('organizations') && <TabsTrigger value="organizations"><Building2 className="h-4 w-4 mr-1" /> Организации</TabsTrigger>}
+          {canAccess('integrator_setup') && <TabsTrigger value="integrator_setup"><Settings className="h-4 w-4 mr-1" /> Настройка ЛК</TabsTrigger>}
           {canAccess('support') && <TabsTrigger value="support" className="gap-1"><MessageSquare className="h-4 w-4" /> Поддержка {unreadSupport > 0 && <Badge variant="destructive" className="h-4 px-1 text-[10px]">{unreadSupport}</Badge>}</TabsTrigger>}
         </TabsList>
 
@@ -374,6 +377,8 @@ const AdminDashboard = () => {
         )}
 
         {canAccess('promo_codes') && <TabsContent value="promo_codes"><AdminPromoCodes /></TabsContent>}
+        {canAccess('organizations') && <TabsContent value="organizations"><AdminOrganizations /></TabsContent>}
+        {canAccess('integrator_setup') && <TabsContent value="integrator_setup"><IntegratorSetup /></TabsContent>}
         {canAccess('support') && <TabsContent value="support"><SupportChat isAdmin /></TabsContent>}
       </Tabs>
     </div>
