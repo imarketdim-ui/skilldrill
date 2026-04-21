@@ -667,10 +667,35 @@ const TierBadge = () => {
   );
 };
 
+// ── Маппинг ключей разделов BusinessDashboard на стабильные ключи tierSections ──
+const SECTION_TIER_KEY: Record<string, string> = {
+  // CRM
+  bonus_programs: 'bonus_programs',
+  gift_certs: 'gift_certificates',
+  penalties: 'penalties',
+  booking_settings: 'booking_settings',
+  notif_settings: 'notification_settings',
+  work_schedule: 'work_schedule',
+  // ERP
+  inventory: 'inventory',
+  registers: 'cash_registers',
+  procurement: 'procurement',
+  writeoffs: 'writeoffs',
+  product_sales: 'product_sales',
+  // Directories
+  dir_products: 'inventory',
+  dir_registers: 'cash_registers',
+  dir_positions: 'permissions',
+  dir_employee_groups: 'employee_groups',
+  // Профиль / команда
+  masters: 'staff',
+};
+
 const BusinessDashboard = () => {
   const { user, profile, activeEntityId } = useAuth();
   const { toast } = useToast();
   const pricing = usePlatformPricing();
+  const subscription = useSubscriptionTier(user?.id);
   const [businesses, setBusinesses] = useState<any[]>([]);
   const [selectedBusiness, setSelectedBusiness] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -680,6 +705,8 @@ const BusinessDashboard = () => {
   const [previousSection, setPreviousSection] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [chatTargetId, setChatTargetId] = useState<string | null>(null);
+  // Paywall state for soft-gated sections
+  const [paywallSection, setPaywallSection] = useState<{ key: string; label: string; requiredTierLabel: string } | null>(null);
   // Transfer ownership dialog state
   const [transferOpen, setTransferOpen] = useState(false);
   const [transferId, setTransferId] = useState('');
@@ -689,7 +716,29 @@ const BusinessDashboard = () => {
   const [managerId, setManagerId] = useState('');
   const [assigningManager, setAssigningManager] = useState(false);
 
+  /** Возвращает требуемый тариф для раздела, если он недоступен текущему. */
+  const getLockInfo = (sectionKey: string): { locked: boolean; requiredTierLabel: string } => {
+    const tierKey = SECTION_TIER_KEY[sectionKey];
+    if (!tierKey) return { locked: false, requiredTierLabel: '' };
+    const effectiveTier = subscription.tier === 'none' ? 'master' : subscription.tier;
+    const allowed = tierAllowsSection(effectiveTier, tierKey);
+    if (allowed) return { locked: false, requiredTierLabel: '' };
+    return { locked: true, requiredTierLabel: TIER_LABELS[getRequiredTier(tierKey)] };
+  };
+
+  const decorateItems = (items: typeof crmItems) =>
+    items.map((it) => {
+      const lock = getLockInfo(it.key);
+      return { ...it, locked: lock.locked, requiredTierLabel: lock.requiredTierLabel };
+    });
+
   const navigateTo = (section: string) => {
+    const lock = getLockInfo(section);
+    if (lock.locked) {
+      const item = [...crmItems, ...erpItems, ...directoryItems, ...profileItems].find(i => i.key === section);
+      setPaywallSection({ key: section, label: item?.label || section, requiredTierLabel: lock.requiredTierLabel });
+      return;
+    }
     setPreviousSection(activeSection);
     setActiveSection(section);
   };
