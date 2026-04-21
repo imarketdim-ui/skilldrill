@@ -826,13 +826,25 @@ const BusinessDashboard = () => {
   );
 
   const renderContent = () => {
+    if (paywallSection && selectedBusiness) {
+      return (
+        <SubscriptionPaywall
+          entityType="business"
+          entityId={selectedBusiness.id}
+          entityName={selectedBusiness.name || 'Организация'}
+          sectionLabel={paywallSection.label}
+          requiredTierLabel={paywallSection.requiredTierLabel}
+          onPaid={() => { setPaywallSection(null); fetchBusinesses(); subscription.refetch(); }}
+        />
+      );
+    }
     switch (activeSection) {
       case 'crm':
-        return <SectionHub title="CRM" description="Управление клиентами и коммуникациями" items={crmItems} onNavigate={navigateTo} />;
+        return <SectionHub title="CRM" description="Управление клиентами и коммуникациями" items={decorateItems(crmItems)} onNavigate={navigateTo} onLockedClick={(it: any) => setPaywallSection({ key: it.key, label: it.label, requiredTierLabel: it.requiredTierLabel })} />;
       case 'erp':
-        return <SectionHub title="ERP" description="Управление бизнес-процессами" items={erpItems} onNavigate={navigateTo} />;
+        return <SectionHub title="ERP" description="Управление бизнес-процессами" items={decorateItems(erpItems)} onNavigate={navigateTo} onLockedClick={(it: any) => setPaywallSection({ key: it.key, label: it.label, requiredTierLabel: it.requiredTierLabel })} />;
       case 'directories':
-        return <SectionHub title="Справочники" description="Справочные данные и настройки" items={directoryItems} onNavigate={navigateTo} />;
+        return <SectionHub title="Справочники" description="Справочные данные и настройки" items={decorateItems(directoryItems)} onNavigate={navigateTo} onLockedClick={(it: any) => setPaywallSection({ key: it.key, label: it.label, requiredTierLabel: it.requiredTierLabel })} />;
       case 'dir_client_types':
         return selectedBusiness ? <ClientTypeDirectory businessId={selectedBusiness.id} /> : null;
       case 'dir_products':
