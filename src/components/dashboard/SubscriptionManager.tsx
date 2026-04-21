@@ -240,7 +240,7 @@ const SubscriptionManager = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 };
 
