@@ -12,8 +12,9 @@ import {
   ArrowRightLeft, UserPlus, AlertTriangle, MessageSquare, LayoutDashboard,
   CreditCard, Package, Percent, Megaphone, BarChart3, Bell, Database,
   PanelLeftClose, PanelLeftOpen, Wallet, Briefcase, Plus, Trash2, Shield,
-  Search, User, Merge, Gift, Ticket, Globe, Award
+  Search, User, Merge, Gift, Ticket, Globe, Award, Lock
 } from 'lucide-react';
+import { TIER_LABELS, getRequiredTier, tierAllowsSection } from '@/lib/tierSections';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -666,10 +667,35 @@ const TierBadge = () => {
   );
 };
 
+// ── Маппинг ключей разделов BusinessDashboard на стабильные ключи tierSections ──
+const SECTION_TIER_KEY: Record<string, string> = {
+  // CRM
+  bonus_programs: 'bonus_programs',
+  gift_certs: 'gift_certificates',
+  penalties: 'penalties',
+  booking_settings: 'booking_settings',
+  notif_settings: 'notification_settings',
+  work_schedule: 'work_schedule',
+  // ERP
+  inventory: 'inventory',
+  registers: 'cash_registers',
+  procurement: 'procurement',
+  writeoffs: 'writeoffs',
+  product_sales: 'product_sales',
+  // Directories
+  dir_products: 'inventory',
+  dir_registers: 'cash_registers',
+  dir_positions: 'permissions',
+  dir_employee_groups: 'employee_groups',
+  // Профиль / команда
+  masters: 'staff',
+};
+
 const BusinessDashboard = () => {
   const { user, profile, activeEntityId } = useAuth();
   const { toast } = useToast();
   const pricing = usePlatformPricing();
+  const subscription = useSubscriptionTier(user?.id);
   const [businesses, setBusinesses] = useState<any[]>([]);
   const [selectedBusiness, setSelectedBusiness] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -679,6 +705,8 @@ const BusinessDashboard = () => {
   const [previousSection, setPreviousSection] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [chatTargetId, setChatTargetId] = useState<string | null>(null);
+  // Paywall state for soft-gated sections
+  const [paywallSection, setPaywallSection] = useState<{ key: string; label: string; requiredTierLabel: string } | null>(null);
   // Transfer ownership dialog state
   const [transferOpen, setTransferOpen] = useState(false);
   const [transferId, setTransferId] = useState('');
@@ -688,7 +716,29 @@ const BusinessDashboard = () => {
   const [managerId, setManagerId] = useState('');
   const [assigningManager, setAssigningManager] = useState(false);
 
+  /** Возвращает требуемый тариф для раздела, если он недоступен текущему. */
+  const getLockInfo = (sectionKey: string): { locked: boolean; requiredTierLabel: string } => {
+    const tierKey = SECTION_TIER_KEY[sectionKey];
+    if (!tierKey) return { locked: false, requiredTierLabel: '' };
+    const effectiveTier = subscription.tier === 'none' ? 'master' : subscription.tier;
+    const allowed = tierAllowsSection(effectiveTier, tierKey);
+    if (allowed) return { locked: false, requiredTierLabel: '' };
+    return { locked: true, requiredTierLabel: TIER_LABELS[getRequiredTier(tierKey)] };
+  };
+
+  const decorateItems = (items: typeof crmItems) =>
+    items.map((it) => {
+      const lock = getLockInfo(it.key);
+      return { ...it, locked: lock.locked, requiredTierLabel: lock.requiredTierLabel };
+    });
+
   const navigateTo = (section: string) => {
+    const lock = getLockInfo(section);
+    if (lock.locked) {
+      const item = [...crmItems, ...erpItems, ...directoryItems, ...profileItems].find(i => i.key === section);
+      setPaywallSection({ key: section, label: item?.label || section, requiredTierLabel: lock.requiredTierLabel });
+      return;
+    }
     setPreviousSection(activeSection);
     setActiveSection(section);
   };
@@ -776,13 +826,25 @@ const BusinessDashboard = () => {
   );
 
   const renderContent = () => {
+    if (paywallSection && selectedBusiness) {
+      return (
+        <SubscriptionPaywall
+          entityType="business"
+          entityId={selectedBusiness.id}
+          entityName={selectedBusiness.name || 'Организация'}
+          sectionLabel={paywallSection.label}
+          requiredTierLabel={paywallSection.requiredTierLabel}
+          onPaid={() => { setPaywallSection(null); fetchBusinesses(); subscription.refetch(); }}
+        />
+      );
+    }
     switch (activeSection) {
       case 'crm':
-        return <SectionHub title="CRM" description="Управление клиентами и коммуникациями" items={crmItems} onNavigate={navigateTo} />;
+        return <SectionHub title="CRM" description="Управление клиентами и коммуникациями" items={decorateItems(crmItems)} onNavigate={navigateTo} onLockedClick={(it: any) => setPaywallSection({ key: it.key, label: it.label, requiredTierLabel: it.requiredTierLabel })} />;
       case 'erp':
-        return <SectionHub title="ERP" description="Управление бизнес-процессами" items={erpItems} onNavigate={navigateTo} />;
+        return <SectionHub title="ERP" description="Управление бизнес-процессами" items={decorateItems(erpItems)} onNavigate={navigateTo} onLockedClick={(it: any) => setPaywallSection({ key: it.key, label: it.label, requiredTierLabel: it.requiredTierLabel })} />;
       case 'directories':
-        return <SectionHub title="Справочники" description="Справочные данные и настройки" items={directoryItems} onNavigate={navigateTo} />;
+        return <SectionHub title="Справочники" description="Справочные данные и настройки" items={decorateItems(directoryItems)} onNavigate={navigateTo} onLockedClick={(it: any) => setPaywallSection({ key: it.key, label: it.label, requiredTierLabel: it.requiredTierLabel })} />;
       case 'dir_client_types':
         return selectedBusiness ? <ClientTypeDirectory businessId={selectedBusiness.id} /> : null;
       case 'dir_products':

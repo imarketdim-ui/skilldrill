@@ -1,22 +1,32 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, UserRoleType } from '@/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import ClientDashboard from '@/components/dashboard/ClientDashboard';
-import MasterDashboard from '@/components/dashboard/MasterDashboard';
-import BusinessDashboard from '@/components/dashboard/BusinessDashboard';
-import NetworkDashboard from '@/components/dashboard/NetworkDashboard';
-import AdminDashboard from '@/components/dashboard/AdminDashboard';
-import SuperAdminDashboard from '@/components/dashboard/SuperAdminDashboard';
-import ManagerDashboard from '@/components/dashboard/ManagerDashboard';
-import ModeratorDashboard from '@/components/dashboard/ModeratorDashboard';
-import SupportDashboard from '@/components/dashboard/SupportDashboard';
-import IntegratorDashboard from '@/components/dashboard/IntegratorDashboard';
 import BusinessRoleHub from '@/components/dashboard/BusinessRoleHub';
 import PlatformRoleHub from '@/components/dashboard/PlatformRoleHub';
 
+// ── Lazy: тяжёлые дашборды грузим только когда роль активна ──
+const MasterDashboard = lazy(() => import('@/components/dashboard/MasterDashboard'));
+const BusinessDashboard = lazy(() => import('@/components/dashboard/BusinessDashboard'));
+const NetworkDashboard = lazy(() => import('@/components/dashboard/NetworkDashboard'));
+const AdminDashboard = lazy(() => import('@/components/dashboard/AdminDashboard'));
+const SuperAdminDashboard = lazy(() => import('@/components/dashboard/SuperAdminDashboard'));
+const ManagerDashboard = lazy(() => import('@/components/dashboard/ManagerDashboard'));
+const ModeratorDashboard = lazy(() => import('@/components/dashboard/ModeratorDashboard'));
+const SupportDashboard = lazy(() => import('@/components/dashboard/SupportDashboard'));
+const IntegratorDashboard = lazy(() => import('@/components/dashboard/IntegratorDashboard'));
+
 type ViewMode = 'dashboard' | 'hub_business' | 'hub_platform';
+
+const DashboardFallback = () => (
+  <div className="space-y-4">
+    <Skeleton className="h-12 w-1/3" />
+    <Skeleton className="h-64 w-full rounded-lg" />
+    <Skeleton className="h-32 w-full rounded-lg" />
+  </div>
+);
 
 const Dashboard = () => {
   const { user, loading, activeRole, roles, setActiveRole } = useAuth();
@@ -129,7 +139,9 @@ const Dashboard = () => {
       onSelectHub={handleSelectHub}
       onBackToHub={activeRole !== 'client' ? handleBackToHubInternal : undefined}
     >
-      {renderContent()}
+      <Suspense fallback={<DashboardFallback />}>
+        {renderContent()}
+      </Suspense>
     </DashboardLayout>
   );
 };
