@@ -8,19 +8,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { 
   Users, Shield, MessageSquare, 
-  CheckCircle, XCircle, AlertTriangle, Tag, ShieldBan, Eye, Flag, Ticket
+  CheckCircle, XCircle, AlertTriangle, Tag, ShieldBan, Eye, Flag, Ticket, Building2, Settings
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AdminUserList from './admin/AdminUserList';
 import RevocationRequests from './admin/RevocationRequests';
 import FraudFlagsPanel from './admin/FraudFlagsPanel';
 import AdminPromoCodes from './admin/AdminPromoCodes';
+import AdminOrganizations from './admin/AdminOrganizations';
+import IntegratorSetup from './admin/IntegratorSetup';
 import SupportChat from './SupportChat';
 import SignedImage from '@/components/ui/signed-image';
 
-type AdminSubRole = 'platform_admin' | 'super_admin' | 'moderator' | 'support';
+type AdminSubRole = 'platform_admin' | 'super_admin' | 'moderator' | 'support' | 'integrator';
 
-// Tab visibility by sub-role
+// Tab visibility by sub-role (по разд. 4.1 ТЗ).
 const TAB_ACCESS: Record<string, AdminSubRole[]> = {
   moderation: ['platform_admin', 'super_admin', 'moderator'],
   users: ['platform_admin', 'super_admin'],
@@ -28,13 +30,12 @@ const TAB_ACCESS: Record<string, AdminSubRole[]> = {
   revocations: ['super_admin'],
   category_requests: ['platform_admin', 'super_admin', 'moderator'],
   fraud_flags: ['platform_admin', 'super_admin'],
-  promo_codes: ['platform_admin', 'super_admin'],
+  promo_codes: ['platform_admin', 'super_admin', 'integrator'],
   disputes: ['platform_admin', 'super_admin', 'moderator'],
-  support: ['platform_admin', 'super_admin', 'support'],
+  support: ['platform_admin', 'super_admin', 'support', 'integrator'],
+  organizations: ['platform_admin', 'super_admin', 'support', 'integrator'],
+  integrator_setup: ['integrator'],
 };
-
-// Integrator role gets same access as support + promo_codes
-const INTEGRATOR_TABS = ['support', 'promo_codes'];
 
 const AdminDashboard = () => {
   const { user, activeRole } = useAuth();
@@ -49,7 +50,6 @@ const AdminDashboard = () => {
 
   const subRole = activeRole as AdminSubRole;
   const canAccess = (tab: string) => {
-    if (subRole === 'integrator' as any) return INTEGRATOR_TABS.includes(tab);
     return TAB_ACCESS[tab]?.includes(subRole) ?? false;
   };
   const visibleTabs = Object.keys(TAB_ACCESS).filter(canAccess);
@@ -159,6 +159,7 @@ const AdminDashboard = () => {
     super_admin: 'Супер-админ',
     moderator: 'Модератор',
     support: 'Поддержка',
+    integrator: 'Интегратор',
   };
 
   // Dashboard stats
@@ -222,6 +223,8 @@ const AdminDashboard = () => {
           {canAccess('fraud_flags') && <TabsTrigger value="fraud_flags"><Flag className="h-4 w-4 mr-1" /> Антифрод</TabsTrigger>}
           {canAccess('promo_codes') && <TabsTrigger value="promo_codes"><Ticket className="h-4 w-4 mr-1" /> Промокоды</TabsTrigger>}
           {canAccess('disputes') && <TabsTrigger value="disputes"><AlertTriangle className="h-4 w-4 mr-1" /> Споры</TabsTrigger>}
+          {canAccess('organizations') && <TabsTrigger value="organizations"><Building2 className="h-4 w-4 mr-1" /> Организации</TabsTrigger>}
+          {canAccess('integrator_setup') && <TabsTrigger value="integrator_setup"><Settings className="h-4 w-4 mr-1" /> Настройка ЛК</TabsTrigger>}
           {canAccess('support') && <TabsTrigger value="support" className="gap-1"><MessageSquare className="h-4 w-4" /> Поддержка {unreadSupport > 0 && <Badge variant="destructive" className="h-4 px-1 text-[10px]">{unreadSupport}</Badge>}</TabsTrigger>}
         </TabsList>
 
@@ -374,6 +377,8 @@ const AdminDashboard = () => {
         )}
 
         {canAccess('promo_codes') && <TabsContent value="promo_codes"><AdminPromoCodes /></TabsContent>}
+        {canAccess('organizations') && <TabsContent value="organizations"><AdminOrganizations /></TabsContent>}
+        {canAccess('integrator_setup') && <TabsContent value="integrator_setup"><IntegratorSetup /></TabsContent>}
         {canAccess('support') && <TabsContent value="support"><SupportChat isAdmin /></TabsContent>}
       </Tabs>
     </div>

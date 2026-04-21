@@ -13,6 +13,10 @@ interface SubscriptionPaywallProps {
   entityId: string;
   entityName: string;
   onPaid: () => void;
+  /** Раздел/функция, которую пытались открыть — для понятного сообщения. */
+  sectionLabel?: string;
+  /** Минимальный тариф, требуемый для доступа. */
+  requiredTierLabel?: string;
 }
 
 const periods = [
@@ -22,7 +26,7 @@ const periods = [
   { months: 12, label: '1 год', discount: 20 },
 ];
 
-const SubscriptionPaywall = ({ entityType, entityId, entityName, onPaid }: SubscriptionPaywallProps) => {
+const SubscriptionPaywall = ({ entityType, entityId, entityName, onPaid, sectionLabel, requiredTierLabel }: SubscriptionPaywallProps) => {
   const { user, setActiveRole } = useAuth();
   const { toast } = useToast();
   const pricing = usePlatformPricing();
@@ -107,9 +111,15 @@ const SubscriptionPaywall = ({ entityType, entityId, entityName, onPaid }: Subsc
             <div className="h-14 w-14 rounded-2xl bg-destructive/10 flex items-center justify-center mx-auto">
               <AlertTriangle className="h-7 w-7 text-destructive" />
             </div>
-            <h2 className="text-xl font-bold">Подписка истекла</h2>
+            <h2 className="text-xl font-bold">
+              {sectionLabel ? `Раздел «${sectionLabel}» недоступен` : 'Подписка истекла'}
+            </h2>
             <p className="text-muted-foreground">
-              Для доступа к кабинету <span className="font-medium text-foreground">«{entityName}»</span> необходимо оплатить подписку
+              {sectionLabel && requiredTierLabel ? (
+                <>Для доступа нужен тариф <span className="font-semibold text-foreground">«{requiredTierLabel}»</span> в кабинете <span className="font-medium text-foreground">«{entityName}»</span></>
+              ) : (
+                <>Для доступа к кабинету <span className="font-medium text-foreground">«{entityName}»</span> необходимо оплатить подписку</>
+              )}
             </p>
           </div>
 
