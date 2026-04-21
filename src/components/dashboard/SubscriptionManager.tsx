@@ -9,6 +9,8 @@ import { CreditCard, Calendar, Check, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format, addMonths, addDays } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import TierComparison from './TierComparison';
+import { SubscriptionTierKey } from '@/lib/tierSections';
 
 interface SubscriptionManagerProps {
   entityType: 'master' | 'business' | 'network';
@@ -144,8 +146,10 @@ const SubscriptionManager = ({
     setPaying(false);
   };
 
+  const currentTier: SubscriptionTierKey = entityType;
+
   return (
-    <>
+    <div className="space-y-4">
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center justify-between">
@@ -173,6 +177,8 @@ const SubscriptionManager = ({
           )}
         </CardContent>
       </Card>
+
+      <TierComparison currentTier={currentTier} />
 
       <Dialog open={showPayDialog} onOpenChange={setShowPayDialog}>
         <DialogContent className="max-w-md">

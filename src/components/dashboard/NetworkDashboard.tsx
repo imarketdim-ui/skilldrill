@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,6 +16,7 @@ import SupportChat from './SupportChat';
 
 const NetworkDashboard = () => {
   const { user, activeEntityId } = useAuth();
+  const navigate = useNavigate();
   const [networks, setNetworks] = useState<any[]>([]);
   const [selectedNetwork, setSelectedNetwork] = useState<any>(null);
   const [locations, setLocations] = useState<any[]>([]);
@@ -113,7 +115,9 @@ const NetworkDashboard = () => {
                   <CardTitle>Точки сети</CardTitle>
                   <CardDescription>3 бесплатных, каждая доп. +1 200 ₽/мес</CardDescription>
                 </div>
-                <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Добавить точку</Button>
+                <Button size="sm" onClick={() => navigate(`/create-account?type=business&network=${selectedNetwork?.id ?? ''}`)}>
+                  <Plus className="h-4 w-4 mr-1" /> Добавить точку
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
