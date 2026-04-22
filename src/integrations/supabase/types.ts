@@ -622,6 +622,7 @@ export type Database = {
         Row: {
           address: string | null
           auto_writeoff_enabled: boolean
+          buffer_minutes: number
           cash_balance: number
           category_id: string | null
           certificate_photos: Json | null
@@ -664,6 +665,7 @@ export type Database = {
         Insert: {
           address?: string | null
           auto_writeoff_enabled?: boolean
+          buffer_minutes?: number
           cash_balance?: number
           category_id?: string | null
           certificate_photos?: Json | null
@@ -706,6 +708,7 @@ export type Database = {
         Update: {
           address?: string | null
           auto_writeoff_enabled?: boolean
+          buffer_minutes?: number
           cash_balance?: number
           category_id?: string | null
           certificate_photos?: Json | null
@@ -2270,6 +2273,41 @@ export type Database = {
             foreignKeyName: "master_profiles_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      master_time_off: {
+        Row: {
+          created_at: string
+          end_date: string
+          id: string
+          master_id: string
+          reason: string | null
+          start_date: string
+        }
+        Insert: {
+          created_at?: string
+          end_date: string
+          id?: string
+          master_id: string
+          reason?: string | null
+          start_date: string
+        }
+        Update: {
+          created_at?: string
+          end_date?: string
+          id?: string
+          master_id?: string
+          reason?: string | null
+          start_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "master_time_off_master_id_fkey"
+            columns: ["master_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -4863,9 +4901,24 @@ export type Database = {
       }
       check_fraud_indicators: { Args: { _user_id: string }; Returns: Json }
       generate_skillspot_id: { Args: never; Returns: string }
+      get_master_available_slots: {
+        Args: { _date: string; _master_id: string; _service_duration: number }
+        Returns: {
+          slot_end: string
+          slot_start: string
+        }[]
+      }
+      get_next_available_date: {
+        Args: { _from_date?: string; _master_id: string }
+        Returns: string
+      }
       get_user_org_role: {
         Args: { org_id: string; user_id: string }
         Returns: string
+      }
+      has_master_availability_on_date: {
+        Args: { _date: string; _master_id: string }
+        Returns: boolean
       }
       has_org_permission: {
         Args: { org_id: string; permission_code: string; user_id: string }
