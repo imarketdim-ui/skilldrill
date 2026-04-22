@@ -214,13 +214,27 @@ const AdminOrganizations = () => {
         <CardDescription>Все бизнес-точки и сети платформы. Только просмотр.</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="flex items-center gap-2 mb-4">
-          <Search className="h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Поиск по названию, ФИО владельца или Skillspot ID"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
+          <div className="flex items-center gap-2 flex-1 min-w-[220px]">
+            <Search className="h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Поиск по названию, ФИО владельца или Skillspot ID"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <Select value={onboardingFilter} onValueChange={setOnboardingFilter}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Статус онбординга" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Все статусы</SelectItem>
+              <SelectItem value="in_progress">В процессе</SelectItem>
+              <SelectItem value="pending_review">На проверке</SelectItem>
+              <SelectItem value="approved">Одобрена</SelectItem>
+              <SelectItem value="rejected">Отклонена</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {loading ? (
