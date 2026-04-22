@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -6,8 +6,11 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MessageSquare, Send, Check, CheckCheck, Loader2 } from 'lucide-react';
+import { MessageSquare, Send, Check, CheckCheck, Loader2, X, Search, Reply, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
+import VoiceRecorder from '@/components/chat/VoiceRecorder';
+import MediaUploader from '@/components/chat/MediaUploader';
+import ChatEmojiPicker from '@/components/chat/ChatEmojiPicker';
 
 interface SupportChatProps {
   isAdmin?: boolean;
@@ -30,6 +33,9 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [threads, setThreads] = useState<SupportThread[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [replyTo, setReplyTo] = useState<any>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
