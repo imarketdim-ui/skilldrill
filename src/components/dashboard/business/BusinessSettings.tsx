@@ -191,6 +191,7 @@ const BusinessSettings = ({ business, onUpdated }: Props) => {
 
   return (
     <div className="space-y-4">
+      <BusinessOnboardingProgress business={business} />
       <Card>
         <CardHeader><CardTitle>Настройки бизнеса</CardTitle></CardHeader>
         <CardContent className="space-y-2">
