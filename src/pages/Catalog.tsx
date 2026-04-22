@@ -113,6 +113,12 @@ const Catalog = () => {
 
   const [citySearch, setCitySearch] = useState("");
 
+  // Date availability filter (Booking-like): фильтруем мастеров с свободными слотами на дату
+  const [availabilityDate, setAvailabilityDate] = useState<string>(searchParams.get("avail") || "");
+  const [availableMasterIds, setAvailableMasterIds] = useState<Set<string> | null>(null);
+  const [availableBizIds, setAvailableBizIds] = useState<Set<string> | null>(null);
+  const [checkingAvailability, setCheckingAvailability] = useState(false);
+
   // Extract unique cities from dedicated city column
   const availableCities = useMemo(() => {
     const cities = new Set<string>();
@@ -437,6 +443,53 @@ const Catalog = () => {
     );
   };
 
+  // Recompute availability when date or loaded lists change
+  useEffect(() => {
+    if (!availabilityDate) {
+      setAvailableMasterIds(null);
+      setAvailableBizIds(null);
+      return;
+    }
+    let cancelled = false;
+    const run = async () => {
+      setCheckingAvailability(true);
+      // Masters
+      const masterUids = masters.map((m) => m.user_id);
+      const mResults = await Promise.all(
+        masterUids.map(async (uid) => {
+          const { data } = await supabase.rpc("has_master_availability_on_date", {
+            _master_id: uid,
+            _date: availabilityDate,
+          });
+          return { uid, ok: data === true };
+        }),
+      );
+      if (cancelled) return;
+      const okMasters = new Set(mResults.filter((r) => r.ok).map((r) => r.uid));
+      setAvailableMasterIds(okMasters);
+
+      // Businesses: считаем доступными те, у которых хотя бы один мастер свободен
+      const bizIds = businesses.map((b) => b.id);
+      if (bizIds.length > 0) {
+        const { data: bm } = await supabase
+          .from("business_masters")
+          .select("business_id, master_id")
+          .in("business_id", bizIds)
+          .eq("status", "accepted");
+        const okBiz = new Set<string>();
+        for (const row of bm || []) {
+          if (okMasters.has((row as any).master_id)) okBiz.add((row as any).business_id);
+        }
+        if (!cancelled) setAvailableBizIds(okBiz);
+      } else {
+        setAvailableBizIds(new Set());
+      }
+      setCheckingAvailability(false);
+    };
+    run();
+    return () => { cancelled = true; };
+  }, [availabilityDate, masters, businesses]);
+
   // Filter masters (search is now server-side via FTS)
   const filteredMasters = useMemo(() => {
     return masters
@@ -452,6 +505,7 @@ const Catalog = () => {
           if (m.city && m.city.toLowerCase() === locationFilter.toLowerCase()) { /* match */ }
           else if (!(m.location || "").toLowerCase().includes(locationFilter.toLowerCase())) return false;
         }
+        if (availabilityDate && availableMasterIds && !availableMasterIds.has(m.user_id)) return false;
         return true;
       })
       .sort((a, b) => {
@@ -473,7 +527,7 @@ const Catalog = () => {
           default: return 0;
         }
       });
-  }, [masters, priceRange, selectedTags, sortBy, locationFilter, userLocation, popularityMap]);
+  }, [masters, priceRange, selectedTags, sortBy, locationFilter, userLocation, popularityMap, availabilityDate, availableMasterIds]);
 
   // Filter businesses (basic client-side filter since no FTS on business_locations)
   const filteredBusinesses = useMemo(() => {
@@ -494,6 +548,7 @@ const Catalog = () => {
           if (b.city && b.city.toLowerCase() === locationFilter.toLowerCase()) { /* match */ }
           else if (!(b.address || "").toLowerCase().includes(locationFilter.toLowerCase())) return false;
         }
+        if (availabilityDate && availableBizIds && !availableBizIds.has(b.id)) return false;
         return true;
       })
       .sort((a, b) => {
@@ -509,7 +564,7 @@ const Catalog = () => {
         }
         return 0;
       });
-  }, [businesses, searchQuery, categoryFilter, locationFilter, sortBy, userLocation, popularityMap]);
+  }, [businesses, searchQuery, categoryFilter, locationFilter, sortBy, userLocation, popularityMap, availabilityDate, availableBizIds]);
 
   // Filter services (search is now server-side via FTS)
   const filteredServices = useMemo(() => {
@@ -771,6 +826,27 @@ const Catalog = () => {
                       className="h-10"
                     />
                   </div>
+                </div>
+              </div>
+
+              {/* Availability date — Booking-style */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">
+                  Свободно на дату {checkingAvailability && "(проверка…)"}
+                </label>
+                <div className="flex gap-2 items-center">
+                  <Input
+                    type="date"
+                    min={new Date().toISOString().slice(0, 10)}
+                    value={availabilityDate}
+                    onChange={(e) => setAvailabilityDate(e.target.value)}
+                    className="h-10"
+                  />
+                  {availabilityDate && (
+                    <Button variant="ghost" size="sm" onClick={() => setAvailabilityDate("")}>
+                      <X className="w-4 h-4" />
+                    </Button>
+                  )}
                 </div>
               </div>
 
