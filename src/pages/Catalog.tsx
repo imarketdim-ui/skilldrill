@@ -113,6 +113,12 @@ const Catalog = () => {
 
   const [citySearch, setCitySearch] = useState("");
 
+  // Date availability filter (Booking-like): фильтруем мастеров с свободными слотами на дату
+  const [availabilityDate, setAvailabilityDate] = useState<string>(searchParams.get("avail") || "");
+  const [availableMasterIds, setAvailableMasterIds] = useState<Set<string> | null>(null);
+  const [availableBizIds, setAvailableBizIds] = useState<Set<string> | null>(null);
+  const [checkingAvailability, setCheckingAvailability] = useState(false);
+
   // Extract unique cities from dedicated city column
   const availableCities = useMemo(() => {
     const cities = new Set<string>();
