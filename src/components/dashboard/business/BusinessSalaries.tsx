@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
@@ -35,7 +35,7 @@ interface Scheme {
   master?: { first_name: string | null; last_name: string | null; skillspot_id: string | null };
 }
 
-interface Record {
+interface SalaryRecord {
   id: string;
   business_id: string;
   master_id: string;
@@ -51,7 +51,7 @@ interface Record {
   master?: { first_name: string | null; last_name: string | null };
 }
 
-const SCHEME_LABELS: Record<SchemeType, string> = {
+const SCHEME_LABELS: { [k in SchemeType]: string } = {
   fixed: 'Фиксированная',
   percent: '% с услуг',
   mixed: 'Смешанная (фикс + %)',
@@ -63,7 +63,7 @@ const BusinessSalaries = ({ businessId }: Props) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [schemes, setSchemes] = useState<Scheme[]>([]);
-  const [records, setRecords] = useState<Record[]>([]);
+  const [records, setRecords] = useState<SalaryRecord[]>([]);
   const [masters, setMasters] = useState<any[]>([]);
 
   const [editingScheme, setEditingScheme] = useState<Scheme | null>(null);
