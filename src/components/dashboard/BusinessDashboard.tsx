@@ -12,7 +12,7 @@ import {
   ArrowRightLeft, UserPlus, AlertTriangle, MessageSquare, LayoutDashboard,
   CreditCard, Package, Percent, Megaphone, BarChart3, Bell, Database,
   PanelLeftClose, PanelLeftOpen, Wallet, Briefcase, Plus, Trash2, Shield,
-  Search, User, Merge, Gift, Ticket, Globe, Award, Lock
+  Search, User, Merge, Gift, Ticket, Globe, Award, Lock, Banknote
 } from 'lucide-react';
 import { TIER_LABELS, getRequiredTier, tierAllowsSection } from '@/lib/tierSections';
 import { Input } from '@/components/ui/input';
@@ -53,6 +53,7 @@ import BusinessNotificationSettings from './business/BusinessNotificationSetting
 import BusinessWorkSchedule from './business/BusinessWorkSchedule';
 import BusinessBookingSettings from './business/BusinessBookingSettings';
 import BusinessEmployeeGroups from './business/BusinessEmployeeGroups';
+import BusinessSalaries from './business/BusinessSalaries';
 
 // ── Notifications with real counter ──
 const BusinessNotifications = ({ businessId }: { businessId?: string }) => {
@@ -628,6 +629,7 @@ const erpItems = [
   { key: 'stats', label: 'Статистика', icon: BarChart3, description: 'Аналитика и отчёты' },
   { key: 'services', label: 'Услуги', icon: ClipboardList, description: 'Услуги и прайс' },
   { key: 'commissions', label: 'Комиссии', icon: DollarSign, description: 'Настройки комиссий' },
+  { key: 'salaries', label: 'Зарплаты', icon: Banknote, description: 'Схемы оплаты и расчёт выплат' },
   { key: 'inventory', label: 'Склад', icon: Package, description: 'Товары и материалы' },
   { key: 'registers', label: 'Кассы', icon: Wallet, description: 'Наличные и безналичные' },
   { key: 'product_sales', label: 'Продажи', icon: Briefcase, description: 'Продажа товаров' },
@@ -682,6 +684,7 @@ const SECTION_TIER_KEY: Record<string, string> = {
   procurement: 'procurement',
   writeoffs: 'writeoffs',
   product_sales: 'product_sales',
+  salaries: 'salaries',
   // Directories
   dir_products: 'inventory',
   dir_registers: 'cash_registers',
@@ -863,6 +866,8 @@ const BusinessDashboard = () => {
         return selectedBusiness ? <BusinessGiftCertificates businessId={selectedBusiness.id} /> : null;
       case 'penalties':
         return selectedBusiness ? <BusinessPenalties businessId={selectedBusiness.id} /> : null;
+      case 'salaries':
+        return selectedBusiness ? <BusinessSalaries businessId={selectedBusiness.id} /> : null;
       case 'booking_settings':
         return selectedBusiness ? <BusinessBookingSettings businessId={selectedBusiness.id} /> : null;
       case 'notif_settings':
