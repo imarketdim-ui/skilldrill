@@ -176,7 +176,7 @@ const BonusSubscriptionPanel = ({ stats, onNavigate }: Props) => {
             onClick={() => onNavigate?.('sub_masters')}
           >
             <p className="font-medium">Мастера</p>
-            <p className="text-sm text-muted-foreground">690 ₽/мес</p>
+            <p className="text-sm text-muted-foreground">199 ₽/мес</p>
             <p className="text-2xl font-bold mt-2">{stats.masters}</p>
             {onNavigate && <p className="text-xs text-muted-foreground mt-1">Подробнее →</p>}
           </button>
@@ -194,7 +194,7 @@ const BonusSubscriptionPanel = ({ stats, onNavigate }: Props) => {
             onClick={() => onNavigate?.('sub_networks')}
           >
             <p className="font-medium">Сети</p>
-            <p className="text-sm text-muted-foreground">от 6 490 ₽/мес</p>
+            <p className="text-sm text-muted-foreground">от 5 490 ₽/мес</p>
             <p className="text-2xl font-bold mt-2">{stats.networks}</p>
             {onNavigate && <p className="text-xs text-muted-foreground mt-1">Подробнее →</p>}
           </button>

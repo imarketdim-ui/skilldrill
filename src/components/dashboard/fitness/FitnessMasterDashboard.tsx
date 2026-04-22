@@ -71,7 +71,7 @@ const FitnessMasterDashboard = ({ masterProfile, isSubscriptionActive }: Props) 
           trialStartDate={masterProfile?.trial_start_date}
           trialDays={masterProfile?.trial_days || 14}
           lastPaymentDate={masterProfile?.last_payment_date}
-          basePrice={690}
+          basePrice={199}
           parentManaged={masterProfile?.subscription_status === 'in_business'}
           parentLabel="Управляется бизнесом"
         />

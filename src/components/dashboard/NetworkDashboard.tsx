@@ -91,7 +91,7 @@ const NetworkDashboard = () => {
           {selectedNetwork?.moderation_status === 'approved' && <Badge variant="outline">Опубликован</Badge>}
           {selectedNetwork?.moderation_status === 'pending' && <Badge>На модерации</Badge>}
           {selectedNetwork?.moderation_status === 'draft' && <Badge variant="secondary">Черновик</Badge>}
-          <Badge variant="outline">Про · 6 490 ₽/мес</Badge>
+          <Badge variant="outline">Сеть · 5 490 ₽/мес</Badge>
         </div>
       </div>
 
@@ -206,7 +206,7 @@ const NetworkDashboard = () => {
             trialStartDate={selectedNetwork?.trial_start_date}
             trialDays={14}
             lastPaymentDate={selectedNetwork?.last_payment_date}
-            basePrice={6490}
+            basePrice={5490}
             parentManaged={false}
             parentLabel=""
           />
