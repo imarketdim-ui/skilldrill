@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import Header from '@/components/landing/Header';
+import AvailableSlotPicker from '@/components/marketplace/AvailableSlotPicker';
 import Footer from '@/components/landing/Footer';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -249,9 +250,24 @@ const BusinessDetail = () => {
                                   <p className="text-sm text-muted-foreground">{Number(service.price).toLocaleString()} ₽ · {service.duration_minutes} мин</p>
                                   <Input placeholder="Ваше имя" value={bookingData.name} onChange={e => setBookingData({...bookingData, name: e.target.value})} />
                                   <Input type="tel" placeholder="Телефон" value={bookingData.phone} onChange={e => setBookingData({...bookingData, phone: e.target.value})} />
-                                  <div className="grid grid-cols-2 gap-3">
-                                    <div className="space-y-1"><label className="text-sm font-medium">Дата</label><Input type="date" min={new Date().toISOString().slice(0, 10)} value={bookingData.date} onChange={e => setBookingData({...bookingData, date: e.target.value})} /></div>
-                                    <div className="space-y-1"><label className="text-sm font-medium">Время</label><Input type="time" value={bookingData.time} onChange={e => setBookingData({...bookingData, time: e.target.value})} /></div>
+                                  <div className="space-y-1">
+                                    <label className="text-sm font-medium">Дата</label>
+                                    <Input type="date" min={new Date().toISOString().slice(0, 10)} value={bookingData.date} onChange={e => setBookingData({...bookingData, date: e.target.value, time: ''})} />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label className="text-sm font-medium">Доступное время</label>
+                                    {bookingData.date && service.master_id ? (
+                                      <AvailableSlotPicker
+                                        masterId={service.master_id}
+                                        date={bookingData.date}
+                                        durationMinutes={Number(service.duration_minutes) || 60}
+                                        selected={bookingData.time}
+                                        onSelect={(t) => setBookingData({ ...bookingData, time: t })}
+                                        onJumpToDate={(d) => setBookingData({ ...bookingData, date: d, time: '' })}
+                                      />
+                                    ) : (
+                                      <p className="text-sm text-muted-foreground">Выберите дату</p>
+                                    )}
                                   </div>
                                   <Textarea placeholder="Комментарий (необязательно)" value={bookingData.comment} onChange={e => setBookingData({...bookingData, comment: e.target.value})} />
                                   <Button onClick={handleBook} className="w-full">Подтвердить запись</Button>
