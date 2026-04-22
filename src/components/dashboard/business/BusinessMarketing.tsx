@@ -205,6 +205,21 @@ const BusinessMarketing = ({ businessId }: Props) => {
         sent_at: new Date().toISOString(),
       });
 
+      // Push notifications (best-effort)
+      if (sendPush) {
+        try {
+          await supabase.functions.invoke('send-push-notification', {
+            body: {
+              user_ids: targetClients.map(c => c.id),
+              title: title.trim() || 'Сообщение от бизнеса',
+              body: message.trim().slice(0, 200),
+              url: '/dashboard',
+              tag: `marketing-${businessId}`,
+            },
+          });
+        } catch (_) { /* ignore */ }
+      }
+
       toast({ title: 'Рассылка отправлена', description: `${targetClients.length} получателей` });
       setDialogOpen(false);
       resetDialog();
