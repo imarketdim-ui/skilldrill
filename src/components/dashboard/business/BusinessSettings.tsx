@@ -13,6 +13,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Pencil, Settings, Percent, Save, Loader2, Plus, Trash2, X, Tag } from 'lucide-react';
+import BusinessOnboardingProgress from './BusinessOnboardingProgress';
 
 const legalForms = [
   { value: 'ip', label: 'ИП' },
