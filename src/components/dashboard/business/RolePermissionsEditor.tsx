@@ -62,6 +62,16 @@ const defaultPermissions: Record<string, string[]> = {
     'promotions:view', 'promotions:manage',
     'finance:view', 'notifications:view', 'profile:view',
   ],
+  business_admin: [
+    'bookings:view', 'bookings:manage', 'schedule:view', 'schedule:manage',
+    'clients:view', 'clients:manage', 'chats:view',
+    'marketing:view', 'marketing:manage',
+    'stats:view', 'services:view', 'services:manage',
+    'team:view', 'team:manage', 'inventory:view', 'inventory:manage',
+    'promotions:view', 'promotions:manage',
+    'finance:view', 'finance:manage',
+    'notifications:view', 'profile:view', 'profile:manage',
+  ],
   admin: [
     'bookings:view', 'bookings:manage', 'schedule:view', 'schedule:manage',
     'clients:view', 'clients:manage', 'chats:view',
@@ -78,6 +88,7 @@ const defaultPermissions: Record<string, string[]> = {
 const systemRoles = [
   { key: 'master', label: 'Мастер', icon: Wrench, description: 'Специалист, оказывающий услуги' },
   { key: 'manager', label: 'Менеджер', icon: Briefcase, description: 'Управление записями и клиентами' },
+  { key: 'business_admin', label: 'Администратор точки', icon: UserCog, description: 'Полный RW в одной точке' },
   { key: 'admin', label: 'Управляющий', icon: Shield, description: 'Полное управление организацией' },
 ];
 
