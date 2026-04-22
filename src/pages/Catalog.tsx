@@ -1077,6 +1077,7 @@ const Catalog = () => {
                       hashtags={m.hashtags}
                       work_photos={m.work_photos}
                       moderation_status={m.moderation_status}
+                      availableOnDate={!!availabilityDate && !!availableMasterIds?.has(m.user_id)}
                       onClick={() => navigate(`/master/${m.user_id}`)}
                     />
                   ))
@@ -1096,6 +1097,7 @@ const Catalog = () => {
                       specialist_count={b.specialist_count}
                       service_count={b.service_count}
                       moderation_status={b.moderation_status}
+                      availableOnDate={!!availabilityDate && !!availableBizIds?.has(b.id)}
                       onClick={() => navigate(`/business/${b.id}`)}
                     />
                   ))

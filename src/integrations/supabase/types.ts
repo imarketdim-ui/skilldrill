@@ -4900,6 +4900,7 @@ export type Database = {
         Returns: boolean
       }
       check_fraud_indicators: { Args: { _user_id: string }; Returns: Json }
+      cleanup_typing_indicators: { Args: never; Returns: undefined }
       generate_skillspot_id: { Args: never; Returns: string }
       get_master_available_slots: {
         Args: { _date: string; _master_id: string; _service_duration: number }
@@ -4940,6 +4941,10 @@ export type Database = {
       }
       is_blocked: {
         Args: { blocked_id: string; blocker_id: string; org_id?: string }
+        Returns: boolean
+      }
+      is_business_admin_of: {
+        Args: { _business_id: string; _user_id: string }
         Returns: boolean
       }
       is_org_member: {

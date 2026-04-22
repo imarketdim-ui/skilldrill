@@ -18,6 +18,7 @@ import Header from '@/components/landing/Header';
 import Footer from '@/components/landing/Footer';
 import ServiceDetailDialog from '@/components/marketplace/ServiceDetailDialog';
 import AvailableSlotPicker from '@/components/marketplace/AvailableSlotPicker';
+import MasterAvailabilityCalendar from '@/components/marketplace/MasterAvailabilityCalendar';
 
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -735,6 +736,19 @@ const MasterDetail = () => {
                     </Dialog>
                   </CardContent>
                 </Card>
+
+                {/* Availability calendar */}
+                {master?.user_id && (
+                  <MasterAvailabilityCalendar
+                    masterId={master.user_id}
+                    onSelectDate={(d) => {
+                      if (services.length > 0) {
+                        setBookingService(services[0].id);
+                        setBookingData((p) => ({ ...p, date: d, time: '' }));
+                      }
+                    }}
+                  />
+                )}
               </div>
             </div>
           </div>
