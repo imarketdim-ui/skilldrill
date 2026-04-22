@@ -54,6 +54,7 @@ import BusinessWorkSchedule from './business/BusinessWorkSchedule';
 import BusinessBookingSettings from './business/BusinessBookingSettings';
 import BusinessEmployeeGroups from './business/BusinessEmployeeGroups';
 import BusinessSalaries from './business/BusinessSalaries';
+import BusinessLoyaltyPrograms from './business/BusinessLoyaltyPrograms';
 
 // ── Notifications with real counter ──
 const BusinessNotifications = ({ businessId }: { businessId?: string }) => {
@@ -619,6 +620,7 @@ const crmItems = [
   { key: 'marketing', label: 'Маркетинг', icon: Megaphone, description: 'Рассылки и реклама' },
   { key: 'promotions', label: 'Акции и Скидки', icon: Percent, description: 'Скидки и промо' },
   { key: 'bonus_programs', label: 'Бонусные программы', icon: Gift, description: 'Лояльность и кэшбэк' },
+  { key: 'loyalty_programs', label: 'Программы лояльности', icon: Award, description: 'Кэшбэк, баллы, абонементы' },
   { key: 'gift_certs', label: 'Подарочные сертификаты', icon: Ticket, description: 'Выпуск и погашение' },
   { key: 'penalties', label: 'Штрафы', icon: AlertTriangle, description: 'Штрафы за нарушения' },
   { key: 'booking_settings', label: 'Онлайн запись', icon: Globe, description: 'Настройки онлайн-записи' },
@@ -868,6 +870,8 @@ const BusinessDashboard = () => {
         return selectedBusiness ? <BusinessPenalties businessId={selectedBusiness.id} /> : null;
       case 'salaries':
         return selectedBusiness ? <BusinessSalaries businessId={selectedBusiness.id} /> : null;
+      case 'loyalty_programs':
+        return selectedBusiness ? <BusinessLoyaltyPrograms businessId={selectedBusiness.id} /> : null;
       case 'booking_settings':
         return selectedBusiness ? <BusinessBookingSettings businessId={selectedBusiness.id} /> : null;
       case 'notif_settings':

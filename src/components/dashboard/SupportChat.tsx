@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -6,8 +6,11 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MessageSquare, Send, Check, CheckCheck, Loader2 } from 'lucide-react';
+import { MessageSquare, Send, Check, CheckCheck, Loader2, X, Search, Reply, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
+import VoiceRecorder from '@/components/chat/VoiceRecorder';
+import MediaUploader from '@/components/chat/MediaUploader';
+import ChatEmojiPicker from '@/components/chat/ChatEmojiPicker';
 
 interface SupportChatProps {
   isAdmin?: boolean;
@@ -30,6 +33,9 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [threads, setThreads] = useState<SupportThread[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [replyTo, setReplyTo] = useState<any>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
@@ -124,40 +130,47 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
     }
   };
 
-  const sendMessage = async () => {
-    if (!user || !newMessage.trim()) return;
+  const sendMessage = async (overrides?: { audio_url?: string; media_urls?: string[]; message_type?: string }) => {
+    if (!user) return;
+    const text = newMessage.trim();
+    if (!text && !overrides?.audio_url && !overrides?.media_urls?.length) return;
     setSending(true);
     try {
+      const baseMsg: any = {
+        message: text || (overrides?.audio_url ? '🎤 Голосовое' : '📎 Вложение'),
+        chat_type: 'support',
+        message_type: overrides?.message_type || (overrides?.audio_url ? 'audio' : overrides?.media_urls?.length ? 'media' : 'text'),
+        audio_url: overrides?.audio_url || null,
+        media_urls: overrides?.media_urls || null,
+        reply_to_id: replyTo?.id || null,
+      };
+
       if (isAdmin && selectedUserId) {
-        await supabase.from('chat_messages').insert({ sender_id: user.id, recipient_id: selectedUserId, message: newMessage.trim(), chat_type: 'support' });
-        setNewMessage('');
+        await supabase.from('chat_messages').insert({ ...baseMsg, sender_id: user.id, recipient_id: selectedUserId });
+        setNewMessage(''); setReplyTo(null);
         fetchAdminMessages(selectedUserId);
       } else {
         const { data: adminRoles } = await supabase.from('user_roles').select('user_id').in('role', ['platform_admin', 'super_admin']).eq('is_active', true);
         const adminIds = (adminRoles || []).map(r => r.user_id).filter(id => id !== user.id);
 
         if (adminIds.length === 0) {
-          await supabase.from('chat_messages').insert({ sender_id: user.id, recipient_id: user.id, message: newMessage.trim(), chat_type: 'support' });
+          await supabase.from('chat_messages').insert({ ...baseMsg, sender_id: user.id, recipient_id: user.id });
         } else {
           await Promise.all(adminIds.map(adminId =>
-            supabase.from('chat_messages').insert({ sender_id: user.id, recipient_id: adminId, message: newMessage.trim(), chat_type: 'support' })
+            supabase.from('chat_messages').insert({ ...baseMsg, sender_id: user.id, recipient_id: adminId })
           ));
         }
 
-        // Auto-create support ticket on first message
         try {
           const existingTickets = await supabase.from('support_tickets').select('id', { count: 'exact', head: true }).eq('user_id', user.id).in('status', ['open', 'in_progress']);
           if ((existingTickets.count || 0) === 0) {
             await supabase.from('support_tickets').insert({
-              user_id: user.id,
-              subject: newMessage.trim().slice(0, 100),
-              category: 'support',
-              status: 'open',
+              user_id: user.id, subject: (text || 'Вложение').slice(0, 100), category: 'support', status: 'open',
             } as any);
           }
         } catch (_) { /* table may not exist yet */ }
 
-        setNewMessage('');
+        setNewMessage(''); setReplyTo(null);
         await fetchMessages();
       }
     } catch (err: any) {
@@ -170,36 +183,114 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
+  const handleDelete = async (msgId: string) => {
+    if (!confirm('Удалить сообщение?')) return;
+    await supabase.from('chat_messages').delete().eq('id', msgId);
+    setMessages(prev => prev.filter(m => m.id !== msgId));
+  };
+
   const getMessageStatus = (msg: any) => {
     if (msg.sender_id !== user?.id) return null;
     if (msg.is_read) return <CheckCheck className="h-3 w-3 text-primary" />;
     return <Check className="h-3 w-3 text-muted-foreground" />;
   };
 
+  const filteredMessages = useMemo(() => {
+    if (!searchQuery.trim()) return messages;
+    const q = searchQuery.toLowerCase();
+    return messages.filter(m => (m.message || '').toLowerCase().includes(q));
+  }, [messages, searchQuery]);
+
   const renderMessages = (msgList: any[]) => (
     <div className="space-y-2">
-      {msgList.map(msg => (
-        <div key={msg.id} className={`flex ${msg.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}>
-          <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm ${
-            msg.sender_id === user?.id ? 'bg-primary text-primary-foreground rounded-br-sm' : 'bg-muted rounded-bl-sm'
-          }`}>
-            {msg.sender_id !== user?.id && (
-              <p className="text-[10px] font-medium mb-0.5 text-muted-foreground">
-                {isAdmin ? 'Пользователь' : 'Поддержка'}
-              </p>
-            )}
-            <p className="whitespace-pre-wrap">{msg.message}</p>
-            <div className="flex items-center gap-1 mt-1 justify-end">
-              <span className={`text-[10px] ${msg.sender_id === user?.id ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>
-                {format(new Date(msg.created_at), 'HH:mm')}
-              </span>
-              {getMessageStatus(msg)}
+      {msgList.map(msg => {
+        const isMine = msg.sender_id === user?.id;
+        const repliedMsg = msg.reply_to_id ? messages.find(m => m.id === msg.reply_to_id) : null;
+        return (
+          <div key={msg.id} className={`flex group ${isMine ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm ${
+              isMine ? 'bg-primary text-primary-foreground rounded-br-sm' : 'bg-muted rounded-bl-sm'
+            }`}>
+              {!isMine && (
+                <p className="text-[10px] font-medium mb-0.5 text-muted-foreground">
+                  {isAdmin ? 'Пользователь' : 'Поддержка'}
+                </p>
+              )}
+              {repliedMsg && (
+                <div className={`text-[11px] border-l-2 pl-2 mb-1 opacity-80 ${isMine ? 'border-primary-foreground/40' : 'border-primary/40'}`}>
+                  <p className="line-clamp-2">{repliedMsg.message}</p>
+                </div>
+              )}
+              {msg.media_urls?.length > 0 && (
+                <div className="grid grid-cols-2 gap-1 mb-1 max-w-[240px]">
+                  {msg.media_urls.map((url: string, i: number) => (
+                    /\.(mp4|webm|mov)$/i.test(url) ? (
+                      <video key={i} src={url} controls className="rounded max-w-full" />
+                    ) : (
+                      <a key={i} href={url} target="_blank" rel="noreferrer">
+                        <img src={url} alt="" className="rounded object-cover w-full h-24" />
+                      </a>
+                    )
+                  ))}
+                </div>
+              )}
+              {msg.audio_url && (
+                <audio src={msg.audio_url} controls className="max-w-full mb-1" />
+              )}
+              {msg.message && msg.message_type !== 'audio' && msg.message_type !== 'media' && (
+                <p className="whitespace-pre-wrap">{msg.message}</p>
+              )}
+              <div className="flex items-center gap-1 mt-1 justify-end">
+                <button
+                  onClick={() => setReplyTo(msg)}
+                  className={`opacity-0 group-hover:opacity-100 transition ${isMine ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}
+                  title="Ответить"
+                >
+                  <Reply className="h-3 w-3" />
+                </button>
+                {isMine && (
+                  <button
+                    onClick={() => handleDelete(msg.id)}
+                    className="opacity-0 group-hover:opacity-100 transition text-primary-foreground/70"
+                    title="Удалить"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                )}
+                <span className={`text-[10px] ${isMine ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>
+                  {format(new Date(msg.created_at), 'HH:mm')}
+                </span>
+                {getMessageStatus(msg)}
+              </div>
             </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
       <div ref={messagesEndRef} />
     </div>
+  );
+
+  const renderReplyPreview = () => replyTo && (
+    <div className="px-3 py-2 border-t bg-muted/40 flex items-center gap-2">
+      <Reply className="h-4 w-4 text-muted-foreground shrink-0" />
+      <p className="text-xs flex-1 truncate text-muted-foreground">Ответ на: {replyTo.message}</p>
+      <button onClick={() => setReplyTo(null)}><X className="h-3 w-3 text-muted-foreground" /></button>
+    </div>
+  );
+
+  const renderInputBar = () => (
+    <>
+      {renderReplyPreview()}
+      <div className="p-2 border-t flex items-center gap-1">
+        {user && <ChatEmojiPicker onSelect={(e) => setNewMessage(prev => prev + e)} />}
+        {user && <MediaUploader userId={user.id} onUploaded={(urls) => sendMessage({ media_urls: urls })} />}
+        {user && <VoiceRecorder userId={user.id} onUploaded={(url) => sendMessage({ audio_url: url })} />}
+        <Input value={newMessage} onChange={e => setNewMessage(e.target.value)} onKeyDown={handleKeyDown} placeholder={isAdmin ? 'Ответить...' : 'Написать в поддержку...'} className="flex-1" />
+        <Button size="icon" onClick={() => sendMessage()} disabled={sending || !newMessage.trim()}>
+          {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+        </Button>
+      </div>
+    </>
   );
 
   if (isAdmin) {
@@ -236,15 +327,16 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
                 <>
                   <div className="p-3 border-b flex items-center gap-2">
                     <Button variant="ghost" size="sm" className="md:hidden" onClick={() => setSelectedUserId(null)}>←</Button>
-                    <p className="font-medium text-sm">{threads.find(t => t.userId === selectedUserId)?.userName}</p>
+                    <p className="font-medium text-sm flex-1">{threads.find(t => t.userId === selectedUserId)?.userName}</p>
+                    <Button size="icon" variant="ghost" onClick={() => setShowSearch(s => !s)}><Search className="h-4 w-4" /></Button>
                   </div>
-                  <ScrollArea className="flex-1 p-3">{renderMessages(messages)}</ScrollArea>
-                  <div className="p-3 border-t flex gap-2">
-                    <Input value={newMessage} onChange={e => setNewMessage(e.target.value)} onKeyDown={handleKeyDown} placeholder="Ответить..." />
-                    <Button size="icon" onClick={sendMessage} disabled={sending || !newMessage.trim()}>
-                      <Send className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  {showSearch && (
+                    <div className="p-2 border-b">
+                      <Input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Поиск по сообщениям..." className="h-8" />
+                    </div>
+                  )}
+                  <ScrollArea className="flex-1 p-3">{renderMessages(filteredMessages)}</ScrollArea>
+                  {renderInputBar()}
                 </>
               )}
             </div>
@@ -259,7 +351,13 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <MessageSquare className="h-5 w-5" /> Техподдержка
+          <Button size="icon" variant="ghost" className="ml-auto h-8 w-8" onClick={() => setShowSearch(s => !s)}>
+            <Search className="h-4 w-4" />
+          </Button>
         </CardTitle>
+        {showSearch && (
+          <Input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Поиск..." className="h-8 mt-2" />
+        )}
       </CardHeader>
       <CardContent>
         <div className="flex flex-col h-[400px] rounded-lg border overflow-hidden">
@@ -272,14 +370,9 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
                 <p className="text-sm">Напишите нам, если у вас есть вопросы</p>
                 <p className="text-xs mt-1 opacity-70">Все администраторы платформы получат ваше сообщение</p>
               </div>
-            ) : renderMessages(messages)}
+            ) : renderMessages(filteredMessages)}
           </ScrollArea>
-          <div className="p-3 border-t flex gap-2">
-            <Input value={newMessage} onChange={e => setNewMessage(e.target.value)} onKeyDown={handleKeyDown} placeholder="Написать в поддержку..." />
-            <Button size="icon" onClick={sendMessage} disabled={sending || !newMessage.trim()}>
-              {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            </Button>
-          </div>
+          {renderInputBar()}
         </div>
       </CardContent>
     </Card>

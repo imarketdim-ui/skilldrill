@@ -111,6 +111,7 @@ const BusinessInviteForm = ({ businessId }: Props) => {
   const roleLabels: Record<string, string> = {
     master: 'Мастер',
     manager: 'Менеджер',
+    business_admin: 'Администратор точки',
     admin: 'Управляющий',
   };
 
@@ -154,6 +155,7 @@ const BusinessInviteForm = ({ businessId }: Props) => {
               <SelectContent>
                 <SelectItem value="master">Мастер</SelectItem>
                 <SelectItem value="manager">Менеджер</SelectItem>
+                <SelectItem value="business_admin">Администратор точки</SelectItem>
                 <SelectItem value="admin">Управляющий</SelectItem>
               </SelectContent>
             </Select>
