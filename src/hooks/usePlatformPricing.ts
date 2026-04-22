@@ -7,7 +7,7 @@ interface PlatformPricing {
   network: number;
 }
 
-const defaultPricing: PlatformPricing = { master: 690, business: 2490, network: 6490 };
+const defaultPricing: PlatformPricing = { master: 199, business: 2490, network: 5490 };
 
 export const usePlatformPricing = () => {
   const { data } = useQuery({

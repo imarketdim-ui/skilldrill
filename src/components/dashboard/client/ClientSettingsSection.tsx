@@ -25,6 +25,8 @@ const profileSchema = z.object({
   phone: z.string().trim().max(20).optional(),
   bio: z.string().trim().max(500).optional(),
   telegram: z.string().trim().max(100).optional(),
+  birthday: z.string().trim().optional(),
+  gender: z.string().trim().max(20).optional(),
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
@@ -150,7 +152,8 @@ const ClientSettingsSection = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [cropDialog, setCropDialog] = useState<{ open: boolean; url: string; file: File | null }>({ open: false, url: '', file: null });
   const [copiedId, setCopiedId] = useState(false);
-  const [formData, setFormData] = useState<ProfileFormData>({ first_name: '', last_name: '', phone: '', bio: '', telegram: '' });
+  const [formData, setFormData] = useState<ProfileFormData>({ first_name: '', last_name: '', phone: '', bio: '', telegram: '', birthday: '', gender: '' });
+  const [telegramToken, setTelegramToken] = useState<string>('');
 
   const [privacy, setPrivacy] = useState({
     allow_group_invites: true,
@@ -168,9 +171,15 @@ const ClientSettingsSection = () => {
         phone: profile.phone || '',
         bio: profile.bio || '',
         telegram: (profile as any)?.telegram || '',
+        birthday: (profile as any)?.birthday || '',
+        gender: (profile as any)?.gender || '',
       });
       const pv = (profile as any)?.privacy_settings;
       if (pv) setPrivacy(prev => ({ ...prev, ...pv }));
+      // Генерим стабильный токен для Telegram deep-link на основе skillspot_id
+      if (profile.skillspot_id) {
+        setTelegramToken(profile.skillspot_id);
+      }
     }
   }, [profile]);
 
@@ -231,6 +240,8 @@ const ClientSettingsSection = () => {
         phone: result.data.phone ? normalizePhone(result.data.phone) : null,
         bio: result.data.bio || null,
         telegram: result.data.telegram || null,
+        birthday: result.data.birthday || null,
+        gender: result.data.gender || null,
       } as any).eq('id', user!.id);
       if (error) throw error;
       await refreshProfile();
@@ -372,6 +383,56 @@ const ClientSettingsSection = () => {
               <Label htmlFor="telegram">Telegram</Label>
               <Input id="telegram" placeholder="@username" value={formData.telegram} onChange={(e) => handleChange('telegram', e.target.value)} className={errors.telegram ? 'border-destructive' : ''} disabled={isSubmitting} />
               <p className="text-xs text-muted-foreground">Влияет на рейтинг надёжности</p>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="birthday">Дата рождения</Label>
+                <Input id="birthday" type="date" value={formData.birthday} onChange={(e) => handleChange('birthday', e.target.value)} disabled={isSubmitting} />
+                <p className="text-xs text-muted-foreground">Используется для поздравлений и спецпредложений</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="gender">Пол</Label>
+                <select
+                  id="gender"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={formData.gender}
+                  onChange={(e) => handleChange('gender', e.target.value)}
+                  disabled={isSubmitting}
+                >
+                  <option value="">Не указан</option>
+                  <option value="male">Мужской</option>
+                  <option value="female">Женский</option>
+                  <option value="other">Не указывать</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Привязка Telegram</Label>
+              <div className="p-3 rounded-lg border bg-muted/50 space-y-2">
+                {(profile as any)?.telegram_chat_id ? (
+                  <div className="flex items-center gap-2">
+                    <Badge className="gap-1"><Check className="h-3 w-3" /> Telegram привязан</Badge>
+                    <span className="text-xs text-muted-foreground">Уведомления приходят в Telegram</span>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-sm text-muted-foreground">
+                      Привяжите Telegram, чтобы получать уведомления о записях и сообщениях.
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open(`https://t.me/skillspot_bot?start=${telegramToken}`, '_blank')}
+                      disabled={!telegramToken}
+                    >
+                      Открыть бота и привязать
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
 
             <div className="space-y-2">
