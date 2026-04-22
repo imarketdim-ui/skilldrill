@@ -181,12 +181,16 @@ const BusinessMarketing = ({ businessId }: Props) => {
         return;
       }
 
-      const messages = targetClients.map(c => ({
-        sender_id: user.id,
-        recipient_id: c.id,
-        message: message.trim(),
-        chat_type: 'marketing',
-      }));
+      const messages = targetClients.map(c => {
+        const fullName = [c.first_name, c.last_name].filter(Boolean).join(' ').trim() || 'Клиент';
+        const personalText = message.trim().replace(/\{\{имя\}\}/g, fullName);
+        return {
+          sender_id: user.id,
+          recipient_id: c.id,
+          message: personalText,
+          chat_type: 'marketing',
+        };
+      });
 
       const { error } = await supabase.from('chat_messages').insert(messages);
       if (error) throw error;
