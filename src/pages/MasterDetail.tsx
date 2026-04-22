@@ -17,6 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 import Header from '@/components/landing/Header';
 import Footer from '@/components/landing/Footer';
 import ServiceDetailDialog from '@/components/marketplace/ServiceDetailDialog';
+import AvailableSlotPicker from '@/components/marketplace/AvailableSlotPicker';
 
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -68,7 +69,7 @@ const MasterDetail = () => {
   const [messageOpen, setMessageOpen] = useState(false);
   const [messageText, setMessageText] = useState('');
   const [bookingData, setBookingData] = useState({ name: '', phone: '', date: '', time: '', comment: '', reminder: '60', resource_id: '' });
-  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+  
   const [sendingMessage, setSendingMessage] = useState(false);
   const [sendingBooking, setSendingBooking] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
@@ -208,11 +209,7 @@ const MasterDetail = () => {
     checkAccess();
   }, [bookingService, master, user]);
 
-  useEffect(() => {
-    if (bookingService && bookingData.date) {
-      loadAvailableSlots(bookingService, bookingData.date);
-    }
-  }, [bookingService, bookingData.date, services, master]);
+  // Слоты теперь грузятся внутри AvailableSlotPicker через RPC.
 
   // Map dialog - use setTimeout to ensure dialog DOM is ready
   useEffect(() => {
@@ -261,98 +258,6 @@ const MasterDetail = () => {
     } else {
       window.open(links[platform], '_blank');
     }
-  };
-
-  const toMinutes = (time: string) => {
-    const [h, m] = time.split(':').map(Number);
-    return h * 60 + m;
-  };
-
-  const toTime = (minutes: number) => `${Math.floor(minutes / 60).toString().padStart(2, '0')}:${(minutes % 60).toString().padStart(2, '0')}`;
-
-  const loadAvailableSlots = async (serviceId: string, date: string) => {
-    if (!master || !date) return setAvailableSlots([]);
-    const selectedService = services.find(s => s.id === serviceId);
-    if (!selectedService) return setAvailableSlots([]);
-
-    // Check if this day is a work day
-    const dateObj = new Date(date);
-    const jsDay = dateObj.getDay(); // 0=Sun, 1=Mon..6=Sat
-    const masterWorkDays = master.work_days || [1, 2, 3, 4, 5];
-    if (!masterWorkDays.includes(jsDay)) return setAvailableSlots([]);
-
-    // Get work hours for this day
-    const whc = master.work_hours_config as any;
-    let dayStart = toMinutes('09:00');
-    let dayEnd = toMinutes('18:00');
-    if (whc) {
-      if (whc.perDay && whc.perDay[String(jsDay)]) {
-        dayStart = toMinutes(whc.perDay[String(jsDay)].start);
-        dayEnd = toMinutes(whc.perDay[String(jsDay)].end);
-      } else if (whc.default) {
-        dayStart = toMinutes(whc.default.start);
-        dayEnd = toMinutes(whc.default.end);
-      }
-    }
-
-    // Get breaks for this day
-    const bc = master.break_config as any;
-    const breakBlocks: { start: number; end: number }[] = [];
-    if (bc) {
-      const allBreaks = bc['all'] || [];
-      const dayBreaks = bc[String(jsDay)] || [];
-      [...allBreaks, ...dayBreaks].forEach((b: any) => {
-        breakBlocks.push({ start: toMinutes(b.start), end: toMinutes(b.end) });
-      });
-    }
-
-    // Check both lessons AND bookings for blocked slots
-    const [{ data: dayLessons }, { data: dayBookings }] = await Promise.all([
-      supabase
-        .from('lessons')
-        .select('start_time, end_time')
-        .eq('teacher_id', master.user_id)
-        .eq('lesson_date', date)
-        .neq('status', 'cancelled'),
-      supabase
-        .from('bookings')
-        .select('scheduled_at, duration_minutes')
-        .eq('executor_id', master.user_id)
-        .gte('scheduled_at', `${date}T00:00:00`)
-        .lt('scheduled_at', `${date}T23:59:59`)
-        .not('status', 'in', '("cancelled","no_show","rejected")'),
-    ]);
-
-    const blocked = [
-      ...(dayLessons || []).map((l: any) => ({
-        start: toMinutes((l.start_time || '00:00').slice(0, 5)),
-        end: toMinutes((l.end_time || '00:00').slice(0, 5)),
-      })),
-      ...(dayBookings || []).map((b: any) => {
-        const d = new Date(b.scheduled_at);
-        const startM = d.getHours() * 60 + d.getMinutes();
-        return { start: startM, end: startM + (b.duration_minutes || 60) };
-      }),
-      ...breakBlocks,
-    ];
-
-    const bufferMin = (whc?.breakDuration) || 0;
-    const duration = Number(selectedService.duration_minutes) || 60;
-    const slotStep = Math.max(15, whc?.slotDuration || 30);
-    const slots: string[] = [];
-
-    // Filter out past slots for today
-    const now = new Date();
-    const isToday = dateObj.toDateString() === now.toDateString();
-    const nowMinutes = isToday ? now.getHours() * 60 + now.getMinutes() : 0;
-
-    for (let t = dayStart; t + duration <= dayEnd; t += slotStep) {
-      if (isToday && t < nowMinutes) continue;
-      const overlap = blocked.some(b => t < (b.end + bufferMin) && (t + duration) > b.start);
-      if (!overlap) slots.push(toTime(t));
-    }
-
-    setAvailableSlots(slots);
   };
 
   const handleBook = async (serviceId: string) => {
