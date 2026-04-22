@@ -443,6 +443,53 @@ const Catalog = () => {
     );
   };
 
+  // Recompute availability when date or loaded lists change
+  useEffect(() => {
+    if (!availabilityDate) {
+      setAvailableMasterIds(null);
+      setAvailableBizIds(null);
+      return;
+    }
+    let cancelled = false;
+    const run = async () => {
+      setCheckingAvailability(true);
+      // Masters
+      const masterUids = masters.map((m) => m.user_id);
+      const mResults = await Promise.all(
+        masterUids.map(async (uid) => {
+          const { data } = await supabase.rpc("has_master_availability_on_date", {
+            _master_id: uid,
+            _date: availabilityDate,
+          });
+          return { uid, ok: data === true };
+        }),
+      );
+      if (cancelled) return;
+      const okMasters = new Set(mResults.filter((r) => r.ok).map((r) => r.uid));
+      setAvailableMasterIds(okMasters);
+
+      // Businesses: считаем доступными те, у которых хотя бы один мастер свободен
+      const bizIds = businesses.map((b) => b.id);
+      if (bizIds.length > 0) {
+        const { data: bm } = await supabase
+          .from("business_masters")
+          .select("business_id, master_id")
+          .in("business_id", bizIds)
+          .eq("status", "accepted");
+        const okBiz = new Set<string>();
+        for (const row of bm || []) {
+          if (okMasters.has((row as any).master_id)) okBiz.add((row as any).business_id);
+        }
+        if (!cancelled) setAvailableBizIds(okBiz);
+      } else {
+        setAvailableBizIds(new Set());
+      }
+      setCheckingAvailability(false);
+    };
+    run();
+    return () => { cancelled = true; };
+  }, [availabilityDate, masters, businesses]);
+
   // Filter masters (search is now server-side via FTS)
   const filteredMasters = useMemo(() => {
     return masters
