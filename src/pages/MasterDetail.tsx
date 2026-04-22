@@ -287,7 +287,7 @@ const MasterDetail = () => {
       return;
     }
 
-    if (!availableSlots.includes(bookingData.time)) {
+    if (!bookingData.time) {
       toast({ title: 'Слот недоступен', description: 'Выберите время из доступных слотов', variant: 'destructive' });
       return;
     }
@@ -400,7 +400,7 @@ const MasterDetail = () => {
 
       setBookingService(null);
       setBookingData({ name: '', phone: '', date: '', time: '', comment: '', reminder: '60', resource_id: '' });
-      setAvailableSlots([]);
+      
       navigate('/dashboard');
     } catch (err: any) {
       toast({ title: 'Ошибка', description: err.message, variant: 'destructive' });
@@ -815,22 +815,17 @@ const MasterDetail = () => {
                   </div>
                   <div className="space-y-1">
                     <label className="text-sm font-medium">Доступные слоты</label>
-                    {availableSlots.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">Нет доступного времени на выбранную дату</p>
+                    {bookingData.date && master?.user_id && bookingService ? (
+                      <AvailableSlotPicker
+                        masterId={master.user_id}
+                        date={bookingData.date}
+                        durationMinutes={Number(services.find(s => s.id === bookingService)?.duration_minutes) || 60}
+                        selected={bookingData.time}
+                        onSelect={(t) => setBookingData(p => ({ ...p, time: t }))}
+                        onJumpToDate={(d) => setBookingData(p => ({ ...p, date: d, time: '' }))}
+                      />
                     ) : (
-                      <div className="grid grid-cols-4 gap-2">
-                        {availableSlots.map(slot => (
-                          <Button
-                            key={slot}
-                            type="button"
-                            size="sm"
-                            variant={bookingData.time === slot ? 'default' : 'outline'}
-                            onClick={() => setBookingData(p => ({ ...p, time: slot }))}
-                          >
-                            {slot}
-                          </Button>
-                        ))}
-                      </div>
+                      <p className="text-sm text-muted-foreground">Выберите дату</p>
                     )}
                   </div>
                   <Textarea placeholder="Комментарий (необязательно)" value={bookingData.comment} onChange={(e) => setBookingData(p => ({ ...p, comment: e.target.value }))} />
