@@ -25,6 +25,8 @@ const profileSchema = z.object({
   phone: z.string().trim().max(20).optional(),
   bio: z.string().trim().max(500).optional(),
   telegram: z.string().trim().max(100).optional(),
+  birthday: z.string().trim().optional(),
+  gender: z.string().trim().max(20).optional(),
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
@@ -150,7 +152,8 @@ const ClientSettingsSection = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [cropDialog, setCropDialog] = useState<{ open: boolean; url: string; file: File | null }>({ open: false, url: '', file: null });
   const [copiedId, setCopiedId] = useState(false);
-  const [formData, setFormData] = useState<ProfileFormData>({ first_name: '', last_name: '', phone: '', bio: '', telegram: '' });
+  const [formData, setFormData] = useState<ProfileFormData>({ first_name: '', last_name: '', phone: '', bio: '', telegram: '', birthday: '', gender: '' });
+  const [telegramToken, setTelegramToken] = useState<string>('');
 
   const [privacy, setPrivacy] = useState({
     allow_group_invites: true,
@@ -168,9 +171,15 @@ const ClientSettingsSection = () => {
         phone: profile.phone || '',
         bio: profile.bio || '',
         telegram: (profile as any)?.telegram || '',
+        birthday: (profile as any)?.birthday || '',
+        gender: (profile as any)?.gender || '',
       });
       const pv = (profile as any)?.privacy_settings;
       if (pv) setPrivacy(prev => ({ ...prev, ...pv }));
+      // Генерим стабильный токен для Telegram deep-link на основе skillspot_id
+      if (profile.skillspot_id) {
+        setTelegramToken(profile.skillspot_id);
+      }
     }
   }, [profile]);
 
@@ -231,6 +240,8 @@ const ClientSettingsSection = () => {
         phone: result.data.phone ? normalizePhone(result.data.phone) : null,
         bio: result.data.bio || null,
         telegram: result.data.telegram || null,
+        birthday: result.data.birthday || null,
+        gender: result.data.gender || null,
       } as any).eq('id', user!.id);
       if (error) throw error;
       await refreshProfile();
