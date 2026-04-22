@@ -329,13 +329,8 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
                     <Button variant="ghost" size="sm" className="md:hidden" onClick={() => setSelectedUserId(null)}>←</Button>
                     <p className="font-medium text-sm">{threads.find(t => t.userId === selectedUserId)?.userName}</p>
                   </div>
-                  <ScrollArea className="flex-1 p-3">{renderMessages(messages)}</ScrollArea>
-                  <div className="p-3 border-t flex gap-2">
-                    <Input value={newMessage} onChange={e => setNewMessage(e.target.value)} onKeyDown={handleKeyDown} placeholder="Ответить..." />
-                    <Button size="icon" onClick={sendMessage} disabled={sending || !newMessage.trim()}>
-                      <Send className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  <ScrollArea className="flex-1 p-3">{renderMessages(filteredMessages)}</ScrollArea>
+                  {renderInputBar()}
                 </>
               )}
             </div>
@@ -363,14 +358,9 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
                 <p className="text-sm">Напишите нам, если у вас есть вопросы</p>
                 <p className="text-xs mt-1 opacity-70">Все администраторы платформы получат ваше сообщение</p>
               </div>
-            ) : renderMessages(messages)}
+            ) : renderMessages(filteredMessages)}
           </ScrollArea>
-          <div className="p-3 border-t flex gap-2">
-            <Input value={newMessage} onChange={e => setNewMessage(e.target.value)} onKeyDown={handleKeyDown} placeholder="Написать в поддержку..." />
-            <Button size="icon" onClick={sendMessage} disabled={sending || !newMessage.trim()}>
-              {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            </Button>
-          </div>
+          {renderInputBar()}
         </div>
       </CardContent>
     </Card>
