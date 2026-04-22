@@ -1,129 +1,126 @@
 
 
-# План доработок: соответствие SkillSpot ТЗ v2.0 (исправленная версия)
+# План: оставшиеся доработки + контроль занятости мастеров
 
-## Изменения по запросу
-- ❌ Убрана Фаза 3 (BookingWizard) — запись остаётся через текущий popup-Dialog.
-- ❌ Убраны SMS-интеграция и оповещения (`send-sms`, `send-booking-reminders`, `send-birthday-greetings`) — не реализуем.
-- ✅ Тарифы 199 / 2 490 / 5 490 ₽ обновляются ВЕЗДЕ: `platform_settings`, `usePlatformPricing`, `TierComparison`, `SubscriptionManager`, `SubscriptionPaywall`, лендинги (`ForBusiness`, `Index`, `Hero`, `CTA`).
-- ✅ Логика ЛК реализуется строго по ТЗ (разд. 13–15).
+## Что сделано (отчёт)
 
-## Сводка соответствия
+✅ Фаза 1 — миграция БД (поля profiles/bookings/chat_messages, новые таблицы, ENUM `business_admin`, bucket `chat-media`).
+✅ Фаза 2 — тарифы 199/2490/5490 ₽.
+✅ Фаза 3 (частично) — `ClientSettingsSection`, `CreateBusinessAccount`, `AdminOrganizations`.
+✅ Фаза 5 (частично) — `BusinessLoyaltyPrograms.tsx`.
+✅ Фаза 6 — `BusinessSalaries.tsx`.
+✅ Фаза 4 (частично) — `VoiceRecorder`, `MediaUploader`, `ChatEmojiPicker`, обновлён `SupportChat`.
+✅ Фаза 7 (частично) — vite-plugin-pwa.
+✅ Фаза 8 — `business_admin` в `useAuth`, `RolePermissionsEditor`, `BusinessInviteForm`.
 
-| Раздел ТЗ | Статус | Действие |
-|---|---|---|
-| 2.2 PWA (SW + Workbox) | ⚠️ | Доделать в Фазе 7 |
-| 2.4 Виртуализация | ⚠️ | Доделать в Фазе 7 |
-| 4. Роль `business_admin` | ❌ | Фаза 8 |
-| 5. Тарифы 199/2490/5490 + 45-дн триал интегратора | ❌ | **Фаза 2 (приоритет)** |
-| 7. Поля bookings (deposit, payment_status) | ⚠️ | Фаза 1 (без reminder-флагов — SMS не делаем) |
-| 9. CRM (broadcasts, loyalty_programs) | ❌ | Фаза 5 |
-| 10. ERP (salary_schemes, salary_records) | ❌ | Фаза 6 |
-| 11. Чат (голос/медиа/эмодзи/typing/reply/поиск) | ❌ | Фаза 4 |
-| 13–15. Доработки ЛК (Клиент / Бизнес / Платформа) | ⚠️ | Фаза 3 |
-| 17.1 Поля БД (birthday, gender, telegram_chat_id, priority_for_user_id, onboarding_status, technology_card_id) | ❌ | Фаза 1 |
-| 17.2 Новые таблицы | ❌ | Фаза 1 |
+---
 
-## Фазы
+## Что НЕ сделано
 
-### Фаза 1 — Миграция БД
-Одна миграция:
-- ALTER `profiles`: `birthday DATE`, `gender TEXT`, `telegram_chat_id TEXT`, `referred_by UUID`.
-- ALTER `business_locations`: `priority_for_user_id UUID`, `onboarding_status TEXT DEFAULT 'in_progress'`.
-- ALTER `networks`: `onboarding_status TEXT DEFAULT 'in_progress'`.
-- ALTER `master_profiles`: `priority_for_user_id UUID`.
-- ALTER `services`: `technology_card_id UUID REFERENCES technology_cards(id)`.
-- ALTER `bookings`: `payment_status TEXT`, `deposit_amount NUMERIC` (без reminder-флагов).
-- ALTER `chat_messages`: `message_type TEXT DEFAULT 'text'`, `audio_url TEXT`, `media_urls TEXT[]`, `reply_to_id UUID`.
-- CREATE: `salary_schemes`, `salary_records`, `broadcasts`, `broadcast_deliveries`, `loyalty_programs`, `loyalty_memberships`, `typing_indicators`, `user_report_flags`.
-- RLS для всех новых таблиц.
-- ENUM `app_role` += `business_admin`.
-- Storage bucket `chat-media` (публичный с подписанными URL).
+### 🆕 Фаза 9 — Контроль занятости мастеров (приоритет)
 
-### Фаза 2 — Тарифы 199 / 2 490 / 5 490 ₽
-- Миграция: UPDATE `platform_settings` SET value = `{master:199, business:2490, network:5490}`.
-- `usePlatformPricing.ts` — defaults 199/2490/5490.
-- `TierComparison.tsx`, `SubscriptionManager.tsx` — обновить отображение, скидки 0/5/10/20 % за периоды 1/3/6/12 мес.
-- `SubscriptionPaywall.tsx` — обновить упомянутые цифры.
-- Лендинги (поиск по `690`, `2490`, `6490`): `Index.tsx`, `ForBusiness.tsx`, `Hero.tsx`, `CTA.tsx`, `About.tsx`, `Offer.tsx` — заменить на актуальные.
-- `AdminPromoCodes.tsx` — добавить тип «Триал 45 дней» (флаг `trial_days` в промокоде, при активации ставит `trial_until = now + 45 days`).
+**Цель:** В поиске выводить только мастеров со свободными слотами на выбранную дату; при записи показывать только реально доступное время с учётом записей, перерывов, выходных, отпусков.
 
-### Фаза 3 — Доработки ЛК по ТЗ (разд. 13–15)
-**Клиент (разд. 13):**
-- `ClientSettingsSection.tsx`: поля `birthday`, `gender`, привязка Telegram (deep-link `t.me/skillspot_bot?start=<token>`, сохранение `telegram_chat_id`).
-- Подтянуть `referred_by` в `ClientReferral`.
+**Backend (RPC-функции в Supabase):**
 
-**Бизнес (разд. 14):**
-- `CreateBusinessAccount.tsx`: при создании сохранять `priority_for_user_id` (Сеть — выбор приоритетной точки и мастера) и `onboarding_status='in_progress'`.
-- `BusinessSettings.tsx`: показывать прогресс онбординга (`onboarding_status`).
-- В `services` добавить связь `technology_card_id` → автозаполнение себестоимости из `TechCards`.
+1. **`get_master_available_slots(_master_id uuid, _date date, _service_duration int)`** — возвращает массив свободных интервалов (`{start, end}[]`) на указанную дату с учётом:
+   - рабочих часов мастера на этот день недели (`master_schedules` или `working_hours` JSON в профиле);
+   - выходных / отпусков (новая таблица `master_time_off` или флаги в schedule);
+   - перерывов (поля `break_start`, `break_end` или `breaks JSONB`);
+   - существующих `bookings` со статусами `pending/confirmed/in_progress`;
+   - пересекающихся `lessons`;
+   - занятости ресурса (если требуется);
+   - буфера между записями (`buffer_minutes` из настроек бизнеса).
 
-**Платформа (разд. 15):**
-- `IntegratorSetup.tsx`: чек-лист онбординга по `onboarding_status`, переключение `in_progress → pending_review → active`.
-- `AdminOrganizations.tsx`: фильтр по `onboarding_status`.
+2. **`has_master_availability_on_date(_master_id uuid, _date date)`** — `boolean`, есть ли у мастера хотя бы один слот на дату с минимальной длительностью (по самой короткой услуге мастера).
 
-### Фаза 4 — Расширенный чат (разд. 11)
-- Создать `src/components/chat/EnhancedChat.tsx` (рефактор `SupportChat`).
-- `VoiceRecorder.tsx`: MediaRecorder → Storage `chat-media/audio/` → `audio_url`.
-- `MediaUploader.tsx`: фото/видео в `media_urls[]`.
-- `EmojiPicker.tsx`: пакет `emoji-mart`.
-- Reply-to: UI цитаты + поле `reply_to_id`.
-- Typing-indicator: Supabase Realtime Presence + таблица `typing_indicators` (TTL 5 сек).
-- Поиск по истории: full-text по `chat_messages.text` (ilike).
-- Удаление сообщения: своих — для всех, у всех — для owner/admin.
-- Применить `EnhancedChat` в `SupportChat.tsx`, `TeachingChats.tsx`, `GroupChatDialog.tsx`.
+3. **`search_masters_with_availability(_filters jsonb, _date_from date, _date_to date)`** — расширение текущей выборки каталога: возвращает только мастеров, у которых `has_master_availability_on_date` = true хотя бы на один день в диапазоне. Опционально — поле `available_dates date[]`.
 
-### Фаза 5 — CRM: рассылки + лояльность (разд. 9)
-- `src/components/dashboard/business/BusinessBroadcasts.tsx`:
-  - 2 режима: «Своя база» (бесплатно) / «Платформенная база» (7 ₽/клиент, списание из кошелька).
-  - Сегментация (новые/постоянные/VIP/спящие), переменные `{{имя}} {{мастер}} {{дата}} {{услуга}}`.
-  - Канал: только Push (без SMS).
-- `src/components/dashboard/business/BusinessLoyaltyPrograms.tsx`:
-  - Типы: cashback / points / discount / subscription.
-  - Привязка `loyalty_programs` ↔ `loyalty_memberships`.
-- Edge Function `send-broadcast` (только Push через VAPID) + `send-push-notification`.
-- В `UniversalClients.tsx` действие «Создать рассылку по сегменту».
+**Миграция БД (если ещё нет):**
+- Таблица `master_time_off` (id, master_id, start_date, end_date, reason, created_at) для отпусков/больничных.
+- Поля `break_start`, `break_end` или `breaks JSONB` в `master_profiles`/`master_schedules`, если их нет.
+- Поле `buffer_minutes int default 0` в `business_locations` (буфер между записями).
 
-### Фаза 6 — ERP: зарплаты (разд. 10)
-- `src/components/dashboard/business/BusinessSalaries.tsx`:
-  - Таблица сотрудников + активная схема (`salary_schemes`).
-  - Создание/редактирование: fixed / percent / mixed / piecework, % с услуги (с/без расходников).
-  - Расчёт периода по completed bookings + вычеты из `BusinessPenalties`.
-  - История выплат (`salary_records`), экспорт XLSX.
-- Доступ только при `tier === 'business' || 'network'` через `canAccessSection('salaries')`.
-- Добавить `salaries` в `tierSections.ts` (Pro+).
+**Фронтенд:**
 
-### Фаза 7 — PWA + виртуализация
-- `vite-plugin-pwa` + Workbox: SW (StaleWhileRevalidate API, CacheFirst статика, NetworkFirst критичное), `/offline.html`.
-- `npm i @tanstack/react-virtual` — виртуализация в `Catalog.tsx` и `UniversalClients.tsx`.
-- Цель: Lighthouse PWA ≥ 90.
+1. **`Catalog.tsx` (поиск):**
+   - Добавить `DateRangePicker` (shadcn `Calendar` с `mode="range"`) — фильтр «Свободно с–по», как в Booking.com / Airbnb.
+   - При выбранной дате/диапазоне — RPC `search_masters_with_availability`, скрывать карточки полностью занятых мастеров.
+   - Бейдж «Свободно сегодня / завтра / N слотов» на карточке `MasterCardItem` / `BusinessCardItem`.
+   - Сортировка по умолчанию: сначала с доступностью на ближайшую дату.
 
-### Фаза 8 — Роль `business_admin` и мелочи
-- ENUM (Фаза 1) уже добавляет роль.
-- `useAuth.tsx`, `RolePermissionsEditor.tsx`, `BusinessRoleHub.tsx` — поддержка `business_admin` (полный RW в одной точке).
-- `BusinessInviteForm.tsx` — пункт «Администратор точки» в выборе роли.
+2. **Popup-Dialog записи (запись через popup, как просили — не трогаем структуру):**
+   - При выборе даты вызывать `get_master_available_slots(master_id, date, service.duration_minutes)`.
+   - Слот-пикер: рендерить ТОЛЬКО возвращённые интервалы (нарезка по `service.duration_minutes` + `buffer_minutes`).
+   - Подсветка прошедшего времени — disabled.
+   - Если день полностью занят — показывать «Нет свободных слотов» + кнопка «Следующая свободная дата» (вызов `get_next_available_date`).
+   - Реалтайм-обновление: подписка на `bookings` channel — при появлении новой записи на ту же дату пересчитывать слоты (исключаем гонки).
 
-## Что НЕ делаем
-- ❌ BookingWizard — запись остаётся через popup-Dialog.
-- ❌ SMS (`send-sms`, SMSru).
-- ❌ Cron-напоминания (`send-booking-reminders`, `send-birthday-greetings`).
-- ❌ Telegram Bot для напоминаний (только привязка chat_id для будущего).
-- ❌ Drag-and-drop в журнале — текущая логика остаётся.
-- ❌ Поля `reminder_sent_24h`/`reminder_sent_1h` в bookings.
+3. **`MasterDetail.tsx` / `BusinessDetail.tsx`:**
+   - Виджет «Календарь занятости» (месяц): дни без слотов помечены серым, частично занятые — жёлтым, свободные — зелёным.
+   - Клик по дню → открывает popup записи с предзаполненной датой.
 
-## Порядок выполнения
-1. Фаза 2 (тарифы) — быстро, исправляет видимое несоответствие.
-2. Фаза 1 (миграция БД).
-3. Фаза 3 (ЛК по ТЗ).
-4. Фаза 6 (зарплаты — закрывает Pro/Network).
-5. Фаза 5 (рассылки + лояльность).
-6. Фаза 4 (расширенный чат).
-7. Фаза 7 (PWA + виртуализация).
-8. Фаза 8 (`business_admin` + полировка).
+4. **`UniversalSchedule.tsx` (журнал мастера):**
+   - Кнопки «Перерыв» и «Выходной/отпуск» — пишут в `master_time_off` / breaks; сразу попадает в `get_master_available_slots`.
+
+**Изменяемые файлы:**
+- `src/pages/Catalog.tsx` — DateRangePicker + фильтр доступности.
+- `src/components/marketplace/MasterCardItem.tsx`, `BusinessCardItem.tsx` — бейдж «Свободно».
+- `src/pages/MasterDetail.tsx`, `BusinessDetail.tsx` — календарь занятости.
+- Текущий popup записи (Dialog в `MasterDetail`/`BusinessDetail`/`ServiceDetailDialog`) — слот-пикер на основе RPC.
+- `src/components/dashboard/universal/UniversalSchedule.tsx` — управление перерывами/отпусками.
+- `src/lib/searchUtils.ts` — параметры availability в поиске.
+
+**Что НЕ трогаем:** структура popup-Dialog (как просили, без BookingWizard).
+
+---
+
+### Доделать Фазу 3 (ЛК по ТЗ)
+- `ClientReferral.tsx` — отображение `referred_by` и приглашённых.
+- `BusinessSettings.tsx` — виджет прогресса онбординга (`onboarding_status`).
+- `BusinessServices.tsx` — селект `technology_card_id` с автоподстановкой себестоимости.
+- `IntegratorSetup.tsx` — чек-лист `in_progress → pending_review → active`.
+- `CreateBusinessAccount.tsx` (Сеть) — выбор приоритетной точки/мастера → `priority_for_user_id`.
+
+### Доделать Фазу 4 (чат)
+- Typing-indicator через Supabase Realtime Presence + `typing_indicators` (TTL 5 сек).
+- Применить расширенный чат к `TeachingChats.tsx`, `GroupChatDialog.tsx` (вынести общую логику в `EnhancedChat.tsx`).
+
+### Доделать Фазу 5 (CRM-рассылки)
+- `BusinessBroadcasts.tsx` — UI: «Своя база» (free) / «Платформенная база» (7 ₽/клиент), сегменты, переменные `{{имя}} {{мастер}} {{дата}} {{услуга}}`, канал Push.
+- Edge Function `send-push-notification` (Web Push, VAPID).
+- Edge Function `send-broadcast` (обходит сегмент, списывает кошелёк, заполняет `broadcast_deliveries`).
+- В `UniversalClients.tsx` — кнопка «Создать рассылку по сегменту».
+
+### Доделать Фазу 7 (виртуализация)
+- `npm i @tanstack/react-virtual`.
+- Виртуализация: `Catalog.tsx`, `UniversalClients.tsx`.
+- Оффлайн-страница `/offline.html`, цель Lighthouse PWA ≥ 90.
+
+### Доделать Фазу 8 (business_admin)
+- `BusinessRoleHub.tsx` — отображать `business_admin`.
+- RLS-миграция: политики `business_locations`, `services`, `bookings`, `business_finances` пропускают `business_admin` в скоупе своей точки.
+- `BusinessDashboard.tsx` — для роли `business_admin` показывать тот же набор разделов, что и владельцу.
+
+---
 
 ## Технические детали
-**Edge Functions (только 2 новые):** `send-push-notification`, `send-broadcast`.
-**Новые компоненты:** `BusinessSalaries`, `BusinessBroadcasts`, `BusinessLoyaltyPrograms`, `EnhancedChat`, `VoiceRecorder`, `MediaUploader`, `EmojiPicker`.
-**Изменяемые:** `usePlatformPricing`, `TierComparison`, `SubscriptionManager`, `SubscriptionPaywall`, `Index`, `ForBusiness`, `Hero`, `CTA`, `About`, `Offer`, `ClientSettingsSection`, `CreateBusinessAccount`, `BusinessSettings`, `IntegratorSetup`, `AdminOrganizations`, `AdminPromoCodes`, `useAuth`, `RolePermissionsEditor`, `BusinessRoleHub`, `BusinessInviteForm`, `Catalog`, `UniversalClients`, `tierSections`, `vite.config.ts`.
-**БД-миграция:** одна, без слома существующих RLS.
+
+**Новые RPC (5):** `get_master_available_slots`, `has_master_availability_on_date`, `search_masters_with_availability`, `get_next_available_date`, опц. `get_business_calendar_view`.
+
+**Новые таблицы / поля:** `master_time_off`, поля `breaks JSONB` / `buffer_minutes` если ещё нет.
+
+**Новые Edge Functions:** `send-push-notification`, `send-broadcast`.
+
+**Новые/изменяемые компоненты:** `BusinessBroadcasts`, `EnhancedChat`, дополнительно — `MasterAvailabilityCalendar`, `AvailableSlotPicker` (переиспользуемый внутри текущих Dialog-ов).
+
+**Секреты для push:** `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`.
+
+**Порядок:**
+1. **Фаза 9** — контроль занятости (RPC + DateRangePicker + слот-пикер) — критичный UX.
+2. Фаза 5 — рассылки + push.
+3. Доделка Фазы 3.
+4. Доделка Фазы 4 (typing + чаты).
+5. Фаза 7 — виртуализация.
+6. Фаза 8 — RLS для `business_admin`.
 
