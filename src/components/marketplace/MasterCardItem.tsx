@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Star, MapPin, ChevronLeft, ChevronRight, BadgeCheck, ThumbsUp } from "lucide-react";
+import { Star, MapPin, ChevronLeft, ChevronRight, BadgeCheck, ThumbsUp, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import useEmblaCarousel from "embla-carousel-react";
@@ -17,11 +17,12 @@ interface Props {
   hashtags?: string[] | null;
   work_photos?: string[] | null;
   moderation_status?: string | null;
+  availableOnDate?: boolean;
   onClick: () => void;
 }
 
 const MasterCardItem = ({
-  name, avatar_url, rating, review_count, bio, location, category_name, min_price, hashtags, work_photos, moderation_status, onClick,
+  name, avatar_url, rating, review_count, bio, location, category_name, min_price, hashtags, work_photos, moderation_status, availableOnDate, onClick,
 }: Props) => {
   const photos = work_photos && work_photos.length > 0 ? work_photos : [];
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
@@ -93,6 +94,11 @@ const MasterCardItem = ({
               {rating != null && rating >= 4.5 && (
                 <Badge variant="secondary" className="text-xs gap-0.5 bg-accent/10 text-accent border-0">
                   <ThumbsUp className="w-2.5 h-2.5" /> Рекомендуем
+                </Badge>
+              )}
+              {availableOnDate && (
+                <Badge variant="secondary" className="text-xs gap-0.5 bg-primary/10 text-primary border-0">
+                  <Clock className="w-2.5 h-2.5" /> Свободно
                 </Badge>
               )}
             </div>

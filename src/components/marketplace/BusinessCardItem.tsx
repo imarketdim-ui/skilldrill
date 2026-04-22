@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Star, MapPin, Users, ChevronLeft, ChevronRight, BadgeCheck, ThumbsUp } from "lucide-react";
+import { Star, MapPin, Users, ChevronLeft, ChevronRight, BadgeCheck, ThumbsUp, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import useEmblaCarousel from "embla-carousel-react";
@@ -17,11 +17,12 @@ interface Props {
   specialist_count?: number;
   service_count?: number;
   moderation_status?: string | null;
+  availableOnDate?: boolean;
   onClick: () => void;
 }
 
 const BusinessCardItem = ({
-  name, image, images, rating, review_count, address, description, category_name, specialist_count, service_count, moderation_status, onClick,
+  name, image, images, rating, review_count, address, description, category_name, specialist_count, service_count, moderation_status, availableOnDate, onClick,
 }: Props) => {
   const photos = images && images.length > 0 ? images : image ? [image] : [];
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
@@ -84,6 +85,11 @@ const BusinessCardItem = ({
           {rating != null && rating >= 4.5 && (
             <Badge variant="secondary" className="text-xs gap-0.5 bg-accent/10 text-accent border-0 ml-1">
               <ThumbsUp className="w-2.5 h-2.5" /> Рекомендуем
+            </Badge>
+          )}
+          {availableOnDate && (
+            <Badge variant="secondary" className="text-xs gap-0.5 bg-primary/10 text-primary border-0 ml-1">
+              <Clock className="w-2.5 h-2.5" /> Свободно
             </Badge>
           )}
         </div>
