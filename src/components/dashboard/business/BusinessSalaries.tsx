@@ -550,9 +550,9 @@ const BusinessSalaries = ({ businessId }: Props) => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(SCHEME_LABELS).map(([k, v]) => (
+                  {(Object.keys(SCHEME_LABELS) as SchemeType[]).map((k) => (
                     <SelectItem key={k} value={k}>
-                      {v}
+                      {SCHEME_LABELS[k]}
                     </SelectItem>
                   ))}
                 </SelectContent>
