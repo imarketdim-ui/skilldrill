@@ -327,8 +327,14 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
                 <>
                   <div className="p-3 border-b flex items-center gap-2">
                     <Button variant="ghost" size="sm" className="md:hidden" onClick={() => setSelectedUserId(null)}>←</Button>
-                    <p className="font-medium text-sm">{threads.find(t => t.userId === selectedUserId)?.userName}</p>
+                    <p className="font-medium text-sm flex-1">{threads.find(t => t.userId === selectedUserId)?.userName}</p>
+                    <Button size="icon" variant="ghost" onClick={() => setShowSearch(s => !s)}><Search className="h-4 w-4" /></Button>
                   </div>
+                  {showSearch && (
+                    <div className="p-2 border-b">
+                      <Input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Поиск по сообщениям..." className="h-8" />
+                    </div>
+                  )}
                   <ScrollArea className="flex-1 p-3">{renderMessages(filteredMessages)}</ScrollArea>
                   {renderInputBar()}
                 </>
@@ -345,7 +351,13 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <MessageSquare className="h-5 w-5" /> Техподдержка
+          <Button size="icon" variant="ghost" className="ml-auto h-8 w-8" onClick={() => setShowSearch(s => !s)}>
+            <Search className="h-4 w-4" />
+          </Button>
         </CardTitle>
+        {showSearch && (
+          <Input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Поиск..." className="h-8 mt-2" />
+        )}
       </CardHeader>
       <CardContent>
         <div className="flex flex-col h-[400px] rounded-lg border overflow-hidden">
