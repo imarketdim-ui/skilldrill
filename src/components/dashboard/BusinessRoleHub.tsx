@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Wrench, Building2, Briefcase, ChevronRight, Plus, Loader2, Crown, Lock, CreditCard, AlertTriangle } from 'lucide-react';
+import { Wrench, Building2, Briefcase, ChevronRight, Plus, Loader2, Crown, Lock, CreditCard, AlertTriangle, Shield } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { useSubscriptionTier } from '@/hooks/useSubscriptionTier';
 import SubscriptionManager from './SubscriptionManager';
@@ -106,6 +106,30 @@ const BusinessRoleHub = ({ onSelect, onBack }: BusinessRoleHubProps) => {
         disabled: isExpired,
       });
     });
+
+    // Business admin (assigned via business_managers with admin flag, or direct role)
+    if (roles.includes('business_admin')) {
+      const { data: adminBiz } = await supabase
+        .from('business_managers')
+        .select('id, business_id, business_locations:business_locations!business_managers_business_id_fkey(name)')
+        .eq('user_id', user.id)
+        .eq('is_active', true);
+
+      (adminBiz || []).forEach(m => {
+        const bizName = (m.business_locations as any)?.name || 'Организация';
+        // avoid duplicate if already added as manager
+        if (entries.some(e => e.entityId === m.business_id && e.role === 'business_manager')) return;
+        entries.push({
+          id: `biz-admin-${m.id}`,
+          entityId: m.business_id,
+          label: `«${bizName}»`,
+          sublabel: 'Администратор',
+          icon: <Shield className="h-5 w-5" />,
+          role: 'business_admin',
+          disabled: isExpired,
+        });
+      });
+    }
 
     // Network owner
     const { data: networks } = await supabase

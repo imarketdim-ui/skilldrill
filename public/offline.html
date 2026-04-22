@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Нет соединения — SkillSpot</title>
+  <style>
+    :root {
+      --bg: hsl(0 0% 100%);
+      --fg: hsl(222 47% 11%);
+      --muted: hsl(215 16% 47%);
+      --primary: hsl(243 75% 59%);
+      --border: hsl(214 32% 91%);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: hsl(222 47% 6%);
+        --fg: hsl(210 40% 98%);
+        --muted: hsl(215 20% 65%);
+        --border: hsl(217 33% 17%);
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+      padding: 24px;
+    }
+    .card {
+      max-width: 420px;
+      width: 100%;
+      text-align: center;
+      padding: 32px 24px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+    }
+    .icon {
+      width: 64px; height: 64px;
+      margin: 0 auto 20px;
+      border-radius: 50%;
+      background: hsl(243 75% 59% / 0.1);
+      color: var(--primary);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 32px;
+    }
+    h1 { margin: 0 0 8px; font-size: 22px; }
+    p { margin: 0 0 20px; color: var(--muted); font-size: 14px; line-height: 1.5; }
+    button {
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    button:hover { opacity: 0.9; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">📡</div>
+    <h1>Нет соединения с интернетом</h1>
+    <p>Проверьте подключение к сети и попробуйте снова. Некоторые сохранённые данные могут быть доступны после восстановления связи.</p>
+    <button onclick="location.reload()">Повторить попытку</button>
+  </div>
+  <script>
+    window.addEventListener('online', () => location.reload());
+  </script>
+</body>
+</html>
