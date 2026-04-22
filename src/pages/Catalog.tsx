@@ -548,6 +548,7 @@ const Catalog = () => {
           if (b.city && b.city.toLowerCase() === locationFilter.toLowerCase()) { /* match */ }
           else if (!(b.address || "").toLowerCase().includes(locationFilter.toLowerCase())) return false;
         }
+        if (availabilityDate && availableBizIds && !availableBizIds.has(b.id)) return false;
         return true;
       })
       .sort((a, b) => {
