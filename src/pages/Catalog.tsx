@@ -527,7 +527,7 @@ const Catalog = () => {
           default: return 0;
         }
       });
-  }, [masters, priceRange, selectedTags, sortBy, locationFilter, userLocation, popularityMap]);
+  }, [masters, priceRange, selectedTags, sortBy, locationFilter, userLocation, popularityMap, availabilityDate, availableMasterIds]);
 
   // Filter businesses (basic client-side filter since no FTS on business_locations)
   const filteredBusinesses = useMemo(() => {
