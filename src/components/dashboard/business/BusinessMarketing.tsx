@@ -44,6 +44,7 @@ const BusinessMarketing = ({ businessId }: Props) => {
   const [message, setMessage] = useState('');
   const [title, setTitle] = useState('');
   const [sending, setSending] = useState(false);
+  const [sendPush, setSendPush] = useState(true);
 
   // Own clients targeting
   const [ownTarget, setOwnTarget] = useState<'all' | 'selected' | 'group'>('all');
