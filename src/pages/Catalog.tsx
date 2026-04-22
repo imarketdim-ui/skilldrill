@@ -564,7 +564,7 @@ const Catalog = () => {
         }
         return 0;
       });
-  }, [businesses, searchQuery, categoryFilter, locationFilter, sortBy, userLocation, popularityMap]);
+  }, [businesses, searchQuery, categoryFilter, locationFilter, sortBy, userLocation, popularityMap, availabilityDate, availableBizIds]);
 
   // Filter services (search is now server-side via FTS)
   const filteredServices = useMemo(() => {
@@ -826,6 +826,27 @@ const Catalog = () => {
                       className="h-10"
                     />
                   </div>
+                </div>
+              </div>
+
+              {/* Availability date — Booking-style */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">
+                  Свободно на дату {checkingAvailability && "(проверка…)"}
+                </label>
+                <div className="flex gap-2 items-center">
+                  <Input
+                    type="date"
+                    min={new Date().toISOString().slice(0, 10)}
+                    value={availabilityDate}
+                    onChange={(e) => setAvailabilityDate(e.target.value)}
+                    className="h-10"
+                  />
+                  {availabilityDate && (
+                    <Button variant="ghost" size="sm" onClick={() => setAvailabilityDate("")}>
+                      <X className="w-4 h-4" />
+                    </Button>
+                  )}
                 </div>
               </div>
 
