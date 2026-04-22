@@ -164,6 +164,7 @@ const CreateBusinessAccount = () => {
           city: form.business_city || null, description: form.business_description || null,
           contact_email: form.business_contact_email, contact_phone: form.business_contact_phone,
           director_name: form.director_name, moderation_status: 'draft',
+          onboarding_status: 'in_progress',
           latitude: form.business_lat || null, longitude: form.business_lng || null,
         });
         if (insertError) throw new Error(insertError.message);
@@ -176,6 +177,7 @@ const CreateBusinessAccount = () => {
           inn: form.network_inn.trim(), legal_form: form.network_legal_form, address: form.network_address || '',
           contact_email: form.network_contact_email.trim(), contact_phone: form.network_contact_phone.trim(),
           director_name: form.director_name.trim(), moderation_status: 'draft',
+          onboarding_status: 'in_progress',
         });
         if (insertError) throw new Error(insertError.message);
         const { error: roleError } = await supabase.rpc('assign_role_on_account_creation', { _user_id: user.id, _role: 'network_owner' });

@@ -117,6 +117,9 @@ export const SECTION_MIN_TIER: Record<string, SubscriptionTierKey> = {
   business_settings: 'business',
   analytics: 'business',
   promotions_business: 'business',
+  salaries: 'business',           // Расчёт зарплат сотрудников
+  broadcasts: 'business',         // CRM-рассылки
+  loyalty_programs: 'business',   // Программы лояльности
 
   // ── Только Сеть ──
   locations: 'network',           // Список точек
@@ -162,6 +165,9 @@ export const TIER_COMPARISON: TierFeature[] = [
   { key: 'gift_certificates', label: 'Подарочные сертификаты', master: false, business: true, network: true },
   { key: 'bonus_programs', label: 'Бонусные программы', master: false, business: true, network: true },
   { key: 'permissions', label: 'Управление правами', master: false, business: true, network: true },
+  { key: 'salaries', label: 'Расчёт зарплат', master: false, business: true, network: true },
+  { key: 'broadcasts', label: 'CRM-рассылки', master: false, business: true, network: true },
+  { key: 'loyalty_programs', label: 'Программы лояльности', master: false, business: true, network: true },
   { key: 'multi_location', label: 'Мульти-точки и агрегация', master: false, business: false, network: true },
   { key: 'cross_marketing', label: 'Сквозной маркетинг сети', master: false, business: false, network: true },
 ];

@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Building2, Globe, Search, MessageSquare, Loader2, ChevronLeft, MapPin, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -15,6 +16,7 @@ interface OrganizationItem {
   address?: string | null;
   subscription_status: string;
   moderation_status?: string;
+  onboarding_status?: string;
   created_at: string;
   owner_id: string;
   owner?: { first_name: string | null; last_name: string | null; skillspot_id: string | null; email: string | null } | null;
@@ -38,6 +40,7 @@ const AdminOrganizations = () => {
   const [items, setItems] = useState<OrganizationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [onboardingFilter, setOnboardingFilter] = useState<string>('all');
   const [selected, setSelected] = useState<OrganizationItem | null>(null);
   const [details, setDetails] = useState<{ masters: any[]; locations: any[] } | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
@@ -49,12 +52,12 @@ const AdminOrganizations = () => {
     const [bizRes, netRes] = await Promise.all([
       supabase
         .from('business_locations')
-        .select('id, name, address, subscription_status, moderation_status, created_at, owner_id, owner:profiles!business_locations_owner_id_fkey(first_name, last_name, skillspot_id, email)')
+        .select('id, name, address, subscription_status, moderation_status, onboarding_status, created_at, owner_id, owner:profiles!business_locations_owner_id_fkey(first_name, last_name, skillspot_id, email)')
         .order('created_at', { ascending: false })
         .limit(500),
       supabase
         .from('networks')
-        .select('id, name, subscription_status, created_at, owner_id, owner:profiles!networks_owner_id_fkey(first_name, last_name, skillspot_id, email)')
+        .select('id, name, subscription_status, onboarding_status, created_at, owner_id, owner:profiles!networks_owner_id_fkey(first_name, last_name, skillspot_id, email)')
         .order('created_at', { ascending: false })
         .limit(500),
     ]);
@@ -103,6 +106,7 @@ const AdminOrganizations = () => {
   };
 
   const filtered = items.filter((it) => {
+    if (onboardingFilter !== 'all' && (it.onboarding_status || 'in_progress') !== onboardingFilter) return false;
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     return (
@@ -210,13 +214,27 @@ const AdminOrganizations = () => {
         <CardDescription>Все бизнес-точки и сети платформы. Только просмотр.</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="flex items-center gap-2 mb-4">
-          <Search className="h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Поиск по названию, ФИО владельца или Skillspot ID"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
+          <div className="flex items-center gap-2 flex-1 min-w-[220px]">
+            <Search className="h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Поиск по названию, ФИО владельца или Skillspot ID"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <Select value={onboardingFilter} onValueChange={setOnboardingFilter}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Статус онбординга" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Все статусы</SelectItem>
+              <SelectItem value="in_progress">В процессе</SelectItem>
+              <SelectItem value="pending_review">На проверке</SelectItem>
+              <SelectItem value="approved">Одобрена</SelectItem>
+              <SelectItem value="rejected">Отклонена</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {loading ? (
