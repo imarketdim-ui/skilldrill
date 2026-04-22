@@ -14,3 +14,9 @@ verify_jwt = false
 
 [functions.tinkoff-webhook]
 verify_jwt = false
+
+[functions.send-push-notification]
+verify_jwt = true
+
+[functions.send-broadcast]
+verify_jwt = true

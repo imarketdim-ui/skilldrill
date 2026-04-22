@@ -44,6 +44,7 @@ const BusinessMarketing = ({ businessId }: Props) => {
   const [message, setMessage] = useState('');
   const [title, setTitle] = useState('');
   const [sending, setSending] = useState(false);
+  const [sendPush, setSendPush] = useState(true);
 
   // Own clients targeting
   const [ownTarget, setOwnTarget] = useState<'all' | 'selected' | 'group'>('all');
@@ -180,12 +181,16 @@ const BusinessMarketing = ({ businessId }: Props) => {
         return;
       }
 
-      const messages = targetClients.map(c => ({
-        sender_id: user.id,
-        recipient_id: c.id,
-        message: message.trim(),
-        chat_type: 'marketing',
-      }));
+      const messages = targetClients.map(c => {
+        const fullName = [c.first_name, c.last_name].filter(Boolean).join(' ').trim() || 'Клиент';
+        const personalText = message.trim().replace(/\{\{имя\}\}/g, fullName);
+        return {
+          sender_id: user.id,
+          recipient_id: c.id,
+          message: personalText,
+          chat_type: 'marketing',
+        };
+      });
 
       const { error } = await supabase.from('chat_messages').insert(messages);
       if (error) throw error;
@@ -203,6 +208,21 @@ const BusinessMarketing = ({ businessId }: Props) => {
         sent_count: targetClients.length,
         sent_at: new Date().toISOString(),
       });
+
+      // Push notifications (best-effort)
+      if (sendPush) {
+        try {
+          await supabase.functions.invoke('send-push-notification', {
+            body: {
+              user_ids: targetClients.map(c => c.id),
+              title: title.trim() || 'Сообщение от бизнеса',
+              body: message.trim().slice(0, 200),
+              url: '/dashboard',
+              tag: `marketing-${businessId}`,
+            },
+          });
+        } catch (_) { /* ignore */ }
+      }
 
       toast({ title: 'Рассылка отправлена', description: `${targetClients.length} получателей` });
       setDialogOpen(false);
@@ -413,9 +433,19 @@ const BusinessMarketing = ({ businessId }: Props) => {
                 <Textarea
                   value={message}
                   onChange={e => setMessage(e.target.value)}
-                  placeholder="Напишите сообщение..."
+                  placeholder="Напишите сообщение... Доступны переменные: {{имя}}"
                   className="min-h-[80px]"
                 />
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Подстановки: <code>{'{{имя}}'}</code> — имя получателя
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Checkbox id="sendPush" checked={sendPush} onCheckedChange={v => setSendPush(!!v)} />
+                <label htmlFor="sendPush" className="text-sm cursor-pointer">
+                  Дублировать как push-уведомление
+                </label>
               </div>
 
               <TabsContent value="own" className="mt-0 space-y-4">
