@@ -429,9 +429,19 @@ const BusinessMarketing = ({ businessId }: Props) => {
                 <Textarea
                   value={message}
                   onChange={e => setMessage(e.target.value)}
-                  placeholder="Напишите сообщение..."
+                  placeholder="Напишите сообщение... Доступны переменные: {{имя}}"
                   className="min-h-[80px]"
                 />
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Подстановки: <code>{'{{имя}}'}</code> — имя получателя
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Checkbox id="sendPush" checked={sendPush} onCheckedChange={v => setSendPush(!!v)} />
+                <label htmlFor="sendPush" className="text-sm cursor-pointer">
+                  Дублировать как push-уведомление
+                </label>
               </div>
 
               <TabsContent value="own" className="mt-0 space-y-4">
