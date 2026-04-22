@@ -15,6 +15,7 @@ import { Plus, ChevronLeft, ChevronRight, Trash2, Coffee, Clock, Settings2, Chec
 import { format, addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addWeeks, subWeeks, addMonths, subMonths, differenceInHours, isAfter } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { CategoryConfig } from './categoryConfig';
+import MasterTimeOffManager from './MasterTimeOffManager';
 
 const daysOfWeek = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 const timeSlots = Array.from({ length: 28 }, (_, i) => {
@@ -889,6 +890,8 @@ const UniversalSchedule = ({ config }: Props) => {
               if (error) { toast({ title: 'Ошибка', description: error.message, variant: 'destructive' }); return; }
               setIsSettingsOpen(false); toast({ title: 'Настройки сохранены в профиль' });
             }} className="w-full">Сохранить</Button>
+
+            <MasterTimeOffManager />
           </div>
         </DialogContent>
       </Dialog>
