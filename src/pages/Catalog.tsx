@@ -505,6 +505,7 @@ const Catalog = () => {
           if (m.city && m.city.toLowerCase() === locationFilter.toLowerCase()) { /* match */ }
           else if (!(m.location || "").toLowerCase().includes(locationFilter.toLowerCase())) return false;
         }
+        if (availabilityDate && availableMasterIds && !availableMasterIds.has(m.user_id)) return false;
         return true;
       })
       .sort((a, b) => {
