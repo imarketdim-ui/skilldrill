@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Sparkles, LogOut, ArrowLeft } from 'lucide-react';
 import RoleSwitcher from './RoleSwitcher';
+import HeaderNotifications from './HeaderNotifications';
 import { useSubscriptionTier } from '@/hooks/useSubscriptionTier';
 
 interface DashboardLayoutProps {
@@ -86,7 +87,8 @@ const DashboardLayout = ({ children, onSelectHub, onBackToHub }: DashboardLayout
 
           <RoleSwitcher onSelectHub={onSelectHub} />
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            <HeaderNotifications />
             <Button variant="ghost" size="icon" onClick={handleSignOut}>
               <LogOut className="h-5 w-5" />
             </Button>

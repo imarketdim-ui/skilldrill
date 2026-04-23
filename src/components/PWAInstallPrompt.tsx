@@ -33,32 +33,57 @@ const PWAInstallPrompt = () => {
     }
 
     const dismissed = localStorage.getItem('pwa-dismissed');
-    if (dismissed && Date.now() - parseInt(dismissed) < 7 * 24 * 60 * 60 * 1000) return;
+    const isDismissed = dismissed && Date.now() - parseInt(dismissed) < 7 * 24 * 60 * 60 * 1000;
 
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
-      setShowBanner(true);
+      if (!isDismissed) setShowBanner(true);
+    };
+
+    const installedHandler = () => {
+      setIsInstalled(true);
+      setShowBanner(false);
+      setDeferredPrompt(null);
     };
 
     window.addEventListener('beforeinstallprompt', handler);
+    window.addEventListener('appinstalled', installedHandler);
 
-    // On iOS there's no beforeinstallprompt — show banner manually
-    if (platform === 'ios') {
-      setTimeout(() => setShowBanner(true), 3000);
+    // For iOS / desktop without prompt event — still show banner so user can open instructions
+    if (!isDismissed && (platform === 'ios' || platform === 'desktop')) {
+      const t = setTimeout(() => setShowBanner(true), 3000);
+      return () => {
+        clearTimeout(t);
+        window.removeEventListener('beforeinstallprompt', handler);
+        window.removeEventListener('appinstalled', installedHandler);
+      };
     }
 
-    return () => window.removeEventListener('beforeinstallprompt', handler);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler);
+      window.removeEventListener('appinstalled', installedHandler);
+    };
   }, [platform]);
 
   const handleInstall = async () => {
     if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') setIsInstalled(true);
-      setDeferredPrompt(null);
-      setShowBanner(false);
+      try {
+        await deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          setIsInstalled(true);
+          setShowBanner(false);
+        } else {
+          // User dismissed system prompt → fall back to instructions
+          setShowInstructions(true);
+        }
+        setDeferredPrompt(null);
+      } catch {
+        setShowInstructions(true);
+      }
     } else {
+      // No native prompt available — always show platform-specific instructions
       setShowInstructions(true);
     }
   };
@@ -167,7 +192,7 @@ const PWAInstallPrompt = () => {
               </div>
             ))}
           </div>
-          <Button onClick={() => { setShowInstructions(false); handleDismiss(); }} className="w-full">
+          <Button onClick={() => setShowInstructions(false)} className="w-full">
             Понятно
           </Button>
         </DialogContent>
