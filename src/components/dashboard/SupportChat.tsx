@@ -311,7 +311,7 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
         {user && <ChatEmojiPicker onSelect={(e) => setNewMessage(prev => prev + e)} />}
         {user && <MediaUploader userId={user.id} onUploaded={(urls) => sendMessage({ media_urls: urls })} />}
         {user && <VoiceRecorder userId={user.id} onUploaded={(url) => sendMessage({ audio_url: url })} />}
-        <Input value={newMessage} onChange={e => { setNewMessage(e.target.value); notifyTyping(); }} onKeyDown={handleKeyDown} placeholder={isAdmin ? 'Ответить...' : 'Написать в поддержку...'} className="flex-1" />
+        <Input value={newMessage} onChange={e => { setNewMessage(e.target.value); debouncedNotifyTyping(); }} onKeyDown={handleKeyDown} placeholder={isAdmin ? 'Ответить...' : 'Написать в поддержку...'} className="flex-1" />
         <Button size="icon" onClick={() => sendMessage()} disabled={sending || !newMessage.trim()}>
           {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </Button>
