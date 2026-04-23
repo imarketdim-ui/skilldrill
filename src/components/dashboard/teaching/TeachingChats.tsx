@@ -198,20 +198,38 @@ const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange
       .neq('chat_type', 'support')
       .order('created_at', { ascending: false });
 
-    if (!msgs || msgs.length === 0) {
-      setContacts([]);
-      setTotalUnread(0);
-      onUnreadChange?.(0);
-      setLoading(false);
-      return;
-    }
-
-    // Collect unique contact IDs
+    // Collect unique contact IDs from messages
     const contactIds = new Set<string>();
-    msgs.forEach(m => {
+    (msgs || []).forEach(m => {
       if (m.sender_id !== user.id) contactIds.add(m.sender_id);
       if (m.recipient_id !== user.id) contactIds.add(m.recipient_id);
     });
+
+    // For client cabinet — also include favorites + booking history
+    if (effectiveCabinet === 'client') {
+      const [favRes, bookRes, lessonRes] = await Promise.all([
+        supabase.from('favorites').select('target_id, favorite_type').eq('user_id', user.id).in('favorite_type', ['master', 'business']),
+        supabase.from('bookings').select('executor_id').eq('client_id', user.id),
+        supabase.from('lesson_bookings').select('lesson_id, lessons(teacher_id)').eq('student_id', user.id),
+      ]);
+
+      // Resolve business favorites → owner_id
+      const businessIds = (favRes.data || []).filter((f: any) => f.favorite_type === 'business').map((f: any) => f.target_id);
+      const masterFavIds = (favRes.data || []).filter((f: any) => f.favorite_type === 'master').map((f: any) => f.target_id);
+
+      if (businessIds.length > 0) {
+        const { data: bizOwners } = await supabase.from('business_locations').select('owner_id').in('id', businessIds);
+        (bizOwners || []).forEach((b: any) => b.owner_id && contactIds.add(b.owner_id));
+      }
+      if (masterFavIds.length > 0) {
+        const { data: masterUsers } = await supabase.from('master_profiles').select('user_id').in('id', masterFavIds);
+        (masterUsers || []).forEach((m: any) => m.user_id && contactIds.add(m.user_id));
+      }
+      (bookRes.data || []).forEach((b: any) => b.executor_id && contactIds.add(b.executor_id));
+      (lessonRes.data || []).forEach((l: any) => l.lessons?.teacher_id && contactIds.add(l.lessons.teacher_id));
+    }
+
+    contactIds.delete(user.id);
     
     const contactIdArr = Array.from(contactIds);
     if (contactIdArr.length === 0) {
