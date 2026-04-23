@@ -15,6 +15,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus, Pencil, Trash2, Clock, Tag, Package, X, Users } from 'lucide-react';
 import PhotoUploader from '@/components/marketplace/PhotoUploader';
 import { useAuth } from '@/hooks/useAuth';
+import TechnologyCardEditor from '@/components/dashboard/universal/TechnologyCardEditor';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 interface Props {
   businessId: string;
@@ -316,6 +318,27 @@ const BusinessServices = ({ businessId }: Props) => {
               )}
             </div>
             <Button className="w-full" onClick={handleSave}>{editingId ? 'Сохранить' : 'Создать'}</Button>
+
+            {editingId && (() => {
+              const editingService = services.find(s => s.id === editingId);
+              if (!editingService) return null;
+              return (
+                <Accordion type="single" collapsible className="border-t pt-2">
+                  <AccordionItem value="techcard" className="border-0">
+                    <AccordionTrigger className="text-sm font-medium hover:no-underline">
+                      Технологическая карта (себестоимость)
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <TechnologyCardEditor
+                        serviceId={editingService.id}
+                        serviceName={editingService.name}
+                        servicePrice={Number(editingService.price || 0)}
+                      />
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              );
+            })()}
           </div>
         </DialogContent>
       </Dialog>
