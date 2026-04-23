@@ -24,16 +24,27 @@ const UniversalFinances = ({ config, masterProfile }: Props) => {
   const [masterBalance, setMasterBalance] = useState(0);
   const [transferOpen, setTransferOpen] = useState(false);
 
-  useEffect(() => {
+  const loadBalance = async () => {
     if (!user || !masterProfile?.id) return;
-    supabase.from('cabinet_balances')
+    const { data, error } = await supabase.from('cabinet_balances')
       .select('main_balance')
       .eq('user_id', user.id)
       .eq('cabinet_type', 'master')
       .eq('cabinet_id', masterProfile.id)
-      .maybeSingle()
-      .then(({ data }) => setMasterBalance(data?.main_balance || 0));
-  }, [user, masterProfile]);
+      .maybeSingle();
+    if (error) { console.warn('balance fetch error:', error.message); setMasterBalance(0); return; }
+    if (!data) {
+      // Auto-create missing row (idempotent)
+      await supabase.from('cabinet_balances').insert({
+        user_id: user.id, cabinet_type: 'master', cabinet_id: masterProfile.id, main_balance: 0,
+      }).select().maybeSingle();
+      setMasterBalance(0);
+      return;
+    }
+    setMasterBalance(Number(data.main_balance) || 0);
+  };
+
+  useEffect(() => { loadBalance(); }, [user, masterProfile?.id]);
 
   return (
     <div className="space-y-4">
