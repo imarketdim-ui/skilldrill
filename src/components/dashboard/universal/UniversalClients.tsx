@@ -560,4 +560,96 @@ const UniversalClients = ({ config, onNavigateToChat }: Props) => {
   );
 };
 
+interface VirtualListProps {
+  clients: ClientInfo[];
+  getClientStatus: (c: ClientInfo) => ClientStatus;
+  getStatusBadge: (status: ClientStatus) => JSX.Element | null;
+  getRate: (c: ClientInfo) => string;
+  openProfile: (c: ClientInfo) => void;
+  startChat: (c: ClientInfo) => void;
+  config: CategoryConfig;
+}
+
+const VIRTUAL_THRESHOLD = 50;
+const ROW_HEIGHT = 92;
+
+const VirtualizedClientList = ({
+  clients, getClientStatus, getStatusBadge, getRate, openProfile, startChat, config,
+}: VirtualListProps) => {
+  const parentRef = useRef<HTMLDivElement>(null);
+  const useVirtual = clients.length >= VIRTUAL_THRESHOLD;
+
+  const rowVirtualizer = useVirtualizer({
+    count: clients.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 8,
+  });
+
+  const renderRow = (c: ClientInfo) => {
+    const status = getClientStatus(c);
+    return (
+      <Card
+        key={c.id}
+        className={`cursor-pointer hover:border-primary/50 transition-colors ${c.isBlacklisted ? 'opacity-60 border-destructive/30' : ''}`}
+        onClick={() => openProfile(c)}
+      >
+        <CardContent className="py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Avatar><AvatarFallback className="bg-primary/10 text-primary">{c.first_name?.[0] || 'C'}</AvatarFallback></Avatar>
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="font-medium">{c.first_name || ''} {c.last_name || ''}{!c.first_name && !c.last_name && c.email}</p>
+                  {getStatusBadge(status)}
+                </div>
+                <p className="text-sm text-muted-foreground">ID: {c.skillspot_id}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 text-sm">
+              <div className="text-center hidden sm:block"><p className="font-semibold">{c.ltv.toLocaleString()} ₽</p><p className="text-muted-foreground text-xs">LTV</p></div>
+              <div className="text-center hidden sm:block"><p className="font-semibold">{c.totalSessions}</p><p className="text-muted-foreground text-xs">{config.sessionNamePlural}</p></div>
+              <div className="text-center hidden sm:block"><p className="font-semibold">{getRate(c)}</p><p className="text-muted-foreground text-xs">Посещ.</p></div>
+              {!c.isBlacklisted && (
+                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={e => { e.stopPropagation(); startChat(c); }}>
+                  <MessageSquare className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  if (!useVirtual) {
+    return <div className="grid gap-3">{clients.map(renderRow)}</div>;
+  }
+
+  return (
+    <div ref={parentRef} className="overflow-auto" style={{ height: '70vh' }}>
+      <div style={{ height: rowVirtualizer.getTotalSize(), position: 'relative', width: '100%' }}>
+        {rowVirtualizer.getVirtualItems().map(vi => {
+          const c = clients[vi.index];
+          return (
+            <div
+              key={c.id}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                transform: `translateY(${vi.start}px)`,
+                paddingBottom: 12,
+              }}
+            >
+              {renderRow(c)}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 export default UniversalClients;
