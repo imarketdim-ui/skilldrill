@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import VoiceRecorder from '@/components/chat/VoiceRecorder';
 import MediaUploader from '@/components/chat/MediaUploader';
 import ChatEmojiPicker from '@/components/chat/ChatEmojiPicker';
+import { useTypingIndicator } from '@/hooks/useTypingIndicator';
 
 interface SupportChatProps {
   isAdmin?: boolean;
