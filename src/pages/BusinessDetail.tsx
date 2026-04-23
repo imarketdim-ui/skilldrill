@@ -244,7 +244,7 @@ const BusinessDetail = () => {
                             <p className="text-2xl font-bold">{Number(service.price).toLocaleString()} ₽</p>
                             <Dialog open={bookingService === service.id} onOpenChange={open => setBookingService(open ? service.id : null)}>
                               <DialogTrigger asChild><Button>Записаться</Button></DialogTrigger>
-                              <DialogContent>
+                              <DialogContent className="max-h-[85vh] overflow-y-auto">
                                 <DialogHeader><DialogTitle>Запись на «{service.name}»</DialogTitle></DialogHeader>
                                 <div className="space-y-4">
                                   <p className="text-sm text-muted-foreground">{Number(service.price).toLocaleString()} ₽ · {service.duration_minutes} мин</p>
@@ -270,7 +270,16 @@ const BusinessDetail = () => {
                                     )}
                                   </div>
                                   <Textarea placeholder="Комментарий (необязательно)" value={bookingData.comment} onChange={e => setBookingData({...bookingData, comment: e.target.value})} />
-                                  <Button onClick={handleBook} className="w-full">Подтвердить запись</Button>
+                                  <div className="flex gap-2 pt-2">
+                                    <Button
+                                      variant="outline"
+                                      className="flex-1"
+                                      onClick={() => { setBookingService(null); setBookingData({ name: '', phone: '', date: '', time: '', comment: '' }); }}
+                                    >
+                                      Отменить
+                                    </Button>
+                                    <Button onClick={handleBook} className="flex-1">Подтвердить запись</Button>
+                                  </div>
                                 </div>
                               </DialogContent>
                             </Dialog>
