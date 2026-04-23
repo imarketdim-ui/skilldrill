@@ -51,7 +51,7 @@ const highlight = (text: string | null | undefined, query: string) => {
   const parts = safe.split(re);
   return parts.map((part, i) =>
     re.test(part)
-      ? <mark key={i} className="bg-yellow-200 text-foreground rounded px-0.5">{part}</mark>
+      ? <mark key={i} className="bg-accent text-accent-foreground rounded px-0.5">{part}</mark>
       : <span key={i}>{part}</span>
   );
 };
