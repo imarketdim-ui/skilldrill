@@ -68,6 +68,7 @@ const MasterDetail = () => {
   const [bookingService, setBookingService] = useState<string | null>(null);
   const [viewingService, setViewingService] = useState<any>(null);
   const [messageOpen, setMessageOpen] = useState(false);
+  const [loginPromptOpen, setLoginPromptOpen] = useState(false);
   const [messageText, setMessageText] = useState('');
   const [bookingData, setBookingData] = useState({ name: '', phone: '', date: '', time: '', comment: '', reminder: '60', resource_id: '' });
   
@@ -440,6 +441,13 @@ const MasterDetail = () => {
 
       if (error) throw error;
 
+      // Save contact in favorites so it appears in client chats
+      await supabase.from('favorites').upsert({
+        user_id: user.id,
+        target_id: master.id,
+        favorite_type: 'master',
+      }, { onConflict: 'user_id,target_id,favorite_type' });
+
       toast({ title: 'Сообщение отправлено' });
       setMessageText('');
       setMessageOpen(false);
@@ -724,16 +732,25 @@ const MasterDetail = () => {
                 {/* Chat card */}
                 <Card>
                   <CardContent className="pt-6">
-                    <Dialog open={messageOpen} onOpenChange={setMessageOpen}>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" className="w-full"><MessageSquare className="h-4 w-4 mr-2" /> Написать</Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader><DialogTitle>Написать {masterName}</DialogTitle></DialogHeader>
-                        <Textarea placeholder="Ваше сообщение..." className="min-h-[100px]" value={messageText} onChange={(e) => setMessageText(e.target.value)} />
-                        <Button onClick={handleMessage} className="w-full" disabled={sendingMessage || !messageText.trim()}>{sendingMessage ? 'Отправка...' : 'Отправить'}</Button>
-                      </DialogContent>
-                    </Dialog>
+                    {user ? (
+                      <Dialog open={messageOpen} onOpenChange={setMessageOpen}>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" className="w-full"><MessageSquare className="h-4 w-4 mr-2" /> Написать</Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader><DialogTitle>Написать {masterName}</DialogTitle></DialogHeader>
+                          <Textarea placeholder="Ваше сообщение..." className="min-h-[100px]" value={messageText} onChange={(e) => setMessageText(e.target.value)} />
+                          <div className="flex gap-2">
+                            <Button variant="outline" className="flex-1" onClick={() => { setMessageOpen(false); setMessageText(''); }}>Отмена</Button>
+                            <Button onClick={handleMessage} className="flex-1" disabled={sendingMessage || !messageText.trim()}>{sendingMessage ? 'Отправка...' : 'Отправить'}</Button>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    ) : (
+                      <Button variant="outline" className="w-full" onClick={() => setLoginPromptOpen(true)}>
+                        <MessageSquare className="h-4 w-4 mr-2" /> Написать
+                      </Button>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -852,15 +869,42 @@ const MasterDetail = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                  <Button onClick={() => handleBook(bookingService)} className="w-full" disabled={sendingBooking || !bookingData.date || !bookingData.time}>
-                    {sendingBooking ? 'Отправка...' : 'Подтвердить запись'}
-                  </Button>
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => { setBookingService(null); setBookingData({ name: '', phone: '', date: '', time: '', comment: '', reminder: '60', resource_id: '' }); }}
+                    >
+                      Отменить
+                    </Button>
+                    <Button onClick={() => handleBook(bookingService)} className="flex-1" disabled={sendingBooking || !bookingData.date || !bookingData.time}>
+                      {sendingBooking ? 'Отправка...' : 'Подтвердить запись'}
+                    </Button>
+                  </div>
                 </>
               )}
             </div>
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Login prompt for unauthorized users */}
+      <Dialog open={loginPromptOpen} onOpenChange={setLoginPromptOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Нужна авторизация</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Чтобы написать мастеру, войдите или зарегистрируйтесь — это займёт минуту.
+          </p>
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" className="flex-1" onClick={() => navigate(`/auth?redirect=${encodeURIComponent(window.location.pathname)}`)}>
+              Войти
+            </Button>
+            <Button className="flex-1" onClick={() => navigate(`/auth?mode=signup&redirect=${encodeURIComponent(window.location.pathname)}`)}>
+              Регистрация
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );
