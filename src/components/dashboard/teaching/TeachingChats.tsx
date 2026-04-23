@@ -281,10 +281,11 @@ const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange
     };
 
     let unreadTotal = 0;
+    const allMsgs = msgs || [];
     const contactList: ChatContact[] = profiles
       .filter(p => isAllowedContact(p.id))
       .map(p => {
-        const contactMsgs = msgs.filter(m =>
+        const contactMsgs = allMsgs.filter(m =>
           (m.sender_id === p.id && m.recipient_id === user.id) ||
           (m.sender_id === user.id && m.recipient_id === p.id)
         );
@@ -299,7 +300,13 @@ const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange
         };
       });
     
-    setContacts(contactList.sort((a, b) => (b.lastMessageAt || '').localeCompare(a.lastMessageAt || '')));
+    // Sort: contacts with messages first (by recency), then contacts without messages (alphabetically)
+    setContacts(contactList.sort((a, b) => {
+      if (a.lastMessageAt && b.lastMessageAt) return b.lastMessageAt.localeCompare(a.lastMessageAt);
+      if (a.lastMessageAt) return -1;
+      if (b.lastMessageAt) return 1;
+      return `${a.first_name || ''} ${a.last_name || ''}`.localeCompare(`${b.first_name || ''} ${b.last_name || ''}`);
+    }));
     setTotalUnread(unreadTotal);
     onUnreadChange?.(unreadTotal);
     setLoading(false);
