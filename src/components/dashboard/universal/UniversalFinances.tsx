@@ -111,15 +111,7 @@ const UniversalFinances = ({ config, masterProfile }: Props) => {
         onClose={() => setTransferOpen(false)}
         currentCabinet="master"
         currentBalance={masterBalance}
-        onSuccess={() => {
-          supabase.from('cabinet_balances')
-            .select('main_balance')
-            .eq('user_id', user!.id)
-            .eq('cabinet_type', 'master')
-            .eq('cabinet_id', masterProfile?.id)
-            .maybeSingle()
-            .then(({ data }) => setMasterBalance(data?.main_balance || 0));
-        }}
+        onSuccess={loadBalance}
       />
     </div>
   );
