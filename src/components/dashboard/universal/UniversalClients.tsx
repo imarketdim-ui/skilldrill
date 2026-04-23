@@ -715,13 +715,14 @@ interface VirtualListProps {
   openProfile: (c: ClientInfo) => void;
   startChat: (c: ClientInfo) => void;
   config: CategoryConfig;
+  query: string;
 }
 
 const VIRTUAL_THRESHOLD = 50;
 const ROW_HEIGHT = 92;
 
 const VirtualizedClientList = ({
-  clients, getClientStatus, getStatusBadge, getRate, openProfile, startChat, config,
+  clients, getClientStatus, getStatusBadge, getRate, openProfile, startChat, config, query,
 }: VirtualListProps) => {
   const parentRef = useRef<HTMLDivElement>(null);
   const useVirtual = clients.length >= VIRTUAL_THRESHOLD;
@@ -731,10 +732,12 @@ const VirtualizedClientList = ({
     getScrollElement: () => parentRef.current,
     estimateSize: () => ROW_HEIGHT,
     overscan: 8,
+    measureElement: (el) => el?.getBoundingClientRect().height ?? ROW_HEIGHT,
   });
 
   const renderRow = (c: ClientInfo) => {
     const status = getClientStatus(c);
+    const hasName = !!(c.first_name || c.last_name);
     return (
       <Card
         key={c.id}
@@ -742,18 +745,27 @@ const VirtualizedClientList = ({
         onClick={() => openProfile(c)}
       >
         <CardContent className="py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
               <Avatar><AvatarFallback className="bg-primary/10 text-primary">{c.first_name?.[0] || 'C'}</AvatarFallback></Avatar>
-              <div>
-                <div className="flex items-center gap-2">
-                  <p className="font-medium">{c.first_name || ''} {c.last_name || ''}{!c.first_name && !c.last_name && c.email}</p>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-medium break-words">
+                    {hasName ? (
+                      <>{highlight(c.first_name, query)} {highlight(c.last_name, query)}</>
+                    ) : (
+                      highlight(c.email, query)
+                    )}
+                  </p>
                   {getStatusBadge(status)}
                 </div>
-                <p className="text-sm text-muted-foreground">ID: {c.skillspot_id}</p>
+                <p className="text-sm text-muted-foreground break-all">ID: {highlight(c.skillspot_id, query)}</p>
+                {c.email && hasName && (
+                  <p className="text-xs text-muted-foreground break-all">{highlight(c.email, query)}</p>
+                )}
               </div>
             </div>
-            <div className="flex items-center gap-3 text-sm">
+            <div className="flex items-center gap-3 text-sm shrink-0">
               <div className="text-center hidden sm:block"><p className="font-semibold">{c.ltv.toLocaleString()} ₽</p><p className="text-muted-foreground text-xs">LTV</p></div>
               <div className="text-center hidden sm:block"><p className="font-semibold">{c.totalSessions}</p><p className="text-muted-foreground text-xs">{config.sessionNamePlural}</p></div>
               <div className="text-center hidden sm:block"><p className="font-semibold">{getRate(c)}</p><p className="text-muted-foreground text-xs">Посещ.</p></div>
@@ -781,6 +793,8 @@ const VirtualizedClientList = ({
           return (
             <div
               key={c.id}
+              data-index={vi.index}
+              ref={(el) => el && rowVirtualizer.measureElement(el)}
               style={{
                 position: 'absolute',
                 top: 0,
