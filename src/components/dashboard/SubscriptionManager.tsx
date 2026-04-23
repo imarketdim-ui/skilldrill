@@ -49,10 +49,12 @@ const SubscriptionManager = ({
   const [balance, setBalance] = useState(0);
 
   useEffect(() => {
-    if (user) {
-      supabase.from('user_balances').select('main_balance').eq('user_id', user.id).maybeSingle()
-        .then(({ data }) => setBalance(data?.main_balance || 0));
-    }
+    if (!user) return;
+    supabase.from('user_balances').select('main_balance').eq('user_id', user.id).maybeSingle()
+      .then(({ data, error }) => {
+        if (error) { console.warn('user_balances fetch failed:', error.message); setBalance(0); return; }
+        setBalance(Number(data?.main_balance) || 0);
+      });
   }, [user]);
 
   const getExpiryDate = (): Date | null => {
