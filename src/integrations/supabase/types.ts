@@ -4901,6 +4901,18 @@ export type Database = {
       }
       check_fraud_indicators: { Args: { _user_id: string }; Returns: Json }
       cleanup_typing_indicators: { Args: never; Returns: undefined }
+      create_paid_campaign: {
+        Args: {
+          _audience_filter: string
+          _business_id: string
+          _cost_per_client: number
+          _include_own_clients: boolean
+          _message: string
+          _target_count: number
+          _title: string
+        }
+        Returns: Json
+      }
       generate_skillspot_id: { Args: never; Returns: string }
       get_master_available_slots: {
         Args: { _date: string; _master_id: string; _service_duration: number }
@@ -4971,6 +4983,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      refund_campaign_hold: { Args: { _campaign_id: string }; Returns: Json }
       reject_admin_assignment: {
         Args: { _assignment_id: string }
         Returns: undefined
