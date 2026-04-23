@@ -291,6 +291,11 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
 
   const renderInputBar = () => (
     <>
+      {typingUsers.length > 0 && (
+        <div className="px-3 py-1 text-xs text-muted-foreground italic border-t bg-muted/20">
+          {typingUsers[0].name || 'Собеседник'} печатает…
+        </div>
+      )}
       {renderReplyPreview()}
       <div className="p-2 border-t flex items-center gap-1">
         {user && <ChatEmojiPicker onSelect={(e) => setNewMessage(prev => prev + e)} />}
