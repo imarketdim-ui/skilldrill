@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Search, User, Ban, TrendingUp, Calendar, Clock, StickyNote, Plus, Trash2, MessageSquare, Crown, Star, Moon, UserX, Banknote } from 'lucide-react';
+import { Search, User, Ban, TrendingUp, Calendar, Clock, StickyNote, Plus, Trash2, MessageSquare, Crown, Star, Moon, UserX, Banknote, Download, Upload } from 'lucide-react';
 import { CategoryConfig } from './categoryConfig';
 import UserScoreCard from '@/components/dashboard/UserScoreCard';
 import { useToast } from '@/hooks/use-toast';
