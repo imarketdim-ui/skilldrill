@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Search, User, Ban, TrendingUp, Calendar, Clock, StickyNote, Plus, Trash2, MessageSquare, Crown, Star, Moon, UserX, Banknote } from 'lucide-react';
+import { Search, User, Ban, TrendingUp, Calendar, Clock, StickyNote, Plus, Trash2, MessageSquare, Crown, Star, Moon, UserX, Banknote, Download, Upload } from 'lucide-react';
 import { CategoryConfig } from './categoryConfig';
 import UserScoreCard from '@/components/dashboard/UserScoreCard';
 import { useToast } from '@/hooks/use-toast';
@@ -42,11 +42,51 @@ const statusConfig: Record<ClientStatus, { label: string; icon: any; color: stri
   blacklisted: { label: 'ЧС', icon: Ban, color: 'text-destructive' },
 };
 
+// Подсветка совпадений в тексте (для быстрого поиска)
+const highlight = (text: string | null | undefined, query: string) => {
+  const safe = text || '';
+  const q = query.trim();
+  if (!q) return safe;
+  const re = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'ig');
+  const parts = safe.split(re);
+  return parts.map((part, i) =>
+    re.test(part)
+      ? <mark key={i} className="bg-accent text-accent-foreground rounded px-0.5">{part}</mark>
+      : <span key={i}>{part}</span>
+  );
+};
+
+// Простой CSV-парсер (поддерживает разделитель ; , и кавычки)
+const parseCSV = (text: string): string[][] => {
+  const rows: string[][] = [];
+  const sep = text.includes(';') ? ';' : ',';
+  // Удаляем BOM
+  const clean = text.replace(/^\uFEFF/, '');
+  const lines = clean.split(/\r?\n/);
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    const cells: string[] = [];
+    let cur = ''; let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; }
+        else inQuotes = !inQuotes;
+      } else if (ch === sep && !inQuotes) { cells.push(cur); cur = ''; }
+      else cur += ch;
+    }
+    cells.push(cur);
+    rows.push(cells.map(c => c.trim()));
+  }
+  return rows;
+};
+
 const UniversalClients = ({ config, onNavigateToChat }: Props) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [clients, setClients] = useState<ClientInfo[]>([]);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<ClientStatus>('all');
   const [selectedClient, setSelectedClient] = useState<ClientInfo | null>(null);
   const [clientHistory, setClientHistory] = useState<any[]>([]);
@@ -59,6 +99,14 @@ const UniversalClients = ({ config, onNavigateToChat }: Props) => {
   const [blacklistReason, setBlacklistReason] = useState('');
   const [customStatusInput, setCustomStatusInput] = useState('');
   const [clientCustomTags, setClientCustomTags] = useState<any[]>([]);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Debounce поиска (200мс)
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 200);
+    return () => clearTimeout(t);
+  }, [search]);
 
   useEffect(() => { if (user) { fetchClients(); fetchBlacklist(); } }, [user]);
 
@@ -158,9 +206,9 @@ const UniversalClients = ({ config, onNavigateToChat }: Props) => {
 
   const filterClients = () => {
     let list = clients;
-    if (search) {
-      const q = search.toLowerCase();
-      list = list.filter(c => c.first_name?.toLowerCase().includes(q) || c.last_name?.toLowerCase().includes(q) || c.email?.toLowerCase().includes(q) || c.skillspot_id.includes(q));
+    const q = debouncedSearch.trim().toLowerCase();
+    if (q) {
+      list = list.filter(c => c.first_name?.toLowerCase().includes(q) || c.last_name?.toLowerCase().includes(q) || c.email?.toLowerCase().includes(q) || c.skillspot_id.toLowerCase().includes(q));
     }
     if (statusFilter !== 'all') {
       list = list.filter(c => getClientStatus(c) === statusFilter);
@@ -332,11 +380,109 @@ const UniversalClients = ({ config, onNavigateToChat }: Props) => {
 
   const getRate = (c: ClientInfo) => c.totalSessions === 0 ? '—' : Math.round((c.completedSessions / c.totalSessions) * 100) + '%';
 
+  // ===== CSV экспорт текущего отфильтрованного списка =====
+  const exportCSV = () => {
+    const sep = ';';
+    const header = ['Имя','Фамилия','SkillSpot ID','Email','Телефон','Статус','LTV','Сессий','Завершено'];
+    const escape = (v: any) => {
+      const s = (v ?? '').toString();
+      return /[";\n,]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const rows = filtered.map(c => [
+      c.first_name || '', c.last_name || '', c.skillspot_id, c.email || '', c.phone || '',
+      statusConfig[getClientStatus(c)].label, c.ltv, c.totalSessions, c.completedSessions,
+    ].map(escape).join(sep));
+    const csv = '\uFEFF' + [header.join(sep), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `clients_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    toast({ title: 'Экспорт готов', description: `${filtered.length} строк` });
+  };
+
+  // ===== CSV импорт: обновляет/создаёт client_tags (note + vip) по skillspot_id =====
+  const importCSV = async (file: File) => {
+    if (!user) return;
+    setImporting(true);
+    try {
+      const text = await file.text();
+      const rows = parseCSV(text);
+      if (rows.length < 2) {
+        toast({ title: 'Файл пуст', variant: 'destructive' });
+        return;
+      }
+      const header = rows[0].map(h => h.toLowerCase());
+      const idIdx = header.findIndex(h => h.includes('skillspot') || h === 'id');
+      const statusIdx = header.findIndex(h => h.includes('статус') || h === 'status');
+      const noteIdx = header.findIndex(h => h.includes('заметк') || h === 'note');
+      if (idIdx === -1) {
+        toast({ title: 'Не найден столбец SkillSpot ID', variant: 'destructive' });
+        return;
+      }
+      const dataRows = rows.slice(1).filter(r => r[idIdx]);
+      const ids = dataRows.map(r => r[idIdx].trim()).filter(Boolean);
+      // Резолвим skillspot_id → user_id среди существующих клиентов
+      const idMap = new Map(clients.map(c => [c.skillspot_id, c.id]));
+      let processed = 0; let skipped = 0;
+      for (const row of dataRows) {
+        const sid = row[idIdx].trim();
+        const userId = idMap.get(sid);
+        if (!userId) { skipped++; continue; }
+        // Заметка
+        const note = noteIdx >= 0 ? row[noteIdx]?.trim() : '';
+        if (note) {
+          await supabase.from('client_tags').insert({
+            client_id: userId, tagger_id: user.id, tag: 'note', note,
+          });
+        }
+        // VIP-статус
+        const status = statusIdx >= 0 ? row[statusIdx]?.trim().toLowerCase() : '';
+        if (status === 'vip') {
+          await supabase.from('client_tags').upsert(
+            { client_id: userId, tagger_id: user.id, tag: 'vip' },
+            { onConflict: 'client_id,tagger_id,tag', ignoreDuplicates: true }
+          );
+        }
+        processed++;
+      }
+      toast({
+        title: 'Импорт завершён',
+        description: `Обработано ${processed}${skipped ? `, пропущено ${skipped} (нет в списке)` : ''}`,
+      });
+      fetchClients();
+    } catch (err: any) {
+      toast({ title: 'Ошибка импорта', description: err.message, variant: 'destructive' });
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <div className="space-y-4">
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Поиск по имени, email или ID..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+      <div className="flex flex-col sm:flex-row gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Поиск по имени, email или ID..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={exportCSV} disabled={filtered.length === 0} className="gap-1.5">
+            <Download className="h-4 w-4" /> Экспорт CSV
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={importing} className="gap-1.5">
+            <Upload className="h-4 w-4" /> {importing ? 'Импорт…' : 'Импорт CSV'}
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={e => { const f = e.target.files?.[0]; if (f) importCSV(f); }}
+          />
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-1.5">
@@ -370,6 +516,7 @@ const UniversalClients = ({ config, onNavigateToChat }: Props) => {
           openProfile={openProfile}
           startChat={startChat}
           config={config}
+          query={debouncedSearch}
         />
       )}
 
@@ -568,13 +715,14 @@ interface VirtualListProps {
   openProfile: (c: ClientInfo) => void;
   startChat: (c: ClientInfo) => void;
   config: CategoryConfig;
+  query: string;
 }
 
 const VIRTUAL_THRESHOLD = 50;
 const ROW_HEIGHT = 92;
 
 const VirtualizedClientList = ({
-  clients, getClientStatus, getStatusBadge, getRate, openProfile, startChat, config,
+  clients, getClientStatus, getStatusBadge, getRate, openProfile, startChat, config, query,
 }: VirtualListProps) => {
   const parentRef = useRef<HTMLDivElement>(null);
   const useVirtual = clients.length >= VIRTUAL_THRESHOLD;
@@ -584,10 +732,12 @@ const VirtualizedClientList = ({
     getScrollElement: () => parentRef.current,
     estimateSize: () => ROW_HEIGHT,
     overscan: 8,
+    measureElement: (el) => el?.getBoundingClientRect().height ?? ROW_HEIGHT,
   });
 
   const renderRow = (c: ClientInfo) => {
     const status = getClientStatus(c);
+    const hasName = !!(c.first_name || c.last_name);
     return (
       <Card
         key={c.id}
@@ -595,18 +745,27 @@ const VirtualizedClientList = ({
         onClick={() => openProfile(c)}
       >
         <CardContent className="py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
               <Avatar><AvatarFallback className="bg-primary/10 text-primary">{c.first_name?.[0] || 'C'}</AvatarFallback></Avatar>
-              <div>
-                <div className="flex items-center gap-2">
-                  <p className="font-medium">{c.first_name || ''} {c.last_name || ''}{!c.first_name && !c.last_name && c.email}</p>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-medium break-words">
+                    {hasName ? (
+                      <>{highlight(c.first_name, query)} {highlight(c.last_name, query)}</>
+                    ) : (
+                      highlight(c.email, query)
+                    )}
+                  </p>
                   {getStatusBadge(status)}
                 </div>
-                <p className="text-sm text-muted-foreground">ID: {c.skillspot_id}</p>
+                <p className="text-sm text-muted-foreground break-all">ID: {highlight(c.skillspot_id, query)}</p>
+                {c.email && hasName && (
+                  <p className="text-xs text-muted-foreground break-all">{highlight(c.email, query)}</p>
+                )}
               </div>
             </div>
-            <div className="flex items-center gap-3 text-sm">
+            <div className="flex items-center gap-3 text-sm shrink-0">
               <div className="text-center hidden sm:block"><p className="font-semibold">{c.ltv.toLocaleString()} ₽</p><p className="text-muted-foreground text-xs">LTV</p></div>
               <div className="text-center hidden sm:block"><p className="font-semibold">{c.totalSessions}</p><p className="text-muted-foreground text-xs">{config.sessionNamePlural}</p></div>
               <div className="text-center hidden sm:block"><p className="font-semibold">{getRate(c)}</p><p className="text-muted-foreground text-xs">Посещ.</p></div>
@@ -634,6 +793,8 @@ const VirtualizedClientList = ({
           return (
             <div
               key={c.id}
+              data-index={vi.index}
+              ref={(el) => el && rowVirtualizer.measureElement(el)}
               style={{
                 position: 'absolute',
                 top: 0,

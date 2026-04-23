@@ -37,6 +37,7 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
   const [replyTo, setReplyTo] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
+  const typingDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Канал индикатора набора: для админа — пара (admin↔user), для клиента — общий support-канал
   const typingChannelKey = isAdmin
@@ -47,6 +48,15 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
     userId: user?.id ?? null,
     displayName: isAdmin ? 'Поддержка' : 'Пользователь',
   });
+
+  // Дебаунс отправки presence (400мс), чтобы не спамить сеть на каждый символ
+  const debouncedNotifyTyping = () => {
+    if (typingDebounceRef.current) return;
+    notifyTyping();
+    typingDebounceRef.current = setTimeout(() => {
+      typingDebounceRef.current = null;
+    }, 400);
+  };
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
@@ -301,7 +311,7 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
         {user && <ChatEmojiPicker onSelect={(e) => setNewMessage(prev => prev + e)} />}
         {user && <MediaUploader userId={user.id} onUploaded={(urls) => sendMessage({ media_urls: urls })} />}
         {user && <VoiceRecorder userId={user.id} onUploaded={(url) => sendMessage({ audio_url: url })} />}
-        <Input value={newMessage} onChange={e => { setNewMessage(e.target.value); notifyTyping(); }} onKeyDown={handleKeyDown} placeholder={isAdmin ? 'Ответить...' : 'Написать в поддержку...'} className="flex-1" />
+        <Input value={newMessage} onChange={e => { setNewMessage(e.target.value); debouncedNotifyTyping(); }} onKeyDown={handleKeyDown} placeholder={isAdmin ? 'Ответить...' : 'Написать в поддержку...'} className="flex-1" />
         <Button size="icon" onClick={() => sendMessage()} disabled={sending || !newMessage.trim()}>
           {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </Button>

@@ -38,7 +38,7 @@ export function useTypingIndicator({ channelKey, userId, displayName }: Options)
       for (const [uid, metas] of Object.entries(state)) {
         if (uid === userId) continue;
         const meta = metas[metas.length - 1];
-        if (meta?.typing && meta.ts && now - meta.ts < 5000) {
+        if (meta?.typing && meta.ts && now - meta.ts < 4000) {
           others.push({ user_id: uid, name: meta.name, ts: meta.ts });
         }
       }
@@ -57,7 +57,12 @@ export function useTypingIndicator({ channelKey, userId, displayName }: Options)
 
     channelRef.current = channel;
 
+    // Авто-сброс: каждые 1.5с пересчитываем, чтобы убрать «зависшие» индикаторы
+    // даже если presence-событий больше нет.
+    const sweep = setInterval(refresh, 1500);
+
     return () => {
+      clearInterval(sweep);
       if (stopTimerRef.current) clearTimeout(stopTimerRef.current);
       supabase.removeChannel(channel);
       channelRef.current = null;
