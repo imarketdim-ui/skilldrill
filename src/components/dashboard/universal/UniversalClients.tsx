@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -361,39 +362,15 @@ const UniversalClients = ({ config, onNavigateToChat }: Props) => {
           <p className="text-muted-foreground">{search ? 'Не найдено' : `Нет ${config.clientNamePlural.toLowerCase()}`}</p>
         </CardContent></Card>
       ) : (
-        <div className="grid gap-3">
-          {filtered.map(c => {
-            const status = getClientStatus(c);
-            return (
-              <Card key={c.id} className={`cursor-pointer hover:border-primary/50 transition-colors ${c.isBlacklisted ? 'opacity-60 border-destructive/30' : ''}`} onClick={() => openProfile(c)}>
-                <CardContent className="py-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Avatar><AvatarFallback className="bg-primary/10 text-primary">{c.first_name?.[0] || 'C'}</AvatarFallback></Avatar>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium">{c.first_name || ''} {c.last_name || ''}{!c.first_name && !c.last_name && c.email}</p>
-                          {getStatusBadge(status)}
-                        </div>
-                        <p className="text-sm text-muted-foreground">ID: {c.skillspot_id}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 text-sm">
-                      <div className="text-center hidden sm:block"><p className="font-semibold">{c.ltv.toLocaleString()} ₽</p><p className="text-muted-foreground text-xs">LTV</p></div>
-                      <div className="text-center hidden sm:block"><p className="font-semibold">{c.totalSessions}</p><p className="text-muted-foreground text-xs">{config.sessionNamePlural}</p></div>
-                      <div className="text-center hidden sm:block"><p className="font-semibold">{getRate(c)}</p><p className="text-muted-foreground text-xs">Посещ.</p></div>
-                      {!c.isBlacklisted && (
-                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={e => { e.stopPropagation(); startChat(c); }}>
-                          <MessageSquare className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+        <VirtualizedClientList
+          clients={filtered}
+          getClientStatus={getClientStatus}
+          getStatusBadge={getStatusBadge}
+          getRate={getRate}
+          openProfile={openProfile}
+          startChat={startChat}
+          config={config}
+        />
       )}
 
       {/* Client profile dialog */}
