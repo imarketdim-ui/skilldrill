@@ -516,6 +516,7 @@ const UniversalClients = ({ config, onNavigateToChat }: Props) => {
           openProfile={openProfile}
           startChat={startChat}
           config={config}
+          query={debouncedSearch}
         />
       )}
 
