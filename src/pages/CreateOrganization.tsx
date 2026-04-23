@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Building2, Loader2 } from 'lucide-react';
 import { z } from 'zod';
@@ -42,6 +43,7 @@ const CreateOrganization = () => {
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [addSelfAsMaster, setAddSelfAsMaster] = useState(false);
   const [formData, setFormData] = useState<Partial<OrganizationFormData>>({
     name: '',
     inn: '',
@@ -98,9 +100,50 @@ const CreateOrganization = () => {
 
       if (error) throw error;
 
+      // If user opted in — ensure master role + master_profile exist
+      if (addSelfAsMaster) {
+        try {
+          // Check existing role
+          const { data: existingRole } = await supabase
+            .from('user_roles')
+            .select('id')
+            .eq('user_id', user!.id)
+            .eq('role', 'master')
+            .eq('is_active', true)
+            .maybeSingle();
+
+          if (!existingRole) {
+            await supabase.rpc('assign_role_on_account_creation', {
+              _user_id: user!.id,
+              _role: 'master',
+            });
+          }
+
+          // Check existing master profile
+          const { data: existingProfile } = await supabase
+            .from('master_profiles')
+            .select('id')
+            .eq('user_id', user!.id)
+            .maybeSingle();
+
+          if (!existingProfile) {
+            const displayName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || 'Мастер';
+            await supabase.from('master_profiles').insert({
+              user_id: user!.id,
+              display_name: displayName,
+              is_active: true,
+            });
+          }
+        } catch (e: any) {
+          console.warn('Add self as master failed:', e?.message);
+        }
+      }
+
       toast({
         title: 'Заявка отправлена',
-        description: 'Ваша заявка на создание организации отправлена на рассмотрение администратору',
+        description: addSelfAsMaster
+          ? 'После одобрения вы будете добавлены как мастер'
+          : 'Ваша заявка на создание организации отправлена на рассмотрение',
       });
 
       navigate('/dashboard');
@@ -257,6 +300,24 @@ const CreateOrganization = () => {
                     {errors.contact_phone && (
                       <p className="text-sm text-destructive">{errors.contact_phone}</p>
                     )}
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2 p-3 rounded-lg border bg-muted/30">
+                  <Checkbox
+                    id="add-self-master"
+                    checked={addSelfAsMaster}
+                    onCheckedChange={(v) => setAddSelfAsMaster(!!v)}
+                    disabled={isSubmitting}
+                    className="mt-0.5"
+                  />
+                  <div className="flex-1">
+                    <Label htmlFor="add-self-master" className="cursor-pointer text-sm font-medium">
+                      Я сам буду оказывать услуги в этой организации
+                    </Label>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      После одобрения заявки вам автоматически будет создан профиль мастера
+                    </p>
                   </div>
                 </div>
 
