@@ -42,11 +42,51 @@ const statusConfig: Record<ClientStatus, { label: string; icon: any; color: stri
   blacklisted: { label: 'ЧС', icon: Ban, color: 'text-destructive' },
 };
 
+// Подсветка совпадений в тексте (для быстрого поиска)
+const highlight = (text: string | null | undefined, query: string) => {
+  const safe = text || '';
+  const q = query.trim();
+  if (!q) return safe;
+  const re = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'ig');
+  const parts = safe.split(re);
+  return parts.map((part, i) =>
+    re.test(part)
+      ? <mark key={i} className="bg-yellow-200 text-foreground rounded px-0.5">{part}</mark>
+      : <span key={i}>{part}</span>
+  );
+};
+
+// Простой CSV-парсер (поддерживает разделитель ; , и кавычки)
+const parseCSV = (text: string): string[][] => {
+  const rows: string[][] = [];
+  const sep = text.includes(';') ? ';' : ',';
+  // Удаляем BOM
+  const clean = text.replace(/^\uFEFF/, '');
+  const lines = clean.split(/\r?\n/);
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    const cells: string[] = [];
+    let cur = ''; let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; }
+        else inQuotes = !inQuotes;
+      } else if (ch === sep && !inQuotes) { cells.push(cur); cur = ''; }
+      else cur += ch;
+    }
+    cells.push(cur);
+    rows.push(cells.map(c => c.trim()));
+  }
+  return rows;
+};
+
 const UniversalClients = ({ config, onNavigateToChat }: Props) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [clients, setClients] = useState<ClientInfo[]>([]);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<ClientStatus>('all');
   const [selectedClient, setSelectedClient] = useState<ClientInfo | null>(null);
   const [clientHistory, setClientHistory] = useState<any[]>([]);
@@ -59,6 +99,14 @@ const UniversalClients = ({ config, onNavigateToChat }: Props) => {
   const [blacklistReason, setBlacklistReason] = useState('');
   const [customStatusInput, setCustomStatusInput] = useState('');
   const [clientCustomTags, setClientCustomTags] = useState<any[]>([]);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Debounce поиска (200мс)
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 200);
+    return () => clearTimeout(t);
+  }, [search]);
 
   useEffect(() => { if (user) { fetchClients(); fetchBlacklist(); } }, [user]);
 
