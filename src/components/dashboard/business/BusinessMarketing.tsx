@@ -174,69 +174,54 @@ const BusinessMarketing = ({ businessId }: Props) => {
     if (!user || !message.trim()) return;
     setSending(true);
     try {
-      const targetClients = getFilteredOwnClients();
-      if (targetClients.length === 0) {
-        toast({ title: 'Нет получателей', variant: 'destructive' });
-        setSending(false);
-        return;
-      }
+      // 1. Create the campaign as a draft. Server-side audience resolution
+      //    happens inside the edge function, so we never send a recipient list.
+      const { data: campaign, error: cErr } = await supabase
+        .from('marketing_campaigns')
+        .insert({
+          creator_id: user.id,
+          business_id: businessId,
+          title: title.trim() || 'Рассылка клиентам',
+          message: message.trim(),
+          target_type: 'own_clients',
+          audience_filter: ownTarget === 'group' ? ownGroupFilter : ownTarget,
+          selected_client_ids:
+            ownTarget === 'selected' ? [...selectedClientIds] : [],
+          status: 'draft',
+        })
+        .select('id')
+        .single();
+      if (cErr || !campaign) throw cErr || new Error('Campaign creation failed');
 
-      const messages = targetClients.map(c => {
-        const fullName = [c.first_name, c.last_name].filter(Boolean).join(' ').trim() || 'Клиент';
-        const personalText = message.trim().replace(/\{\{имя\}\}/g, fullName);
-        return {
-          sender_id: user.id,
-          recipient_id: c.id,
-          message: personalText,
-          chat_type: 'marketing',
-        };
+      // 2. Trigger server-side send. The server resolves the audience.
+      const { data: result, error: sErr } = await supabase.functions.invoke(
+        'send-broadcast',
+        { body: { campaign_id: campaign.id, push: sendPush } },
+      );
+      if (sErr) throw sErr;
+      if ((result as any)?.error) throw new Error((result as any).error);
+
+      const sent = (result as any)?.sent ?? 0;
+      toast({
+        title: 'Рассылка отправлена',
+        description: `${sent} получателей`,
       });
-
-      const { error } = await supabase.from('chat_messages').insert(messages);
-      if (error) throw error;
-
-      // Save campaign record
-      await supabase.from('marketing_campaigns').insert({
-        creator_id: user.id,
-        business_id: businessId,
-        title: title.trim() || 'Рассылка клиентам',
-        message: message.trim(),
-        target_type: 'own_clients',
-        audience_filter: ownTarget === 'group' ? ownGroupFilter : ownTarget,
-        selected_client_ids: ownTarget === 'selected' ? [...selectedClientIds] : [],
-        status: 'sent',
-        sent_count: targetClients.length,
-        sent_at: new Date().toISOString(),
-      });
-
-      // Push notifications (best-effort)
-      if (sendPush) {
-        try {
-          await supabase.functions.invoke('send-push-notification', {
-            body: {
-              user_ids: targetClients.map(c => c.id),
-              title: title.trim() || 'Сообщение от бизнеса',
-              body: message.trim().slice(0, 200),
-              url: '/dashboard',
-              tag: `marketing-${businessId}`,
-            },
-          });
-        } catch (_) { /* ignore */ }
-      }
-
-      toast({ title: 'Рассылка отправлена', description: `${targetClients.length} получателей` });
       setDialogOpen(false);
       resetDialog();
       fetchCampaigns();
     } catch (err: any) {
-      toast({ title: 'Ошибка', description: err.message, variant: 'destructive' });
+      toast({
+        title: 'Ошибка',
+        description: err?.message || 'Не удалось отправить рассылку',
+        variant: 'destructive',
+      });
     }
     setSending(false);
   };
 
   const handleSubmitSkillspot = async () => {
     if (!user || !message.trim() || !title.trim()) return;
-    
+
     if (skillspotCount > totalPlatformUsers) {
       toast({
         title: 'Превышен лимит',
@@ -246,67 +231,55 @@ const BusinessMarketing = ({ businessId }: Props) => {
       return;
     }
 
-    const totalCost = skillspotCount * COST_PER_CLIENT;
-
-    // Check balance
-    const { data: balance } = await supabase
-      .from('user_balances')
-      .select('main_balance')
-      .eq('user_id', user.id)
-      .single();
-
-    if (!balance || balance.main_balance < totalCost) {
-      toast({
-        title: 'Недостаточно средств',
-        description: `Необходимо ${totalCost} ₽ на балансе. Текущий баланс: ${balance?.main_balance || 0} ₽`,
-        variant: 'destructive',
-      });
-      return;
-    }
-
     setSending(true);
     try {
-      // Hold amount from balance
-      const { error: holdError } = await supabase
-        .from('user_balances')
-        .update({ main_balance: balance.main_balance - totalCost })
-        .eq('user_id', user.id);
-      if (holdError) throw holdError;
-
-      // Record hold transaction
-      await supabase.from('balance_transactions').insert({
-        user_id: user.id,
-        amount: -totalCost,
-        type: 'campaign_hold',
-        description: `Холд за рассылку: ${title.trim()}`,
+      // Atomic server-side: validate balance, lock, deduct, record txn,
+      // and create the campaign — all in one transaction.
+      const { data, error } = await supabase.rpc('create_paid_campaign', {
+        _business_id: businessId,
+        _title: title.trim(),
+        _message: message.trim(),
+        _audience_filter: skillspotFilter,
+        _include_own_clients: includeOwnClients,
+        _target_count: skillspotCount,
+        _cost_per_client: COST_PER_CLIENT,
       });
 
-      // Create campaign
-      const { error } = await supabase.from('marketing_campaigns').insert({
-        creator_id: user.id,
-        business_id: businessId,
-        title: title.trim(),
-        message: message.trim(),
-        target_type: 'skillspot_clients',
-        audience_filter: skillspotFilter,
-        include_own_clients: includeOwnClients,
-        target_count: skillspotCount,
-        cost_per_client: COST_PER_CLIENT,
-        total_cost: totalCost,
-        hold_amount: totalCost,
-        status: 'pending_moderation',
-      });
-      if (error) throw error;
+      if (error) {
+        const msg = error.message || '';
+        if (msg.includes('Insufficient funds')) {
+          toast({
+            title: 'Недостаточно средств',
+            description: 'Пополните баланс и повторите.',
+            variant: 'destructive',
+          });
+        } else if (msg.includes('Forbidden')) {
+          toast({
+            title: 'Недостаточно прав',
+            description: 'Только владелец организации может создать платную рассылку.',
+            variant: 'destructive',
+          });
+        } else {
+          toast({ title: 'Ошибка', description: msg, variant: 'destructive' });
+        }
+        setSending(false);
+        return;
+      }
 
+      const hold = (data as any)?.hold_amount ?? 0;
       toast({
         title: 'Заявка на рассылку отправлена',
-        description: `Сумма ${totalCost} ₽ захолдирована. Ожидайте одобрения модератора.`,
+        description: `Сумма ${hold} ₽ захолдирована. Ожидайте одобрения модератора.`,
       });
       setDialogOpen(false);
       resetDialog();
       fetchCampaigns();
     } catch (err: any) {
-      toast({ title: 'Ошибка', description: err.message, variant: 'destructive' });
+      toast({
+        title: 'Ошибка',
+        description: err?.message || 'Не удалось создать кампанию',
+        variant: 'destructive',
+      });
     }
     setSending(false);
   };
