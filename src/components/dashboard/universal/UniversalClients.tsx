@@ -208,7 +208,14 @@ const UniversalClients = ({ config, onNavigateToChat }: Props) => {
     let list = clients;
     const q = debouncedSearch.trim().toLowerCase();
     if (q) {
-      list = list.filter(c => c.first_name?.toLowerCase().includes(q) || c.last_name?.toLowerCase().includes(q) || c.email?.toLowerCase().includes(q) || c.skillspot_id.toLowerCase().includes(q));
+      list = list.filter(c =>
+        c.first_name?.toLowerCase().includes(q) ||
+        c.last_name?.toLowerCase().includes(q) ||
+        c.email?.toLowerCase().includes(q) ||
+        c.phone?.toLowerCase().includes(q) ||
+        c.skillspot_id.toLowerCase().includes(q) ||
+        statusConfig[getClientStatus(c)].label.toLowerCase().includes(q)
+      );
     }
     if (statusFilter !== 'all') {
       list = list.filter(c => getClientStatus(c) === statusFilter);
