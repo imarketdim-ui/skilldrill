@@ -821,17 +821,18 @@ const VirtualizedClientList = ({
             <div
               key={c.id}
               data-index={vi.index}
-              ref={(el) => el && rowVirtualizer.measureElement(el)}
+              ref={rowVirtualizer.measureElement}
               style={{
                 position: 'absolute',
                 top: 0,
                 left: 0,
                 width: '100%',
                 transform: `translateY(${vi.start}px)`,
-                paddingBottom: 12,
               }}
             >
-              {renderRow(c)}
+              <div style={{ paddingBottom: ROW_GAP }}>
+                {renderRow(c)}
+              </div>
             </div>
           );
         })}
