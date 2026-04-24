@@ -791,11 +791,14 @@ const VirtualizedClientList = ({
                       highlight(c.email, query)
                     )}
                   </p>
-                  {getStatusBadge(status)}
+                  {getStatusBadge(status, query)}
                 </div>
                 <p className="text-sm text-muted-foreground break-all">ID: {highlight(c.skillspot_id, query)}</p>
                 {c.email && hasName && (
                   <p className="text-xs text-muted-foreground break-all">{highlight(c.email, query)}</p>
+                )}
+                {c.phone && (
+                  <p className="text-xs text-muted-foreground break-all">{highlight(c.phone, query)}</p>
                 )}
               </div>
             </div>
