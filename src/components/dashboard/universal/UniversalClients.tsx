@@ -720,6 +720,7 @@ interface VirtualListProps {
 
 const VIRTUAL_THRESHOLD = 50;
 const ROW_HEIGHT = 92;
+const ROW_GAP = 12;
 
 const VirtualizedClientList = ({
   clients, getClientStatus, getStatusBadge, getRate, openProfile, startChat, config, query,
@@ -730,10 +731,36 @@ const VirtualizedClientList = ({
   const rowVirtualizer = useVirtualizer({
     count: clients.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => ROW_HEIGHT,
+    estimateSize: () => ROW_HEIGHT + ROW_GAP,
     overscan: 8,
-    measureElement: (el) => el?.getBoundingClientRect().height ?? ROW_HEIGHT,
+    // Используем встроенный measureElement (он сам подключает ResizeObserver
+    // и корректно реагирует на изменение ширины окна / zoom браузера).
+    // Кастомный коллбек ломал auto-remeasure при ресайзе.
   });
+
+  // При изменении ширины контейнера (resize окна / devicePixelRatio / zoom)
+  // принудительно сбрасываем кэш измерений: высоты карточек меняются из-за
+  // переноса длинных email/имён, и без этого строки могут «наезжать».
+  useEffect(() => {
+    const el = parentRef.current;
+    if (!el || !useVirtual) return;
+    let lastWidth = el.clientWidth;
+    const ro = new ResizeObserver(() => {
+      const w = el.clientWidth;
+      if (w !== lastWidth) {
+        lastWidth = w;
+        rowVirtualizer.measure();
+      }
+    });
+    ro.observe(el);
+    // Также реагируем на zoom (devicePixelRatio меняется при Ctrl+/-).
+    const onWinResize = () => rowVirtualizer.measure();
+    window.addEventListener('resize', onWinResize);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', onWinResize);
+    };
+  }, [useVirtual, rowVirtualizer]);
 
   const renderRow = (c: ClientInfo) => {
     const status = getClientStatus(c);
