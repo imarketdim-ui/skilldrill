@@ -717,7 +717,7 @@ const UniversalClients = ({ config, onNavigateToChat }: Props) => {
 interface VirtualListProps {
   clients: ClientInfo[];
   getClientStatus: (c: ClientInfo) => ClientStatus;
-  getStatusBadge: (status: ClientStatus) => JSX.Element | null;
+  getStatusBadge: (status: ClientStatus, query?: string) => JSX.Element | null;
   getRate: (c: ClientInfo) => string;
   openProfile: (c: ClientInfo) => void;
   startChat: (c: ClientInfo) => void;
