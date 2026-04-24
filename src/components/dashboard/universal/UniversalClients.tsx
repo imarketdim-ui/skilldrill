@@ -198,10 +198,10 @@ const UniversalClients = ({ config, onNavigateToChat }: Props) => {
     return 'regular';
   };
 
-  const getStatusBadge = (status: ClientStatus) => {
+  const getStatusBadge = (status: ClientStatus, query = '') => {
     const cfg = statusConfig[status];
     if (status === 'all') return null;
-    return <Badge variant="outline" className={`text-[10px] ${cfg.color}`}>{cfg.label}</Badge>;
+    return <Badge variant="outline" className={`text-[10px] ${cfg.color}`}>{query ? highlight(cfg.label, query) : cfg.label}</Badge>;
   };
 
   const filterClients = () => {
