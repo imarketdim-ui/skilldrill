@@ -410,15 +410,20 @@ const UniversalClients = ({ config, onNavigateToChat }: Props) => {
     toast({ title: 'Экспорт готов', description: `${filtered.length} строк` });
   };
 
-  // ===== CSV импорт: обновляет/создаёт client_tags (note + vip) по skillspot_id =====
+  // ===== CSV импорт: preview-валидация + точный учёт inserted/updated для note и vip =====
   const importCSV = async (file: File) => {
     if (!user) return;
     setImporting(true);
     try {
+      // 1) Парсинг и предварительная валидация
       const text = await file.text();
+      if (!text.trim()) {
+        toast({ title: 'Файл пуст', variant: 'destructive' });
+        return;
+      }
       const rows = parseCSV(text);
       if (rows.length < 2) {
-        toast({ title: 'Файл пуст', variant: 'destructive' });
+        toast({ title: 'Нет данных для импорта', description: 'В файле должна быть строка заголовка и хотя бы одна строка данных', variant: 'destructive' });
         return;
       }
       const header = rows[0].map(h => h.toLowerCase());
@@ -426,38 +431,92 @@ const UniversalClients = ({ config, onNavigateToChat }: Props) => {
       const statusIdx = header.findIndex(h => h.includes('статус') || h === 'status');
       const noteIdx = header.findIndex(h => h.includes('заметк') || h === 'note');
       if (idIdx === -1) {
-        toast({ title: 'Не найден столбец SkillSpot ID', variant: 'destructive' });
+        toast({ title: 'Не найден столбец SkillSpot ID', description: 'Ожидается заголовок «SkillSpot ID» или «id»', variant: 'destructive' });
         return;
       }
-      const dataRows = rows.slice(1).filter(r => r[idIdx]);
-      const ids = dataRows.map(r => r[idIdx].trim()).filter(Boolean);
-      // Резолвим skillspot_id → user_id среди существующих клиентов
+      if (statusIdx === -1 && noteIdx === -1) {
+        toast({ title: 'Нечего импортировать', description: 'Нужен хотя бы один столбец «Статус» или «Заметка»', variant: 'destructive' });
+        return;
+      }
+
       const idMap = new Map(clients.map(c => [c.skillspot_id, c.id]));
-      let processed = 0; let skipped = 0;
+      const dataRows = rows.slice(1).filter(r => r[idIdx]?.trim());
+
+      // Превью: распределяем строки по категориям
+      type Plan = { sid: string; userId: string; note?: string; setVip?: boolean };
+      const plan: Plan[] = [];
+      let unknownIds = 0;
+      let emptyContent = 0;
       for (const row of dataRows) {
         const sid = row[idIdx].trim();
         const userId = idMap.get(sid);
-        if (!userId) { skipped++; continue; }
-        // Заметка
+        if (!userId) { unknownIds++; continue; }
         const note = noteIdx >= 0 ? row[noteIdx]?.trim() : '';
-        if (note) {
-          await supabase.from('client_tags').insert({
-            client_id: userId, tagger_id: user.id, tag: 'note', note,
-          });
-        }
-        // VIP-статус
         const status = statusIdx >= 0 ? row[statusIdx]?.trim().toLowerCase() : '';
-        if (status === 'vip') {
-          await supabase.from('client_tags').upsert(
-            { client_id: userId, tagger_id: user.id, tag: 'vip' },
-            { onConflict: 'client_id,tagger_id,tag', ignoreDuplicates: true }
-          );
-        }
-        processed++;
+        const setVip = status === 'vip' || status === 'vip-клиент' || status === 'vip клиент';
+        if (!note && !setVip) { emptyContent++; continue; }
+        plan.push({ sid, userId, note: note || undefined, setVip });
       }
+
+      if (plan.length === 0) {
+        toast({
+          title: 'Нет применимых строк',
+          description: `Всего строк: ${dataRows.length}. Не найдено клиентов: ${unknownIds}. Без note/vip: ${emptyContent}.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // 2) Получаем существующие vip-теги одним запросом, чтобы корректно посчитать inserted vs updated
+      const userIds = [...new Set(plan.filter(p => p.setVip).map(p => p.userId))];
+      const existingVip = new Set<string>();
+      if (userIds.length > 0) {
+        const { data: vipRows } = await supabase
+          .from('client_tags')
+          .select('client_id')
+          .eq('tagger_id', user.id)
+          .eq('tag', 'vip')
+          .in('client_id', userIds);
+        (vipRows || []).forEach(r => existingVip.add(r.client_id));
+      }
+
+      // 3) Применяем
+      let notesInserted = 0;
+      let vipInserted = 0;
+      let vipAlready = 0;
+      let failures = 0;
+      for (const item of plan) {
+        if (item.note) {
+          const { error } = await supabase.from('client_tags').insert({
+            client_id: item.userId, tagger_id: user.id, tag: 'note', note: item.note,
+          });
+          if (error) failures++; else notesInserted++;
+        }
+        if (item.setVip) {
+          if (existingVip.has(item.userId)) {
+            vipAlready++;
+          } else {
+            const { error } = await supabase.from('client_tags').insert({
+              client_id: item.userId, tagger_id: user.id, tag: 'vip',
+            });
+            if (error) failures++; else { vipInserted++; existingVip.add(item.userId); }
+          }
+        }
+      }
+
+      const parts = [
+        `Заметок добавлено: ${notesInserted}`,
+        `VIP вставлено: ${vipInserted}`,
+        vipAlready ? `VIP уже было: ${vipAlready}` : '',
+        unknownIds ? `Не найдено по ID: ${unknownIds}` : '',
+        emptyContent ? `Пустых строк: ${emptyContent}` : '',
+        failures ? `Ошибок записи: ${failures}` : '',
+      ].filter(Boolean).join(' · ');
+
       toast({
-        title: 'Импорт завершён',
-        description: `Обработано ${processed}${skipped ? `, пропущено ${skipped} (нет в списке)` : ''}`,
+        title: failures ? 'Импорт завершён с ошибками' : 'Импорт завершён',
+        description: parts,
+        variant: failures ? 'destructive' : 'default',
       });
       fetchClients();
     } catch (err: any) {
