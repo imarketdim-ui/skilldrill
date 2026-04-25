@@ -36,3 +36,12 @@
 ## Проверка
 - `bunx tsc --noEmit`.
 - Ручная проверка: bizness day view с несколькими мастерами и пересекающимися записями; hover по записи → карточка появляется через ~300мс, исчезает корректно.
+
+
+## 11. YClients-style schedule + client hover insights (DONE)
+
+- Новые компоненты: ScheduleGrid, ScheduleEventBlock, ClientHoverCard, scheduleUtils.
+- Новый хук: useClientInsights (VIP, LTV, no-show, любимые услуги, заметки).
+- BusinessSchedule: режим Day = шахматка по мастерам с линией «сейчас», авто-скроллом, packing пересечений.
+- UniversalSchedule: hover-карточка клиента подключена в renderCard.
+
