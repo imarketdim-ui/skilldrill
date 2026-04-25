@@ -484,6 +484,15 @@ const UniversalSchedule = ({ config }: Props) => {
         </div>
       </div>
     );
+
+    if (clientId && !brk) {
+      return (
+        <ClientHoverCard key={w.id} clientId={clientId} fallbackName={clientName || undefined}>
+          {cardInner}
+        </ClientHoverCard>
+      );
+    }
+    return <div key={w.id}>{cardInner}</div>;
   };
 
   // DAY VIEW - detailed list with time slots
