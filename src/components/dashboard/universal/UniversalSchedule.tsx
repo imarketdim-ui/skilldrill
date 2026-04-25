@@ -16,6 +16,7 @@ import { format, addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, each
 import { ru } from 'date-fns/locale';
 import { CategoryConfig } from './categoryConfig';
 import MasterTimeOffManager from './MasterTimeOffManager';
+import ClientHoverCard from '../schedule/ClientHoverCard';
 
 const daysOfWeek = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 const timeSlots = Array.from({ length: 28 }, (_, i) => {
@@ -423,11 +424,12 @@ const UniversalSchedule = ({ config }: Props) => {
     const brk = isBreak(w);
     const booking = (w.lesson_bookings as any[])?.[0];
     const clientName = booking?.profiles ? `${booking.profiles.first_name || ''} ${booking.profiles.last_name || ''}`.trim() : null;
+    const clientId = booking?.student_id || null;
     const overdue = isOverdue(w);
     const reviewable = canReview(w);
 
-    return (
-      <div key={w.id} className={`p-3 rounded-lg border ${brk ? statusColors.break : overdue ? 'bg-yellow-50 border-yellow-300 dark:bg-yellow-900/20 dark:border-yellow-700' : statusColors[w.status] || 'bg-muted'}`}>
+    const cardInner = (
+      <div className={`p-3 rounded-lg border ${brk ? statusColors.break : overdue ? 'bg-yellow-50 border-yellow-300 dark:bg-yellow-900/20 dark:border-yellow-700' : statusColors[w.status] || 'bg-muted'}`}>
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
