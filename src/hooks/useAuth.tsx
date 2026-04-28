@@ -29,6 +29,7 @@ interface AuthContextType {
   loading: boolean;
   signUp: (email: string, password: string, firstName?: string, lastName?: string, referredBy?: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signInWithProvider: (provider: 'google' | 'vk') => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -189,6 +190,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error };
   };
 
+  const signInWithProvider = async (provider: 'google' | 'vk') => {
+    if (provider === 'google') {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/dashboard`,
+        },
+      });
+      return { error };
+    }
+
+    const vkAuthUrl = import.meta.env.VITE_VK_AUTH_URL;
+    if (!vkAuthUrl) {
+      return { error: new Error('VK ID ещё не настроен. Добавьте VITE_VK_AUTH_URL в окружение.') };
+    }
+
+    window.location.href = vkAuthUrl;
+    return { error: null };
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
@@ -214,6 +235,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         signUp,
         signIn,
+        signInWithProvider,
         signOut,
         refreshProfile,
       }}

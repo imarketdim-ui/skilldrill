@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, MessageSquare, BarChart3, Loader2 } from 'lucide-react';
+import { Users, MessageSquare, Loader2, BriefcaseBusiness, ShieldCheck, CircleHelp } from 'lucide-react';
 import SupportChat from './SupportChat';
 
 const ManagerDashboard = () => {
@@ -29,7 +29,10 @@ const ManagerDashboard = () => {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Менеджер площадки</h2>
+      <div>
+        <h2 className="text-2xl font-bold">Менеджер площадки</h2>
+        <p className="text-muted-foreground mt-1">Работа с закреплёнными клиентами, сопровождением и первичной поддержкой без доступа к административным разделам платформы.</p>
+      </div>
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
@@ -38,12 +41,27 @@ const ManagerDashboard = () => {
             <p className="text-sm text-muted-foreground">Клиентов</p>
           </CardContent>
         </Card>
+        <Card>
+          <CardContent className="pt-6 text-center">
+            <ShieldCheck className="h-6 w-6 mx-auto mb-2 text-primary" />
+            <p className="text-sm font-medium">Безопасный контур</p>
+            <p className="text-sm text-muted-foreground">Нет доступа к модерации и системным настройкам</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6 text-center">
+            <BriefcaseBusiness className="h-6 w-6 mx-auto mb-2 text-primary" />
+            <p className="text-sm font-medium">Операционная роль</p>
+            <p className="text-sm text-muted-foreground">Фокус на сопровождении и удержании клиентов</p>
+          </CardContent>
+        </Card>
       </div>
 
       <Tabs defaultValue="clients" className="space-y-4">
         <TabsList>
           <TabsTrigger value="clients"><Users className="h-4 w-4 mr-1" /> Мои клиенты</TabsTrigger>
           <TabsTrigger value="support"><MessageSquare className="h-4 w-4 mr-1" /> Поддержка</TabsTrigger>
+          <TabsTrigger value="scope"><CircleHelp className="h-4 w-4 mr-1" /> Область доступа</TabsTrigger>
         </TabsList>
 
         <TabsContent value="clients">
@@ -90,6 +108,20 @@ const ManagerDashboard = () => {
 
         <TabsContent value="support">
           <SupportChat />
+        </TabsContent>
+
+        <TabsContent value="scope">
+          <Card>
+            <CardHeader>
+              <CardTitle>Область доступа</CardTitle>
+              <CardDescription>Что доступно менеджеру площадки в текущей модели платформы</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm text-muted-foreground">
+              <p>Вы можете работать с закреплёнными клиентами, вести коммуникацию и помогать в пользовательских сценариях.</p>
+              <p>Вам недоступны системная модерация, антифрод, массовое администрирование пользователей и изменение ролей платформы.</p>
+              <p>Если нужен более широкий доступ, его должен выдать администратор платформы через отдельную роль.</p>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

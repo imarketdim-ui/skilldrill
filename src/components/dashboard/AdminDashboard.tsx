@@ -21,6 +21,13 @@ import SupportChat from './SupportChat';
 import SignedImage from '@/components/ui/signed-image';
 
 type AdminSubRole = 'platform_admin' | 'super_admin' | 'moderator' | 'support' | 'integrator';
+type AdminDashboardMode = AdminSubRole;
+
+interface AdminDashboardProps {
+  modeOverride?: AdminDashboardMode;
+  titleOverride?: string;
+  descriptionOverride?: string;
+}
 
 // Tab visibility by sub-role (по разд. 4.1 ТЗ).
 const TAB_ACCESS: Record<string, AdminSubRole[]> = {
@@ -37,7 +44,7 @@ const TAB_ACCESS: Record<string, AdminSubRole[]> = {
   integrator_setup: ['integrator'],
 };
 
-const AdminDashboard = () => {
+const AdminDashboard = ({ modeOverride, titleOverride, descriptionOverride }: AdminDashboardProps) => {
   const { user, activeRole } = useAuth();
   const { toast } = useToast();
   const [roleRequests, setRoleRequests] = useState<any[]>([]);
@@ -48,7 +55,7 @@ const AdminDashboard = () => {
   const [rejectReason, setRejectReason] = useState<Record<string, string>>({});
   const [unreadSupport, setUnreadSupport] = useState(0);
 
-  const subRole = activeRole as AdminSubRole;
+  const subRole = (modeOverride || activeRole) as AdminSubRole;
   const canAccess = (tab: string) => {
     return TAB_ACCESS[tab]?.includes(subRole) ?? false;
   };
@@ -171,7 +178,10 @@ const AdminDashboard = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Панель администратора</h2>
+        <div>
+          <h2 className="text-2xl font-bold">{titleOverride || 'Панель администратора'}</h2>
+          {descriptionOverride ? <p className="text-sm text-muted-foreground mt-1">{descriptionOverride}</p> : null}
+        </div>
         <Badge variant="outline">{roleLabel[subRole] || subRole}</Badge>
       </div>
 

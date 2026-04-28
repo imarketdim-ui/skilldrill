@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import ScrollToTop from "@/components/ScrollToTop";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
+import OfflineStatusBanner from "@/components/OfflineStatusBanner";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -43,6 +44,7 @@ const App = () => (
             <ScrollToTop />
             <Routes>
               <Route path="/" element={<Catalog />} />
+              <Route path="/landing" element={<Index />} />
               <Route path="/catalog" element={<Catalog />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/dashboard" element={<Dashboard />} />
@@ -71,6 +73,7 @@ const App = () => (
               />
               <Route path="*" element={<NotFound />} />
             </Routes>
+            <OfflineStatusBanner />
             <PWAInstallPrompt />
           </BrowserRouter>
         </TooltipProvider>

@@ -12,10 +12,11 @@ import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import PushNotificationToggle from '@/components/dashboard/PushNotificationToggle';
 import { useToast } from '@/hooks/use-toast';
 import {
   Loader2, Camera, Gift, ChevronRight, Copy, Share2, Check,
-  Lock, Bell, Users, UserX, MessageSquare
+  Lock, Bell, Users, UserX, MessageSquare, Smartphone
 } from 'lucide-react';
 import { z } from 'zod';
 
@@ -153,7 +154,7 @@ const ClientSettingsSection = () => {
   const [cropDialog, setCropDialog] = useState<{ open: boolean; url: string; file: File | null }>({ open: false, url: '', file: null });
   const [copiedId, setCopiedId] = useState(false);
   const [formData, setFormData] = useState<ProfileFormData>({ first_name: '', last_name: '', phone: '', bio: '', telegram: '', birthday: '', gender: '' });
-  const [telegramToken, setTelegramToken] = useState<string>('');
+  const [openingTelegram, setOpeningTelegram] = useState(false);
 
   const [privacy, setPrivacy] = useState({
     allow_group_invites: true,
@@ -176,10 +177,6 @@ const ClientSettingsSection = () => {
       });
       const pv = (profile as any)?.privacy_settings;
       if (pv) setPrivacy(prev => ({ ...prev, ...pv }));
-      // Генерим стабильный токен для Telegram deep-link на основе skillspot_id
-      if (profile.skillspot_id) {
-        setTelegramToken(profile.skillspot_id);
-      }
     }
   }, [profile]);
 
@@ -237,7 +234,7 @@ const ClientSettingsSection = () => {
       const { error } = await supabase.from('profiles').update({
         first_name: result.data.first_name || null,
         last_name: result.data.last_name || null,
-        phone: result.data.phone ? normalizePhone(result.data.phone) : null,
+        phone: normalizePhone(result.data.phone || '') || null,
         bio: result.data.bio || null,
         telegram: result.data.telegram || null,
         birthday: result.data.birthday || null,
@@ -279,6 +276,26 @@ const ClientSettingsSection = () => {
     } else {
       navigator.clipboard.writeText(text);
       toast({ title: 'Скопировано для отправки' });
+    }
+  };
+
+  const handleTelegramLink = async () => {
+    setOpeningTelegram(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-telegram-link-token');
+      if (error) throw error;
+
+      const token = data?.token;
+      if (!token) {
+        throw new Error('Не удалось создать токен привязки Telegram');
+      }
+
+      window.open(`https://t.me/skillspot_bot?start=${token}`, '_blank', 'noopener,noreferrer');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Не удалось открыть привязку Telegram';
+      toast({ title: 'Ошибка', description: message, variant: 'destructive' });
+    } finally {
+      setOpeningTelegram(false);
     }
   };
 
@@ -377,6 +394,13 @@ const ClientSettingsSection = () => {
               <Label htmlFor="phone">Телефон</Label>
               <Input id="phone" type="tel" placeholder="+7 (999) 123-45-67" value={formData.phone} onChange={(e) => handleChange('phone', e.target.value)} onBlur={handlePhoneBlur} className={errors.phone ? 'border-destructive' : ''} disabled={isSubmitting} />
               {errors.phone && <p className="text-sm text-destructive">{errors.phone}</p>}
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="secondary" className="gap-1">
+                  <Smartphone className="h-3 w-3" />
+                  Подтверждение номера запланировано
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">SMS-подтверждение номера вынесено в следующий этап доработок. Сейчас номер просто сохраняется в профиле.</p>
             </div>
 
             <div className="space-y-2">
@@ -425,9 +449,10 @@ const ClientSettingsSection = () => {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => window.open(`https://t.me/skillspot_bot?start=${telegramToken}`, '_blank')}
-                      disabled={!telegramToken}
+                      onClick={handleTelegramLink}
+                      disabled={openingTelegram}
                     >
+                      {openingTelegram ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
                       Открыть бота и привязать
                     </Button>
                   </>
@@ -501,6 +526,16 @@ const ClientSettingsSection = () => {
             {savingPrivacy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
             Сохранить настройки конфиденциальности
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Bell className="h-5 w-5" /> Push-уведомления</CardTitle>
+          <CardDescription>Отдельная настройка браузерных уведомлений для записей, сообщений и системных событий</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <PushNotificationToggle />
         </CardContent>
       </Card>
 
