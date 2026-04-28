@@ -202,6 +202,9 @@ const Auth = () => {
                       <Button type="button" variant="outline" className="w-full" disabled={isLoading} onClick={() => handleOAuth('vk')}>
                         Войти через VK ID
                       </Button>
+                      <p className="text-xs text-center text-muted-foreground">
+                        После входа мы вернём вас на защищённый callback-маршрут и затем в кабинет.
+                      </p>
                       <p className="text-xs text-center text-muted-foreground">Или используйте email и пароль</p>
                     </div>
                     <form onSubmit={handleSignIn} className="space-y-4">
@@ -241,6 +244,9 @@ const Auth = () => {
                       <Button type="button" variant="outline" className="w-full" disabled={isLoading} onClick={() => handleOAuth('vk')}>
                         Продолжить через VK ID
                       </Button>
+                      <p className="text-xs text-center text-muted-foreground">
+                        OAuth-вход использует маршрут <code>/auth/callback</code>, который должен быть добавлен у провайдера.
+                      </p>
                       <p className="text-xs text-center text-muted-foreground">Или зарегистрируйтесь по email</p>
                     </div>
                     <form onSubmit={handleSignUp} className="space-y-4">

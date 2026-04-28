@@ -1,6 +1,7 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
+import { buildAuthCallbackUrl, buildVkAuthUrl, storePostAuthRedirect } from '@/lib/oauth';
 
 export type UserRoleType = 'client' | 'master' | 'business_manager' | 'business_admin' | 'network_manager' | 'business_owner' | 'network_owner' | 'platform_admin' | 'super_admin' | 'platform_manager' | 'moderator' | 'support' | 'integrator';
 
@@ -191,11 +192,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInWithProvider = async (provider: 'google' | 'vk') => {
+    const callbackUrl = buildAuthCallbackUrl();
+    storePostAuthRedirect('/dashboard');
+
     if (provider === 'google') {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/dashboard`,
+          redirectTo: callbackUrl,
         },
       });
       return { error };
@@ -203,10 +207,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const vkAuthUrl = import.meta.env.VITE_VK_AUTH_URL;
     if (!vkAuthUrl) {
-      return { error: new Error('VK ID ещё не настроен. Добавьте VITE_VK_AUTH_URL в окружение.') };
+      return { error: new Error('VK ID ещё не настроен. Добавьте VITE_VK_AUTH_URL в окружение и укажите redirect на /auth/callback.') };
     }
 
-    window.location.href = vkAuthUrl;
+    window.location.href = buildVkAuthUrl(vkAuthUrl, callbackUrl);
     return { error: null };
   };
 

@@ -10,6 +10,7 @@ import OfflineStatusBanner from "@/components/OfflineStatusBanner";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import AuthCallback from "./pages/AuthCallback";
 import Dashboard from "./pages/Dashboard";
 import Settings from "./pages/Settings";
 import RequestRole from "./pages/RequestRole";
@@ -47,6 +48,7 @@ const App = () => (
               <Route path="/landing" element={<Index />} />
               <Route path="/catalog" element={<Catalog />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/request-role" element={<RequestRole />} />
