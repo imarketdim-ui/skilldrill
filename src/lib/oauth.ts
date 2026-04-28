@@ -17,6 +17,6 @@ export const consumePostAuthRedirect = (fallback = '/dashboard') => {
 
 export const buildVkAuthUrl = (template: string, callbackUrl: string) => (
   template.includes('__REDIRECT_TO__')
-    ? template.replaceAll('__REDIRECT_TO__', encodeURIComponent(callbackUrl))
+    ? template.split('__REDIRECT_TO__').join(encodeURIComponent(callbackUrl))
     : template
 );
