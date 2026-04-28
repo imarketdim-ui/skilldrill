@@ -27,7 +27,7 @@ const businessFeatures = [
   { icon: Shield, title: 'Рейтинг клиентов', description: 'Видите рейтинг каждого клиента: частоту неявок, отмен и оплат. Принимайте информированные решения.' },
   { icon: Ban, title: 'Чёрные списки', description: 'Блокируйте недобросовестных клиентов на уровне мастера или всей организации.' },
   { icon: MessageSquare, title: 'Встроенный чат', description: 'Общайтесь с клиентами прямо на платформе. Никакого спама в личных мессенджерах.' },
-  { icon: Bell, title: 'Оповещения', description: 'Уведомления в Telegram, SMS и email. Ни одна запись не потеряется.' },
+  { icon: Bell, title: 'Оповещения', description: 'Уведомления в Telegram, push и in-app. Ни одна запись не потеряется.' },
 ];
 
 const ForBusiness = () => {

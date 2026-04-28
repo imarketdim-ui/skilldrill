@@ -267,6 +267,7 @@ Deno.serve(async (req) => {
       }
 
       let pushSent = 0;
+      let telegramSent = 0;
       if (body.push) {
         try {
           const pushRes = await fetch(`${SUPABASE_URL}/functions/v1/send-push-notification`, {
@@ -290,6 +291,25 @@ Deno.serve(async (req) => {
         }
       }
 
+      try {
+        const tgRes = await fetch(`${SUPABASE_URL}/functions/v1/send-telegram-notification`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${SERVICE_ROLE}`,
+          },
+          body: JSON.stringify({
+            user_ids: recipientIds,
+            text: `${campaign.title}\n\n${campaign.message.slice(0, 3500)}`,
+            source: 'broadcast',
+          }),
+        });
+        const tj = await tgRes.json().catch(() => ({}));
+        telegramSent = tj?.sent || 0;
+      } catch (e) {
+        console.error('[send-broadcast] telegram failed', e);
+      }
+
       // Mark sent + release hold for paid campaigns (the money was earned).
       const updates: Record<string, unknown> = {
         status: 'sent',
@@ -303,7 +323,7 @@ Deno.serve(async (req) => {
         .update(updates)
         .eq('id', campaign.id);
 
-      return json(200, { sent: messages.length, push_sent: pushSent });
+      return json(200, { sent: messages.length, push_sent: pushSent, telegram_sent: telegramSent });
     } catch (err: any) {
       // Restore previous status so the user can retry.
       await admin

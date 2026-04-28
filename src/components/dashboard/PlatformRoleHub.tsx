@@ -13,8 +13,8 @@ const PLATFORM_ROLE_META: Record<string, { label: string; description: string; i
   platform_admin: { label: 'Администратор', description: 'Модерация и управление', icon: <Shield className="h-5 w-5" /> },
   platform_manager: { label: 'Менеджер площадки', description: 'Работа с клиентами', icon: <Settings className="h-5 w-5" /> },
   moderator: { label: 'Модератор', description: 'Проверка контента', icon: <Eye className="h-5 w-5" /> },
-  support: { label: 'Поддержка', description: 'Помощь пользователям', icon: <Headphones className="h-5 w-5" /> },
-  integrator: { label: 'Интегратор', description: 'Настройка интеграций', icon: <Plug className="h-5 w-5" /> },
+  support: { label: 'Поддержка', description: 'Чаты, обращения и сопровождение пользователей', icon: <Headphones className="h-5 w-5" /> },
+  integrator: { label: 'Интегратор', description: 'Онбординг бизнеса, чеклисты и промокоды', icon: <Plug className="h-5 w-5" /> },
 };
 
 const PlatformRoleHub = ({ onSelect, onBack }: PlatformRoleHubProps) => {
@@ -28,7 +28,7 @@ const PlatformRoleHub = ({ onSelect, onBack }: PlatformRoleHubProps) => {
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
         <h2 className="text-2xl font-bold">Управление площадкой</h2>
-        <p className="text-muted-foreground mt-1">Выберите роль для работы с платформой</p>
+        <p className="text-muted-foreground mt-1">Выберите контекст работы: модерация, поддержка, администрирование или онбординг бизнеса.</p>
       </div>
 
       <div className="grid gap-3">

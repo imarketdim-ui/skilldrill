@@ -3,7 +3,8 @@ import { motion } from "framer-motion";
 
 const footerLinks = {
   product: [
-    { label: "Поиск услуг", href: "/" },
+    { label: "Каталог услуг", href: "/catalog" },
+    { label: "Лендинг", href: "/landing" },
     { label: "Тарифы", href: "/for-business#pricing" },
     { label: "Для специалистов", href: "/create-account?type=master" },
   ],
@@ -26,7 +27,7 @@ const Footer = () => {
         <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-12 mb-12">
           <div className="lg:col-span-2">
             <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} className="flex items-center gap-2 mb-4">
-              <Link to="/" className="flex items-center gap-2">
+              <Link to="/catalog" className="flex items-center gap-2">
                 <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
                   <span className="text-white font-bold text-lg">S</span>
                 </div>

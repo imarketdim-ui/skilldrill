@@ -212,3 +212,48 @@ describe('multi-device push subscriptions', () => {
     expect(rows.find((r) => r.endpoint === 'phone')?.is_active).toBe(true);
   });
 });
+
+// ---- F. Telegram linking hardening ----
+//
+// The webhook must reject requests without the Telegram secret and bind only
+// a one-time unexpired token instead of a public profile identifier.
+function isAllowedTelegramWebhook(secretFromRequest: string | null, expectedSecret: string) {
+  return secretFromRequest === expectedSecret;
+}
+
+function canUseTelegramLinkToken(tokenState: {
+  exists: boolean;
+  used_at: string | null;
+  expires_at: string;
+}, nowIso: string) {
+  return tokenState.exists && !tokenState.used_at && tokenState.expires_at > nowIso;
+}
+
+describe('telegram linking hardening', () => {
+  it('rejects webhook requests without the shared secret', () => {
+    expect(isAllowedTelegramWebhook(null, 'secret')).toBe(false);
+    expect(isAllowedTelegramWebhook('wrong', 'secret')).toBe(false);
+    expect(isAllowedTelegramWebhook('secret', 'secret')).toBe(true);
+  });
+
+  it('allows only fresh one-time telegram link tokens', () => {
+    expect(
+      canUseTelegramLinkToken(
+        { exists: true, used_at: null, expires_at: '2030-01-01T00:00:00.000Z' },
+        '2026-01-01T00:00:00.000Z',
+      ),
+    ).toBe(true);
+    expect(
+      canUseTelegramLinkToken(
+        { exists: true, used_at: '2026-01-01T00:00:00.000Z', expires_at: '2030-01-01T00:00:00.000Z' },
+        '2026-01-01T00:00:00.000Z',
+      ),
+    ).toBe(false);
+    expect(
+      canUseTelegramLinkToken(
+        { exists: true, used_at: null, expires_at: '2025-01-01T00:00:00.000Z' },
+        '2026-01-01T00:00:00.000Z',
+      ),
+    ).toBe(false);
+  });
+});

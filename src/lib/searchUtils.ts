@@ -35,8 +35,10 @@ export const ruToEn = (text: string): string =>
   }).join('');
 
 /** Check if a string looks like it was typed in the wrong keyboard layout */
+const ENGLISH_LAYOUT_CHARACTERS = new Set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ[];',./ \t\n\r");
+
 const looksLikeEnglish = (text: string): boolean =>
-  /^[a-zA-Z\[\];',./\s]+$/.test(text);
+  Array.from(text).every(char => ENGLISH_LAYOUT_CHARACTERS.has(char));
 
 const looksLikeRussian = (text: string): boolean =>
   /^[а-яА-ЯёЁ\s]+$/.test(text);
@@ -161,11 +163,15 @@ export const fuzzyMatch = (target: string, query: string, synonyms?: SynonymEntr
   const variants = getSearchVariants(query);
 
   // Expand variants with synonyms
-  let allVariants = [...variants];
+  const allVariants = [...variants];
   if (synonyms && synonyms.length > 0) {
     for (const v of variants) {
       const expanded = expandWithSynonyms(v, synonyms);
-      expanded.forEach(e => { if (!allVariants.includes(e)) allVariants.push(e); });
+      for (const expandedVariant of expanded) {
+        if (!allVariants.includes(expandedVariant)) {
+          allVariants.push(expandedVariant);
+        }
+      }
     }
   }
   

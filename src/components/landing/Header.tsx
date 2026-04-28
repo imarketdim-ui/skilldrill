@@ -7,7 +7,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const navLinks = [
-  { label: "Поиск услуг", href: "/", isRoute: true },
+  { label: "Каталог", href: "/catalog", isRoute: true },
+  { label: "Лендинг", href: "/landing", isRoute: true },
   { label: "О платформе", href: "/about", isRoute: true },
   { label: "Для бизнеса", href: "/for-business", isRoute: true },
 ];
@@ -22,7 +23,7 @@ const Header = () => {
       <div className="container-wide">
         <div className="flex items-center justify-between h-16 md:h-20">
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <Link to="/" className="flex items-center gap-2">
+            <Link to="/catalog" className="flex items-center gap-2">
               <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
                 <span className="text-primary-foreground font-bold text-lg">S</span>
               </div>

@@ -203,7 +203,26 @@ const BusinessRoleHub = ({ onSelect, onBack }: BusinessRoleHubProps) => {
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
         <h2 className="text-2xl font-bold">Бизнес-кабинеты</h2>
-        <p className="text-muted-foreground mt-1">Выберите или создайте бизнес-аккаунт</p>
+        <p className="text-muted-foreground mt-1">Выберите активный кабинет, следите за лимитами тарифа и управляйте доступом к точкам, мастерам и сети.</p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardContent className="py-4 px-5">
+            <p className="font-medium text-sm">Лимиты тарифа</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              `Мастер` — только личный кабинет. `Про` — одна точка и до 10 сотрудников. `Сеть` — несколько точек и единое управление.
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="py-4 px-5">
+            <p className="font-medium text-sm">Read-only при окончании подписки</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              При завершении льготного периода кабинеты остаются доступными на просмотр, но создание и редактирование ограничиваются до продления.
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Subscription tier card */}
