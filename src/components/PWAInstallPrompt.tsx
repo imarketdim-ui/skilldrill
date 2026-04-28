@@ -12,6 +12,7 @@ interface BeforeInstallPromptEvent extends Event {
 type Platform = 'ios' | 'android' | 'desktop' | 'unknown';
 
 const detectPlatform = (): Platform => {
+  if (typeof navigator === 'undefined') return 'unknown';
   const ua = navigator.userAgent;
   if (/iPad|iPhone|iPod/.test(ua)) return 'ios';
   if (/Android/.test(ua)) return 'android';
@@ -24,9 +25,15 @@ const PWAInstallPrompt = () => {
   const [showBanner, setShowBanner] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
-  const platform = detectPlatform();
+  const [platform, setPlatform] = useState<Platform>('unknown');
 
   useEffect(() => {
+    setPlatform(detectPlatform());
+
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+      return;
+    }
+
     if (window.matchMedia('(display-mode: standalone)').matches) {
       setIsInstalled(true);
       return;
@@ -90,7 +97,9 @@ const PWAInstallPrompt = () => {
 
   const handleDismiss = () => {
     setShowBanner(false);
-    localStorage.setItem('pwa-dismissed', String(Date.now()));
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('pwa-dismissed', String(Date.now()));
+    }
   };
 
   if (!showBanner || isInstalled) return null;
