@@ -155,6 +155,7 @@ const ClientSettingsSection = () => {
   const [copiedId, setCopiedId] = useState(false);
   const [formData, setFormData] = useState<ProfileFormData>({ first_name: '', last_name: '', phone: '', bio: '', telegram: '', birthday: '', gender: '' });
   const [openingTelegram, setOpeningTelegram] = useState(false);
+  const [sendingTelegramTest, setSendingTelegramTest] = useState(false);
 
   const [privacy, setPrivacy] = useState({
     allow_group_invites: true,
@@ -299,6 +300,23 @@ const ClientSettingsSection = () => {
     }
   };
 
+  const handleTelegramTest = async () => {
+    setSendingTelegramTest(true);
+    try {
+      const { error } = await supabase.functions.invoke('send-my-telegram-test');
+      if (error) throw error;
+      toast({
+        title: 'Тест отправлен',
+        description: 'Проверьте Telegram: должно прийти тестовое сообщение от SkillSpot.',
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Не удалось отправить тест в Telegram';
+      toast({ title: 'Ошибка', description: message, variant: 'destructive' });
+    } finally {
+      setSendingTelegramTest(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Avatar */}
@@ -436,9 +454,21 @@ const ClientSettingsSection = () => {
               <Label>Привязка Telegram</Label>
               <div className="p-3 rounded-lg border bg-muted/50 space-y-2">
                 {(profile as any)?.telegram_chat_id ? (
-                  <div className="flex items-center gap-2">
-                    <Badge className="gap-1"><Check className="h-3 w-3" /> Telegram привязан</Badge>
-                    <span className="text-xs text-muted-foreground">Уведомления приходят в Telegram</span>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Badge className="gap-1"><Check className="h-3 w-3" /> Telegram привязан</Badge>
+                      <span className="text-xs text-muted-foreground">Уведомления приходят в Telegram</span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleTelegramTest}
+                      disabled={sendingTelegramTest}
+                    >
+                      {sendingTelegramTest ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                      Проверить доставку
+                    </Button>
                   </div>
                 ) : (
                   <>
