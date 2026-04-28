@@ -10,6 +10,7 @@ interface Profile {
   skillspot_id: string;
   email: string | null;
   phone: string | null;
+  phone_verified_at?: string | null;
   first_name: string | null;
   last_name: string | null;
   avatar_url: string | null;

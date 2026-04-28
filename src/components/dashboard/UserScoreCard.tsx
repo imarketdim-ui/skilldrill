@@ -142,7 +142,7 @@ export default function UserScoreCard({ userId, viewMode }: UserScoreCardProps) 
     { label: "Фото профиля", done: score.has_photo, icon: User, hint: "Загрузите фото в настройках" },
     { label: "О себе (био)", done: score.has_bio, icon: PenLine, hint: "Добавьте описание в настройках" },
     { label: "Подтверждение email", done: score.email_verified, icon: Mail, hint: "Подтвердите email-адрес" },
-    { label: "Телефон указан", done: score.phone_verified, icon: Phone, hint: "Добавьте номер телефона" },
+    { label: "Телефон подтверждён", done: score.phone_verified, icon: Phone, hint: "Подтвердите номер телефона по SMS" },
     { label: "Telegram привязан", done: score.has_telegram, icon: MessageCircle, hint: "Укажите Telegram в профиле мастера" },
     { label: "KYC верификация", done: score.kyc_verified, icon: FileCheck, hint: "Пройдите верификацию личности" },
   ];
