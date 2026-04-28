@@ -1,4 +1,4 @@
-// build: tz-alignment sync 2026-04-28 (rebuild trigger 3 — telegram + oauth + sms)
+// build: tz-alignment sync 2026-04-28 (rebuild trigger 4 — edge functions deployed + migrations applied)
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";

@@ -2854,6 +2854,7 @@ export type Database = {
           kyc_verified_at: string | null
           last_name: string | null
           phone: string | null
+          phone_verified_at: string | null
           platform_role: Database["public"]["Enums"]["platform_role"]
           privacy_settings: Json | null
           referred_by: string | null
@@ -2876,6 +2877,7 @@ export type Database = {
           kyc_verified_at?: string | null
           last_name?: string | null
           phone?: string | null
+          phone_verified_at?: string | null
           platform_role?: Database["public"]["Enums"]["platform_role"]
           privacy_settings?: Json | null
           referred_by?: string | null
@@ -2898,6 +2900,7 @@ export type Database = {
           kyc_verified_at?: string | null
           last_name?: string | null
           phone?: string | null
+          phone_verified_at?: string | null
           platform_role?: Database["public"]["Enums"]["platform_role"]
           privacy_settings?: Json | null
           referred_by?: string | null
@@ -4483,6 +4486,33 @@ export type Database = {
           },
         ]
       }
+      telegram_link_tokens: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          token_hash: string
+          used_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          token_hash: string
+          used_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          token_hash?: string
+          used_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       typing_indicators: {
         Row: {
           chat_type: string
@@ -4631,13 +4661,18 @@ export type Database = {
           disputes_lost: number
           disputes_total: number
           disputes_won: number
+          email_verified: boolean | null
+          has_bio: boolean | null
           has_full_name: boolean
           has_photo: boolean
+          has_telegram: boolean | null
           id: string
           kyc_verified: boolean
           last_calculated_at: string | null
           no_show_count: number
+          phone_verified: boolean | null
           profile_score: number
+          referral_count: number | null
           reputation_score: number
           risk_score: number
           status: string
@@ -4660,13 +4695,18 @@ export type Database = {
           disputes_lost?: number
           disputes_total?: number
           disputes_won?: number
+          email_verified?: boolean | null
+          has_bio?: boolean | null
           has_full_name?: boolean
           has_photo?: boolean
+          has_telegram?: boolean | null
           id?: string
           kyc_verified?: boolean
           last_calculated_at?: string | null
           no_show_count?: number
+          phone_verified?: boolean | null
           profile_score?: number
+          referral_count?: number | null
           reputation_score?: number
           risk_score?: number
           status?: string
@@ -4689,13 +4729,18 @@ export type Database = {
           disputes_lost?: number
           disputes_total?: number
           disputes_won?: number
+          email_verified?: boolean | null
+          has_bio?: boolean | null
           has_full_name?: boolean
           has_photo?: boolean
+          has_telegram?: boolean | null
           id?: string
           kyc_verified?: boolean
           last_calculated_at?: string | null
           no_show_count?: number
+          phone_verified?: boolean | null
           profile_score?: number
+          referral_count?: number | null
           reputation_score?: number
           risk_score?: number
           status?: string
