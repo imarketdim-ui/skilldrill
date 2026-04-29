@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { Calendar, Clock, MapPin, MessageSquare, User, Wallet } from 'lucide-react';
+import { Calendar, Clock, Copy, Mail, MapPin, MessageSquare, Phone, User, Wallet } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -70,6 +70,15 @@ export default function AppointmentDetailDialog({
   const executorName = useMemo(() => {
     return [booking?.executor?.first_name, booking?.executor?.last_name].filter(Boolean).join(' ') || 'Мастер';
   }, [booking]);
+
+  const handleCopy = async (value: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast({ title: `${label} скопирован` });
+    } catch {
+      toast({ title: 'Не удалось скопировать', variant: 'destructive' });
+    }
+  };
 
   const runUpdate = async (payload: Record<string, any>) => {
     if (!booking?.id) return;
@@ -169,6 +178,30 @@ export default function AppointmentDetailDialog({
                 <p>{clientName}</p>
                 <p className="text-muted-foreground">{booking?.client?.email || 'Email не указан'}</p>
                 {booking?.client?.phone && <p className="text-muted-foreground">{booking.client.phone}</p>}
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {booking?.client?.phone && (
+                    <>
+                      <Button size="sm" variant="outline" asChild>
+                        <a href={`tel:${booking.client.phone}`}>
+                          <Phone className="h-3.5 w-3.5 mr-1" />
+                          Позвонить
+                        </a>
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => handleCopy(booking.client.phone, 'Телефон')}>
+                        <Copy className="h-3.5 w-3.5 mr-1" />
+                        Скопировать
+                      </Button>
+                    </>
+                  )}
+                  {booking?.client?.email && (
+                    <Button size="sm" variant="outline" asChild>
+                      <a href={`mailto:${booking.client.email}`}>
+                        <Mail className="h-3.5 w-3.5 mr-1" />
+                        Написать
+                      </a>
+                    </Button>
+                  )}
+                </div>
               </div>
 
               <div className="rounded-lg border p-3 text-sm space-y-2">

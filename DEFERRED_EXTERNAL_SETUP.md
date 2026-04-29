@@ -29,3 +29,14 @@
 ### Telegram
 
 - Зарегистрировать `telegram-webhook` в Telegram Bot API
+
+## Later Migration Path
+
+- Clone the project away from Lovable into самостоятельный production contour.
+- Deploy on a personal domain.
+- Bind the app to a new Supabase project.
+- Recreate the database / auth / secrets / edge functions in the new environment.
+- Re-enable deferred integrations there:
+  - OAuth providers
+  - phone verification provider
+  - Telegram webhook

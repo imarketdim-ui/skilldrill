@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Clock, Users, ChevronLeft, ChevronRight, Download } from 'lucide-react';
+import { Calendar, Clock, Users, ChevronLeft, ChevronRight, Download, ListFilter } from 'lucide-react';
 import { format, addDays, startOfWeek, isSameDay, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import ScheduleGrid from '../schedule/ScheduleGrid';
@@ -12,19 +12,23 @@ import ScheduleEventBlock from '../schedule/ScheduleEventBlock';
 import { normalizeBooking, ScheduleEvent } from '../schedule/scheduleUtils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppointmentDetailDialog from '../schedule/AppointmentDetailDialog';
+import { Input } from '@/components/ui/input';
 
 interface Props {
   businessId: string;
 }
 
 const BusinessSchedule = ({ businessId }: Props) => {
-  const [view, setView] = useState<'day' | 'week'>('day');
+  const [view, setView] = useState<'day' | 'week' | 'list'>('day');
   const [masters, setMasters] = useState<{ id: string; name: string }[]>([]);
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [resourceFilter, setResourceFilter] = useState('all');
+  const [masterFilter, setMasterFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedBooking, setSelectedBooking] = useState<any | null>(null);
   const [resources, setResources] = useState<{ id: string; name: string }[]>([]);
 
@@ -74,8 +78,24 @@ const BusinessSchedule = ({ businessId }: Props) => {
   };
 
   const filteredBookings = useMemo(
-    () => resourceFilter === 'all' ? bookings : bookings.filter(b => b.resource_id === resourceFilter),
-    [bookings, resourceFilter],
+    () => bookings.filter(booking => {
+      if (resourceFilter !== 'all' && booking.resource_id !== resourceFilter) return false;
+      if (masterFilter !== 'all' && booking.executor_id !== masterFilter) return false;
+      if (statusFilter !== 'all' && booking.status !== statusFilter) return false;
+      if (!searchQuery.trim()) return true;
+
+      const q = searchQuery.trim().toLowerCase();
+      const client = `${booking.client?.first_name || ''} ${booking.client?.last_name || ''}`.toLowerCase();
+      const master = `${booking.executor?.first_name || ''} ${booking.executor?.last_name || ''}`.toLowerCase();
+      return (
+        client.includes(q) ||
+        master.includes(q) ||
+        (booking.service?.name || '').toLowerCase().includes(q) ||
+        (booking.resource?.name || '').toLowerCase().includes(q) ||
+        (booking.client?.phone || '').toLowerCase().includes(q)
+      );
+    }),
+    [bookings, resourceFilter, masterFilter, statusFilter, searchQuery],
   );
 
   const events: ScheduleEvent[] = useMemo(
@@ -109,6 +129,8 @@ const BusinessSchedule = ({ businessId }: Props) => {
     b => b.status === 'confirmed' || b.status === 'completed',
   ).length;
   const pendingCount = filteredBookings.filter(b => b.status === 'pending').length;
+  const noShowCount = filteredBookings.filter(b => b.status === 'no_show').length;
+  const uniqueClientsCount = new Set(filteredBookings.map(b => b.client_id).filter(Boolean)).size;
 
   const exportCsv = () => {
     const lines = [
@@ -138,6 +160,50 @@ const BusinessSchedule = ({ businessId }: Props) => {
     URL.revokeObjectURL(url);
   };
 
+  const exportIcs = () => {
+    const lines = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//SkillSpot//Schedule Export//RU',
+      ...filteredBookings.flatMap(booking => {
+        const start = new Date(booking.scheduled_at);
+        const end = new Date(start.getTime() + Number(booking.duration_minutes || 0) * 60_000);
+        const client = `${booking.client?.first_name || ''} ${booking.client?.last_name || ''}`.trim();
+        const master = `${booking.executor?.first_name || ''} ${booking.executor?.last_name || ''}`.trim();
+        const formatIcsDate = (value: Date) =>
+          value.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+        const description = [
+          `Клиент: ${client || '—'}`,
+          `Мастер: ${master || '—'}`,
+          `Ресурс: ${booking.resource?.name || '—'}`,
+          `Статус: ${statusLabel(booking.status)}`,
+          booking.notes ? `Комментарий: ${booking.notes}` : '',
+        ].filter(Boolean).join('\\n');
+
+        return [
+          'BEGIN:VEVENT',
+          `UID:${booking.id}@skillspot`,
+          `DTSTAMP:${formatIcsDate(new Date())}`,
+          `DTSTART:${formatIcsDate(start)}`,
+          `DTEND:${formatIcsDate(end)}`,
+          `SUMMARY:${booking.service?.name || 'Запись'}`,
+          `DESCRIPTION:${description.replace(/\n/g, '\\n').replace(/,/g, '\\,').replace(/;/g, '\\;')}`,
+          `LOCATION:${(booking.resource?.name || '').replace(/,/g, '\\,').replace(/;/g, '\\;')}`,
+          'END:VEVENT',
+        ];
+      }),
+      'END:VCALENDAR',
+    ].join('\n');
+
+    const blob = new Blob([lines], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `schedule_${format(view === 'day' ? currentDate : weekStart, 'yyyy-MM-dd')}.ics`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between flex-wrap gap-3">
@@ -148,6 +214,36 @@ const BusinessSchedule = ({ businessId }: Props) => {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <Input
+            value={searchQuery}
+            onChange={event => setSearchQuery(event.target.value)}
+            placeholder="Клиент, услуга, ресурс..."
+            className="w-[220px]"
+          />
+          <Select value={masterFilter} onValueChange={setMasterFilter}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Все мастера" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Все мастера</SelectItem>
+              {masters.map(master => (
+                <SelectItem key={master.id} value={master.id}>{master.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Все статусы" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Все статусы</SelectItem>
+              <SelectItem value="pending">Ожидает</SelectItem>
+              <SelectItem value="confirmed">Подтверждена</SelectItem>
+              <SelectItem value="completed">Завершена</SelectItem>
+              <SelectItem value="cancelled">Отменена</SelectItem>
+              <SelectItem value="no_show">Неявка</SelectItem>
+            </SelectContent>
+          </Select>
           <Select value={resourceFilter} onValueChange={setResourceFilter}>
             <SelectTrigger className="w-[200px]">
               <SelectValue placeholder="Все ресурсы" />
@@ -162,10 +258,14 @@ const BusinessSchedule = ({ businessId }: Props) => {
           <Button variant="outline" size="sm" onClick={exportCsv}>
             <Download className="h-4 w-4 mr-1" /> CSV
           </Button>
+          <Button variant="outline" size="sm" onClick={exportIcs}>
+            <Calendar className="h-4 w-4 mr-1" /> ICS
+          </Button>
           <Tabs value={view} onValueChange={v => setView(v as any)}>
             <TabsList>
               <TabsTrigger value="day">День</TabsTrigger>
               <TabsTrigger value="week">Неделя</TabsTrigger>
+              <TabsTrigger value="list">Список</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
@@ -195,8 +295,14 @@ const BusinessSchedule = ({ businessId }: Props) => {
         </Card>
         <Card>
           <CardContent className="pt-4 pb-3 px-4">
-            <p className="text-sm text-muted-foreground">Мастеров</p>
-            <p className="text-2xl font-bold mt-1">{masters.length}</p>
+            <p className="text-sm text-muted-foreground">Клиентов</p>
+            <p className="text-2xl font-bold mt-1">{uniqueClientsCount}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-3 px-4">
+            <p className="text-sm text-muted-foreground">Неявки</p>
+            <p className="text-2xl font-bold mt-1 text-destructive">{noShowCount}</p>
           </CardContent>
         </Card>
       </div>
@@ -272,7 +378,7 @@ const BusinessSchedule = ({ businessId }: Props) => {
             <ScheduleEventBlock event={ev} top={geom.top} height={geom.height} onClick={() => setSelectedBooking(ev.raw)} />
           )}
         />
-      ) : (
+      ) : view === 'week' ? (
         <div className="space-y-4">
           {masters.map(master => {
             const masterBookingsTotal = filteredBookings.filter(b => b.executor_id === master.id).length;
@@ -390,6 +496,58 @@ const BusinessSchedule = ({ businessId }: Props) => {
             </Card>
           )}
         </div>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <ListFilter className="h-4 w-4" />
+              Операционный список записей
+            </CardTitle>
+            <CardDescription>
+              Полный список с фильтрами по клиенту, мастеру, ресурсу и статусу
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {filteredBookings.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-6 text-center">По текущим фильтрам записей нет</p>
+            ) : (
+              <div className="space-y-2 max-h-[640px] overflow-y-auto pr-1">
+                {filteredBookings.map(booking => {
+                  const client = `${booking.client?.first_name || ''} ${booking.client?.last_name || ''}`.trim() || 'Клиент';
+                  const master = `${booking.executor?.first_name || ''} ${booking.executor?.last_name || ''}`.trim() || 'Мастер';
+                  return (
+                    <div
+                      key={booking.id}
+                      className="grid gap-3 rounded-lg border p-3 cursor-pointer hover:border-primary/40 md:grid-cols-[150px_1.2fr_1fr_auto]"
+                      onClick={() => setSelectedBooking(booking)}
+                    >
+                      <div className="text-sm">
+                        <p className="font-medium">{format(parseISO(booking.scheduled_at), 'd MMM', { locale: ru })}</p>
+                        <p className="text-muted-foreground">{format(parseISO(booking.scheduled_at), 'HH:mm')}</p>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{booking.service?.name || 'Услуга'}</p>
+                        <p className="text-sm text-muted-foreground truncate">{client}</p>
+                        {booking.client?.phone && (
+                          <p className="text-xs text-muted-foreground truncate">{booking.client.phone}</p>
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm truncate">{master}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {booking.resource?.name || 'Без ресурса'}
+                        </p>
+                      </div>
+                      <div className="flex items-center justify-start md:justify-end">
+                        <Badge variant="outline">{statusLabel(booking.status)}</Badge>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       <AppointmentDetailDialog
