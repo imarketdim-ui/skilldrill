@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import Header from '@/components/landing/Header';
 import Footer from '@/components/landing/Footer';
+import { COMPANY_INFO } from '@/lib/companyInfo';
 
 const Privacy = () => {
   const navigate = useNavigate();
@@ -23,9 +24,9 @@ const Privacy = () => {
             
             <section className="space-y-3">
               <h2 className="text-xl font-semibold">1. Общие положения</h2>
-              <p>Настоящая Политика конфиденциальности (далее — «Политика») определяет порядок обработки и защиты персональных данных пользователей платформы SkillSpot (далее — «Платформа»), расположенной по адресу skilldrill.lovable.app.</p>
-              <p>Оператор персональных данных: ООО «СКИЛЛ СПОТ», ИНН 1901142926, КПП 190101001, ОГРН 1191901004272.</p>
-              <p>Юридический адрес: 655009, Россия, Республика Хакасия, г. Абакан, ул. Российская, д. 45Б.</p>
+              <p>Настоящая Политика конфиденциальности (далее — «Политика») определяет порядок обработки и защиты персональных данных пользователей платформы SkillSpot (далее — «Платформа»), расположенной по адресу {COMPANY_INFO.website}.</p>
+              <p>Оператор персональных данных: {COMPANY_INFO.legalName}, ИНН {COMPANY_INFO.inn}, КПП {COMPANY_INFO.kpp}, ОГРН {COMPANY_INFO.ogrn}.</p>
+              <p>Юридический адрес: {COMPANY_INFO.address}.</p>
               <p>Политика разработана в соответствии с Федеральным законом от 27.07.2006 № 152-ФЗ «О персональных данных» и Федеральным законом от 27.07.2006 № 149-ФЗ «Об информации, информационных технологиях и о защите информации».</p>
             </section>
             
@@ -107,10 +108,10 @@ const Privacy = () => {
             <section className="space-y-3">
               <h2 className="text-xl font-semibold">9. Контактная информация</h2>
               <p>По вопросам обработки персональных данных обращайтесь:</p>
-              <p>ООО «СКИЛЛ СПОТ»</p>
-              <p>Email: <a href="mailto:imp-invest@mail.ru" className="text-primary hover:underline">imp-invest@mail.ru</a></p>
-              <p>Телефон: <a href="tel:+78617440008" className="text-primary hover:underline">8 (617) 44-00-08</a></p>
-              <p>Адрес: 655009, Россия, Республика Хакасия, г. Абакан, ул. Российская, д. 45Б</p>
+              <p>{COMPANY_INFO.legalName}</p>
+              <p>Email: <a href={`mailto:${COMPANY_INFO.email}`} className="text-primary hover:underline">{COMPANY_INFO.email}</a></p>
+              <p>Телефон: <a href={`tel:${COMPANY_INFO.phoneHref}`} className="text-primary hover:underline">{COMPANY_INFO.phoneDisplay}</a></p>
+              <p>Адрес: {COMPANY_INFO.address}</p>
             </section>
           </div>
         </div>

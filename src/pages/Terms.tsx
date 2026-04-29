@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import Header from '@/components/landing/Header';
 import Footer from '@/components/landing/Footer';
+import { COMPANY_INFO } from '@/lib/companyInfo';
 
 const Terms = () => {
   const navigate = useNavigate();
@@ -23,8 +24,8 @@ const Terms = () => {
             
             <section className="space-y-3">
               <h2 className="text-xl font-semibold">1. Термины и определения</h2>
-              <p><strong>Оператор</strong> — ООО «СКИЛЛ СПОТ», ИНН 1901142926, ОГРН 1191901004272, юридический адрес: 655009, Россия, Республика Хакасия, г. Абакан, ул. Российская, д. 45Б.</p>
-              <p><strong>Платформа</strong> — онлайн-сервис SkillSpot, расположенный по адресу skilldrill.lovable.app, предоставляющий возможность записи на услуги и управления деятельностью специалистов.</p>
+              <p><strong>Оператор</strong> — {COMPANY_INFO.legalName}, ИНН {COMPANY_INFO.inn}, ОГРН {COMPANY_INFO.ogrn}, юридический адрес: {COMPANY_INFO.address}.</p>
+              <p><strong>Платформа</strong> — онлайн-сервис SkillSpot, расположенный по адресу {COMPANY_INFO.website}, предоставляющий возможность записи на услуги и управления деятельностью специалистов.</p>
               <p><strong>Пользователь</strong> — физическое лицо, зарегистрированное на Платформе.</p>
               <p><strong>Мастер (Специалист)</strong> — Пользователь, оказывающий услуги через Платформу.</p>
               <p><strong>Клиент</strong> — Пользователь, получающий услуги через Платформу.</p>
@@ -90,11 +91,11 @@ const Terms = () => {
 
             <section className="space-y-3">
               <h2 className="text-xl font-semibold">9. Реквизиты Оператора</h2>
-              <p>ООО «СКИЛЛ СПОТ»</p>
-              <p>ИНН: 1901142926 | КПП: 190101001 | ОГРН: 1191901004272</p>
-              <p>Адрес: 655009, Россия, Республика Хакасия, г. Абакан, ул. Российская, д. 45Б</p>
-              <p>Email: <a href="mailto:imp-invest@mail.ru" className="text-primary hover:underline">imp-invest@mail.ru</a></p>
-              <p>Телефон: <a href="tel:+78617440008" className="text-primary hover:underline">8 (617) 44-00-08</a></p>
+              <p>{COMPANY_INFO.legalName}</p>
+              <p>ИНН: {COMPANY_INFO.inn} | КПП: {COMPANY_INFO.kpp} | ОГРН: {COMPANY_INFO.ogrn}</p>
+              <p>Адрес: {COMPANY_INFO.address}</p>
+              <p>Email: <a href={`mailto:${COMPANY_INFO.email}`} className="text-primary hover:underline">{COMPANY_INFO.email}</a></p>
+              <p>Телефон: <a href={`tel:${COMPANY_INFO.phoneHref}`} className="text-primary hover:underline">{COMPANY_INFO.phoneDisplay}</a></p>
             </section>
           </div>
         </div>

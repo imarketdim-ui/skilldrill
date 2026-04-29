@@ -144,7 +144,7 @@ export default function UserScoreCard({ userId, viewMode }: UserScoreCardProps) 
     { label: "Подтверждение email", done: score.email_verified, icon: Mail, hint: "Подтвердите email-адрес" },
     { label: "Телефон подтверждён", done: score.phone_verified, icon: Phone, hint: "Подтвердите номер телефона по SMS" },
     { label: "Telegram привязан", done: score.has_telegram, icon: MessageCircle, hint: "Укажите Telegram в профиле мастера" },
-    { label: "KYC верификация", done: score.kyc_verified, icon: FileCheck, hint: "Пройдите верификацию личности" },
+    { label: "KYC верификация", done: score.kyc_verified, icon: FileCheck, hint: "Скоро будет добавлена" },
   ];
 
   const completedFactors = profileFactors.filter(f => f.done).length;

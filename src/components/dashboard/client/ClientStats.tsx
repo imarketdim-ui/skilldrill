@@ -53,7 +53,7 @@ const PROFILE_ITEMS = [
   { key: 'avatar_url', label: 'Фото профиля', desc: 'Фото значительно повышает доверие' },
   { key: 'phone', label: 'Телефон', desc: 'Мастера могут связаться с вами' },
   { key: 'bio', label: 'О себе', desc: 'Краткое описание о вас' },
-  { key: 'kyc_verified', label: 'KYC верификация', desc: 'Подтверждение личности — наивысший уровень доверия' },
+  { key: 'kyc_verified', label: 'KYC верификация', desc: 'Скоро будет добавлена' },
 ];
 
 type MetricKey = 'no_show' | 'cancel_1h' | 'cancel_3h' | 'vip' | 'blacklist';

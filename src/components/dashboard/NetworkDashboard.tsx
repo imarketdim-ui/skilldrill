@@ -202,6 +202,7 @@ const NetworkDashboard = () => {
         <TabsContent value="subscription">
           <SubscriptionManager
             entityType="network"
+            entityId={selectedNetwork?.id}
             subscriptionStatus={selectedNetwork?.subscription_status || 'trial'}
             trialStartDate={selectedNetwork?.trial_start_date}
             trialDays={14}

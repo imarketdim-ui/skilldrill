@@ -2856,6 +2856,8 @@ export type Database = {
           phone: string | null
           phone_verified_at: string | null
           platform_role: Database["public"]["Enums"]["platform_role"]
+          priority_business_id: string | null
+          priority_master_profile_id: string | null
           privacy_settings: Json | null
           referred_by: string | null
           reminder_minutes: number | null
@@ -2879,6 +2881,8 @@ export type Database = {
           phone?: string | null
           phone_verified_at?: string | null
           platform_role?: Database["public"]["Enums"]["platform_role"]
+          priority_business_id?: string | null
+          priority_master_profile_id?: string | null
           privacy_settings?: Json | null
           referred_by?: string | null
           reminder_minutes?: number | null
@@ -2902,6 +2906,8 @@ export type Database = {
           phone?: string | null
           phone_verified_at?: string | null
           platform_role?: Database["public"]["Enums"]["platform_role"]
+          priority_business_id?: string | null
+          priority_master_profile_id?: string | null
           privacy_settings?: Json | null
           referred_by?: string | null
           reminder_minutes?: number | null

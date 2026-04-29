@@ -8,6 +8,7 @@ import {
   tierAllowsSection,
   getRequiredTier,
 } from '@/lib/tierSections';
+import { resolvePreferredBusinessId } from '@/lib/subscriptionFallback';
 
 export type SubscriptionTier = SubscriptionTierKey;
 
@@ -63,6 +64,15 @@ export function useSubscriptionTier(userId?: string): SubscriptionState {
   const fetchTier = async () => {
     if (!userId) { setLoading(false); return; }
 
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('priority_business_id, priority_master_profile_id')
+      .eq('id', userId)
+      .maybeSingle();
+
+    const priorityBusinessId = profile?.priority_business_id ?? null;
+    const priorityMasterProfileId = profile?.priority_master_profile_id ?? null;
+
     // Network — высший тариф
     const { data: networks } = await supabase
       .from('networks')
@@ -101,9 +111,15 @@ export function useSubscriptionTier(userId?: string): SubscriptionState {
       .select('id, subscription_status, trial_start_date, last_payment_date')
       .eq('owner_id', userId);
 
-    const activeBiz = (businesses || []).find(b =>
+    const activeBusinesses = (businesses || []).filter(b =>
       b.subscription_status === 'active' || b.subscription_status === 'trial'
     );
+    const preferredBusinessId = resolvePreferredBusinessId(
+      activeBusinesses.map(b => b.id),
+      priorityBusinessId,
+      activeBusinesses[0]?.id ?? null,
+    );
+    const activeBiz = activeBusinesses.find(b => b.id === preferredBusinessId);
 
     if (activeBiz) {
       setTier('business');
@@ -122,11 +138,12 @@ export function useSubscriptionTier(userId?: string): SubscriptionState {
       .maybeSingle();
 
     if (master) {
+      const effectiveMasterId = priorityMasterProfileId === master.id ? priorityMasterProfileId : master.id;
       const mStatus = master.subscription_status;
       if (mStatus === 'active' || mStatus === 'trial') {
         setTier('master');
         setStatus(mStatus as any);
-        setPrimaryEntityId(master.id);
+        setPrimaryEntityId(effectiveMasterId);
 
         if (mStatus === 'trial' && master.trial_start_date) {
           const trialEnd = new Date(master.trial_start_date);
@@ -140,15 +157,21 @@ export function useSubscriptionTier(userId?: string): SubscriptionState {
       if (mStatus === 'grace' || mStatus === 'expired' || mStatus === 'suspended') {
         setTier('master');
         setStatus(mStatus === 'grace' ? 'grace' : 'expired');
-        setPrimaryEntityId(master.id);
+        setPrimaryEntityId(effectiveMasterId);
         setLoading(false);
         return;
       }
     }
 
-    const expiredBiz = (businesses || []).find(b =>
+    const expiredBusinesses = (businesses || []).filter(b =>
       b.subscription_status === 'grace' || b.subscription_status === 'expired' || b.subscription_status === 'suspended'
     );
+    const preferredExpiredBusinessId = resolvePreferredBusinessId(
+      expiredBusinesses.map(b => b.id),
+      priorityBusinessId,
+      expiredBusinesses[0]?.id ?? null,
+    );
+    const expiredBiz = expiredBusinesses.find(b => b.id === preferredExpiredBusinessId);
     if (expiredBiz) {
       setTier('business');
       setStatus('expired');

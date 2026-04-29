@@ -14,6 +14,7 @@ import { SubscriptionTierKey } from '@/lib/tierSections';
 
 interface SubscriptionManagerProps {
   entityType: 'master' | 'business' | 'network';
+  entityId?: string | null;
   subscriptionStatus: string;
   trialStartDate?: string | null;
   trialDays?: number;
@@ -33,6 +34,7 @@ const periods = [
 
 const SubscriptionManager = ({
   entityType,
+  entityId,
   subscriptionStatus,
   trialStartDate,
   trialDays = 14,
@@ -126,17 +128,17 @@ const SubscriptionManager = ({
         await supabase.from('master_profiles').update({
           subscription_status: 'active',
           last_payment_date: now,
-        }).eq('user_id', user.id);
+        }).eq('id', entityId);
       } else if (entityType === 'business') {
         await supabase.from('business_locations').update({
           subscription_status: 'active',
           last_payment_date: now,
-        }).eq('owner_id', user.id);
+        }).eq('id', entityId);
       } else if (entityType === 'network') {
         await supabase.from('networks').update({
           subscription_status: 'active',
           last_payment_date: now,
-        }).eq('owner_id', user.id);
+        }).eq('id', entityId);
       }
 
       setBalance(balance - totalPrice);

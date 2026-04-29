@@ -4,6 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Header from '@/components/landing/Header';
 import Footer from '@/components/landing/Footer';
+import { COMPANY_INFO } from '@/lib/companyInfo';
 
 const Offer = () => {
   const navigate = useNavigate();
@@ -24,9 +25,9 @@ const Offer = () => {
             
             <section className="space-y-3">
               <h2 className="text-xl font-semibold">1. Общие положения</h2>
-              <p>Настоящий документ является официальным предложением (публичной офертой) ООО «СКИЛЛ СПОТ» (далее — «Оператор») на заключение договора оказания услуг по предоставлению доступа к платформе SkillSpot.</p>
-              <p>Оператор: ООО «СКИЛЛ СПОТ», ИНН 1901142926, КПП 190101001, ОГРН 1191901004272.</p>
-              <p>Юридический адрес: 655009, Россия, Республика Хакасия, г. Абакан, ул. Российская, д. 45Б.</p>
+              <p>Настоящий документ является официальным предложением (публичной офертой) {COMPANY_INFO.legalName} (далее — «Оператор») на заключение договора оказания услуг по предоставлению доступа к платформе SkillSpot.</p>
+              <p>Оператор: {COMPANY_INFO.legalName}, ИНН {COMPANY_INFO.inn}, КПП {COMPANY_INFO.kpp}, ОГРН {COMPANY_INFO.ogrn}.</p>
+              <p>Юридический адрес: {COMPANY_INFO.address}.</p>
               <p>Акцептом настоящей оферты является регистрация на Платформе и/или оплата подписки.</p>
             </section>
             
@@ -55,7 +56,7 @@ const Offer = () => {
                 <li>При отказе после 14 дней — пропорциональный возврат за неиспользованный период</li>
                 <li>Возврат осуществляется на банковскую карту, с которой была произведена оплата, в течение 10 рабочих дней</li>
               </ul>
-              <p>Для оформления возврата обратитесь по адресу: <a href="mailto:imp-invest@mail.ru" className="text-primary hover:underline">imp-invest@mail.ru</a></p>
+              <p>Для оформления возврата обратитесь по адресу: <a href={`mailto:${COMPANY_INFO.email}`} className="text-primary hover:underline">{COMPANY_INFO.email}</a></p>
             </section>
             
             <section className="space-y-3">
@@ -101,11 +102,11 @@ const Offer = () => {
             
             <section className="space-y-3">
               <h2 className="text-xl font-semibold">9. Реквизиты Оператора</h2>
-              <p><strong>ООО «СКИЛЛ СПОТ»</strong></p>
-              <p>ИНН: 1901142926 | КПП: 190101001 | ОГРН: 1191901004272</p>
-              <p>Юридический адрес: 655009, Россия, Республика Хакасия, г. Абакан, ул. Российская, д. 45Б</p>
-              <p>Email: <a href="mailto:imp-invest@mail.ru" className="text-primary hover:underline">imp-invest@mail.ru</a></p>
-              <p>Телефон: <a href="tel:+78617440008" className="text-primary hover:underline">8 (961) 744-00-08</a></p>
+              <p><strong>{COMPANY_INFO.legalName}</strong></p>
+              <p>ИНН: {COMPANY_INFO.inn} | КПП: {COMPANY_INFO.kpp} | ОГРН: {COMPANY_INFO.ogrn}</p>
+              <p>Юридический адрес: {COMPANY_INFO.address}</p>
+              <p>Email: <a href={`mailto:${COMPANY_INFO.email}`} className="text-primary hover:underline">{COMPANY_INFO.email}</a></p>
+              <p>Телефон: <a href={`tel:${COMPANY_INFO.phoneHref}`} className="text-primary hover:underline">{COMPANY_INFO.phoneDisplay}</a></p>
             </section>
           </div>
         </div>

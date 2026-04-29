@@ -762,7 +762,11 @@ const BusinessDashboard = () => {
     const { data } = await supabase.from('business_locations').select('*').eq('owner_id', user.id);
     setBusinesses(data || []);
     if (data && data.length > 0) {
-      const target = activeEntityId ? data.find(b => b.id === activeEntityId) || data[0] : data[0];
+      const target = activeEntityId
+        ? data.find(b => b.id === activeEntityId)
+          || data.find(b => b.id === subscription.primaryEntityId)
+          || data[0]
+        : data.find(b => b.id === subscription.primaryEntityId) || data[0];
       setSelectedBusiness(target);
       const [mRes, sRes] = await Promise.all([
         supabase.from('business_masters').select('id', { count: 'exact', head: true }).eq('business_id', target.id).eq('status', 'accepted'),
@@ -772,7 +776,7 @@ const BusinessDashboard = () => {
       setServiceCount(sRes.count || 0);
     }
     setLoading(false);
-  }, [user, activeEntityId]);
+  }, [user, activeEntityId, subscription.primaryEntityId]);
 
   useEffect(() => { fetchBusinesses(); }, [fetchBusinesses]);
 
@@ -980,6 +984,7 @@ const BusinessDashboard = () => {
         return (
           <SubscriptionManager
             entityType="business"
+            entityId={selectedBusiness?.id}
             subscriptionStatus={selectedBusiness?.subscription_status || 'trial'}
             trialStartDate={selectedBusiness?.trial_start_date}
             trialDays={14}

@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import { COMPANY_INFO, PAYMENT_METHODS } from "@/lib/companyInfo";
 
 const footerLinks = {
   product: [
@@ -17,6 +18,7 @@ const footerLinks = {
     { label: "Политика конфиденциальности", href: "/privacy" },
     { label: "Пользовательское соглашение", href: "/terms" },
     { label: "Публичная оферта", href: "/offer" },
+    { label: "Возвраты и отмены", href: "/refunds" },
   ],
 };
 
@@ -38,9 +40,9 @@ const Footer = () => {
               Платформа услуг. Объединяем клиентов и специалистов на одной платформе.
             </p>
             <div className="text-white/40 text-xs space-y-1">
-              <p>ООО «СКИЛЛ СПОТ» · ИНН 1901142926 · ОГРН 1191901004272</p>
-              <p>655009, Республика Хакасия, г. Абакан, ул. Российская, д. 45Б</p>
-              <p>Email: imp-invest@mail.ru · Тел: 8 (961) 744-00-08</p>
+              <p>{COMPANY_INFO.legalName} · ИНН {COMPANY_INFO.inn} · ОГРН {COMPANY_INFO.ogrn}</p>
+              <p>{COMPANY_INFO.address}</p>
+              <p>Email: {COMPANY_INFO.email} · Тел: {COMPANY_INFO.phoneDisplay}</p>
             </div>
           </div>
 
@@ -78,9 +80,24 @@ const Footer = () => {
           </div>
         </div>
 
-        <div className="pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-white/40 text-sm">© 2026 ООО «СКИЛЛ СПОТ». Все права защищены.</p>
-          <p className="text-white/40 text-sm">Платежи обрабатываются АО «Тинькофф Банк»</p>
+        <div className="grid gap-4 border-t border-white/10 pt-8 md:grid-cols-[1fr_auto] md:items-center">
+          <div className="space-y-3">
+            <p className="text-sm text-white/40">© 2026 {COMPANY_INFO.legalName}. Все права защищены.</p>
+            <div className="flex flex-wrap gap-2">
+              {PAYMENT_METHODS.map((method) => (
+                <span key={method} className="rounded-full border border-white/15 px-2.5 py-1 text-xs text-white/60">
+                  {method}
+                </span>
+              ))}
+              <span className="rounded-full border border-white/15 px-2.5 py-1 text-xs text-white/60">
+                Эквайринг: {COMPANY_INFO.paymentProvider}
+              </span>
+            </div>
+          </div>
+          <div className="space-y-1 text-right text-sm text-white/40">
+            <p>Возвраты и претензии: <Link to="/refunds" className="text-white/70 transition-colors hover:text-white">порядок возврата</Link></p>
+            <p>Поддержка: <a href={`mailto:${COMPANY_INFO.email}`} className="text-white/70 transition-colors hover:text-white">{COMPANY_INFO.email}</a></p>
+          </div>
         </div>
       </div>
     </footer>

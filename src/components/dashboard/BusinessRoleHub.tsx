@@ -7,9 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Wrench, Building2, Briefcase, ChevronRight, Plus, Loader2, Crown, Lock, CreditCard, AlertTriangle, Shield } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useSubscriptionTier } from '@/hooks/useSubscriptionTier';
 import SubscriptionManager from './SubscriptionManager';
 import { usePlatformPricing } from '@/hooks/usePlatformPricing';
+import { useToast } from '@/hooks/use-toast';
+import { resolvePreferredBusinessId, resolvePreferredMasterProfileId } from '@/lib/subscriptionFallback';
 
 interface SubRole {
   id: string;
@@ -31,9 +34,15 @@ const BusinessRoleHub = ({ onSelect, onBack }: BusinessRoleHubProps) => {
   const navigate = useNavigate();
   const pricing = usePlatformPricing();
   const subscription = useSubscriptionTier(user?.id);
+  const { toast } = useToast();
   const [subRoles, setSubRoles] = useState<SubRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasMaster, setHasMaster] = useState(false);
+  const [ownedBusinesses, setOwnedBusinesses] = useState<Array<{ id: string; name: string }>>([]);
+  const [masterOptions, setMasterOptions] = useState<Array<{ id: string; label: string }>>([]);
+  const [priorityBusinessId, setPriorityBusinessId] = useState<string | null>(null);
+  const [priorityMasterId, setPriorityMasterId] = useState<string | null>(null);
+  const [savingPriorities, setSavingPriorities] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -44,6 +53,12 @@ const BusinessRoleHub = ({ onSelect, onBack }: BusinessRoleHubProps) => {
     if (!user) return;
     const entries: SubRole[] = [];
     const isExpired = subscription.isReadOnly;
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('priority_business_id, priority_master_profile_id')
+      .eq('id', user.id)
+      .maybeSingle();
 
     // Master profile
     const { data: masterProfile } = await supabase
@@ -64,8 +79,21 @@ const BusinessRoleHub = ({ onSelect, onBack }: BusinessRoleHubProps) => {
         role: 'master',
         disabled: isExpired,
       });
+      const masterChoice = resolvePreferredMasterProfileId(
+        [masterProfile.id],
+        profile?.priority_master_profile_id ?? null,
+      );
+      setMasterOptions([
+        {
+          id: masterProfile.id,
+          label: bizName ? `Мастер в «${bizName}»` : 'Соло мастер',
+        },
+      ]);
+      setPriorityMasterId(masterChoice);
     } else {
       setHasMaster(false);
+      setMasterOptions([]);
+      setPriorityMasterId(null);
     }
 
     // Business owner
@@ -74,8 +102,22 @@ const BusinessRoleHub = ({ onSelect, onBack }: BusinessRoleHubProps) => {
       .select('id, name, subscription_status')
       .eq('owner_id', user.id);
 
+    const businessChoices = (businesses || []).map(biz => ({ id: biz.id, name: biz.name }));
+    setOwnedBusinesses(businessChoices);
+    const effectivePriorityBusinessId = resolvePreferredBusinessId(
+      businessChoices.map(b => b.id),
+      profile?.priority_business_id ?? null,
+      businessChoices[0]?.id ?? null,
+    );
+    setPriorityBusinessId(effectivePriorityBusinessId);
+
     (businesses || []).forEach(biz => {
       const canAccess = subscription.tier === 'network' || subscription.tier === 'business';
+      const lockedByDowngrade =
+        subscription.tier === 'business' &&
+        !isExpired &&
+        effectivePriorityBusinessId !== null &&
+        biz.id !== effectivePriorityBusinessId;
       entries.push({
         id: `biz-owner-${biz.id}`,
         entityId: biz.id,
@@ -83,7 +125,7 @@ const BusinessRoleHub = ({ onSelect, onBack }: BusinessRoleHubProps) => {
         sublabel: 'Владелец',
         icon: <Building2 className="h-5 w-5" />,
         role: 'business_owner',
-        disabled: isExpired || (!canAccess && subscription.tier === 'master'),
+        disabled: isExpired || (!canAccess && subscription.tier === 'master') || lockedByDowngrade,
       });
     });
 
@@ -176,6 +218,29 @@ const BusinessRoleHub = ({ onSelect, onBack }: BusinessRoleHubProps) => {
   const handleSelect = (sr: SubRole) => {
     if (sr.disabled) return;
     onSelect(sr.role, sr.entityId);
+  };
+
+  const savePriorities = async () => {
+    if (!user) return;
+    setSavingPriorities(true);
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        priority_business_id: priorityBusinessId,
+        priority_master_profile_id: priorityMasterId,
+      })
+      .eq('id', user.id);
+
+    setSavingPriorities(false);
+
+    if (error) {
+      toast({ title: 'Не удалось сохранить приоритеты', description: error.message, variant: 'destructive' });
+      return;
+    }
+
+    toast({ title: 'Сценарий понижения сохранён', description: 'Приоритетные сущности обновлены.' });
+    fetchData();
+    subscription.refetch();
   };
 
   const canCreateMaster = !hasMaster;
@@ -291,6 +356,15 @@ const BusinessRoleHub = ({ onSelect, onBack }: BusinessRoleHubProps) => {
                     {sr.disabled && subscription.tier === 'master' && sr.role !== 'master' && (
                       <p className="text-xs text-destructive mt-0.5">Доступно на тарифе «Бизнес» и выше</p>
                     )}
+                    {sr.role === 'business_owner' && priorityBusinessId === sr.entityId && (
+                      <p className="text-xs text-primary mt-0.5">Сохраняется при понижении до тарифа «Про»</p>
+                    )}
+                    {sr.role === 'master' && priorityMasterId === sr.entityId && (
+                      <p className="text-xs text-primary mt-0.5">Сохраняется при понижении до тарифа «Мастер»</p>
+                    )}
+                    {sr.disabled && subscription.tier === 'business' && sr.role === 'business_owner' && !isExpired && (
+                      <p className="text-xs text-destructive mt-0.5">На тарифе «Про» активна только приоритетная точка</p>
+                    )}
                     {sr.disabled && isExpired && (
                       <p className="text-xs text-destructive mt-0.5">Подписка истекла — только просмотр</p>
                     )}
@@ -301,6 +375,62 @@ const BusinessRoleHub = ({ onSelect, onBack }: BusinessRoleHubProps) => {
             </Card>
           ))}
         </div>
+      )}
+
+      {(ownedBusinesses.length > 0 || masterOptions.length > 0) && (
+        <Card>
+          <CardContent className="space-y-4 py-4 px-5">
+            <div>
+              <p className="font-medium text-sm">Сценарий понижения тарифа</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Выберите, какая точка остаётся основной при понижении до «Про», и какой мастер-кабинет остаётся активным при понижении до «Мастер».
+              </p>
+            </div>
+
+            {ownedBusinesses.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Приоритетная точка</p>
+                <Select value={priorityBusinessId ?? undefined} onValueChange={setPriorityBusinessId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Выберите точку" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ownedBusinesses.map((business) => (
+                      <SelectItem key={business.id} value={business.id}>
+                        {business.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {masterOptions.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Приоритетный мастер-кабинет</p>
+                <Select value={priorityMasterId ?? undefined} onValueChange={setPriorityMasterId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Выберите кабинет" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {masterOptions.map((master) => (
+                      <SelectItem key={master.id} value={master.id}>
+                        {master.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <div className="flex justify-end">
+              <Button size="sm" onClick={savePriorities} disabled={savingPriorities}>
+                {savingPriorities ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Сохранить сценарий
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Creation options */}

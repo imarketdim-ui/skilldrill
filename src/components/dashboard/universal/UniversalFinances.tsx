@@ -95,6 +95,7 @@ const UniversalFinances = ({ config, masterProfile }: Props) => {
         <TabsContent value="subscription">
           <SubscriptionManager
             entityType="master"
+            entityId={masterProfile?.id}
             subscriptionStatus={masterProfile?.subscription_status || 'inactive'}
             trialStartDate={masterProfile?.trial_start_date}
             trialDays={masterProfile?.trial_days || 14}

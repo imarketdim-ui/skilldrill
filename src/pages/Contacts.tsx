@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Mail, Phone, MapPin, Building2 } from 'lucide-react';
 import Header from '@/components/landing/Header';
 import Footer from '@/components/landing/Footer';
+import { COMPANY_INFO } from '@/lib/companyInfo';
 
 const Contacts = () => {
   const navigate = useNavigate();
@@ -27,10 +28,10 @@ const Contacts = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
-                <p className="font-semibold">ООО «СКИЛЛ СПОТ»</p>
-                <p>ИНН: 1901142926</p>
-                <p>КПП: 190101001</p>
-                <p>ОГРН: 1191901004272</p>
+                <p className="font-semibold">{COMPANY_INFO.legalName}</p>
+                <p>ИНН: {COMPANY_INFO.inn}</p>
+                <p>КПП: {COMPANY_INFO.kpp}</p>
+                <p>ОГРН: {COMPANY_INFO.ogrn}</p>
               </CardContent>
             </Card>
 
@@ -41,7 +42,7 @@ const Contacts = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                <p>Общие вопросы: <a href="mailto:imp-invest@mail.ru" className="text-primary hover:underline">imp-invest@mail.ru</a></p>
+                <p>Общие вопросы: <a href={`mailto:${COMPANY_INFO.email}`} className="text-primary hover:underline">{COMPANY_INFO.email}</a></p>
               </CardContent>
             </Card>
             
@@ -52,7 +53,7 @@ const Contacts = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                <p><a href="tel:+79617440008" className="text-primary hover:underline">8 (961) 744-00-08</a></p>
+                <p><a href={`tel:${COMPANY_INFO.phoneHref}`} className="text-primary hover:underline">{COMPANY_INFO.phoneDisplay}</a></p>
               </CardContent>
             </Card>
             
@@ -63,8 +64,7 @@ const Contacts = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p>655009, Россия, Республика Хакасия,</p>
-                <p>г. Абакан, ул. Российская, д. 45Б</p>
+                <p>{COMPANY_INFO.address}</p>
               </CardContent>
             </Card>
           </div>

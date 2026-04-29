@@ -27,6 +27,7 @@ import About from "./pages/About";
 import ForBusiness from "./pages/ForBusiness";
 import CreateOrganization from "./pages/CreateOrganization";
 import Referral from "./pages/Referral";
+import Refunds from "./pages/Refunds";
 import NotFound from "./pages/NotFound";
 import AcceptInvite from "./pages/AcceptInvite";
 import StressTest from "./pages/StressTest";
@@ -64,6 +65,7 @@ const App = () => (
               <Route path="/terms" element={<Terms />} />
               <Route path="/offer" element={<Offer />} />
               <Route path="/contacts" element={<Contacts />} />
+              <Route path="/refunds" element={<Refunds />} />
               <Route path="/referral" element={<Referral />} />
               <Route
                 path="/admin/stress-test"

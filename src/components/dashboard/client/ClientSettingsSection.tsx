@@ -505,10 +505,9 @@ const ClientSettingsSection = () => {
             <div className="space-y-2">
               <Label>KYC верификация</Label>
               <div className="p-3 rounded-lg border bg-muted/50 flex items-center gap-2">
-                {(profile as any)?.kyc_verified
-                  ? <Badge className="gap-1"><Check className="h-3 w-3" /> Верифицирован</Badge>
-                  : <p className="text-sm text-muted-foreground flex items-center gap-2"><Lock className="h-4 w-4" /> Верификация увеличивает доверие мастеров к вам</p>
-                }
+                <p className="text-sm text-muted-foreground flex items-center gap-2">
+                  <Lock className="h-4 w-4" /> Скоро будет добавлен
+                </p>
               </div>
             </div>
 

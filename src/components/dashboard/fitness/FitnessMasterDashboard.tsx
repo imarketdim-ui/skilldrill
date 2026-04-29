@@ -67,6 +67,7 @@ const FitnessMasterDashboard = ({ masterProfile, isSubscriptionActive }: Props) 
       case 'subscription': return (
         <SubscriptionManager
           entityType="master"
+          entityId={masterProfile?.id}
           subscriptionStatus={masterProfile?.subscription_status || 'inactive'}
           trialStartDate={masterProfile?.trial_start_date}
           trialDays={masterProfile?.trial_days || 14}

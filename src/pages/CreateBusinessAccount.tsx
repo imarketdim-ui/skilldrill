@@ -147,18 +147,25 @@ const CreateBusinessAccount = () => {
       if (accountType === 'master') {
         const existingCat = existingMasterProfiles.find(mp => mp.category_id === form.category_id);
         if (existingCat) { toast({ title: 'У вас уже есть профиль в этой категории', variant: 'destructive' }); setIsSubmitting(false); return; }
-        const { error: insertError } = await supabase.from('master_profiles').insert({
+        const { data: createdMaster, error: insertError } = await supabase.from('master_profiles').insert({
           user_id: user.id, category_id: form.category_id,
           subscription_status: 'trial', trial_start_date: new Date().toISOString(),
           trial_days: form.promo_code ? 45 : 14, promo_code_used: form.promo_code || null,
           moderation_status: 'draft', is_active: true,
-        });
+        }).select('id').single();
         if (insertError) throw new Error(insertError.message);
+        if (createdMaster?.id) {
+          await supabase
+            .from('profiles')
+            .update({ priority_master_profile_id: createdMaster.id })
+            .eq('id', user.id)
+            .is('priority_master_profile_id', null);
+        }
         const { error: roleError } = await supabase.rpc('assign_role_on_account_creation', { _user_id: user.id, _role: 'master' });
         if (roleError) console.error('Role assignment failed:', roleError);
         toast({ title: 'Аккаунт мастера создан!', description: 'Заполните профиль для прохождения модерации.' });
       } else if (accountType === 'business') {
-        const { error: insertError } = await supabase.from('business_locations').insert({
+        const { data: createdBusiness, error: insertError } = await supabase.from('business_locations').insert({
           owner_id: user.id, name: form.business_name, inn: form.business_inn,
           legal_form: form.business_legal_form, address: form.business_address || '',
           city: form.business_city || null, description: form.business_description || null,
@@ -166,8 +173,15 @@ const CreateBusinessAccount = () => {
           director_name: form.director_name, moderation_status: 'draft',
           onboarding_status: 'in_progress',
           latitude: form.business_lat || null, longitude: form.business_lng || null,
-        });
+        }).select('id').single();
         if (insertError) throw new Error(insertError.message);
+        if (createdBusiness?.id) {
+          await supabase
+            .from('profiles')
+            .update({ priority_business_id: createdBusiness.id })
+            .eq('id', user.id)
+            .is('priority_business_id', null);
+        }
         const { error: roleError } = await supabase.rpc('assign_role_on_account_creation', { _user_id: user.id, _role: 'business_owner' });
         if (roleError) console.error('Role assignment failed:', roleError);
         toast({ title: 'Бизнес-аккаунт создан!', description: 'Заполните профиль и добавьте услуги.' });
@@ -394,6 +408,15 @@ const CreateBusinessAccount = () => {
 
                 {accountType === 'business' && renderEntityForm('business')}
                 {accountType === 'network' && renderEntityForm('network')}
+
+                {(accountType === 'business' || accountType === 'master') && (
+                  <div className="rounded-lg border bg-muted/40 p-3">
+                    <p className="text-sm font-medium">Приоритетная сущность для понижения тарифа</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      После создания этот аккаунт будет выбран как основной для сценария понижения тарифа. Позже настройку можно изменить в бизнес-хабе.
+                    </p>
+                  </div>
+                )}
 
                 <div className="flex gap-4 pt-4">
                   <Button type="button" variant="outline" onClick={() => { setAccountType(null); updateForm({}); }} className="flex-1">Назад</Button>
