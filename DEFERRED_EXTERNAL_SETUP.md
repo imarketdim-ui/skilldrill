@@ -6,13 +6,12 @@
 
 - Визуальные кнопки входа через `Google` и `VK ID`
 - Видимый flow подтверждения телефона по SMS
-- Автоматическая привязка Telegram через webhook
 
 ## What Still Exists In Code
 
 - OAuth callback flow и backend-совместимость для `Google` и `VK ID`
 - Логика phone verification и подготовленная миграция
-- Telegram edge functions и отправка уведомлений в уже привязанные чаты
+- Telegram edge functions, привязка через бота и отправка уведомлений в привязанные чаты
 
 ## To Resume Later
 
@@ -30,4 +29,3 @@
 ### Telegram
 
 - Зарегистрировать `telegram-webhook` в Telegram Bot API
-- Вернуть UI для автоматической привязки Telegram

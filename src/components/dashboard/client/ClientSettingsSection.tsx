@@ -148,6 +148,7 @@ const ClientSettingsSection = () => {
   const [cropDialog, setCropDialog] = useState<{ open: boolean; url: string; file: File | null }>({ open: false, url: '', file: null });
   const [copiedId, setCopiedId] = useState(false);
   const [formData, setFormData] = useState<ProfileFormData>({ first_name: '', last_name: '', bio: '', telegram: '', birthday: '', gender: '' });
+  const [openingTelegram, setOpeningTelegram] = useState(false);
   const [sendingTelegramTest, setSendingTelegramTest] = useState(false);
   const [phoneDraft, setPhoneDraft] = useState('');
 
@@ -278,6 +279,26 @@ const ClientSettingsSection = () => {
     } else {
       navigator.clipboard.writeText(text);
       toast({ title: 'Скопировано для отправки' });
+    }
+  };
+
+  const handleTelegramLink = async () => {
+    setOpeningTelegram(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-telegram-link-token');
+      if (error) throw error;
+
+      const token = data?.token;
+      if (!token) {
+        throw new Error('Не удалось создать токен привязки Telegram');
+      }
+
+      window.open(`https://t.me/skillspot_bot?start=${token}`, '_blank', 'noopener,noreferrer');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Не удалось открыть привязку Telegram';
+      toast({ title: 'Ошибка', description: message, variant: 'destructive' });
+    } finally {
+      setOpeningTelegram(false);
     }
   };
 
@@ -455,9 +476,21 @@ const ClientSettingsSection = () => {
                     </Button>
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">
-                    Автоматическую привязку Telegram временно скрыли. Уже привязанные аккаунты продолжат получать уведомления.
-                  </p>
+                  <>
+                    <p className="text-sm text-muted-foreground">
+                      Подключите Telegram через бота, чтобы получать уведомления о записях и сообщениях.
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleTelegramLink}
+                      disabled={openingTelegram}
+                    >
+                      {openingTelegram ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                      Открыть бота и привязать
+                    </Button>
+                  </>
                 )}
               </div>
             </div>
