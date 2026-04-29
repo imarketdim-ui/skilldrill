@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,6 +46,7 @@ const TAB_ACCESS: Record<string, AdminSubRole[]> = {
 };
 
 const AdminDashboard = ({ modeOverride, titleOverride, descriptionOverride }: AdminDashboardProps) => {
+  const [searchParams] = useSearchParams();
   const { user, activeRole } = useAuth();
   const { toast } = useToast();
   const [roleRequests, setRoleRequests] = useState<any[]>([]);
@@ -54,6 +56,7 @@ const AdminDashboard = ({ modeOverride, titleOverride, descriptionOverride }: Ad
   const [loading, setLoading] = useState(true);
   const [rejectReason, setRejectReason] = useState<Record<string, string>>({});
   const [unreadSupport, setUnreadSupport] = useState(0);
+  const [activeTab, setActiveTab] = useState('support');
 
   const subRole = (modeOverride || activeRole) as AdminSubRole;
   const canAccess = (tab: string) => {
@@ -63,8 +66,22 @@ const AdminDashboard = ({ modeOverride, titleOverride, descriptionOverride }: Ad
   const defaultTab = visibleTabs[0] || 'support';
 
   useEffect(() => {
+    if (!visibleTabs.includes(activeTab)) {
+      setActiveTab(defaultTab);
+    }
+  }, [activeTab, defaultTab, visibleTabs]);
+
+  useEffect(() => {
     if (user) loadData();
   }, [user]);
+
+  useEffect(() => {
+    const section = searchParams.get('section');
+    const tab = searchParams.get('tab');
+    if (section === 'support' || tab === 'support') {
+      setActiveTab('support');
+    }
+  }, [searchParams]);
 
   const loadData = async () => {
     const [rr, cr, dp, unreadRes] = await Promise.all([
@@ -225,7 +242,7 @@ const AdminDashboard = ({ modeOverride, titleOverride, descriptionOverride }: Ad
         )}
       </div>
 
-      <Tabs defaultValue={defaultTab} className="space-y-4">
+      <Tabs value={activeTab || defaultTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="flex-wrap">
           {canAccess('moderation') && <TabsTrigger value="moderation"><Eye className="h-4 w-4 mr-1" /> Модерация {(moderationItems.length + pendingRoles + pendingCategories) > 0 && <Badge className="ml-1" variant="destructive">{moderationItems.length + pendingRoles + pendingCategories}</Badge>}</TabsTrigger>}
           {canAccess('users') && <TabsTrigger value="users"><Users className="h-4 w-4 mr-1" /> Пользователи</TabsTrigger>}

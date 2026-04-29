@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -52,7 +52,9 @@ const ClientDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const [searchParams] = useSearchParams();
   const [activeSection, setActiveSection] = useState('overview');
+  const [communicationTab, setCommunicationTab] = useState<'chats' | 'requests' | 'support'>('chats');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [copied, setCopied] = useState(false);
   const [cabinetBalance, setCabinetBalance] = useState(0);
@@ -101,6 +103,26 @@ const ClientDashboard = () => {
     });
   }, [user]);
 
+  useEffect(() => {
+    const section = searchParams.get('section');
+    const tab = searchParams.get('tab');
+    const contact = searchParams.get('contact');
+
+    if (section && ['overview', 'bookings', 'favorites', 'reviews', 'communication', 'notifications', 'stats', 'wallet', 'settings'].includes(section)) {
+      setActiveSection(section);
+    }
+
+    if (tab && ['chats', 'requests', 'support'].includes(tab)) {
+      setCommunicationTab(tab as 'chats' | 'requests' | 'support');
+    }
+
+    if (section === 'communication' && contact) {
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('open-chat-with', { detail: contact }));
+      }, 150);
+    }
+  }, [searchParams]);
+
   const handleCopyId = () => {
     if (profile?.skillspot_id) {
       navigator.clipboard.writeText(profile.skillspot_id);
@@ -134,7 +156,7 @@ const ClientDashboard = () => {
               <CardDescription>Чаты, запросы и техподдержка</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
-              <Tabs defaultValue="chats" className="w-full">
+              <Tabs value={communicationTab} onValueChange={(value) => setCommunicationTab(value as 'chats' | 'requests' | 'support')} className="w-full">
                 <TabsList className="w-full rounded-none border-b bg-transparent px-6 pt-2">
                   <TabsTrigger value="chats" className="flex-1 relative">
                     Чаты

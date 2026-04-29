@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -753,6 +754,7 @@ const SECTION_TIER_KEY: Record<string, string> = {
 };
 
 const BusinessDashboard = () => {
+  const [searchParams] = useSearchParams();
   const { user, profile, activeEntityId } = useAuth();
   const { toast } = useToast();
   const pricing = usePlatformPricing();
@@ -763,6 +765,7 @@ const BusinessDashboard = () => {
   const [masterCount, setMasterCount] = useState(0);
   const [serviceCount, setServiceCount] = useState(0);
   const [activeSection, setActiveSection] = useState('overview');
+  const [messagesTab, setMessagesTab] = useState<'chats' | 'notifications' | 'support'>('chats');
   const [previousSection, setPreviousSection] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [chatTargetId, setChatTargetId] = useState<string | null>(null);
@@ -812,6 +815,33 @@ const BusinessDashboard = () => {
       setActiveSection('overview');
     }
   };
+
+  useEffect(() => {
+    const section = searchParams.get('section');
+    const tab = searchParams.get('tab');
+    const contact = searchParams.get('contact');
+
+    if (section && ['overview', 'messages'].includes(section)) {
+      setActiveSection(section);
+    }
+
+    if (tab && ['chats', 'notifications', 'support'].includes(tab)) {
+      setMessagesTab(tab as 'chats' | 'notifications' | 'support');
+    }
+
+    if (section === 'messages' && contact) {
+      setChatTargetId(contact);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (activeSection === 'messages' && chatTargetId) {
+      const timer = window.setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('open-chat-with', { detail: chatTargetId }));
+      }, 150);
+      return () => window.clearTimeout(timer);
+    }
+  }, [activeSection, chatTargetId]);
 
   const fetchBusinesses = useCallback(async () => {
     if (!user) return;
@@ -1023,7 +1053,7 @@ const BusinessDashboard = () => {
           <Card>
             <CardHeader><CardTitle className="text-lg">Сообщения</CardTitle></CardHeader>
             <CardContent className="p-0">
-              <Tabs defaultValue="chats" className="w-full">
+              <Tabs value={messagesTab} onValueChange={(value) => setMessagesTab(value as 'chats' | 'notifications' | 'support')} className="w-full">
                 <TabsList className="w-full rounded-none border-b bg-transparent px-6 pt-2">
                   <TabsTrigger value="chats" className="flex-1">Чаты</TabsTrigger>
                   <TabsTrigger value="notifications" className="flex-1">Уведомления</TabsTrigger>

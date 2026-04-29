@@ -205,6 +205,16 @@ const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange
       if (m.recipient_id !== user.id) contactIds.add(m.recipient_id);
     });
 
+    const { data: savedContacts } = await supabase
+      .from('favorites')
+      .select('target_id')
+      .eq('user_id', user.id)
+      .eq('favorite_type', 'contact');
+
+    (savedContacts || []).forEach((item: any) => {
+      if (item.target_id && item.target_id !== user.id) contactIds.add(item.target_id);
+    });
+
     // For client cabinet — also include favorites + booking history
     if (effectiveCabinet === 'client') {
       const [favRes, bookRes, lessonRes] = await Promise.all([
@@ -353,7 +363,19 @@ const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange
       attachment_url: attachmentUrl || null,
       attachment_type: attachmentType || null,
     });
-    if (!error) { setNewMessage(''); setShowEmoji(false); }
+    if (!error) {
+      await supabase.functions.invoke('send-push-notification', {
+        body: {
+          user_ids: [selectedContact.id],
+          title: effectiveCabinet === 'client' ? 'Новое сообщение клиенту' : 'Новое сообщение от бизнеса',
+          body: messageText,
+          url: `/dashboard?section=${effectiveCabinet === 'client' ? 'communication' : 'messages'}&tab=chats&contact=${user.id}`,
+          tag: 'direct-chat',
+        },
+      }).catch(() => null);
+      setNewMessage('');
+      setShowEmoji(false);
+    }
   };
 
   const handleFileSend = async (files: FileAttachItem[], comment: string) => {
@@ -377,7 +399,19 @@ const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange
 
   const handleAddToContacts = async () => {
     if (!user || !selectedContact) return;
+    const { error } = await supabase.from('favorites').upsert({
+      user_id: user.id,
+      target_id: selectedContact.id,
+      favorite_type: 'contact',
+    }, { onConflict: 'user_id,favorite_type,target_id' });
+
+    if (error) {
+      toast({ title: 'Ошибка', description: error.message, variant: 'destructive' });
+      return;
+    }
+
     toast({ title: 'Контакт сохранён', description: `${selectedContact.first_name || ''} добавлен в контакты` });
+    await fetchContacts();
   };
 
   const handleAddToClients = async () => {
@@ -513,11 +547,10 @@ const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange
                 </div>
               </div>
               <div className="flex items-center gap-1">
-                {effectiveCabinet === 'client' ? (
-                  <Button size="icon" variant="ghost" className="h-8 w-8" title="Сохранить контакт" onClick={handleAddToContacts}>
-                    <UserPlus className="h-4 w-4" />
-                  </Button>
-                ) : (
+                <Button size="icon" variant="ghost" className="h-8 w-8" title="Сохранить контакт" onClick={handleAddToContacts}>
+                  <UserPlus className="h-4 w-4" />
+                </Button>
+                {effectiveCabinet !== 'client' && (
                   <Button size="icon" variant="ghost" className="h-8 w-8" title="Добавить в клиенты" onClick={handleAddToClients}>
                     <UserPlus className="h-4 w-4" />
                   </Button>

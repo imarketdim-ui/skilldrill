@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,6 +22,7 @@ import BonusSubscriptionPanel from './admin/BonusSubscriptionPanel';
 type DetailView = null | 'registrations' | 'active_users' | 'revenue' | 'sub_masters' | 'sub_businesses' | 'sub_networks' | 'tickets';
 
 const SuperAdminDashboard = () => {
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { toast } = useToast();
   const [adminAssignments, setAdminAssignments] = useState<any[]>([]);
@@ -34,10 +36,19 @@ const SuperAdminDashboard = () => {
   const [detailLoading, setDetailLoading] = useState(false);
   const [unreadSupport, setUnreadSupport] = useState(0);
   const [tickets, setTickets] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState('users');
 
   useEffect(() => {
     if (user) loadData();
   }, [user]);
+
+  useEffect(() => {
+    const section = searchParams.get('section');
+    const tab = searchParams.get('tab');
+    if (section === 'support' || tab === 'support') {
+      setActiveTab('support');
+    }
+  }, [searchParams]);
 
   const loadData = async () => {
     const [profilesRes, mastersRes, bizRes, netRes, assignRes, unreadRes] = await Promise.all([
@@ -185,7 +196,7 @@ const SuperAdminDashboard = () => {
         <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => loadDetailView('sub_networks')}><CardContent className="pt-6 text-center"><p className="text-3xl font-bold">{stats.networks}</p><p className="text-sm text-muted-foreground">Сетей →</p></CardContent></Card>
       </div>
 
-      <Tabs defaultValue="users" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="flex-wrap">
           <TabsTrigger value="users"><Users className="h-4 w-4 mr-1" /> Пользователи</TabsTrigger>
           <TabsTrigger value="revocations"><ShieldBan className="h-4 w-4 mr-1" /> Аннулирование</TabsTrigger>

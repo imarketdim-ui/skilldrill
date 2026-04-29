@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { usePlatformPricing } from '@/hooks/usePlatformPricing';
 import { supabase } from '@/integrations/supabase/client';
@@ -276,8 +277,10 @@ const directoryItems = [
 const allItems = [...mainItems, ...sidebarSections];
 
 const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config }: Props) => {
+  const [searchParams] = useSearchParams();
   const { profile } = useAuth();
   const [activeSection, setActiveSection] = useState('home');
+  const [messagesTab, setMessagesTab] = useState<'chats' | 'notifications' | 'support'>('chats');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [profileEditorOpen, setProfileEditorOpen] = useState(false);
 
@@ -288,6 +291,27 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
     window.addEventListener('navigate-dashboard', handler as EventListener);
     return () => window.removeEventListener('navigate-dashboard', handler as EventListener);
   }, []);
+
+  useEffect(() => {
+    const section = searchParams.get('section');
+    const tab = searchParams.get('tab');
+    const contact = searchParams.get('contact');
+
+    if (section && ['home', 'messages'].includes(section)) {
+      setActiveSection(section);
+    }
+
+    if (tab && ['chats', 'notifications', 'support'].includes(tab)) {
+      setMessagesTab(tab as 'chats' | 'notifications' | 'support');
+    }
+
+    if (section === 'messages' && contact) {
+      const timer = window.setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('open-chat-with', { detail: contact }));
+      }, 150);
+      return () => window.clearTimeout(timer);
+    }
+  }, [searchParams]);
 
   const isReadOnly = !isSubscriptionActive && !!masterProfile;
   const readOnlySections = ['home', 'profile', 'messages'];
@@ -332,7 +356,7 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
         <Card>
           <CardHeader><CardTitle className="text-lg">Сообщения</CardTitle></CardHeader>
           <CardContent className="p-0">
-            <Tabs defaultValue="chats" className="w-full">
+            <Tabs value={messagesTab} onValueChange={(value) => setMessagesTab(value as 'chats' | 'notifications' | 'support')} className="w-full">
               <TabsList className="w-full rounded-none border-b bg-transparent px-6 pt-2">
                 <TabsTrigger value="chats" className="flex-1">Чаты</TabsTrigger>
                 <TabsTrigger value="notifications" className="flex-1">Уведомления</TabsTrigger>

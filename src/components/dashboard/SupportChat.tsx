@@ -84,6 +84,9 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
         } else {
           if (msg.sender_id === user.id || msg.recipient_id === user.id) {
             setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);
+            if (msg.recipient_id === user.id && msg.sender_id !== user.id) {
+              supabase.from('chat_messages').update({ is_read: true }).eq('id', msg.id);
+            }
           }
         }
       })
@@ -100,6 +103,10 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
     const unique = Array.from(new Map(all.map(m => [m.id, m])).values());
     unique.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
     setMessages(unique);
+    const unreadIds = unique.filter(m => m.recipient_id === user.id && !m.is_read).map(m => m.id);
+    if (!isAdmin && unreadIds.length > 0) {
+      await supabase.from('chat_messages').update({ is_read: true }).in('id', unreadIds);
+    }
     setLoading(false);
   };
 
@@ -168,6 +175,15 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
 
       if (isAdmin && selectedUserId) {
         await supabase.from('chat_messages').insert({ ...baseMsg, sender_id: user.id, recipient_id: selectedUserId });
+        await supabase.functions.invoke('send-push-notification', {
+          body: {
+            user_ids: [selectedUserId],
+            title: 'Новое сообщение от поддержки',
+            body: text || 'Поддержка отправила вложение',
+            url: '/dashboard?section=communication&tab=support',
+            tag: 'support-chat',
+          },
+        }).catch(() => null);
         setNewMessage(''); setReplyTo(null);
         fetchAdminMessages(selectedUserId);
       } else {
@@ -175,11 +191,20 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
         const adminIds = (adminRoles || []).map(r => r.user_id).filter(id => id !== user.id);
 
         if (adminIds.length === 0) {
-          await supabase.from('chat_messages').insert({ ...baseMsg, sender_id: user.id, recipient_id: user.id });
+          await supabase.from('chat_messages').insert({ ...baseMsg, sender_id: user.id, recipient_id: user.id, is_read: true });
         } else {
           await Promise.all(adminIds.map(adminId =>
             supabase.from('chat_messages').insert({ ...baseMsg, sender_id: user.id, recipient_id: adminId })
           ));
+          await supabase.functions.invoke('send-push-notification', {
+            body: {
+              user_ids: adminIds,
+              title: 'Новое обращение в поддержку',
+              body: text || 'Клиент отправил вложение',
+              url: '/dashboard?section=support&tab=support',
+              tag: 'support-chat',
+            },
+          }).catch(() => null);
         }
 
         try {

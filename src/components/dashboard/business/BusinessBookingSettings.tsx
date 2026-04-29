@@ -122,7 +122,7 @@ const BusinessBookingSettings = ({ businessId }: Props) => {
         <CardHeader>
           <CardTitle className="text-base">Правила записи по доверию</CardTitle>
           <CardDescription>
-            Мягко регулируйте онлайн-запись для новых клиентов, профилей без истории и рискованных сценариев.
+            Настройте, как онлайн-запись будет работать для новых клиентов, профилей без истории и ситуаций, когда лучше сначала пообщаться лично.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -130,7 +130,7 @@ const BusinessBookingSettings = ({ businessId }: Props) => {
             <div className="space-y-1">
               <Label>Учитывать рейтинг и историю клиента</Label>
               <p className="text-sm text-muted-foreground">
-                Если выключить, запись будет работать только по общей логике автоподтверждения.
+                Если выключить, онлайн-запись будет работать только по общей логике автоподтверждения без дополнительных правил доверия.
               </p>
             </div>
             <Switch
@@ -157,10 +157,10 @@ const BusinessBookingSettings = ({ businessId }: Props) => {
               >
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="allow">Разрешать запись</SelectItem>
-                  <SelectItem value="manual">Только через ручное согласование</SelectItem>
-                  <SelectItem value="prepayment">Требовать предоплату</SelectItem>
-                  <SelectItem value="block">Не пускать в онлайн-запись</SelectItem>
+                  <SelectItem value="allow">Подтверждать как обычно</SelectItem>
+                  <SelectItem value="manual">Сначала пообщаться и согласовать вручную</SelectItem>
+                  <SelectItem value="prepayment">Подтверждать после предоплаты</SelectItem>
+                  <SelectItem value="block">Только после личного согласования</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -179,10 +179,10 @@ const BusinessBookingSettings = ({ businessId }: Props) => {
               >
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="allow">Разрешать запись</SelectItem>
-                  <SelectItem value="manual">Отправлять на ручное согласование</SelectItem>
-                  <SelectItem value="prepayment">Требовать предоплату</SelectItem>
-                  <SelectItem value="block">Ограничить онлайн-запись</SelectItem>
+                  <SelectItem value="allow">Подтверждать как обычно</SelectItem>
+                  <SelectItem value="manual">Сначала согласовывать вручную</SelectItem>
+                  <SelectItem value="prepayment">Подтверждать после предоплаты</SelectItem>
+                  <SelectItem value="block">Только после личного общения</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -207,7 +207,7 @@ const BusinessBookingSettings = ({ businessId }: Props) => {
             </div>
 
             <div className="space-y-2">
-              <Label>Предоплата ниже рейтинга</Label>
+              <Label>Просить предоплату ниже рейтинга</Label>
               <Input
                 type="number"
                 min={0}
@@ -224,7 +224,7 @@ const BusinessBookingSettings = ({ businessId }: Props) => {
             </div>
 
             <div className="space-y-2">
-              <Label>Полный запрет ниже рейтинга</Label>
+              <Label>Не включать автоматическую запись ниже рейтинга</Label>
               <Input
                 type="number"
                 min={0}
@@ -249,7 +249,7 @@ const BusinessBookingSettings = ({ businessId }: Props) => {
                 ...prev,
                 trustPolicy: { ...prev.trustPolicy, customPolicyMessage: e.target.value },
               }))}
-              placeholder="Например: Для вечерних и премиальных слотов мы подтверждаем запись после проверки профиля."
+              placeholder="Например: Для вечерних и премиальных слотов мы сначала уточняем детали и подтверждаем запись вручную."
             />
           </div>
         </CardContent>

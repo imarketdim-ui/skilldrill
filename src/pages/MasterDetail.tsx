@@ -408,6 +408,15 @@ const MasterDetail = () => {
         message: `Новая запись: ${service.name} на ${bookingData.date} в ${bookingData.time}. ${bookingData.comment ? `Комментарий: ${bookingData.comment}` : ''}`,
         chat_type: 'direct',
       });
+      await supabase.functions.invoke('send-push-notification', {
+        body: {
+          user_ids: [master.user_id],
+          title: 'Новая запись',
+          body: `${bookingData.name || 'Клиент'} записался на ${service.name}`,
+          url: '/dashboard?section=messages&tab=chats&contact=' + user.id,
+          tag: 'booking-chat',
+        },
+      }).catch(() => null);
 
       if (bookingStatus === 'confirmed') {
         toast({ title: 'Запись подтверждена!', description: 'Вы записаны. Мастер получит уведомление.' });
@@ -482,6 +491,16 @@ const MasterDetail = () => {
         favorite_type: 'master',
       }, { onConflict: 'user_id,target_id,favorite_type' });
 
+      await supabase.functions.invoke('send-push-notification', {
+        body: {
+          user_ids: [master.user_id],
+          title: 'Новое сообщение',
+          body: messageText.trim().slice(0, 120),
+          url: '/dashboard?section=messages&tab=chats&contact=' + user.id,
+          tag: 'direct-chat',
+        },
+      }).catch(() => null);
+
       toast({ title: 'Сообщение отправлено' });
       setMessageText('');
       setMessageOpen(false);
@@ -545,6 +564,16 @@ const MasterDetail = () => {
         target_id: master.id,
         favorite_type: 'master',
       }, { onConflict: 'user_id,target_id,favorite_type' });
+
+      await supabase.functions.invoke('send-push-notification', {
+        body: {
+          user_ids: [master.user_id],
+          title: 'Запрос на ручную запись',
+          body: `${bookingData.name || 'Клиент'} просит согласовать запись`,
+          url: '/dashboard?section=messages&tab=chats&contact=' + user.id,
+          tag: 'manual-booking-request',
+        },
+      }).catch(() => null);
 
       toast({
         title: 'Запрос отправлен',

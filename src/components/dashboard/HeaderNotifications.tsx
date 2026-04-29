@@ -17,10 +17,12 @@ interface NotifItem {
   message: string;
   created_at: string;
   related_id?: string | null;
+  sender_id?: string | null;
+  chat_type?: string | null;
 }
 
 const HeaderNotifications = () => {
-  const { user } = useAuth();
+  const { user, activeRole } = useAuth();
   const navigate = useNavigate();
   const [items, setItems] = useState<NotifItem[]>([]);
   const [unread, setUnread] = useState(0);
@@ -67,6 +69,8 @@ const HeaderNotifications = () => {
       title: m.chat_type === 'support' ? 'Поддержка' : 'Новое сообщение',
       message: m.message?.slice(0, 80) || '📎 Вложение',
       created_at: m.created_at,
+      sender_id: m.sender_id,
+      chat_type: m.chat_type,
     }));
 
     const invList: NotifItem[] = (invRes.data || []).map((i: any) => ({
@@ -106,7 +110,14 @@ const HeaderNotifications = () => {
       await supabase.from('notifications').update({ is_read: true }).eq('id', realId);
     }
     if (item.kind === 'chat') {
-      navigate('/dashboard');
+      const isPlatformRole = ['platform_admin', 'super_admin', 'platform_manager', 'moderator', 'support', 'integrator'].includes(activeRole);
+      const section = isPlatformRole ? 'support' : activeRole === 'client' ? 'communication' : 'messages';
+      const tab = item.chat_type === 'support' ? 'support' : 'chats';
+      const params = new URLSearchParams({ section, tab });
+      if (item.chat_type !== 'support' && item.sender_id) {
+        params.set('contact', item.sender_id);
+      }
+      navigate(`/dashboard?${params.toString()}`);
     } else if (item.kind === 'invitation') {
       navigate('/dashboard');
     }
