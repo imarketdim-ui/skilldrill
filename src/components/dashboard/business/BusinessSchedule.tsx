@@ -4,12 +4,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Clock, Users, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, Clock, Users, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { format, addDays, startOfWeek, isSameDay, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import ScheduleGrid from '../schedule/ScheduleGrid';
 import ScheduleEventBlock from '../schedule/ScheduleEventBlock';
 import { normalizeBooking, ScheduleEvent } from '../schedule/scheduleUtils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import AppointmentDetailDialog from '../schedule/AppointmentDetailDialog';
 
 interface Props {
   businessId: string;
@@ -22,6 +24,9 @@ const BusinessSchedule = ({ businessId }: Props) => {
   const [loading, setLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const [resourceFilter, setResourceFilter] = useState('all');
+  const [selectedBooking, setSelectedBooking] = useState<any | null>(null);
+  const [resources, setResources] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
     fetchData();
@@ -39,7 +44,7 @@ const BusinessSchedule = ({ businessId }: Props) => {
       from = weekStart;
       to = addDays(weekStart, 7);
     }
-    const [mastersRes, bookingsRes] = await Promise.all([
+    const [mastersRes, bookingsRes, resourcesRes] = await Promise.all([
       supabase
         .from('business_masters')
         .select('master_id, profile:profiles!business_masters_master_id_fkey(first_name, last_name)')
@@ -48,12 +53,13 @@ const BusinessSchedule = ({ businessId }: Props) => {
       supabase
         .from('bookings')
         .select(
-          '*, service:services!bookings_service_id_fkey(name, duration_minutes, price), client:profiles!bookings_client_id_fkey(first_name, last_name)',
+          '*, service:services!bookings_service_id_fkey(name, duration_minutes, price), client:profiles!bookings_client_id_fkey(first_name, last_name, email, phone), executor:profiles!bookings_executor_id_fkey(first_name, last_name), resource:resources(name)',
         )
         .eq('organization_id', businessId)
         .gte('scheduled_at', from.toISOString())
         .lt('scheduled_at', to.toISOString())
         .order('scheduled_at'),
+      supabase.from('resources').select('id, name').eq('organization_id', businessId).eq('is_active', true).order('name'),
     ]);
     setMasters(
       (mastersRes.data || []).map((m: any) => ({
@@ -63,12 +69,18 @@ const BusinessSchedule = ({ businessId }: Props) => {
       })),
     );
     setBookings(bookingsRes.data || []);
+    setResources((resourcesRes.data || []) as { id: string; name: string }[]);
     setLoading(false);
   };
 
+  const filteredBookings = useMemo(
+    () => resourceFilter === 'all' ? bookings : bookings.filter(b => b.resource_id === resourceFilter),
+    [bookings, resourceFilter],
+  );
+
   const events: ScheduleEvent[] = useMemo(
-    () => bookings.map(normalizeBooking),
-    [bookings],
+    () => filteredBookings.map(normalizeBooking),
+    [filteredBookings],
   );
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -92,11 +104,39 @@ const BusinessSchedule = ({ businessId }: Props) => {
     return map[status] || status;
   };
 
-  const totalBookings = bookings.length;
-  const confirmedCount = bookings.filter(
+  const totalBookings = filteredBookings.length;
+  const confirmedCount = filteredBookings.filter(
     b => b.status === 'confirmed' || b.status === 'completed',
   ).length;
-  const pendingCount = bookings.filter(b => b.status === 'pending').length;
+  const pendingCount = filteredBookings.filter(b => b.status === 'pending').length;
+
+  const exportCsv = () => {
+    const lines = [
+      'Дата,Время,Услуга,Клиент,Мастер,Ресурс,Статус,Сумма',
+      ...filteredBookings.map(booking => {
+        const start = parseISO(booking.scheduled_at);
+        const client = `${booking.client?.first_name || ''} ${booking.client?.last_name || ''}`.trim();
+        const master = `${booking.executor?.first_name || ''} ${booking.executor?.last_name || ''}`.trim();
+        return [
+          format(start, 'yyyy-MM-dd'),
+          format(start, 'HH:mm'),
+          booking.service?.name || 'Услуга',
+          client,
+          master,
+          booking.resource?.name || '',
+          statusLabel(booking.status),
+          Number(booking.service?.price || 0),
+        ].join(',');
+      }),
+    ].join('\n');
+    const blob = new Blob([lines], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `schedule_${format(view === 'day' ? currentDate : weekStart, 'yyyy-MM-dd')}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-6">
@@ -104,15 +144,31 @@ const BusinessSchedule = ({ businessId }: Props) => {
         <div>
           <h2 className="text-2xl font-bold">Расписание</h2>
           <p className="text-muted-foreground">
-            Шахматка по мастерам — наводите на запись для информации о клиенте
+            Единый журнал записи по мастерам, клиентам и ресурсам
           </p>
         </div>
-        <Tabs value={view} onValueChange={v => setView(v as any)}>
-          <TabsList>
-            <TabsTrigger value="day">День</TabsTrigger>
-            <TabsTrigger value="week">Неделя</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Select value={resourceFilter} onValueChange={setResourceFilter}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Все ресурсы" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Все ресурсы</SelectItem>
+              {resources.map(resource => (
+                <SelectItem key={resource.id} value={resource.id}>{resource.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button variant="outline" size="sm" onClick={exportCsv}>
+            <Download className="h-4 w-4 mr-1" /> CSV
+          </Button>
+          <Tabs value={view} onValueChange={v => setView(v as any)}>
+            <TabsList>
+              <TabsTrigger value="day">День</TabsTrigger>
+              <TabsTrigger value="week">Неделя</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
       </div>
 
       {/* Stats */}
@@ -213,13 +269,13 @@ const BusinessSchedule = ({ businessId }: Props) => {
           dayStartHour={8}
           dayEndHour={22}
           renderEvent={(ev, geom) => (
-            <ScheduleEventBlock event={ev} top={geom.top} height={geom.height} />
+            <ScheduleEventBlock event={ev} top={geom.top} height={geom.height} onClick={() => setSelectedBooking(ev.raw)} />
           )}
         />
       ) : (
         <div className="space-y-4">
           {masters.map(master => {
-            const masterBookingsTotal = bookings.filter(b => b.executor_id === master.id).length;
+            const masterBookingsTotal = filteredBookings.filter(b => b.executor_id === master.id).length;
             return (
               <Card key={master.id}>
                 <CardHeader className="pb-3">
@@ -231,7 +287,7 @@ const BusinessSchedule = ({ businessId }: Props) => {
                 <CardContent>
                   <div className="grid grid-cols-7 gap-1">
                     {days.map(day => {
-                      const dayBookings = bookings.filter(
+                      const dayBookings = filteredBookings.filter(
                         b => isSameDay(parseISO(b.scheduled_at), day) && b.executor_id === master.id,
                       );
                       const isToday = isSameDay(day, today);
@@ -261,11 +317,16 @@ const BusinessSchedule = ({ businessId }: Props) => {
                                 <div
                                   key={b.id}
                                   className={`text-[10px] p-1 rounded border ${statusColor(b.status)}`}
+                                  onClick={event => {
+                                    event.stopPropagation();
+                                    setSelectedBooking(b);
+                                  }}
                                 >
                                   <p className="font-medium truncate">
                                     {format(parseISO(b.scheduled_at), 'HH:mm')}
                                   </p>
                                   <p className="truncate">{b.service?.name || 'Услуга'}</p>
+                                  {b.resource?.name && <p className="truncate opacity-80">{b.resource.name}</p>}
                                 </div>
                               ))}
                               {dayBookings.length > 3 && (
@@ -284,20 +345,21 @@ const BusinessSchedule = ({ businessId }: Props) => {
             );
           })}
 
-          {bookings.length > 0 && (
+          {filteredBookings.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Все записи за неделю</CardTitle>
-                <CardDescription>{bookings.length} записей</CardDescription>
+                <CardDescription>{filteredBookings.length} записей</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                  {bookings.map(b => {
+                  {filteredBookings.map(b => {
                     const master = masters.find(m => m.id === b.executor_id);
                     return (
                       <div
                         key={b.id}
-                        className="flex items-center justify-between p-3 rounded-lg border"
+                        className="flex items-center justify-between p-3 rounded-lg border cursor-pointer hover:border-primary/40"
+                        onClick={() => setSelectedBooking(b)}
                       >
                         <div className="flex items-center gap-3 min-w-0">
                           <div className="flex items-center gap-1.5 text-sm text-muted-foreground shrink-0">
@@ -312,6 +374,9 @@ const BusinessSchedule = ({ businessId }: Props) => {
                               {b.client?.first_name} {b.client?.last_name} →{' '}
                               {master?.name || 'Мастер'}
                             </p>
+                            {b.resource?.name && (
+                              <p className="text-xs text-muted-foreground truncate">{b.resource.name}</p>
+                            )}
                           </div>
                         </div>
                         <Badge variant="outline" className="shrink-0 text-xs">
@@ -326,6 +391,18 @@ const BusinessSchedule = ({ businessId }: Props) => {
           )}
         </div>
       )}
+
+      <AppointmentDetailDialog
+        booking={selectedBooking}
+        open={!!selectedBooking}
+        onOpenChange={open => {
+          if (!open) setSelectedBooking(null);
+        }}
+        onUpdated={async () => {
+          await fetchData();
+          setSelectedBooking(null);
+        }}
+      />
     </div>
   );
 };

@@ -9,6 +9,8 @@ import { Calendar, Clock, User, Loader2, AlertTriangle, Eye } from 'lucide-react
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import UserScoreCard from '../UserScoreCard';
+import { Checkbox } from '@/components/ui/checkbox';
+import AppointmentDetailDialog from '../schedule/AppointmentDetailDialog';
 
 interface Props { businessId: string; }
 
@@ -32,6 +34,8 @@ export default function BusinessBookingDetail({ businessId }: Props) {
   const [scoreDialog, setScoreDialog] = useState<string | null>(null);
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectedBooking, setSelectedBooking] = useState<any | null>(null);
 
   useEffect(() => {
     fetchBookings();
@@ -41,12 +45,30 @@ export default function BusinessBookingDetail({ businessId }: Props) {
     setLoading(true);
     const { data } = await supabase
       .from('bookings')
-      .select('id, status, scheduled_at, duration_minutes, notes, cancellation_reason, client_id, executor_id, service_id, services!bookings_service_id_fkey(name), client:profiles!bookings_client_id_fkey(first_name, last_name, email), executor:profiles!bookings_executor_id_fkey(first_name, last_name)')
+      .select('id, status, scheduled_at, duration_minutes, notes, cancellation_reason, client_id, executor_id, service_id, resource_id, service:services!bookings_service_id_fkey(name, price), resource:resources(name), client:profiles!bookings_client_id_fkey(first_name, last_name, email, phone), executor:profiles!bookings_executor_id_fkey(first_name, last_name)')
       .eq('organization_id', businessId)
       .order('scheduled_at', { ascending: false })
       .limit(100);
     setBookings(data || []);
+    setSelectedIds([]);
     setLoading(false);
+  };
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds(current => current.includes(id) ? current.filter(value => value !== id) : [...current, id]);
+  };
+
+  const bulkUpdate = async (payload: Record<string, any>, title: string) => {
+    if (selectedIds.length === 0) return;
+    setSubmitting(true);
+    const { error } = await supabase.from('bookings').update(payload).in('id', selectedIds);
+    setSubmitting(false);
+    if (error) {
+      toast({ title: 'Ошибка', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title });
+    fetchBookings();
   };
 
   const handleCancel = async () => {
@@ -101,6 +123,20 @@ export default function BusinessBookingDetail({ businessId }: Props) {
     <div className="space-y-4">
       <h3 className="text-lg font-semibold">Записи ({bookings.length})</h3>
 
+      {bookings.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" disabled={selectedIds.length === 0 || submitting} onClick={() => bulkUpdate({ status: 'confirmed' }, 'Выбранные записи подтверждены')}>
+            Подтвердить выбранные
+          </Button>
+          <Button size="sm" variant="outline" disabled={selectedIds.length === 0 || submitting} onClick={() => bulkUpdate({ status: 'completed' }, 'Выбранные записи завершены')}>
+            Завершить выбранные
+          </Button>
+          <Button size="sm" variant="destructive" disabled={selectedIds.length === 0 || submitting} onClick={() => bulkUpdate({ status: 'cancelled' }, 'Выбранные записи отменены')}>
+            Отменить выбранные
+          </Button>
+        </div>
+      )}
+
       {bookings.length === 0 ? (
         <Card>
           <CardContent className="pt-6 text-center">
@@ -123,8 +159,10 @@ export default function BusinessBookingDetail({ businessId }: Props) {
               <Card key={b.id}>
                 <CardContent className="pt-4 pb-4">
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium">{(b.services as any)?.name || 'Услуга'}</p>
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      <Checkbox checked={selectedIds.includes(b.id)} onCheckedChange={() => toggleSelected(b.id)} />
+                      <div className="flex-1 min-w-0">
+                      <p className="font-medium">{(b.service as any)?.name || 'Услуга'}</p>
                       <div className="flex items-center gap-2 mt-1">
                         <button
                           className="text-sm text-primary hover:underline flex items-center gap-1"
@@ -144,10 +182,12 @@ export default function BusinessBookingDetail({ businessId }: Props) {
                           {d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
                         </span>
                         <span>{b.duration_minutes} мин</span>
+                        {(b.resource as any)?.name && <span>· {(b.resource as any).name}</span>}
                       </div>
                       {b.cancellation_reason && (
                         <p className="text-xs text-destructive mt-1">Причина: {b.cancellation_reason}</p>
                       )}
+                      </div>
                     </div>
                     <Badge variant={s.variant}>{s.label}</Badge>
                   </div>
@@ -170,6 +210,9 @@ export default function BusinessBookingDetail({ businessId }: Props) {
                       )}
                       <Button size="sm" variant="ghost" onClick={() => setScoreDialog(b.client_id)}>
                         <Eye className="h-3 w-3 mr-1" />Профиль клиента
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setSelectedBooking(b)}>
+                        Детали
                       </Button>
                     </div>
                   )}
@@ -211,6 +254,18 @@ export default function BusinessBookingDetail({ businessId }: Props) {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AppointmentDetailDialog
+        booking={selectedBooking}
+        open={!!selectedBooking}
+        onOpenChange={open => {
+          if (!open) setSelectedBooking(null);
+        }}
+        onUpdated={async () => {
+          await fetchBookings();
+          setSelectedBooking(null);
+        }}
+      />
     </div>
   );
 }

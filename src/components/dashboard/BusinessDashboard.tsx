@@ -12,7 +12,7 @@ import {
   ArrowRightLeft, UserPlus, AlertTriangle, MessageSquare, LayoutDashboard,
   CreditCard, Package, Percent, Megaphone, BarChart3, Bell, Database,
   PanelLeftClose, PanelLeftOpen, Wallet, Briefcase, Plus, Trash2, Shield,
-  Search, User, Merge, Gift, Ticket, Globe, Award, Lock, Banknote
+  Search, User, Merge, Gift, Ticket, Globe, Award, Lock, Banknote, DoorOpen
 } from 'lucide-react';
 import { TIER_LABELS, getRequiredTier, tierAllowsSection } from '@/lib/tierSections';
 import { Input } from '@/components/ui/input';
@@ -56,6 +56,8 @@ import BusinessEmployeeGroups from './business/BusinessEmployeeGroups';
 import BusinessSalaries from './business/BusinessSalaries';
 import BusinessLoyaltyPrograms from './business/BusinessLoyaltyPrograms';
 import { fetchBusinessSettingsSections, updateBusinessSettingsSection } from '@/lib/businessSettings';
+import BusinessResources from './business/BusinessResources';
+import { classifyClientSegment, ClientSegment } from '@/lib/clientSegmentation';
 
 // ── Notifications with real counter ──
 const BusinessNotifications = ({ businessId }: { businessId?: string }) => {
@@ -345,7 +347,11 @@ const BusinessClients = ({ businessId, onOpenChat }: { businessId: string; onOpe
 
     const ids = Array.from(clientMap.keys());
     if (ids.length > 0) {
-      const { data: profiles } = await supabase.from('profiles').select('id, first_name, last_name, phone, email, skillspot_id').in('id', ids);
+      const [{ data: profiles }, { data: scores }] = await Promise.all([
+        supabase.from('profiles').select('id, first_name, last_name, phone, email, skillspot_id').in('id', ids),
+        supabase.from('user_scores_master_view').select('user_id, total_score, status').in('user_id', ids),
+      ]);
+      const scoreMap = new Map((scores || []).map((score: any) => [score.user_id, score]));
       (profiles || []).forEach(p => {
         const c = clientMap.get(p.id);
         if (c) {
@@ -353,23 +359,41 @@ const BusinessClients = ({ businessId, onOpenChat }: { businessId: string; onOpe
           c.phone = p.phone || '—';
           c.email = p.email;
           c.skillspot_id = p.skillspot_id;
+          c.score = scoreMap.get(p.id)?.total_score || null;
+          c.scoreStatus = scoreMap.get(p.id)?.status || null;
         }
       });
     }
 
     // Assign auto-categories
-    const now = new Date();
     const allClients = Array.from(clientMap.values()).map(c => {
       c.sources = Array.from(c.sources);
       c.avgCheck = c.visitCount > 0 ? Math.round(c.revenue / c.visitCount) : 0;
-      const daysSinceLast = c.lastVisit ? Math.floor((now.getTime() - new Date(c.lastVisit).getTime()) / (1000 * 60 * 60 * 24)) : 999;
-      if (c.noShowCount > 2) c.category = 'Штрафник';
-      else if (c.visitCount > 10 && c.revenue > 50000) c.category = 'VIP';
-      else if (c.visitCount > 5) c.category = 'Постоянный';
-      else if (daysSinceLast > 90) c.category = 'Пропавший';
-      else if (daysSinceLast > 60) c.category = 'Спящий';
-      else if (c.visitCount === 0 && c.sources.includes('chat')) c.category = 'Не посещал';
-      else c.category = 'Новый';
+      const segment = classifyClientSegment({
+        visitCount: c.visitCount,
+        completedCount: c.visitCount - (c.noShowCount || 0),
+        noShowCount: c.noShowCount || 0,
+        lastVisit: c.lastVisit,
+        revenue: c.revenue,
+        isBlacklisted: false,
+        hasVipTag: false,
+        score: c.score,
+        scoreStatus: c.scoreStatus,
+      });
+      c.segment = segment;
+      const labelMap: Record<ClientSegment, string> = {
+        all: 'Все',
+        vip: 'VIP',
+        trusted: 'Надёжный',
+        regular: 'Постоянный',
+        new: 'Новый',
+        sleeping: 'Спящий',
+        inactive: 'Пропавший',
+        prepayment: 'Предоплата',
+        risk: 'Риск',
+        blacklisted: 'ЧС',
+      };
+      c.category = c.visitCount === 0 && c.sources.includes('chat') ? 'Не посещал' : labelMap[segment];
       return c;
     });
 
@@ -418,13 +442,14 @@ const BusinessClients = ({ businessId, onOpenChat }: { businessId: string; onOpe
     const map: Record<string, string> = {
       'VIP': 'bg-yellow-100 text-yellow-800', 'Постоянный': 'bg-green-100 text-green-800',
       'Спящий': 'bg-blue-100 text-blue-800', 'Пропавший': 'bg-red-100 text-red-800',
-      'Штрафник': 'bg-destructive/10 text-destructive', 'Не посещал': 'bg-muted text-muted-foreground',
-      'Новый': 'bg-primary/10 text-primary',
+      'Риск': 'bg-destructive/10 text-destructive', 'Предоплата': 'bg-orange-100 text-orange-800',
+      'Не посещал': 'bg-muted text-muted-foreground', 'Новый': 'bg-primary/10 text-primary',
+      'Надёжный': 'bg-emerald-100 text-emerald-800', 'ЧС': 'bg-destructive/10 text-destructive',
     };
     return map[cat] || '';
   };
 
-  const categories = ['all', 'VIP', 'Постоянный', 'Новый', 'Спящий', 'Пропавший', 'Штрафник', 'Не посещал'];
+  const categories = ['all', 'VIP', 'Надёжный', 'Постоянный', 'Новый', 'Спящий', 'Пропавший', 'Предоплата', 'Риск', 'ЧС', 'Не посещал'];
 
   const filtered = clients.filter(c => {
     if (filterCategory !== 'all' && c.category !== filterCategory) return false;
@@ -483,6 +508,11 @@ const BusinessClients = ({ businessId, onOpenChat }: { businessId: string; onOpe
                       <Badge variant="outline" className={`text-[10px] ${categoryColor(c.category)}`}>{c.category}</Badge>
                     </div>
                     <p className="text-xs text-muted-foreground">{c.phone} {c.skillspot_id ? `· ID: ${c.skillspot_id}` : ''}</p>
+                    {(c.score || c.scoreStatus) && (
+                      <p className="text-xs text-muted-foreground">
+                        Рейтинг: {c.score ?? '—'} {c.scoreStatus ? `· ${c.scoreStatus}` : ''}
+                      </p>
+                    )}
                     {getSourceBadges(c.sources)}
                   </div>
                   <div className="flex items-center gap-2">
@@ -665,6 +695,7 @@ const erpItems = [
 const directoryItems = [
   { key: 'dir_client_types', label: 'Типы клиентов', icon: Users, description: 'Системные и пользовательские типы' },
   { key: 'dir_client_groups', label: 'Группы клиентов', icon: Users, description: 'Ручные группы клиентов' },
+  { key: 'dir_resources', label: 'Ресурсы', icon: DoorOpen, description: 'Кабинеты, залы, оборудование' },
   { key: 'dir_products', label: 'Товары и материалы', icon: Package, description: 'Справочник товаров' },
   { key: 'dir_registers', label: 'Кассы', icon: Wallet, description: 'Управление кассами' },
   { key: 'dir_positions', label: 'Должности', icon: Shield, description: 'Настройка доступов' },
@@ -713,6 +744,7 @@ const SECTION_TIER_KEY: Record<string, string> = {
   salaries: 'salaries',
   // Directories
   dir_products: 'inventory',
+  dir_resources: 'resources',
   dir_registers: 'cash_registers',
   dir_positions: 'permissions',
   dir_employee_groups: 'employee_groups',
@@ -880,6 +912,8 @@ const BusinessDashboard = () => {
         return <SectionHub title="Справочники" description="Справочные данные и настройки" items={decorateItems(directoryItems)} onNavigate={navigateTo} onLockedClick={(it: any) => setPaywallSection({ key: it.key, label: it.label, requiredTierLabel: it.requiredTierLabel })} />;
       case 'dir_client_types':
         return selectedBusiness ? <ClientTypeDirectory businessId={selectedBusiness.id} /> : null;
+      case 'dir_resources':
+        return selectedBusiness ? <BusinessResources businessId={selectedBusiness.id} /> : null;
       case 'dir_products':
         return selectedBusiness ? <ProductsDirectory businessId={selectedBusiness.id} /> : null;
       case 'dir_registers':

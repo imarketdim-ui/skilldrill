@@ -333,6 +333,32 @@ const BusinessSalaries = ({ businessId }: Props) => {
     return m?.name || 'Сотрудник';
   };
 
+  const totalPlanned = records.reduce((sum, record) => sum + Number(record.total_amount || 0), 0);
+  const totalPaid = records.filter(record => record.paid_at).reduce((sum, record) => sum + Number(record.total_amount || 0), 0);
+  const pendingPayout = totalPlanned - totalPaid;
+
+  const exportHistory = () => {
+    const lines = [
+      'Сотрудник,Период начало,Период конец,База,Штрафы,Итого,Выплачено',
+      ...records.map(record => [
+        `${record.master?.first_name || ''} ${record.master?.last_name || ''}`.trim(),
+        record.period_start,
+        record.period_end,
+        record.base_amount,
+        record.penalty_amount,
+        record.total_amount,
+        record.paid_at || '',
+      ].join(',')),
+    ].join('\n');
+    const blob = new Blob([lines], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `salary_history_${businessId}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -353,6 +379,9 @@ const BusinessSalaries = ({ businessId }: Props) => {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={exportHistory}>
+            Экспорт выплат
+          </Button>
           <Button variant="outline" onClick={() => setCalcOpen(true)}>
             <Calculator className="h-4 w-4 mr-2" />
             Рассчитать
@@ -362,6 +391,27 @@ const BusinessSalaries = ({ businessId }: Props) => {
             Новая схема
           </Button>
         </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-sm text-muted-foreground">Начислено</p>
+            <p className="text-2xl font-bold">{totalPlanned.toLocaleString()} ₽</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-sm text-muted-foreground">Выплачено</p>
+            <p className="text-2xl font-bold">{totalPaid.toLocaleString()} ₽</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-sm text-muted-foreground">К выплате</p>
+            <p className="text-2xl font-bold">{pendingPayout.toLocaleString()} ₽</p>
+          </CardContent>
+        </Card>
       </div>
 
       <Tabs defaultValue="schemes">

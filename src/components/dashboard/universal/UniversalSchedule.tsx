@@ -1,556 +1,860 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  addDays,
+  addMonths,
+  addWeeks,
+  differenceInHours,
+  eachDayOfInterval,
+  endOfMonth,
+  endOfWeek,
+  format,
+  isAfter,
+  isSameDay,
+  startOfMonth,
+  startOfWeek,
+  subMonths,
+  subWeeks,
+} from 'date-fns';
+import { ru } from 'date-fns/locale';
+import {
+  ArrowRightLeft,
+  CalendarDays,
+  CheckCircle,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Coffee,
+  Plus,
+  Search,
+  Settings2,
+  Trash2,
+  User,
+  XCircle,
+} from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useToast } from '@/hooks/use-toast';
-import { Plus, ChevronLeft, ChevronRight, Trash2, Coffee, Clock, Settings2, CheckCircle, XCircle, ArrowRightLeft, Star, Search, User } from 'lucide-react';
-import { format, addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addWeeks, subWeeks, addMonths, subMonths, differenceInHours, isAfter } from 'date-fns';
-import { ru } from 'date-fns/locale';
-import { CategoryConfig } from './categoryConfig';
-import MasterTimeOffManager from './MasterTimeOffManager';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import ClientHoverCard from '../schedule/ClientHoverCard';
+import MasterTimeOffManager from './MasterTimeOffManager';
+import { CategoryConfig } from './categoryConfig';
+import AppointmentDetailDialog from '../schedule/AppointmentDetailDialog';
+import {
+  addMinutesToTime,
+  buildSyntheticBreakItems,
+  MasterScheduleSettings,
+  normalizeMasterScheduleSettings,
+  serializeMasterScheduleSettings,
+  timeToMinutes,
+} from '@/lib/serviceSchedule';
 
-const daysOfWeek = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
-const timeSlots = Array.from({ length: 28 }, (_, i) => {
-  const h = Math.floor(i / 2) + 7;
-  const m = i % 2 === 0 ? '00' : '30';
-  return `${h.toString().padStart(2, '0')}:${m}`;
-});
-
-const statusColors: Record<string, string> = {
-  scheduled: 'bg-primary/15 text-primary border-primary/20',
-  completed: 'bg-primary/10 text-primary border-primary/15',
-  cancelled: 'bg-destructive/15 text-destructive border-destructive/20',
-  no_show: 'bg-accent/15 text-accent-foreground border-accent/20',
-  break: 'bg-muted text-muted-foreground border-border',
-};
-
-const noShowReasons = [
-  'Не предупредил', 'Болезнь', 'Забыл', 'Пробки / опоздание', 'Другое',
-];
-
-const rejectReasons = [
-  'Изменилось расписание', 'Рейтинг клиента', 'Занят', 'Болезнь', 'Другое',
-];
-
-interface Props { config: CategoryConfig; }
-
-interface ServiceOption {
-  id: string; name: string; duration_minutes: number; price: number;
+interface Props {
+  config: CategoryConfig;
 }
 
-const addMinutesToTime = (time: string, minutes: number): string => {
-  const [h, m] = time.split(':').map(Number);
-  const total = h * 60 + m + minutes;
-  return `${Math.floor(total / 60).toString().padStart(2, '0')}:${(total % 60).toString().padStart(2, '0')}`;
+interface ServiceOption {
+  id: string;
+  name: string;
+  duration_minutes: number;
+  price: number;
+}
+
+interface ClientOption {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  phone: string | null;
+  skillspot_id: string | null;
+}
+
+interface ResourceOption {
+  id: string;
+  name: string;
+  capacity: number;
+}
+
+const dayLabels = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+const dayKeys = ['0', '1', '2', '3', '4', '5', '6'];
+
+const noShowReasons = ['Не предупредил', 'Болезнь', 'Забыл', 'Опоздание', 'Другое'];
+const rejectReasons = ['Занято', 'Конфликт по ресурсу', 'Изменилось расписание', 'Другое'];
+
+const statusTone: Record<string, string> = {
+  pending: 'bg-amber-50 border-amber-200 text-amber-900',
+  confirmed: 'bg-primary/10 border-primary/20 text-primary',
+  completed: 'bg-emerald-50 border-emerald-200 text-emerald-900',
+  cancelled: 'bg-muted border-border text-muted-foreground',
+  rejected: 'bg-muted border-border text-muted-foreground',
+  no_show: 'bg-rose-50 border-rose-200 text-rose-900',
+  break: 'bg-slate-50 border-slate-200 text-slate-700',
 };
 
-const timeToMinutes = (t: string) => {
-  const [h, m] = t.split(':').map(Number);
-  return h * 60 + m;
+const statusLabel: Record<string, string> = {
+  pending: 'Ожидает',
+  confirmed: 'Подтверждена',
+  completed: 'Завершена',
+  cancelled: 'Отменена',
+  rejected: 'Отклонена',
+  no_show: 'Неявка',
+  break: 'Перерыв',
 };
 
-const DAY_LABELS = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
-const DAY_NUMS = [1, 2, 3, 4, 5, 6, 0]; // Mon=1..Sun=0
-
-interface WorkHoursEntry { start: string; end: string; }
-interface BreakEntry { start: string; end: string; }
+const defaultSettings: MasterScheduleSettings = {
+  workDays: [1, 2, 3, 4, 5],
+  defaultHours: { start: '09:00', end: '18:00' },
+  perDayHours: {},
+  breakConfig: {},
+  slotDuration: 30,
+  bufferMinutes: 0,
+};
 
 const UniversalSchedule = ({ config }: Props) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [view, setView] = useState<'day' | 'week' | 'month'>('week');
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [loading, setLoading] = useState(true);
+  const [masterProfile, setMasterProfile] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
+  const [services, setServices] = useState<ServiceOption[]>([]);
+  const [clients, setClients] = useState<ClientOption[]>([]);
+  const [resources, setResources] = useState<ResourceOption[]>([]);
+  const [selectedItem, setSelectedItem] = useState<any | null>(null);
+
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isBreakOpen, setIsBreakOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [slotDuration, setSlotDuration] = useState(30);
-  const [breakDuration, setBreakDuration] = useState(15);
-  const [services, setServices] = useState<ServiceOption[]>([]);
-  const [workStart, setWorkStart] = useState('09:00');
-  const [workEnd, setWorkEnd] = useState('18:00');
-  const [clients, setClients] = useState<any[]>([]);
   const [clientSearch, setClientSearch] = useState('');
-  
-  // DB-backed schedule settings
-  const [workDays, setWorkDays] = useState<number[]>([1, 2, 3, 4, 5]);
-  const [workHoursConfig, setWorkHoursConfig] = useState<Record<string, WorkHoursEntry>>({});
-  const [breakConfig, setBreakConfig] = useState<Record<string, BreakEntry[]>>({});
-  const [usePerDayHours, setUsePerDayHours] = useState(false);
-  
-  // Status/review dialogs
+  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [statusDialog, setStatusDialog] = useState<{ id: string; action: 'no_show' | 'reject' | 'reschedule' } | null>(null);
   const [statusReason, setStatusReason] = useState('');
   const [rescheduleDate, setRescheduleDate] = useState('');
   const [rescheduleTime, setRescheduleTime] = useState('');
 
+  const [settings, setSettings] = useState<MasterScheduleSettings>(defaultSettings);
+  const [usePerDayHours, setUsePerDayHours] = useState(false);
+
   const [formData, setFormData] = useState({
-    service_id: '', title: '', description: '',
-    lesson_date: format(new Date(), 'yyyy-MM-dd'),
-    start_time: '', end_time: '',
-    lesson_type: 'individual' as 'individual' | 'group',
-    max_participants: 1, price: 0,
-    recurrence: 'none', recurrence_end: '', day_of_week: 1,
+    service_id: '',
+    date: format(new Date(), 'yyyy-MM-dd'),
+    start_time: '',
+    end_time: '',
+    recurrence: 'none',
+    recurrence_end: '',
     recurrence_interval: 7,
     client_mode: 'list' as 'list' | 'id' | 'manual',
-    client_id: '', client_skillspot_id: '', client_name: '', client_phone: '',
+    client_id: '',
+    client_skillspot_id: '',
+    client_name: '',
+    client_phone: '',
+    notes: '',
+    resource_id: 'none',
   });
 
   const [breakData, setBreakData] = useState({
     date: format(new Date(), 'yyyy-MM-dd'),
-    start_time: '12:00', end_time: '13:00',
+    start_time: '13:00',
+    end_time: '14:00',
   });
+
+  const selectedService = services.find(service => service.id === formData.service_id) || null;
+
+  const fetchBaseData = async () => {
+    if (!user) return;
+    setLoading(true);
+
+    const [profileRes, serviceRes] = await Promise.all([
+      supabase
+        .from('master_profiles')
+        .select('id, user_id, business_id, work_days, work_hours_config, break_config')
+        .eq('user_id', user.id)
+        .maybeSingle(),
+      supabase
+        .from('services')
+        .select('id, name, duration_minutes, price')
+        .eq('master_id', user.id)
+        .eq('is_active', true),
+    ]);
+
+    const profile = profileRes.data;
+    setMasterProfile(profile);
+    setServices(
+      (serviceRes.data || []).map(service => ({
+        id: service.id,
+        name: service.name,
+        duration_minutes: service.duration_minutes || 60,
+        price: Number(service.price) || 0,
+      })),
+    );
+
+    const normalized = normalizeMasterScheduleSettings(
+      profile?.work_days,
+      profile?.work_hours_config,
+      profile?.break_config,
+    );
+    if (profile?.business_id) {
+      const { data: business } = await supabase
+        .from('business_locations')
+        .select('buffer_minutes')
+        .eq('id', profile.business_id)
+        .maybeSingle();
+      if (business?.buffer_minutes !== undefined && business?.buffer_minutes !== null) {
+        normalized.bufferMinutes = Number(business.buffer_minutes) || 0;
+      }
+    }
+    setSettings(normalized);
+    setUsePerDayHours(Object.keys(normalized.perDayHours).length > 0);
+
+    if (profile?.business_id) {
+      const { data } = await supabase
+        .from('resources')
+        .select('id, name, capacity')
+        .eq('organization_id', profile.business_id)
+        .eq('is_active', true)
+        .order('name');
+      setResources((data || []) as ResourceOption[]);
+    } else {
+      setResources([]);
+    }
+
+    setLoading(false);
+  };
+
+  const fetchKnownClients = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('bookings')
+      .select('client_id, client:profiles!bookings_client_id_fkey(id, first_name, last_name, phone, skillspot_id)')
+      .eq('executor_id', user.id)
+      .order('scheduled_at', { ascending: false })
+      .limit(500);
+
+    const unique = new Map<string, ClientOption>();
+    (data || []).forEach((booking: any) => {
+      const client = booking.client;
+      if (client?.id && !unique.has(client.id)) {
+        unique.set(client.id, client);
+      }
+    });
+    setClients(Array.from(unique.values()));
+  };
+
+  const fetchItems = async () => {
+    if (!user) return;
+    const range =
+      view === 'day'
+        ? { start: currentDate, end: currentDate }
+        : view === 'week'
+          ? { start: startOfWeek(currentDate, { weekStartsOn: 1 }), end: endOfWeek(currentDate, { weekStartsOn: 1 }) }
+          : { start: startOfWeek(startOfMonth(currentDate), { weekStartsOn: 1 }), end: endOfWeek(endOfMonth(currentDate), { weekStartsOn: 1 }) };
+
+    const { data } = await supabase
+      .from('bookings')
+      .select(`
+        id,
+        status,
+        scheduled_at,
+        duration_minutes,
+        notes,
+        cancellation_reason,
+        client_id,
+        executor_id,
+        resource_id,
+        service_id,
+        service:services!bookings_service_id_fkey(name, price, duration_minutes),
+        client:profiles!bookings_client_id_fkey(first_name, last_name, email, phone, skillspot_id),
+        resource:resources(name)
+      `)
+      .eq('executor_id', user.id)
+      .gte('scheduled_at', new Date(format(range.start, "yyyy-MM-dd'T'00:00:00")).toISOString())
+      .lte('scheduled_at', new Date(format(range.end, "yyyy-MM-dd'T'23:59:59")).toISOString())
+      .order('scheduled_at');
+
+    const syntheticBreaks = buildSyntheticBreakItems(
+      user.id,
+      settings,
+      range.start,
+      range.end,
+    );
+
+    setItems([...(data || []), ...syntheticBreaks]);
+  };
+
+  useEffect(() => {
+    fetchBaseData();
+    fetchKnownClients();
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
-    supabase.from('services').select('id, name, duration_minutes, price')
-      .eq('master_id', user.id).eq('is_active', true)
-      .then(({ data }) => setServices((data || []).map(s => ({
-        id: s.id, name: s.name, duration_minutes: s.duration_minutes || 60, price: Number(s.price) || 0,
-      }))));
-    // Fetch clients for booking dialog
-    supabase.from('lesson_bookings')
-      .select('student_id, lessons!inner(teacher_id), profiles:student_id(id, first_name, last_name, skillspot_id, phone)')
-      .eq('lessons.teacher_id', user.id)
-      .then(({ data }) => {
-        if (!data) return;
-        const unique = new Map<string, any>();
-        data.forEach(b => {
-          const p = b.profiles as any;
-          if (p && !unique.has(p.id)) unique.set(p.id, p);
-        });
-        setClients(Array.from(unique.values()));
-      });
-    // Load schedule settings from DB
-    supabase.from('master_profiles').select('work_days, work_hours_config, break_config')
-      .eq('user_id', user.id).maybeSingle()
-      .then(({ data }) => {
-        if (!data) return;
-        if (Array.isArray(data.work_days) && data.work_days.length > 0) setWorkDays(data.work_days);
-        const whc = data.work_hours_config as any;
-        if (whc && typeof whc === 'object') {
-          if (whc.default) { setWorkStart(whc.default.start || '09:00'); setWorkEnd(whc.default.end || '18:00'); }
-          if (whc.perDay && Object.keys(whc.perDay).length > 0) { setWorkHoursConfig(whc.perDay); setUsePerDayHours(true); }
-          if (whc.slotDuration) setSlotDuration(whc.slotDuration);
-          if (whc.breakDuration !== undefined) setBreakDuration(whc.breakDuration);
-        }
-        const bc = data.break_config as any;
-        if (bc && typeof bc === 'object' && !Array.isArray(bc)) setBreakConfig(bc);
-      });
-  }, [user]);
+    fetchItems();
+  }, [user, currentDate, view, settings]);
 
-  const fetchItems = useCallback(async () => {
-    if (!user) return;
-    let startDate: Date, endDate: Date;
-    if (view === 'day') { startDate = currentDate; endDate = currentDate; }
-    else if (view === 'week') { startDate = startOfWeek(currentDate, { weekStartsOn: 1 }); endDate = endOfWeek(currentDate, { weekStartsOn: 1 }); }
-    else { startDate = startOfMonth(currentDate); endDate = endOfMonth(currentDate); }
-    const { data } = await supabase.from('lessons').select('*, lesson_bookings(student_id, status, profiles:student_id(first_name, last_name))')
-      .eq('teacher_id', user.id)
-      .gte('lesson_date', format(startDate, 'yyyy-MM-dd'))
-      .lte('lesson_date', format(endDate, 'yyyy-MM-dd'))
-      .order('lesson_date').order('start_time');
-    setItems(data || []);
-  }, [user, currentDate, view]);
-
-  useEffect(() => { fetchItems(); }, [fetchItems]);
-
-  const navigate = (dir: number) => {
-    if (view === 'day') setCurrentDate(prev => addDays(prev, dir));
-    else if (view === 'week') setCurrentDate(prev => dir > 0 ? addWeeks(prev, 1) : subWeeks(prev, 1));
-    else setCurrentDate(prev => dir > 0 ? addMonths(prev, 1) : subMonths(prev, 1));
-  };
-
-  const getAvailableSlots = useMemo(() => {
-    const selectedService = services.find(s => s.id === formData.service_id);
-    if (!selectedService || !formData.lesson_date) return [];
-    const duration = selectedService.duration_minutes;
-    const slotStep = Math.max(15, Math.min(slotDuration, duration));
-    const dayItems = items.filter(w => w.lesson_date === formData.lesson_date);
-    const blocked = dayItems.map(w => ({
-      start: timeToMinutes(w.start_time?.slice(0, 5) || '00:00'),
-      end: timeToMinutes(w.end_time?.slice(0, 5) || '00:00') + breakDuration,
-    }));
-    const wsMin = timeToMinutes(workStart), weMin = timeToMinutes(workEnd);
-    const slots: string[] = [];
-    for (let t = wsMin; t + duration <= weMin; t += slotStep) {
-      if (!blocked.some(b => t < b.end && (t + duration) > b.start)) {
-        slots.push(`${Math.floor(t / 60).toString().padStart(2, '0')}:${(t % 60).toString().padStart(2, '0')}`);
-      }
-    }
-    return slots;
-  }, [formData.service_id, formData.lesson_date, services, items, workStart, workEnd, slotDuration, breakDuration]);
-
-  const onServiceChange = (serviceId: string) => {
-    const svc = services.find(s => s.id === serviceId);
-    if (svc) setFormData(p => ({ ...p, service_id: serviceId, title: svc.name, price: svc.price, start_time: '', end_time: '' }));
-  };
-
-  const onSlotSelect = (slot: string) => {
-    const svc = services.find(s => s.id === formData.service_id);
-    if (!svc) return;
-    setFormData(p => ({ ...p, start_time: slot, end_time: addMinutesToTime(slot, svc.duration_minutes) }));
-  };
-
-  const checkConflicts = async (date: string, startTime: string, endTime: string, excludeId?: string) => {
-    if (!user) return false;
-    let query = supabase.from('lessons').select('id')
-      .eq('teacher_id', user.id).eq('lesson_date', date)
-      .lt('start_time', endTime).gt('end_time', startTime);
-    if (excludeId) query = query.neq('id', excludeId);
-    const { data } = await query;
-    return (data?.length || 0) > 0;
-  };
-
-  const handleCreate = async () => {
-    if (!user || !formData.title || !formData.start_time || !formData.end_time) return;
-    try {
-      const hasConflict = await checkConflicts(formData.lesson_date, formData.start_time, formData.end_time);
-      if (hasConflict) {
-        toast({ title: 'Конфликт', description: 'На это время уже есть запись', variant: 'destructive' });
+  useEffect(() => {
+    const loadSlots = async () => {
+      if (!user || !selectedService || !formData.date) {
+        setAvailableSlots([]);
         return;
       }
 
-      // Resolve client
-      let resolvedClientId: string | null = null;
-      if (formData.client_mode === 'list' && formData.client_id) {
-        resolvedClientId = formData.client_id;
-      } else if (formData.client_mode === 'id' && formData.client_skillspot_id) {
-        const { data: found } = await supabase.from('profiles').select('id').eq('skillspot_id', formData.client_skillspot_id).maybeSingle();
-        if (found) resolvedClientId = found.id;
+      const { data, error } = await supabase.rpc('get_master_available_slots', {
+        _master_id: user.id,
+        _date: formData.date,
+        _service_duration: selectedService.duration_minutes,
+      });
+
+      if (error) {
+        setAvailableSlots([]);
+        return;
       }
 
-      if (formData.recurrence !== 'none' && formData.recurrence_end) {
-        const { data: pattern, error: patternErr } = await supabase.from('recurring_patterns').insert({
-          teacher_id: user.id, title: formData.title, lesson_type: formData.lesson_type,
-          recurrence_type: formData.recurrence as any, day_of_week: formData.day_of_week,
-          start_time: formData.start_time, end_time: formData.end_time,
-          start_date: formData.lesson_date, end_date: formData.recurrence_end,
-          price: formData.price, max_participants: formData.max_participants,
-          description: formData.description || null,
-        }).select().single();
-        if (patternErr) throw patternErr;
-        const start = new Date(formData.lesson_date), end = new Date(formData.recurrence_end);
-        const batch: any[] = [];
-        let d = new Date(start);
-        const interval = formData.recurrence === 'custom' ? formData.recurrence_interval : 1;
-        while (d <= end) {
-          const match = formData.recurrence === 'weekly' ? d.getDay() === formData.day_of_week
-            : formData.recurrence === 'daily' ? true
-            : formData.recurrence === 'monthly' ? d.getDate() === start.getDate() : true;
-          if (match) batch.push({
-            teacher_id: user.id, title: formData.title, description: formData.description || null,
-            lesson_date: format(d, 'yyyy-MM-dd'), start_time: formData.start_time, end_time: formData.end_time,
-            lesson_type: formData.lesson_type, max_participants: formData.max_participants,
-            price: formData.price, recurring_pattern_id: pattern.id,
-          });
-          d = addDays(d, formData.recurrence === 'weekly' ? 7 : formData.recurrence === 'monthly' ? 30 : interval);
-        }
-        let conflictCount = 0;
-        const safeBatch = [];
-        for (const item of batch) {
-          if (await checkConflicts(item.lesson_date, item.start_time, item.end_time)) conflictCount++;
-          else safeBatch.push(item);
-        }
-        if (safeBatch.length > 0) {
-          const { error } = await supabase.from('lessons').insert(safeBatch as any);
-          if (error) throw error;
-        }
-        toast({ title: 'Серия создана', description: `Создано ${safeBatch.length} записей${conflictCount > 0 ? `, пропущено ${conflictCount}` : ''}` });
-      } else {
-        const { data: lesson, error } = await supabase.from('lessons').insert({
-          teacher_id: user.id, title: formData.title, description: formData.description || null,
-          lesson_date: formData.lesson_date, start_time: formData.start_time, end_time: formData.end_time,
-          lesson_type: formData.lesson_type, max_participants: formData.max_participants, price: formData.price,
-        }).select('id').single();
-        if (error) throw error;
+      let slots = ((data || []) as any[]).map(slot =>
+        new Date(slot.slot_start).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
+      );
 
-        // Create booking for the client if known
-        if (resolvedClientId && lesson) {
-          await supabase.from('lesson_bookings').insert({
-            lesson_id: lesson.id, student_id: resolvedClientId, status: 'confirmed',
+      if (formData.resource_id && formData.resource_id !== 'none') {
+        const filtered: string[] = [];
+        for (const slot of slots) {
+          const startTime = new Date(`${formData.date}T${slot}:00`).toISOString();
+          const { data: available } = await supabase.rpc('check_availability', {
+            _master_id: user.id,
+            _resource_id: formData.resource_id,
+            _start_time: startTime,
+            _duration_minutes: selectedService.duration_minutes,
           });
-          // Send notification
-          await supabase.from('notifications').insert({
-            user_id: resolvedClientId, type: 'booking',
-            title: 'Новая запись',
-            message: `Вы записаны на «${formData.title}» ${formData.lesson_date} в ${formData.start_time}`,
-            related_id: lesson.id,
-          });
+          if (available) filtered.push(slot);
         }
-        toast({ title: 'Запись создана' });
+        slots = filtered;
       }
-      setIsCreateOpen(false);
-      setFormData({ service_id: '', title: '', description: '', lesson_date: format(new Date(), 'yyyy-MM-dd'), start_time: '', end_time: '', lesson_type: 'individual', max_participants: 1, price: 0, recurrence: 'none', recurrence_end: '', day_of_week: 1, recurrence_interval: 7, client_mode: 'list', client_id: '', client_skillspot_id: '', client_name: '', client_phone: '' });
-      fetchItems();
-    } catch (err: any) {
-      toast({ title: 'Ошибка', description: err.message, variant: 'destructive' });
+
+      setAvailableSlots(slots);
+    };
+
+    loadSlots();
+  }, [user, selectedService, formData.date, formData.resource_id]);
+
+  const persistSettings = async (nextSettings: MasterScheduleSettings) => {
+    if (!user) return false;
+    const payload = serializeMasterScheduleSettings(nextSettings, usePerDayHours);
+    const { error } = await supabase
+      .from('master_profiles')
+      .update(payload as any)
+      .eq('user_id', user.id);
+
+    if (error) {
+      toast({ title: 'Ошибка', description: error.message, variant: 'destructive' });
+      return false;
     }
+
+    if (masterProfile?.business_id) {
+      await supabase
+        .from('business_locations')
+        .update({ buffer_minutes: nextSettings.bufferMinutes })
+        .eq('id', masterProfile.business_id);
+    }
+
+    setSettings(nextSettings);
+    return true;
+  };
+
+  const resolveClientId = async () => {
+    if (formData.client_mode === 'list' && formData.client_id) {
+      return formData.client_id;
+    }
+
+    if (formData.client_mode === 'id' && formData.client_skillspot_id.trim()) {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('skillspot_id', formData.client_skillspot_id.trim().toUpperCase())
+        .maybeSingle();
+      return data?.id || null;
+    }
+
+    if (formData.client_mode === 'manual' && formData.client_phone.trim()) {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('phone', formData.client_phone.trim())
+        .maybeSingle();
+      return data?.id || null;
+    }
+
+    return null;
+  };
+
+  const buildRecurrenceDates = () => {
+    if (formData.recurrence === 'none') return [formData.date];
+    if (!formData.recurrence_end) return [formData.date];
+
+    const start = new Date(formData.date);
+    const end = new Date(formData.recurrence_end);
+    const dates: string[] = [];
+    let cursor = new Date(start);
+
+    while (cursor <= end) {
+      dates.push(format(cursor, 'yyyy-MM-dd'));
+      if (formData.recurrence === 'weekly') cursor = addDays(cursor, 7);
+      else if (formData.recurrence === 'monthly') cursor = addMonths(cursor, 1);
+      else cursor = addDays(cursor, Math.max(1, Number(formData.recurrence_interval) || 1));
+    }
+
+    return dates;
+  };
+
+  const handleCreate = async () => {
+    if (!user || !selectedService || !formData.start_time || !formData.date) return;
+
+    const clientId = await resolveClientId();
+    if (!clientId) {
+      toast({
+        title: 'Клиент не найден',
+        description: 'Для внутренней записи клиент должен иметь зарегистрированный профиль.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const dates = buildRecurrenceDates();
+    const createdIds: string[] = [];
+    const skipped: string[] = [];
+
+    for (const date of dates) {
+      const scheduledAt = new Date(`${date}T${formData.start_time}:00`).toISOString();
+      const { data: available } = await supabase.rpc('check_availability', {
+        _master_id: user.id,
+        _resource_id: formData.resource_id !== 'none' ? formData.resource_id : null,
+        _start_time: scheduledAt,
+        _duration_minutes: selectedService.duration_minutes,
+      });
+
+      if (!available) {
+        skipped.push(date);
+        continue;
+      }
+
+      const { data, error } = await supabase
+        .from('bookings')
+        .insert({
+          organization_id: masterProfile?.business_id || null,
+          service_id: selectedService.id,
+          executor_id: user.id,
+          client_id: clientId,
+          resource_id: formData.resource_id !== 'none' ? formData.resource_id : null,
+          scheduled_at: scheduledAt,
+          duration_minutes: selectedService.duration_minutes,
+          status: 'confirmed',
+          notes: formData.notes || null,
+        })
+        .select('id')
+        .single();
+
+      if (error) {
+        skipped.push(date);
+        continue;
+      }
+
+      createdIds.push(data.id);
+      await supabase.from('notifications').insert({
+        user_id: clientId,
+        type: 'booking',
+        title: 'Новая запись',
+        message: `Вы записаны на «${selectedService.name}» ${date} в ${formData.start_time}`,
+        related_id: data.id,
+      });
+    }
+
+    toast({
+      title: createdIds.length > 0 ? 'Записи созданы' : 'Не удалось создать запись',
+      description: createdIds.length > 0
+        ? skipped.length > 0
+          ? `Создано ${createdIds.length}, пропущено ${skipped.length}`
+          : `Создано ${createdIds.length}`
+        : 'Проверьте расписание, ресурс или отпуск мастера',
+      variant: createdIds.length > 0 ? 'default' : 'destructive',
+    });
+
+    setIsCreateOpen(false);
+    setFormData({
+      service_id: '',
+      date: format(new Date(), 'yyyy-MM-dd'),
+      start_time: '',
+      end_time: '',
+      recurrence: 'none',
+      recurrence_end: '',
+      recurrence_interval: 7,
+      client_mode: 'list',
+      client_id: '',
+      client_skillspot_id: '',
+      client_name: '',
+      client_phone: '',
+      notes: '',
+      resource_id: 'none',
+    });
+    await fetchItems();
+    await fetchKnownClients();
   };
 
   const handleAddBreak = async () => {
-    if (!user) return;
-    try {
-      const hasConflict = await checkConflicts(breakData.date, breakData.start_time, breakData.end_time);
-      if (hasConflict) { toast({ title: 'Конфликт', variant: 'destructive' }); return; }
-      const { error } = await supabase.from('lessons').insert({
-        teacher_id: user.id, title: 'Перерыв', lesson_date: breakData.date,
-        start_time: breakData.start_time, end_time: breakData.end_time,
-        lesson_type: 'individual' as const, max_participants: 0, price: 0, status: 'cancelled' as const, notes: 'break',
-      });
-      if (error) throw error;
-      toast({ title: 'Перерыв добавлен' });
-      setIsBreakOpen(false); fetchItems();
-    } catch (err: any) { toast({ title: 'Ошибка', description: err.message, variant: 'destructive' }); }
-  };
-
-  const handleDelete = async (id: string) => {
-    await supabase.from('lessons').delete().eq('id', id);
-    toast({ title: 'Удалено' }); fetchItems();
-  };
-
-  const handleUpdateStatus = async (id: string, status: 'scheduled' | 'completed' | 'cancelled' | 'no_show') => {
-    await supabase.from('lessons').update({ status }).eq('id', id);
-    // Notify client
-    const item = items.find(w => w.id === id);
-    if (item) {
-      const booking = (item.lesson_bookings as any[])?.[0];
-      if (booking?.student_id) {
-        const msgs: Record<string, string> = {
-          completed: `Запись «${item.title}» ${item.lesson_date} отмечена как завершённая`,
-          cancelled: `Запись «${item.title}» ${item.lesson_date} отклонена мастером`,
-          no_show: `Неявка на «${item.title}» ${item.lesson_date}`,
-        };
-        if (msgs[status]) {
-          await supabase.from('notifications').insert({
-            user_id: booking.student_id, type: 'booking_status', title: status === 'completed' ? 'Запись завершена' : status === 'cancelled' ? 'Запись отклонена' : 'Неявка',
-            message: msgs[status], related_id: id,
-          });
-        }
-      }
+    if (timeToMinutes(breakData.end_time) <= timeToMinutes(breakData.start_time)) {
+      toast({ title: 'Некорректный интервал', variant: 'destructive' });
+      return;
     }
-    fetchItems();
+    const dayKey = String(new Date(breakData.date).getDay());
+    const nextSettings: MasterScheduleSettings = {
+      ...settings,
+      breakConfig: {
+        ...settings.breakConfig,
+        [dayKey]: [
+          ...(settings.breakConfig[dayKey] || []),
+          { start: breakData.start_time, end: breakData.end_time },
+        ],
+      },
+    };
+    const saved = await persistSettings(nextSettings);
+    if (!saved) return;
+    toast({ title: 'Перерыв добавлен' });
+    setIsBreakOpen(false);
+    await fetchItems();
   };
 
-  const handleNoShowWithReason = async () => {
-    if (!statusDialog) return;
-    await supabase.from('lessons').update({ status: 'no_show', notes: statusReason || null }).eq('id', statusDialog.id);
-    const item = items.find(w => w.id === statusDialog.id);
-    const booking = (item?.lesson_bookings as any[])?.[0];
-    if (booking?.student_id) {
-      await supabase.from('notifications').insert({
-        user_id: booking.student_id, type: 'no_show', title: 'Неявка',
-        message: `Вы не пришли на «${item?.title}» ${item?.lesson_date}`, related_id: statusDialog.id,
-      });
+  const removeBreak = async (item: any) => {
+    const key = item.rawBreakKey;
+    const nextSettings: MasterScheduleSettings = {
+      ...settings,
+      breakConfig: {
+        ...settings.breakConfig,
+        [key]: (settings.breakConfig[key] || []).filter((_, index) => index !== item.rawBreakIndex),
+      },
+    };
+    const saved = await persistSettings(nextSettings);
+    if (!saved) return;
+    toast({ title: 'Перерыв удалён' });
+    await fetchItems();
+  };
+
+  const updateBookingStatus = async (bookingId: string, payload: Record<string, any>, successTitle: string) => {
+    const { error } = await supabase.from('bookings').update(payload).eq('id', bookingId);
+    if (error) {
+      toast({ title: 'Ошибка', description: error.message, variant: 'destructive' });
+      return;
     }
-    setStatusDialog(null); setStatusReason(''); fetchItems();
-    toast({ title: 'Статус обновлён' });
+    toast({ title: successTitle });
+    setStatusDialog(null);
+    setStatusReason('');
+    setRescheduleDate('');
+    setRescheduleTime('');
+    await fetchItems();
+  };
+
+  const handleNoShow = async () => {
+    if (!statusDialog?.id) return;
+    await updateBookingStatus(
+      statusDialog.id,
+      { status: 'no_show', cancellation_reason: statusReason || 'Неявка клиента' },
+      'Клиент отмечен как неявившийся',
+    );
   };
 
   const handleReject = async () => {
-    if (!statusDialog) return;
-    await handleUpdateStatus(statusDialog.id, 'cancelled');
-    setStatusDialog(null); setStatusReason('');
-    toast({ title: 'Запись отклонена' });
+    if (!statusDialog?.id) return;
+    await updateBookingStatus(
+      statusDialog.id,
+      { status: 'rejected', cancellation_reason: statusReason || 'Отклонено мастером' },
+      'Запись отклонена',
+    );
   };
 
   const handleReschedule = async () => {
-    if (!statusDialog || !rescheduleDate || !rescheduleTime) return;
-    const item = items.find(w => w.id === statusDialog.id);
-    if (!item) return;
-    const svc = services.find(s => s.name === item.title);
-    const duration = svc?.duration_minutes || 60;
-    const newEnd = addMinutesToTime(rescheduleTime, duration);
+    if (!statusDialog?.id || !rescheduleDate || !rescheduleTime) return;
+    const item = items.find(current => current.id === statusDialog.id);
+    const duration = Number(item?.duration_minutes || item?.service?.duration_minutes || 60);
+    const scheduledAt = new Date(`${rescheduleDate}T${rescheduleTime}:00`).toISOString();
+    const { data: available } = await supabase.rpc('check_availability', {
+      _master_id: user?.id,
+      _resource_id: item?.resource_id || null,
+      _start_time: scheduledAt,
+      _duration_minutes: duration,
+    });
 
-    // Update the lesson
-    await supabase.from('lessons').update({
-      lesson_date: rescheduleDate, start_time: rescheduleTime, end_time: newEnd, notes: `Перенесено: ${statusReason}`,
-    }).eq('id', statusDialog.id);
-
-    // Notify client
-    const booking = (item.lesson_bookings as any[])?.[0];
-    if (booking?.student_id) {
-      await supabase.from('notifications').insert({
-        user_id: booking.student_id, type: 'reschedule', title: 'Перенос записи',
-        message: `Мастер предлагает перенести «${item.title}» на ${rescheduleDate} в ${rescheduleTime}`,
-        related_id: statusDialog.id,
-      });
+    if (!available) {
+      toast({ title: 'Слот недоступен', variant: 'destructive' });
+      return;
     }
 
-    setStatusDialog(null); setStatusReason(''); setRescheduleDate(''); setRescheduleTime('');
-    fetchItems();
-    toast({ title: 'Запись перенесена', description: 'Клиенту отправлено уведомление' });
+    await updateBookingStatus(
+      statusDialog.id,
+      {
+        scheduled_at: scheduledAt,
+        notes: [item?.notes, statusReason ? `Перенос: ${statusReason}` : null].filter(Boolean).join('\n'),
+      },
+      'Запись перенесена',
+    );
   };
 
-  const getForDate = (date: Date) => items.filter(w => isSameDay(new Date(w.lesson_date), date));
+  const navigate = (direction: number) => {
+    if (view === 'day') setCurrentDate(previous => addDays(previous, direction));
+    else if (view === 'week') setCurrentDate(previous => (direction > 0 ? addWeeks(previous, 1) : subWeeks(previous, 1)));
+    else setCurrentDate(previous => (direction > 0 ? addMonths(previous, 1) : subMonths(previous, 1)));
+  };
 
-  const getNavLabel = () => {
+  const navLabel = useMemo(() => {
     if (view === 'day') return format(currentDate, 'd MMMM yyyy, EEEE', { locale: ru });
     if (view === 'week') {
-      const s = startOfWeek(currentDate, { weekStartsOn: 1 });
-      const e = endOfWeek(currentDate, { weekStartsOn: 1 });
-      return `${format(s, 'd MMM', { locale: ru })} – ${format(e, 'd MMM yyyy', { locale: ru })}`;
+      const start = startOfWeek(currentDate, { weekStartsOn: 1 });
+      const end = endOfWeek(currentDate, { weekStartsOn: 1 });
+      return `${format(start, 'd MMM', { locale: ru })} – ${format(end, 'd MMM yyyy', { locale: ru })}`;
     }
     return format(currentDate, 'LLLL yyyy', { locale: ru });
-  };
+  }, [currentDate, view]);
 
-  const isBreak = (w: any) => w.notes === 'break' || (w.status === 'cancelled' && w.max_participants === 0);
+  const filteredClients = useMemo(() => {
+    if (!clientSearch.trim()) return clients;
+    const query = clientSearch.trim().toLowerCase();
+    return clients.filter(client =>
+      `${client.first_name || ''} ${client.last_name || ''}`.toLowerCase().includes(query)
+      || (client.skillspot_id || '').toLowerCase().includes(query),
+    );
+  }, [clients, clientSearch]);
 
-  // Check if session ended and within 24h review window
-  const canReview = (w: any) => {
-    if (w.status !== 'completed') return false;
-    const endDateTime = new Date(`${w.lesson_date}T${w.end_time}`);
-    const hoursSince = differenceInHours(new Date(), endDateTime);
+  const visibleItems = useMemo(() => {
+    const sorted = [...items].sort((left, right) => new Date(left.scheduled_at).getTime() - new Date(right.scheduled_at).getTime());
+    if (view === 'day') return sorted.filter(item => isSameDay(new Date(item.scheduled_at), currentDate));
+    if (view === 'week') {
+      const start = startOfWeek(currentDate, { weekStartsOn: 1 });
+      const end = endOfWeek(currentDate, { weekStartsOn: 1 });
+      return sorted.filter(item => {
+        const date = new Date(item.scheduled_at);
+        return date >= start && date <= end;
+      });
+    }
+    return sorted.filter(item => new Date(item.scheduled_at).getMonth() === currentDate.getMonth());
+  }, [items, currentDate, view]);
+
+  const isBreak = (item: any) => item.rawSource === 'break_config';
+  const canReview = (item: any) => {
+    if (item.status !== 'completed') return false;
+    const endTime = new Date(new Date(item.scheduled_at).getTime() + Number(item.duration_minutes || 0) * 60_000);
+    const hoursSince = differenceInHours(new Date(), endTime);
     return hoursSince >= 0 && hoursSince <= 24;
   };
-
-  // Check if session time passed but still scheduled
-  const isOverdue = (w: any) => {
-    if (w.status !== 'scheduled') return false;
-    const endDateTime = new Date(`${w.lesson_date}T${w.end_time}`);
-    return isAfter(new Date(), endDateTime);
+  const isOverdue = (item: any) => {
+    if (isBreak(item) || !['pending', 'confirmed', 'in_progress'].includes(item.status)) return false;
+    const endTime = new Date(new Date(item.scheduled_at).getTime() + Number(item.duration_minutes || 0) * 60_000);
+    return isAfter(new Date(), endTime);
   };
 
-  const renderCard = (w: any, compact = false) => {
-    const brk = isBreak(w);
-    const booking = (w.lesson_bookings as any[])?.[0];
-    const clientName = booking?.profiles ? `${booking.profiles.first_name || ''} ${booking.profiles.last_name || ''}`.trim() : null;
-    const clientId = booking?.student_id || null;
-    const overdue = isOverdue(w);
-    const reviewable = canReview(w);
+  const renderBookingCard = (item: any, compact = false) => {
+    const start = new Date(item.scheduled_at);
+    const end = new Date(start.getTime() + Number(item.duration_minutes || 0) * 60_000);
+    const itemIsBreak = isBreak(item);
+    const overdue = isOverdue(item);
+    const reviewable = canReview(item);
+    const tone = overdue && !itemIsBreak
+      ? 'bg-yellow-50 border-yellow-200 text-yellow-900'
+      : statusTone[item.status] || statusTone.pending;
+    const clientName = item.client
+      ? [item.client.first_name, item.client.last_name].filter(Boolean).join(' ')
+      : null;
 
-    const cardInner = (
-      <div className={`p-3 rounded-lg border ${brk ? statusColors.break : overdue ? 'bg-yellow-50 border-yellow-300 dark:bg-yellow-900/20 dark:border-yellow-700' : statusColors[w.status] || 'bg-muted'}`}>
-        <div className="flex items-start justify-between">
-          <div className="flex-1 min-w-0">
+    const content = (
+      <button
+        type="button"
+        className={`w-full rounded-lg border p-3 text-left transition-colors hover:border-primary/40 ${tone}`}
+        onClick={() => {
+          if (itemIsBreak) return;
+          setSelectedItem(item);
+        }}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              {brk && <Coffee className="h-3.5 w-3.5" />}
-              <p className={`font-semibold ${compact ? 'text-xs' : 'text-sm'}`}>{w.title}</p>
+              {itemIsBreak && <Coffee className="h-3.5 w-3.5" />}
+              <p className={`font-semibold ${compact ? 'text-xs' : 'text-sm'}`}>
+                {itemIsBreak ? 'Перерыв' : item.service?.name || 'Запись'}
+              </p>
             </div>
-            <p className="text-xs mt-0.5">{w.start_time?.slice(0, 5)} – {w.end_time?.slice(0, 5)}</p>
-            {!brk && !compact && (
-              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                <Badge variant="outline" className="text-[10px] h-5">
-                  {w.lesson_type === 'group' ? `Группа (${w.current_participants}/${w.max_participants})` : 'Индивид.'}
-                </Badge>
-                <span className="text-xs font-medium">{Number(w.price).toLocaleString()} ₽</span>
-                {clientName && <span className="text-xs text-muted-foreground">· {clientName}</span>}
+            <p className="text-xs mt-0.5">
+              {format(start, 'HH:mm')} – {format(end, 'HH:mm')}
+            </p>
+            {!compact && (
+              <div className="flex flex-wrap gap-2 mt-1 text-xs text-muted-foreground">
+                {!itemIsBreak && clientName && <span>{clientName}</span>}
+                {!itemIsBreak && item.resource?.name && <span>· {item.resource.name}</span>}
+                {!itemIsBreak && <span>· {Number(item.service?.price || 0).toLocaleString()} ₽</span>}
               </div>
             )}
           </div>
           {!compact && (
-            <div className="flex gap-0.5 shrink-0">
-              {overdue && !brk && (
+            <div className="flex flex-wrap gap-1 justify-end">
+              <Badge variant={item.status === 'completed' ? 'outline' : item.status === 'pending' ? 'secondary' : item.status === 'confirmed' ? 'default' : 'destructive'}>
+                {statusLabel[item.status] || item.status}
+              </Badge>
+              {overdue && !itemIsBreak && (
                 <>
-                  <Button size="sm" variant="ghost" className="h-7 px-2 text-xs gap-1" onClick={() => handleUpdateStatus(w.id, 'completed')}>
-                    <CheckCircle className="h-3 w-3" /> Состоялась
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 text-xs"
+                    onClick={event => {
+                      event.stopPropagation();
+                      updateBookingStatus(item.id, { status: 'completed' }, 'Запись завершена');
+                    }}
+                  >
+                    <CheckCircle className="h-3 w-3 mr-1" /> Состоялась
                   </Button>
-                  <Button size="sm" variant="ghost" className="h-7 px-2 text-xs gap-1" onClick={() => setStatusDialog({ id: w.id, action: 'no_show' })}>
-                    <XCircle className="h-3 w-3" /> Не состоялась
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 text-xs"
+                    onClick={event => {
+                      event.stopPropagation();
+                      setStatusDialog({ id: item.id, action: 'no_show' });
+                    }}
+                  >
+                    <XCircle className="h-3 w-3 mr-1" /> Не состоялась
                   </Button>
                 </>
               )}
-              {w.status === 'scheduled' && !brk && !overdue && (
+              {!itemIsBreak && !overdue && ['pending', 'confirmed'].includes(item.status) && (
                 <>
-                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleUpdateStatus(w.id, 'completed')}>✓</Button>
-                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setStatusDialog({ id: w.id, action: 'reject' })}>
-                    <XCircle className="h-3 w-3" />
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 p-0"
+                    onClick={event => {
+                      event.stopPropagation();
+                      updateBookingStatus(item.id, { status: 'completed' }, 'Запись завершена');
+                    }}
+                  >
+                    <CheckCircle className="h-3.5 w-3.5" />
                   </Button>
-                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setStatusDialog({ id: w.id, action: 'reschedule' })}>
-                    <ArrowRightLeft className="h-3 w-3" />
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 p-0"
+                    onClick={event => {
+                      event.stopPropagation();
+                      setStatusDialog({ id: item.id, action: 'reject' });
+                    }}
+                  >
+                    <XCircle className="h-3.5 w-3.5" />
                   </Button>
-                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleDelete(w.id)}>
-                    <Trash2 className="h-3 w-3" />
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 p-0"
+                    onClick={event => {
+                      event.stopPropagation();
+                      setStatusDialog({ id: item.id, action: 'reschedule' });
+                    }}
+                  >
+                    <ArrowRightLeft className="h-3.5 w-3.5" />
                   </Button>
                 </>
               )}
-              {reviewable && (
-                <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1">
-                  <Star className="h-3 w-3" /> Оценить
+              {itemIsBreak && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 w-7 p-0"
+                  onClick={event => {
+                    event.stopPropagation();
+                    removeBreak(item);
+                  }}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               )}
-              {brk && <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleDelete(w.id)}><Trash2 className="h-3 w-3" /></Button>}
+              {reviewable && (
+                <Badge variant="outline">Можно оценить</Badge>
+              )}
             </div>
           )}
         </div>
-      </div>
+      </button>
     );
 
-    if (clientId && !brk) {
+    if (!itemIsBreak && item.client_id) {
       return (
-        <ClientHoverCard key={w.id} clientId={clientId} fallbackName={clientName || undefined}>
-          {cardInner}
+        <ClientHoverCard key={item.id} clientId={item.client_id} fallbackName={clientName || undefined}>
+          {content}
         </ClientHoverCard>
       );
     }
-    return <div key={w.id}>{cardInner}</div>;
+
+    return <div key={item.id}>{content}</div>;
   };
 
-  // DAY VIEW - detailed list with time slots
   const renderDayView = () => {
-    const dayItems = getForDate(currentDate).sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
-    if (dayItems.length === 0) return <Card><CardContent className="py-12 text-center text-muted-foreground">Нет записей на этот день</CardContent></Card>;
-    return <div className="space-y-2">{dayItems.map(w => renderCard(w))}</div>;
+    if (visibleItems.length === 0) {
+      return (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            Нет записей на этот день
+          </CardContent>
+        </Card>
+      );
+    }
+    return <div className="space-y-2">{visibleItems.map(item => renderBookingCard(item))}</div>;
   };
 
-  // WEEK VIEW - vertical list of days with summary, click → day
   const renderWeekView = () => {
     const start = startOfWeek(currentDate, { weekStartsOn: 1 });
-    const days = eachDayOfInterval({ start, end: endOfWeek(currentDate, { weekStartsOn: 1 }) });
+    const end = endOfWeek(currentDate, { weekStartsOn: 1 });
+    const days = eachDayOfInterval({ start, end });
     return (
       <div className="space-y-2">
         {days.map(day => {
-          const dayItems = getForDate(day);
-          const sessions = dayItems.filter(w => !isBreak(w));
-          const breaks = dayItems.filter(isBreak);
+          const dayItems = items.filter(item => isSameDay(new Date(item.scheduled_at), day));
+          const sessions = dayItems.filter(item => !isBreak(item));
+          const breaks = dayItems.filter(item => isBreak(item));
+          const revenue = sessions
+            .filter(item => item.status === 'completed' || item.status === 'confirmed')
+            .reduce((sum, item) => sum + Number(item.service?.price || 0), 0);
           const today = isSameDay(day, new Date());
-          const totalRevenue = sessions.reduce((s, w) => s + Number(w.price || 0), 0);
+
           return (
             <Card
               key={day.toISOString()}
-              className={`cursor-pointer hover:border-primary/50 transition-colors ${today ? 'border-primary bg-primary/5' : ''}`}
-              onClick={() => { setCurrentDate(day); setView('day'); }}
+              className={`cursor-pointer transition-colors hover:border-primary/40 ${today ? 'border-primary bg-primary/5' : ''}`}
+              onClick={() => {
+                setCurrentDate(day);
+                setView('day');
+              }}
             >
               <CardContent className="py-3 px-4">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-lg flex flex-col items-center justify-center shrink-0 ${today ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-                      <span className="text-[10px] leading-none font-medium">{daysOfWeek[day.getDay() === 0 ? 6 : day.getDay() - 1]}</span>
+                    <div className={`w-10 h-10 rounded-lg flex flex-col items-center justify-center ${today ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                      <span className="text-[10px] leading-none font-medium">{dayLabels[day.getDay()]}</span>
                       <span className="text-sm font-bold leading-none">{format(day, 'd')}</span>
                     </div>
                     <div>
                       <p className="text-sm font-medium">{format(day, 'd MMMM', { locale: ru })}</p>
-                      {sessions.length > 0 ? (
-                        <p className="text-xs text-muted-foreground">
-                          {sessions.length} {sessions.length === 1 ? 'запись' : sessions.length < 5 ? 'записи' : 'записей'}
-                          {breaks.length > 0 && ` · ${breaks.length} перерыв`}
-                          {sessions[0]?.start_time && ` · ${sessions[0].start_time.slice(0, 5)} – ${sessions[sessions.length - 1]?.end_time?.slice(0, 5)}`}
-                        </p>
-                      ) : (
-                        <p className="text-xs text-muted-foreground">Нет записей</p>
-                      )}
+                      <p className="text-xs text-muted-foreground">
+                        {sessions.length} записей{breaks.length > 0 ? ` · ${breaks.length} перерыв` : ''}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    {totalRevenue > 0 && <span className="text-sm font-semibold">{totalRevenue.toLocaleString()} ₽</span>}
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    {revenue > 0 && <span className="text-sm font-semibold">{revenue.toLocaleString()} ₽</span>}
+                    <CalendarDays className="h-4 w-4 text-muted-foreground" />
                   </div>
                 </div>
-                {/* Show first 2 sessions as compact preview */}
                 {sessions.length > 0 && (
-                  <div className="mt-2 flex gap-2 flex-wrap">
-                    {sessions.slice(0, 3).map(w => (
-                      <Badge key={w.id} variant="secondary" className="text-[10px] gap-1">
-                        {w.start_time?.slice(0, 5)} {w.title}
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {sessions.slice(0, 3).map(item => (
+                      <Badge key={item.id} variant="secondary" className="text-[10px]">
+                        {format(new Date(item.scheduled_at), 'HH:mm')} {item.service?.name}
                       </Badge>
                     ))}
                     {sessions.length > 3 && <Badge variant="outline" className="text-[10px]">+{sessions.length - 3}</Badge>}
@@ -564,69 +868,306 @@ const UniversalSchedule = ({ config }: Props) => {
     );
   };
 
-  // MONTH VIEW - grid with count badges, click → day
-  const renderMonthView = () => (
-    <div className="grid grid-cols-7 gap-1">
-      {daysOfWeek.map(d => <div key={d} className="text-center font-medium text-xs text-muted-foreground pb-1">{d}</div>)}
-      {eachDayOfInterval({ start: startOfWeek(startOfMonth(currentDate), { weekStartsOn: 1 }), end: endOfWeek(endOfMonth(currentDate), { weekStartsOn: 1 }) }).map(day => {
-        const dayItems = getForDate(day);
-        const isCurrent = day.getMonth() === currentDate.getMonth();
-        const today = isSameDay(day, new Date());
-        const sessions = dayItems.filter(w => !isBreak(w));
-        return (
-          <div
-            key={day.toISOString()}
-            className={`min-h-[56px] p-1 rounded border text-xs cursor-pointer hover:border-primary/50 transition-colors ${!isCurrent ? 'opacity-40' : ''} ${today ? 'border-primary bg-primary/5' : 'border-border'}`}
-            onClick={() => { setCurrentDate(day); setView('day'); }}
-          >
-            <p className={`font-medium ${today ? 'text-primary' : ''}`}>{format(day, 'd')}</p>
-            {sessions.length > 0 && <Badge variant="secondary" className="text-[9px] h-4 mt-0.5">{sessions.length}</Badge>}
-          </div>
-        );
-      })}
-    </div>
-  );
+  const renderMonthView = () => {
+    const start = startOfWeek(startOfMonth(currentDate), { weekStartsOn: 1 });
+    const end = endOfWeek(endOfMonth(currentDate), { weekStartsOn: 1 });
+    return (
+      <div className="grid grid-cols-7 gap-1">
+        {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map(day => (
+          <div key={day} className="pb-1 text-center text-xs font-medium text-muted-foreground">{day}</div>
+        ))}
+        {eachDayOfInterval({ start, end }).map(day => {
+          const dayItems = items.filter(item => isSameDay(new Date(item.scheduled_at), day) && !isBreak(item));
+          const currentMonth = day.getMonth() === currentDate.getMonth();
+          return (
+            <button
+              key={day.toISOString()}
+              type="button"
+              className={`min-h-[60px] rounded border p-1 text-left text-xs transition-colors hover:border-primary/40 ${currentMonth ? 'opacity-100' : 'opacity-40'} ${isSameDay(day, new Date()) ? 'border-primary bg-primary/5' : ''}`}
+              onClick={() => {
+                setCurrentDate(day);
+                setView('day');
+              }}
+            >
+              <p className="font-medium">{format(day, 'd')}</p>
+              {dayItems.length > 0 && (
+                <Badge variant="secondary" className="mt-1 text-[10px]">
+                  {dayItems.length}
+                </Badge>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
 
-  const selectedService = services.find(s => s.id === formData.service_id);
-  const filteredClients = clients.filter(c => {
-    if (!clientSearch) return true;
-    const q = clientSearch.toLowerCase();
-    return (c.first_name || '').toLowerCase().includes(q) || (c.last_name || '').toLowerCase().includes(q) || c.skillspot_id?.includes(q);
-  });
+  if (loading) {
+    return <p className="py-12 text-center text-muted-foreground">Загрузка расписания...</p>;
+  }
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navigate(-1)}><ChevronLeft className="h-4 w-4" /></Button>
-          <span className="font-semibold text-sm min-w-[180px] text-center">{getNavLabel()}</span>
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navigate(1)}><ChevronRight className="h-4 w-4" /></Button>
-          <Button variant="outline" size="sm" className="h-8" onClick={() => setCurrentDate(new Date())}>Сегодня</Button>
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navigate(-1)}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="min-w-[200px] text-center text-sm font-semibold">{navLabel}</span>
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navigate(1)}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="sm" className="h-8" onClick={() => setCurrentDate(new Date())}>
+            Сегодня
+          </Button>
         </div>
-        <div className="flex items-center gap-2">
-          <Tabs value={view} onValueChange={(v) => setView(v as any)}>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <Tabs value={view} onValueChange={value => setView(value as 'day' | 'week' | 'month')}>
             <TabsList className="h-8">
-              <TabsTrigger value="day" className="text-xs h-6 px-2">День</TabsTrigger>
-              <TabsTrigger value="week" className="text-xs h-6 px-2">Неделя</TabsTrigger>
-              <TabsTrigger value="month" className="text-xs h-6 px-2">Месяц</TabsTrigger>
+              <TabsTrigger value="day" className="h-6 px-2 text-xs">День</TabsTrigger>
+              <TabsTrigger value="week" className="h-6 px-2 text-xs">Неделя</TabsTrigger>
+              <TabsTrigger value="month" className="h-6 px-2 text-xs">Месяц</TabsTrigger>
             </TabsList>
           </Tabs>
 
-          <Button variant="outline" size="sm" className="h-8 gap-1" onClick={() => setIsSettingsOpen(true)}>
-            <Settings2 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Редактировать расписание</span>
-          </Button>
+          <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8 gap-1">
+                <Settings2 className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Расписание</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader><DialogTitle>Настройки расписания</DialogTitle></DialogHeader>
+              <div className="space-y-5">
+                <div className="space-y-2">
+                  <Label>Рабочие дни</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {dayKeys.map(key => {
+                      const dayNum = Number(key);
+                      const active = settings.workDays.includes(dayNum);
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted text-muted-foreground border-border'}`}
+                          onClick={() => {
+                            setSettings(current => ({
+                              ...current,
+                              workDays: active
+                                ? current.workDays.filter(value => value !== dayNum)
+                                : [...current.workDays, dayNum].sort(),
+                            }));
+                          }}
+                        >
+                          {dayLabels[dayNum]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Рабочее время по умолчанию</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input
+                      type="time"
+                      value={settings.defaultHours.start}
+                      onChange={event => setSettings(current => ({
+                        ...current,
+                        defaultHours: { ...current.defaultHours, start: event.target.value },
+                      }))}
+                    />
+                    <Input
+                      type="time"
+                      value={settings.defaultHours.end}
+                      onChange={event => setSettings(current => ({
+                        ...current,
+                        defaultHours: { ...current.defaultHours, end: event.target.value },
+                      }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <Label>Индивидуальные часы по дням</Label>
+                  <Button variant="outline" size="sm" onClick={() => setUsePerDayHours(previous => !previous)}>
+                    {usePerDayHours ? 'Выключить' : 'Включить'}
+                  </Button>
+                </div>
+
+                {usePerDayHours && (
+                  <div className="space-y-2 rounded-lg border p-3">
+                    {settings.workDays.map(dayNum => {
+                      const dayKey = String(dayNum);
+                      const entry = settings.perDayHours[dayKey] || settings.defaultHours;
+                      return (
+                        <div key={dayKey} className="grid grid-cols-[48px_1fr_1fr] items-center gap-2">
+                          <span className="text-xs font-medium">{dayLabels[dayNum]}</span>
+                          <Input
+                            type="time"
+                            value={entry.start}
+                            onChange={event => setSettings(current => ({
+                              ...current,
+                              perDayHours: {
+                                ...current.perDayHours,
+                                [dayKey]: { ...entry, start: event.target.value },
+                              },
+                            }))}
+                          />
+                          <Input
+                            type="time"
+                            value={entry.end}
+                            onChange={event => setSettings(current => ({
+                              ...current,
+                              perDayHours: {
+                                ...current.perDayHours,
+                                [dayKey]: { ...entry, end: event.target.value },
+                              },
+                            }))}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label>Шаг слота</Label>
+                  <Select
+                    value={String(settings.slotDuration)}
+                    onValueChange={value => setSettings(current => ({ ...current, slotDuration: Number(value) }))}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {[15, 30, 45, 60].map(value => <SelectItem key={value} value={String(value)}>{value} мин</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Буфер между визитами</Label>
+                  <Select
+                    value={String(settings.bufferMinutes)}
+                    onValueChange={value => setSettings(current => ({ ...current, bufferMinutes: Number(value) }))}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {[0, 5, 10, 15, 20, 30].map(value => (
+                        <SelectItem key={value} value={String(value)}>
+                          {value === 0 ? 'Без буфера' : `${value} мин`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Базовые перерывы</Label>
+                  <div className="space-y-2 rounded-lg border p-3">
+                    {(settings.breakConfig.all || []).map((entry, index) => (
+                      <div key={`all-${index}`} className="grid grid-cols-[1fr_1fr_32px] gap-2">
+                        <Input
+                          type="time"
+                          value={entry.start}
+                          onChange={event => setSettings(current => ({
+                            ...current,
+                            breakConfig: {
+                              ...current.breakConfig,
+                              all: (current.breakConfig.all || []).map((currentEntry, currentIndex) =>
+                                currentIndex === index ? { ...currentEntry, start: event.target.value } : currentEntry,
+                              ),
+                            },
+                          }))}
+                        />
+                        <Input
+                          type="time"
+                          value={entry.end}
+                          onChange={event => setSettings(current => ({
+                            ...current,
+                            breakConfig: {
+                              ...current.breakConfig,
+                              all: (current.breakConfig.all || []).map((currentEntry, currentIndex) =>
+                                currentIndex === index ? { ...currentEntry, end: event.target.value } : currentEntry,
+                              ),
+                            },
+                          }))}
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setSettings(current => ({
+                            ...current,
+                            breakConfig: {
+                              ...current.breakConfig,
+                              all: (current.breakConfig.all || []).filter((_, currentIndex) => currentIndex !== index),
+                            },
+                          }))}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSettings(current => ({
+                        ...current,
+                        breakConfig: {
+                          ...current.breakConfig,
+                          all: [...(current.breakConfig.all || []), { start: '13:00', end: '14:00' }],
+                        },
+                      }))}
+                    >
+                      <Plus className="h-3.5 w-3.5 mr-1" /> Добавить
+                    </Button>
+                  </div>
+                </div>
+
+                <Button
+                  className="w-full"
+                  onClick={async () => {
+                    if (timeToMinutes(settings.defaultHours.end) <= timeToMinutes(settings.defaultHours.start)) {
+                      toast({ title: 'Ошибка', description: 'Окончание должно быть позже начала', variant: 'destructive' });
+                      return;
+                    }
+                    const saved = await persistSettings(settings);
+                    if (!saved) return;
+                    setIsSettingsOpen(false);
+                    toast({ title: 'Настройки сохранены' });
+                  }}
+                >
+                  Сохранить
+                </Button>
+
+                <MasterTimeOffManager />
+              </div>
+            </DialogContent>
+          </Dialog>
 
           <Dialog open={isBreakOpen} onOpenChange={setIsBreakOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 gap-1"><Coffee className="h-3.5 w-3.5" /> Перерыв</Button>
+              <Button variant="outline" size="sm" className="h-8 gap-1">
+                <Coffee className="h-3.5 w-3.5" /> Перерыв
+              </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader><DialogTitle>Добавить перерыв</DialogTitle></DialogHeader>
               <div className="space-y-4">
-                <div className="space-y-2"><Label>Дата</Label><Input type="date" value={breakData.date} onChange={e => setBreakData(p => ({ ...p, date: e.target.value }))} /></div>
+                <div className="space-y-2">
+                  <Label>Дата</Label>
+                  <Input type="date" value={breakData.date} onChange={event => setBreakData(current => ({ ...current, date: event.target.value }))} />
+                </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2"><Label>Начало</Label><Input type="time" value={breakData.start_time} onChange={e => setBreakData(p => ({ ...p, start_time: e.target.value }))} /></div>
-                  <div className="space-y-2"><Label>Конец</Label><Input type="time" value={breakData.end_time} onChange={e => setBreakData(p => ({ ...p, end_time: e.target.value }))} /></div>
+                  <div className="space-y-2">
+                    <Label>Начало</Label>
+                    <Input type="time" value={breakData.start_time} onChange={event => setBreakData(current => ({ ...current, start_time: event.target.value }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Конец</Label>
+                    <Input type="time" value={breakData.end_time} onChange={event => setBreakData(current => ({ ...current, end_time: event.target.value }))} />
+                  </div>
                 </div>
                 <Button className="w-full" onClick={handleAddBreak}>Добавить перерыв</Button>
               </div>
@@ -635,129 +1176,145 @@ const UniversalSchedule = ({ config }: Props) => {
 
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" className="h-8"><Plus className="h-3.5 w-3.5 mr-1" /> Записать клиента</Button>
+              <Button size="sm" className="h-8">
+                <Plus className="h-3.5 w-3.5 mr-1" /> Записать клиента
+              </Button>
             </DialogTrigger>
             <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-              <DialogHeader><DialogTitle>Записать клиента</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>Создать запись</DialogTitle></DialogHeader>
               <div className="space-y-4">
-                {/* Client selection */}
                 <div className="space-y-2">
                   <Label>Клиент</Label>
-                  <Tabs value={formData.client_mode} onValueChange={v => setFormData(p => ({ ...p, client_mode: v as any }))}>
+                  <Tabs value={formData.client_mode} onValueChange={value => setFormData(current => ({ ...current, client_mode: value as 'list' | 'id' | 'manual' }))}>
                     <TabsList className="h-8 w-full">
-                      <TabsTrigger value="list" className="text-xs flex-1">Из списка</TabsTrigger>
-                      <TabsTrigger value="id" className="text-xs flex-1">По ID</TabsTrigger>
-                      <TabsTrigger value="manual" className="text-xs flex-1">Вручную</TabsTrigger>
+                      <TabsTrigger value="list" className="flex-1 text-xs">Из базы</TabsTrigger>
+                      <TabsTrigger value="id" className="flex-1 text-xs">По ID</TabsTrigger>
+                      <TabsTrigger value="manual" className="flex-1 text-xs">По телефону</TabsTrigger>
                     </TabsList>
                   </Tabs>
+
                   {formData.client_mode === 'list' && (
                     <div className="space-y-2">
                       <div className="relative">
-                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                        <Input placeholder="Поиск клиента..." value={clientSearch} onChange={e => setClientSearch(e.target.value)} className="pl-8 h-8 text-xs" />
+                        <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                        <Input className="pl-8" placeholder="Поиск клиента" value={clientSearch} onChange={event => setClientSearch(event.target.value)} />
                       </div>
-                      <div className="max-h-32 overflow-y-auto border rounded space-y-0.5 p-1">
+                      <div className="max-h-36 overflow-y-auto rounded border p-1">
                         {filteredClients.length === 0 ? (
-                          <p className="text-xs text-muted-foreground text-center py-2">Нет клиентов</p>
-                        ) : filteredClients.map(c => (
-                          <button key={c.id} type="button"
-                            className={`w-full text-left p-1.5 rounded text-xs flex items-center gap-2 hover:bg-muted ${formData.client_id === c.id ? 'bg-primary/10 border border-primary/30' : ''}`}
-                            onClick={() => setFormData(p => ({ ...p, client_id: c.id }))}
-                          >
-                            <User className="h-3 w-3 text-muted-foreground" />
-                            <span>{c.first_name} {c.last_name}</span>
-                            <span className="text-muted-foreground ml-auto">{c.skillspot_id}</span>
-                          </button>
-                        ))}
+                          <p className="py-2 text-center text-xs text-muted-foreground">Клиенты не найдены</p>
+                        ) : (
+                          filteredClients.map(client => (
+                            <button
+                              key={client.id}
+                              type="button"
+                              className={`flex w-full items-center gap-2 rounded p-2 text-left text-xs hover:bg-muted ${formData.client_id === client.id ? 'bg-primary/10 border border-primary/20' : ''}`}
+                              onClick={() => setFormData(current => ({ ...current, client_id: client.id }))}
+                            >
+                              <User className="h-3.5 w-3.5 text-muted-foreground" />
+                              <span className="flex-1">{client.first_name} {client.last_name}</span>
+                              <span className="text-muted-foreground">{client.skillspot_id}</span>
+                            </button>
+                          ))
+                        )}
                       </div>
                     </div>
                   )}
+
                   {formData.client_mode === 'id' && (
-                    <Input placeholder="SkillSpot ID (напр. AB1234)" value={formData.client_skillspot_id} onChange={e => setFormData(p => ({ ...p, client_skillspot_id: e.target.value.toUpperCase() }))} className="h-8 text-xs" />
+                    <Input
+                      placeholder="SkillSpot ID"
+                      value={formData.client_skillspot_id}
+                      onChange={event => setFormData(current => ({ ...current, client_skillspot_id: event.target.value.toUpperCase() }))}
+                    />
                   )}
+
                   {formData.client_mode === 'manual' && (
                     <div className="grid grid-cols-2 gap-2">
-                      <Input placeholder="Имя" value={formData.client_name} onChange={e => setFormData(p => ({ ...p, client_name: e.target.value }))} className="h-8 text-xs" />
-                      <Input placeholder="Телефон" value={formData.client_phone} onChange={e => setFormData(p => ({ ...p, client_phone: e.target.value }))} className="h-8 text-xs" />
+                      <Input
+                        placeholder="Имя (для заметки)"
+                        value={formData.client_name}
+                        onChange={event => setFormData(current => ({ ...current, client_name: event.target.value }))}
+                      />
+                      <Input
+                        placeholder="Телефон"
+                        value={formData.client_phone}
+                        onChange={event => setFormData(current => ({ ...current, client_phone: event.target.value }))}
+                      />
                     </div>
                   )}
-                  {formData.client_mode === 'manual' && (
-                    <p className="text-xs text-muted-foreground">⚠️ Без привязки к аккаунту уведомления не работают</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Услуга</Label>
+                  <Select value={formData.service_id} onValueChange={value => setFormData(current => ({ ...current, service_id: value, start_time: '', end_time: '' }))}>
+                    <SelectTrigger><SelectValue placeholder="Выберите услугу" /></SelectTrigger>
+                    <SelectContent>
+                      {services.map(service => (
+                        <SelectItem key={service.id} value={service.id}>
+                          {service.name} · {service.duration_minutes} мин · {service.price.toLocaleString()} ₽
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>Дата</Label>
+                    <Input type="date" value={formData.date} onChange={event => setFormData(current => ({ ...current, date: event.target.value, start_time: '', end_time: '' }))} />
+                  </div>
+                  {resources.length > 0 && (
+                    <div className="space-y-2">
+                      <Label>Ресурс</Label>
+                        <Select value={formData.resource_id} onValueChange={value => setFormData(current => ({ ...current, resource_id: value, start_time: '', end_time: '' }))}>
+                          <SelectTrigger><SelectValue placeholder="Без ресурса" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Без ресурса</SelectItem>
+                          {resources.map(resource => (
+                            <SelectItem key={resource.id} value={resource.id}>{resource.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   )}
                 </div>
 
-                {/* Service selection */}
-                {services.length > 0 ? (
+                {selectedService && (
                   <div className="space-y-2">
-                    <Label>Услуга *</Label>
-                    <Select value={formData.service_id} onValueChange={onServiceChange}>
-                      <SelectTrigger><SelectValue placeholder="Выберите услугу" /></SelectTrigger>
-                      <SelectContent>
-                        {services.map(s => (
-                          <SelectItem key={s.id} value={s.id}>{s.name} · {s.duration_minutes} мин · {s.price.toLocaleString()} ₽</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {formData.service_id && (
-                      <div className="space-y-2">
-                        <Label>Цена (₽)</Label>
-                        <Input type="text" inputMode="numeric" value={formData.price || ''} onChange={e => setFormData(p => ({ ...p, price: Number(e.target.value.replace(/[^\d]/g, '')) }))} className="h-8" />
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <Label>Название *</Label>
-                    <Input value={formData.title} onChange={e => setFormData(p => ({ ...p, title: e.target.value }))} placeholder="Название услуги" />
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2"><Label>Дата</Label><Input type="date" value={formData.lesson_date} onChange={e => setFormData(p => ({ ...p, lesson_date: e.target.value, start_time: '', end_time: '' }))} /></div>
-                  <div className="space-y-2"><Label>Тип</Label>
-                    <Select value={formData.lesson_type} onValueChange={v => setFormData(p => ({ ...p, lesson_type: v as any }))}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent><SelectItem value="individual">Индивидуально</SelectItem><SelectItem value="group">Группа</SelectItem></SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {/* Time slots */}
-                {formData.service_id && formData.lesson_date ? (
-                  <div className="space-y-2">
-                    <Label>Доступное время <span className="text-muted-foreground font-normal">({selectedService?.duration_minutes} мин)</span></Label>
-                    {getAvailableSlots.length === 0 ? (
-                      <p className="text-sm text-muted-foreground py-2">Нет доступных слотов</p>
+                    <Label>Доступное время</Label>
+                    {availableSlots.length === 0 ? (
+                      <p className="py-2 text-sm text-muted-foreground">Нет доступных слотов</p>
                     ) : (
-                      <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5">
-                        {getAvailableSlots.map(slot => (
-                          <Button key={slot} variant={formData.start_time === slot ? 'default' : 'outline'} size="sm" className="h-9 text-xs" onClick={() => onSlotSelect(slot)}>{slot}</Button>
+                      <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6">
+                        {availableSlots.map(slot => (
+                          <Button
+                            key={slot}
+                            variant={formData.start_time === slot ? 'default' : 'outline'}
+                            size="sm"
+                            className="h-9 text-xs"
+                            onClick={() => setFormData(current => ({
+                              ...current,
+                              start_time: slot,
+                              end_time: addMinutesToTime(slot, selectedService.duration_minutes),
+                            }))}
+                          >
+                            {slot}
+                          </Button>
                         ))}
                       </div>
                     )}
-                    {formData.start_time && <p className="text-xs text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" />{formData.start_time} – {formData.end_time}</p>}
+                    {formData.start_time && (
+                      <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        {formData.start_time} – {formData.end_time}
+                      </p>
+                    )}
                   </div>
-                ) : !formData.service_id ? (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2"><Label>Начало</Label><Input type="time" value={formData.start_time} onChange={e => setFormData(p => ({ ...p, start_time: e.target.value }))} /></div>
-                    <div className="space-y-2"><Label>Конец</Label><Input type="time" value={formData.end_time} onChange={e => setFormData(p => ({ ...p, end_time: e.target.value }))} /></div>
-                  </div>
-                ) : null}
-
-                {!formData.service_id && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2"><Label>Цена (₽)</Label><Input type="text" inputMode="numeric" value={formData.price || ''} onChange={e => setFormData(p => ({ ...p, price: Number(e.target.value.replace(/[^\d]/g, '')) || 0 }))} /></div>
-                    {formData.lesson_type === 'group' && <div className="space-y-2"><Label>Макс. участников</Label><Input type="text" inputMode="numeric" value={formData.max_participants || ''} onChange={e => setFormData(p => ({ ...p, max_participants: Number(e.target.value.replace(/[^\d]/g, '')) || 1 }))} /></div>}
-                  </div>
-                )}
-
-                {formData.lesson_type === 'group' && formData.service_id && (
-                  <div className="space-y-2"><Label>Макс. участников</Label><Input type="text" inputMode="numeric" value={formData.max_participants || ''} onChange={e => setFormData(p => ({ ...p, max_participants: Number(e.target.value.replace(/[^\d]/g, '')) || 1 }))} /></div>
                 )}
 
                 <div className="space-y-2">
                   <Label>Повторение</Label>
-                  <Select value={formData.recurrence} onValueChange={v => setFormData(p => ({ ...p, recurrence: v }))}>
+                  <Select value={formData.recurrence} onValueChange={value => setFormData(current => ({ ...current, recurrence: value }))}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Разовая запись</SelectItem>
@@ -767,196 +1324,111 @@ const UniversalSchedule = ({ config }: Props) => {
                     </SelectContent>
                   </Select>
                 </div>
-                {formData.recurrence === 'weekly' && (
-                  <div className="space-y-2"><Label>День недели</Label>
-                    <Select value={String(formData.day_of_week)} onValueChange={v => setFormData(p => ({ ...p, day_of_week: Number(v) }))}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>{['Вс','Пн','Вт','Ср','Чт','Пт','Сб'].map((d,i) => <SelectItem key={i} value={String(i)}>{d}</SelectItem>)}</SelectContent>
-                    </Select>
+
+                {formData.recurrence === 'custom' && (
+                  <div className="space-y-2">
+                    <Label>Интервал в днях</Label>
+                    <Input
+                      type="number"
+                      value={formData.recurrence_interval}
+                      onChange={event => setFormData(current => ({ ...current, recurrence_interval: Number(event.target.value) || 1 }))}
+                    />
                   </div>
                 )}
-                {formData.recurrence === 'custom' && (
-                  <div className="space-y-2"><Label>Каждые (дней)</Label><Input type="text" inputMode="numeric" value={formData.recurrence_interval || ''} onChange={e => setFormData(p => ({ ...p, recurrence_interval: Number(e.target.value.replace(/[^\d]/g, '')) || 1 }))} /></div>
-                )}
+
                 {formData.recurrence !== 'none' && (
-                  <div className="space-y-2"><Label>Повторять до</Label><Input type="date" value={formData.recurrence_end} onChange={e => setFormData(p => ({ ...p, recurrence_end: e.target.value }))} /></div>
+                  <div className="space-y-2">
+                    <Label>Повторять до</Label>
+                    <Input type="date" value={formData.recurrence_end} onChange={event => setFormData(current => ({ ...current, recurrence_end: event.target.value }))} />
+                  </div>
                 )}
-                <div className="space-y-2"><Label>Комментарий</Label><Textarea value={formData.description} onChange={e => setFormData(p => ({ ...p, description: e.target.value }))} placeholder="Заметка к записи..." /></div>
-                <Button className="w-full" onClick={handleCreate} disabled={!formData.start_time}>Создать запись</Button>
+
+                <div className="space-y-2">
+                  <Label>Комментарий</Label>
+                  <Textarea value={formData.notes} onChange={event => setFormData(current => ({ ...current, notes: event.target.value }))} placeholder="Комментарий к визиту" />
+                </div>
+
+                <Button className="w-full" onClick={handleCreate} disabled={!formData.start_time || !selectedService}>
+                  Создать запись
+                </Button>
               </div>
             </DialogContent>
           </Dialog>
         </div>
       </div>
 
-      {/* Settings dialog */}
-      <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Настройки расписания</DialogTitle></DialogHeader>
-          <div className="space-y-5">
-            {/* Work days */}
-            <div className="space-y-2">
-              <Label>Рабочие дни</Label>
-              <div className="flex flex-wrap gap-2">
-                {DAY_NUMS.map((dayNum, idx) => (
-                  <button key={dayNum} type="button"
-                    className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-colors ${workDays.includes(dayNum) ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted text-muted-foreground border-border hover:border-primary/50'}`}
-                    onClick={() => setWorkDays(prev => prev.includes(dayNum) ? prev.filter(d => d !== dayNum) : [...prev, dayNum].sort((a, b) => DAY_NUMS.indexOf(a) - DAY_NUMS.indexOf(b)))}
-                  >{DAY_LABELS[idx].slice(0, 2)}</button>
-                ))}
-              </div>
-            </div>
+      {view === 'day' && renderDayView()}
+      {view === 'week' && renderWeekView()}
+      {view === 'month' && renderMonthView()}
 
-            {/* Default work hours */}
-            <div className="space-y-2">
-              <Label>Рабочее время (по умолчанию)</Label>
-              <div className="grid grid-cols-2 gap-3">
-                <Input type="time" value={workStart} onChange={e => setWorkStart(e.target.value)} />
-                <Input type="time" value={workEnd} onChange={e => setWorkEnd(e.target.value)} />
-              </div>
-            </div>
-
-            {/* Per-day hours toggle */}
-            <div className="flex items-center justify-between">
-              <Label className="cursor-pointer">Индивидуальные часы для каждого дня</Label>
-              <button type="button" className={`w-10 h-5 rounded-full transition-colors ${usePerDayHours ? 'bg-primary' : 'bg-muted'}`} onClick={() => setUsePerDayHours(!usePerDayHours)}>
-                <div className={`w-4 h-4 rounded-full bg-background shadow transition-transform ${usePerDayHours ? 'translate-x-5' : 'translate-x-0.5'}`} />
-              </button>
-            </div>
-            {usePerDayHours && (
-              <div className="space-y-2 pl-2 border-l-2 border-primary/20">
-                {DAY_NUMS.filter(d => workDays.includes(d)).map((dayNum, idx) => {
-                  const dayKey = String(dayNum);
-                  const entry = workHoursConfig[dayKey] || { start: workStart, end: workEnd };
-                  return (
-                    <div key={dayNum} className="flex items-center gap-2">
-                      <span className="text-xs font-medium w-8">{DAY_LABELS[DAY_NUMS.indexOf(dayNum)].slice(0, 2)}</span>
-                      <Input type="time" value={entry.start} onChange={e => setWorkHoursConfig(prev => ({ ...prev, [dayKey]: { ...entry, start: e.target.value } }))} className="h-8 text-xs" />
-                      <span className="text-xs text-muted-foreground">–</span>
-                      <Input type="time" value={entry.end} onChange={e => setWorkHoursConfig(prev => ({ ...prev, [dayKey]: { ...entry, end: e.target.value } }))} className="h-8 text-xs" />
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Breaks */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Перерывы (обед и др.)</Label>
-                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => {
-                  const key = 'all';
-                  setBreakConfig(prev => ({
-                    ...prev,
-                    [key]: [...(prev[key] || []), { start: '13:00', end: '14:00' }],
-                  }));
-                }}>+ Добавить</Button>
-              </div>
-              {(breakConfig['all'] || []).map((brk, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <Input type="time" value={brk.start} onChange={e => {
-                    const arr = [...(breakConfig['all'] || [])];
-                    arr[i] = { ...arr[i], start: e.target.value };
-                    setBreakConfig(prev => ({ ...prev, all: arr }));
-                  }} className="h-8 text-xs" />
-                  <span className="text-xs text-muted-foreground">–</span>
-                  <Input type="time" value={brk.end} onChange={e => {
-                    const arr = [...(breakConfig['all'] || [])];
-                    arr[i] = { ...arr[i], end: e.target.value };
-                    setBreakConfig(prev => ({ ...prev, all: arr }));
-                  }} className="h-8 text-xs" />
-                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => {
-                    const arr = (breakConfig['all'] || []).filter((_, j) => j !== i);
-                    setBreakConfig(prev => ({ ...prev, all: arr }));
-                  }}><Trash2 className="h-3 w-3" /></Button>
-                </div>
-              ))}
-            </div>
-
-            <div className="space-y-2"><Label>Длительность шага слота (мин)</Label>
-              <Select value={String(slotDuration)} onValueChange={v => setSlotDuration(Number(v))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{[15, 30, 45, 60].map(m => <SelectItem key={m} value={String(m)}>{m} мин</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2"><Label>Буфер между записями (мин)</Label>
-              <Select value={String(breakDuration)} onValueChange={v => setBreakDuration(Number(v))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{[0, 5, 10, 15, 20, 30].map(m => <SelectItem key={m} value={String(m)}>{m === 0 ? 'Без буфера' : `${m} мин`}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <Button onClick={async () => {
-              if (timeToMinutes(workEnd) <= timeToMinutes(workStart)) { toast({ title: 'Ошибка', description: 'Время окончания должно быть позже начала', variant: 'destructive' }); return; }
-              if (!user) return;
-              const whc: Record<string, unknown> = { default: { start: workStart, end: workEnd }, slotDuration, breakDuration };
-              if (usePerDayHours) whc.perDay = workHoursConfig;
-              // Serialize break config to plain objects for JSON compatibility
-              const bcPlain: Record<string, Array<{start: string; end: string}>> = {};
-              for (const [k, v] of Object.entries(breakConfig)) { bcPlain[k] = v.map(b => ({ start: b.start, end: b.end })); }
-              const { error } = await supabase.from('master_profiles').update({
-                work_days: workDays,
-                work_hours_config: whc as any,
-                break_config: bcPlain as any,
-              }).eq('user_id', user.id);
-              if (error) { toast({ title: 'Ошибка', description: error.message, variant: 'destructive' }); return; }
-              setIsSettingsOpen(false); toast({ title: 'Настройки сохранены в профиль' });
-            }} className="w-full">Сохранить</Button>
-
-            <MasterTimeOffManager />
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* No-show reason dialog */}
       <Dialog open={statusDialog?.action === 'no_show'} onOpenChange={() => { setStatusDialog(null); setStatusReason(''); }}>
         <DialogContent>
           <DialogHeader><DialogTitle>Причина неявки</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-2">
-              {noShowReasons.map(r => (
-                <Button key={r} variant={statusReason === r ? 'default' : 'outline'} size="sm" className="text-xs" onClick={() => setStatusReason(r)}>{r}</Button>
+              {noShowReasons.map(reason => (
+                <Button key={reason} variant={statusReason === reason ? 'default' : 'outline'} size="sm" onClick={() => setStatusReason(reason)}>
+                  {reason}
+                </Button>
               ))}
             </div>
-            <Button className="w-full" onClick={handleNoShowWithReason}>Подтвердить</Button>
+            <Button className="w-full" onClick={handleNoShow}>Подтвердить</Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Reject reason dialog */}
       <Dialog open={statusDialog?.action === 'reject'} onOpenChange={() => { setStatusDialog(null); setStatusReason(''); }}>
         <DialogContent>
           <DialogHeader><DialogTitle>Причина отклонения</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-2">
-              {rejectReasons.map(r => (
-                <Button key={r} variant={statusReason === r ? 'default' : 'outline'} size="sm" className="text-xs" onClick={() => setStatusReason(r)}>{r}</Button>
+              {rejectReasons.map(reason => (
+                <Button key={reason} variant={statusReason === reason ? 'default' : 'outline'} size="sm" onClick={() => setStatusReason(reason)}>
+                  {reason}
+                </Button>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground">Клиент увидит, что запись отклонена, без указания причины</p>
             <Button className="w-full" variant="destructive" onClick={handleReject}>Отклонить</Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Reschedule dialog */}
       <Dialog open={statusDialog?.action === 'reschedule'} onOpenChange={() => { setStatusDialog(null); setStatusReason(''); setRescheduleDate(''); setRescheduleTime(''); }}>
         <DialogContent>
           <DialogHeader><DialogTitle>Перенести запись</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <p className="text-xs text-muted-foreground">⚠️ Рекомендуется предварительно согласовать перенос с клиентом в чате</p>
-            <div className="space-y-2"><Label>Причина</Label><Input value={statusReason} onChange={e => setStatusReason(e.target.value)} placeholder="Причина переноса" /></div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2"><Label>Новая дата</Label><Input type="date" value={rescheduleDate} onChange={e => setRescheduleDate(e.target.value)} /></div>
-              <div className="space-y-2"><Label>Новое время</Label><Input type="time" value={rescheduleTime} onChange={e => setRescheduleTime(e.target.value)} /></div>
+            <div className="space-y-2">
+              <Label>Причина</Label>
+              <Input value={statusReason} onChange={event => setStatusReason(event.target.value)} placeholder="Причина переноса" />
             </div>
-            <Button className="w-full" onClick={handleReschedule} disabled={!rescheduleDate || !rescheduleTime}>Перенести</Button>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Новая дата</Label>
+                <Input type="date" value={rescheduleDate} onChange={event => setRescheduleDate(event.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Новое время</Label>
+                <Input type="time" value={rescheduleTime} onChange={event => setRescheduleTime(event.target.value)} />
+              </div>
+            </div>
+            <Button className="w-full" onClick={handleReschedule} disabled={!rescheduleDate || !rescheduleTime}>
+              Перенести
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {view === 'day' && renderDayView()}
-      {view === 'week' && renderWeekView()}
-      {view === 'month' && renderMonthView()}
+      <AppointmentDetailDialog
+        booking={selectedItem}
+        open={!!selectedItem}
+        onOpenChange={open => {
+          if (!open) setSelectedItem(null);
+        }}
+        onUpdated={async () => {
+          await fetchItems();
+          setSelectedItem(null);
+        }}
+      />
     </div>
   );
 };

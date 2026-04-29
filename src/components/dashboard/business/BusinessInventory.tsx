@@ -25,6 +25,15 @@ interface InventoryItem {
   notes: string | null;
 }
 
+interface InventoryMovement {
+  id: string;
+  type: string;
+  quantity_change: number;
+  created_at: string;
+  description: string | null;
+  item?: { name: string | null; unit: string | null } | null;
+}
+
 interface Props {
   businessId: string;
 }
@@ -35,6 +44,7 @@ const BusinessInventory = ({ businessId }: Props) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [items, setItems] = useState<InventoryItem[]>([]);
+  const [movements, setMovements] = useState<InventoryMovement[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -47,12 +57,21 @@ const BusinessInventory = ({ businessId }: Props) => {
 
   const fetchItems = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from('inventory_items')
-      .select('*')
-      .eq('business_id', businessId)
-      .order('name');
-    setItems((data || []) as InventoryItem[]);
+    const [itemsRes, movementsRes] = await Promise.all([
+      supabase
+        .from('inventory_items')
+        .select('*')
+        .eq('business_id', businessId)
+        .order('name'),
+      supabase
+        .from('inventory_transactions')
+        .select('id, type, quantity_change, created_at, description, item:inventory_items!inner(name, unit, business_id)')
+        .eq('item.business_id', businessId)
+        .order('created_at', { ascending: false })
+        .limit(100),
+    ]);
+    setItems((itemsRes.data || []) as InventoryItem[]);
+    setMovements((movementsRes.data || []) as InventoryMovement[]);
     setLoading(false);
   };
 
@@ -121,6 +140,29 @@ const BusinessInventory = ({ businessId }: Props) => {
     return i.name.toLowerCase().includes(q) || (i.category || '').toLowerCase().includes(q);
   });
 
+  const procurementTotal = movements.filter(m => m.type === 'procurement').reduce((sum, movement) => sum + Math.max(0, Number(movement.quantity_change || 0)), 0);
+  const writeoffTotal = movements.filter(m => m.type === 'writeoff').reduce((sum, movement) => sum + Math.abs(Math.min(0, Number(movement.quantity_change || 0))), 0);
+
+  const exportMovements = () => {
+    const lines = [
+      'Дата,Тип,Позиция,Количество,Описание',
+      ...movements.map(movement => [
+        new Date(movement.created_at).toISOString(),
+        movement.type,
+        movement.item?.name || '',
+        movement.quantity_change,
+        movement.description || '',
+      ].join(',')),
+    ].join('\n');
+    const blob = new Blob([lines], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `inventory_movements_${businessId}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-4">
       <Tabs defaultValue="stock" className="space-y-4">
@@ -128,6 +170,7 @@ const BusinessInventory = ({ businessId }: Props) => {
           <TabsTrigger value="stock">Остатки</TabsTrigger>
           <TabsTrigger value="procurement">Закупки</TabsTrigger>
           <TabsTrigger value="writeoffs">Списания</TabsTrigger>
+          <TabsTrigger value="reports">Отчёты</TabsTrigger>
         </TabsList>
 
         <TabsContent value="stock">
@@ -207,6 +250,57 @@ const BusinessInventory = ({ businessId }: Props) => {
 
         <TabsContent value="writeoffs">
           <BusinessWriteOffs businessId={businessId} />
+        </TabsContent>
+
+        <TabsContent value="reports">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold">Отчёты по складу</h2>
+                <p className="text-sm text-muted-foreground">Движение товаров и критические остатки</p>
+              </div>
+              <Button variant="outline" onClick={exportMovements}>Экспорт CSV</Button>
+            </div>
+            <div className="grid gap-3 md:grid-cols-3">
+              <Card>
+                <CardContent className="pt-4">
+                  <p className="text-sm text-muted-foreground">Приход</p>
+                  <p className="text-2xl font-bold">{procurementTotal}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-4">
+                  <p className="text-sm text-muted-foreground">Списание</p>
+                  <p className="text-2xl font-bold">{writeoffTotal}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-4">
+                  <p className="text-sm text-muted-foreground">Низкий остаток</p>
+                  <p className="text-2xl font-bold">{lowStockItems.length}</p>
+                </CardContent>
+              </Card>
+            </div>
+            <Card>
+              <CardHeader><CardTitle className="text-base">Последние движения</CardTitle></CardHeader>
+              <CardContent className="space-y-2">
+                {movements.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Нет операций</p>
+                ) : movements.map(movement => (
+                  <div key={movement.id} className="flex items-center justify-between rounded-lg border p-3 text-sm">
+                    <div>
+                      <p className="font-medium">{movement.item?.name || 'Позиция'}</p>
+                      <p className="text-xs text-muted-foreground">{movement.type} · {movement.description || 'Без комментария'}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-medium">{movement.quantity_change}</p>
+                      <p className="text-xs text-muted-foreground">{new Date(movement.created_at).toLocaleString('ru-RU')}</p>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
 

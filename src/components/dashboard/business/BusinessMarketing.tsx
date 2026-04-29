@@ -15,6 +15,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send, Users, Megaphone, User, Globe, AlertTriangle, Clock, CheckCircle, X, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { classifyClientSegment } from '@/lib/clientSegmentation';
 
 interface Props { businessId: string; }
 
@@ -26,6 +27,9 @@ interface ClientInfo {
   booking_count: number;
   last_visit: string | null;
   tags: string[];
+  score: number | null;
+  score_status: string | null;
+  segment: string;
 }
 
 const COST_PER_CLIENT = 7;
@@ -88,10 +92,16 @@ const BusinessMarketing = ({ businessId }: Props) => {
     });
 
     const clientIds = [...clientMap.keys()];
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('id, first_name, last_name, avatar_url')
-      .in('id', clientIds.slice(0, 500));
+    const [{ data: profiles }, { data: scores }] = await Promise.all([
+      supabase
+        .from('profiles')
+        .select('id, first_name, last_name, avatar_url')
+        .in('id', clientIds.slice(0, 500)),
+      supabase
+        .from('user_scores_master_view')
+        .select('user_id, total_score, status')
+        .in('user_id', clientIds.slice(0, 500)),
+    ]);
 
     const { data: tags } = await supabase
       .from('client_tags')
@@ -111,17 +121,37 @@ const BusinessMarketing = ({ businessId }: Props) => {
       .eq('blocker_id', user!.id);
     const blSet = new Set((blacklisted || []).map(b => b.blocked_id));
 
+    const scoreMap = new Map((scores || []).map((score: any) => [score.user_id, score]));
+
     const result: ClientInfo[] = (profiles || [])
       .filter(p => !blSet.has(p.id))
-      .map(p => ({
-        id: p.id,
-        first_name: p.first_name,
-        last_name: p.last_name,
-        avatar_url: p.avatar_url,
-        booking_count: clientMap.get(p.id)?.count || 0,
-        last_visit: clientMap.get(p.id)?.lastVisit || null,
-        tags: tagMap.get(p.id) || [],
-      }));
+      .map(p => {
+        const score = scoreMap.get(p.id);
+        const bookingCount = clientMap.get(p.id)?.count || 0;
+        const lastVisit = clientMap.get(p.id)?.lastVisit || null;
+        return {
+          id: p.id,
+          first_name: p.first_name,
+          last_name: p.last_name,
+          avatar_url: p.avatar_url,
+          booking_count: bookingCount,
+          last_visit: lastVisit,
+          tags: tagMap.get(p.id) || [],
+          score: score?.total_score || null,
+          score_status: score?.status || null,
+          segment: classifyClientSegment({
+            visitCount: bookingCount,
+            completedCount: bookingCount,
+            noShowCount: 0,
+            lastVisit,
+            revenue: 0,
+            isBlacklisted: false,
+            hasVipTag: (tagMap.get(p.id) || []).includes('vip'),
+            score: score?.total_score || null,
+            scoreStatus: score?.status || null,
+          }),
+        };
+      });
 
     setClients(result);
     setLoadingClients(false);
@@ -153,6 +183,8 @@ const BusinessMarketing = ({ businessId }: Props) => {
         case 'new': return clients.filter(c => c.booking_count <= 1);
         case 'vip': return clients.filter(c => c.tags.includes('vip'));
         case 'regular': return clients.filter(c => c.booking_count >= 3);
+        case 'trusted': return clients.filter(c => c.segment === 'trusted' || c.segment === 'vip');
+        case 'risk': return clients.filter(c => c.segment === 'risk' || c.segment === 'prepayment');
         default: return clients;
       }
     }
@@ -444,6 +476,8 @@ const BusinessMarketing = ({ businessId }: Props) => {
                         <SelectItem value="new">Новые (≤1 визит)</SelectItem>
                         <SelectItem value="vip">VIP</SelectItem>
                         <SelectItem value="regular">Постоянные (3+ визитов)</SelectItem>
+                        <SelectItem value="trusted">Надёжные</SelectItem>
+                        <SelectItem value="risk">Риск / предоплата</SelectItem>
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground mt-1">
