@@ -5,13 +5,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, MessageSquare, Loader2, BriefcaseBusiness, ShieldCheck, CircleHelp } from 'lucide-react';
+import { Users, MessageSquare, Loader2, BriefcaseBusiness, ShieldCheck, CircleHelp, Phone, Mail, CalendarClock } from 'lucide-react';
 import SupportChat from './SupportChat';
 
 const ManagerDashboard = () => {
   const { user } = useAuth();
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const withPhone = clients.filter((client) => Boolean(client.client?.phone)).length;
+  const withEmail = clients.filter((client) => Boolean(client.client?.email)).length;
 
   useEffect(() => {
     if (!user) return;
@@ -55,12 +57,20 @@ const ManagerDashboard = () => {
             <p className="text-sm text-muted-foreground">Фокус на сопровождении и удержании клиентов</p>
           </CardContent>
         </Card>
+        <Card>
+          <CardContent className="pt-6 text-center">
+            <CalendarClock className="h-6 w-6 mx-auto mb-2 text-primary" />
+            <p className="text-sm font-medium">Живой контакт</p>
+            <p className="text-sm text-muted-foreground">Телефоны: {withPhone} • Email: {withEmail}</p>
+          </CardContent>
+        </Card>
       </div>
 
       <Tabs defaultValue="clients" className="space-y-4">
         <TabsList>
           <TabsTrigger value="clients"><Users className="h-4 w-4 mr-1" /> Мои клиенты</TabsTrigger>
           <TabsTrigger value="support"><MessageSquare className="h-4 w-4 mr-1" /> Поддержка</TabsTrigger>
+          <TabsTrigger value="workflow"><BriefcaseBusiness className="h-4 w-4 mr-1" /> Как работать</TabsTrigger>
           <TabsTrigger value="scope"><CircleHelp className="h-4 w-4 mr-1" /> Область доступа</TabsTrigger>
         </TabsList>
 
@@ -108,6 +118,29 @@ const ManagerDashboard = () => {
 
         <TabsContent value="support">
           <SupportChat />
+        </TabsContent>
+
+        <TabsContent value="workflow">
+          <Card>
+            <CardHeader>
+              <CardTitle>Рабочий сценарий менеджера</CardTitle>
+              <CardDescription>Роль для сопровождения клиентов без смешения с модерацией и платформенным администрированием.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm text-muted-foreground">
+              <div className="flex items-start gap-3 rounded-lg border p-3">
+                <Users className="h-4 w-4 mt-0.5 text-primary shrink-0" />
+                <span>Работайте только с закреплённой базой клиентов и держите в фокусе удержание, реактивацию и помощь в типовых сценариях.</span>
+              </div>
+              <div className="flex items-start gap-3 rounded-lg border p-3">
+                <Phone className="h-4 w-4 mt-0.5 text-primary shrink-0" />
+                <span>Подтверждайте контактные данные, если клиент сам их предоставил, и помогайте довести кейс до следующего действия внутри платформы.</span>
+              </div>
+              <div className="flex items-start gap-3 rounded-lg border p-3">
+                <Mail className="h-4 w-4 mt-0.5 text-primary shrink-0" />
+                <span>Если кейс требует изменения ролей, антифрода или спорного решения по аккаунту, передавайте его в платформенную линию.</span>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="scope">
