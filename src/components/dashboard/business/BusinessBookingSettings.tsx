@@ -9,6 +9,11 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Globe, Save, Clock, FileText, Mail, Loader2 } from 'lucide-react';
+import {
+  BookingTrustPolicySettings,
+  defaultBookingTrustPolicy,
+  normalizeBookingTrustPolicy,
+} from '@/lib/bookingTrustPolicy';
 
 interface Props { businessId: string; }
 
@@ -18,11 +23,13 @@ interface BookingSettings {
   offerText: string;
   autoConfirm: boolean;
   maxAdvanceDays: number;
+  trustPolicy: BookingTrustPolicySettings;
 }
 
 const defaults: BookingSettings = {
   minBookingHours: 2, requireMailingConsent: false,
   offerText: '', autoConfirm: false, maxAdvanceDays: 30,
+  trustPolicy: defaultBookingTrustPolicy,
 };
 
 const BusinessBookingSettings = ({ businessId }: Props) => {
@@ -41,6 +48,7 @@ const BusinessBookingSettings = ({ businessId }: Props) => {
             offerText: b.offerText ?? defaults.offerText,
             autoConfirm: b.autoConfirm ?? defaults.autoConfirm,
             maxAdvanceDays: b.maxAdvanceDays ?? defaults.maxAdvanceDays,
+            trustPolicy: normalizeBookingTrustPolicy(b.trustPolicy),
           });
         }
         setLoading(false);
@@ -49,7 +57,11 @@ const BusinessBookingSettings = ({ businessId }: Props) => {
 
   const save = async () => {
     const { data: existing } = await supabase.from('business_settings').select('id, booking').eq('business_id', businessId).maybeSingle();
-    const booking = { ...(existing?.booking as any || {}), ...settings };
+    const booking = {
+      ...((existing?.booking as any) || {}),
+      ...settings,
+      trustPolicy: settings.trustPolicy,
+    };
     await supabase.from('business_settings').upsert({
       business_id: businessId,
       booking,
@@ -102,6 +114,143 @@ const BusinessBookingSettings = ({ businessId }: Props) => {
           <div className="flex items-center justify-between">
             <Label>Требовать согласие на рассылку</Label>
             <Switch checked={settings.requireMailingConsent} onCheckedChange={v => setSettings(p => ({ ...p, requireMailingConsent: v }))} />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Правила записи по доверию</CardTitle>
+          <CardDescription>
+            Мягко регулируйте онлайн-запись для новых клиентов, профилей без истории и рискованных сценариев.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <Label>Учитывать рейтинг и историю клиента</Label>
+              <p className="text-sm text-muted-foreground">
+                Если выключить, запись будет работать только по общей логике автоподтверждения.
+              </p>
+            </div>
+            <Switch
+              checked={settings.trustPolicy.enabled}
+              onCheckedChange={(value) => setSettings((prev) => ({
+                ...prev,
+                trustPolicy: { ...prev.trustPolicy, enabled: value },
+              }))}
+            />
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Новые клиенты без визитов к вам</Label>
+              <Select
+                value={settings.trustPolicy.newClientMode}
+                onValueChange={(value) => setSettings((prev) => ({
+                  ...prev,
+                  trustPolicy: {
+                    ...prev.trustPolicy,
+                    newClientMode: value as BookingTrustPolicySettings['newClientMode'],
+                  },
+                }))}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="allow">Разрешать запись</SelectItem>
+                  <SelectItem value="manual">Только через ручное согласование</SelectItem>
+                  <SelectItem value="prepayment">Требовать предоплату</SelectItem>
+                  <SelectItem value="block">Не пускать в онлайн-запись</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Профили с недостаточной историей</Label>
+              <Select
+                value={settings.trustPolicy.insufficientDataMode}
+                onValueChange={(value) => setSettings((prev) => ({
+                  ...prev,
+                  trustPolicy: {
+                    ...prev.trustPolicy,
+                    insufficientDataMode: value as BookingTrustPolicySettings['insufficientDataMode'],
+                  },
+                }))}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="allow">Разрешать запись</SelectItem>
+                  <SelectItem value="manual">Отправлять на ручное согласование</SelectItem>
+                  <SelectItem value="prepayment">Требовать предоплату</SelectItem>
+                  <SelectItem value="block">Ограничить онлайн-запись</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="space-y-2">
+              <Label>Автоподтверждать с рейтинга</Label>
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                value={settings.trustPolicy.trustedAutoConfirmScore}
+                onChange={(e) => setSettings((prev) => ({
+                  ...prev,
+                  trustPolicy: {
+                    ...prev.trustPolicy,
+                    trustedAutoConfirmScore: Number(e.target.value || defaultBookingTrustPolicy.trustedAutoConfirmScore),
+                  },
+                }))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Предоплата ниже рейтинга</Label>
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                value={settings.trustPolicy.prepaymentBelowScore}
+                onChange={(e) => setSettings((prev) => ({
+                  ...prev,
+                  trustPolicy: {
+                    ...prev.trustPolicy,
+                    prepaymentBelowScore: Number(e.target.value || defaultBookingTrustPolicy.prepaymentBelowScore),
+                  },
+                }))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Полный запрет ниже рейтинга</Label>
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                value={settings.trustPolicy.blockBelowScore}
+                onChange={(e) => setSettings((prev) => ({
+                  ...prev,
+                  trustPolicy: {
+                    ...prev.trustPolicy,
+                    blockBelowScore: Number(e.target.value || defaultBookingTrustPolicy.blockBelowScore),
+                  },
+                }))}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Дополнительное объяснение для клиента</Label>
+            <Textarea
+              value={settings.trustPolicy.customPolicyMessage}
+              onChange={(e) => setSettings((prev) => ({
+                ...prev,
+                trustPolicy: { ...prev.trustPolicy, customPolicyMessage: e.target.value },
+              }))}
+              placeholder="Например: Для вечерних и премиальных слотов мы подтверждаем запись после проверки профиля."
+            />
           </div>
         </CardContent>
       </Card>

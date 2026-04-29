@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, Link, useSearchParams } from 'react-router-dom';
 import { updatePageMeta } from '@/lib/seoUtils';
-import { Star, MapPin, Clock, ArrowLeft, MessageSquare, Camera, Heart, Share2, ExternalLink, Bell, ShieldAlert, AlertTriangle } from 'lucide-react';
+import { Star, MapPin, Clock, MessageSquare, Camera, Heart, Share2, Bell, ShieldAlert, AlertTriangle, BadgeCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,6 +19,13 @@ import Footer from '@/components/landing/Footer';
 import ServiceDetailDialog from '@/components/marketplace/ServiceDetailDialog';
 import AvailableSlotPicker from '@/components/marketplace/AvailableSlotPicker';
 import MasterAvailabilityCalendar from '@/components/marketplace/MasterAvailabilityCalendar';
+import {
+  BookingGateDecision,
+  BookingTrustPolicySettings,
+  defaultBookingTrustPolicy,
+  evaluateBookingGate,
+  normalizeBookingTrustPolicy,
+} from '@/lib/bookingTrustPolicy';
 
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -43,6 +50,11 @@ interface MasterData {
   social_links: { telegram?: string; vk?: string; instagram?: string; youtube?: string } | null;
   profiles: { first_name: string | null; last_name: string | null; avatar_url: string | null; email: string | null } | null;
   service_categories: { name: string } | null;
+}
+
+interface ClientScoreSnapshot {
+  total_score: number | null;
+  status: string | null;
 }
 
 const REMINDER_OPTIONS = [
@@ -79,6 +91,9 @@ const MasterDetail = () => {
   const [isBlacklisted, setIsBlacklisted] = useState(false);
   const [activeBookingsCount, setActiveBookingsCount] = useState(0);
   const [orgResources, setOrgResources] = useState<any[]>([]);
+  const [hasPriorVisitsWithMaster, setHasPriorVisitsWithMaster] = useState(false);
+  const [clientScore, setClientScore] = useState<ClientScoreSnapshot | null>(null);
+  const [bookingTrustPolicy, setBookingTrustPolicy] = useState<BookingTrustPolicySettings>(defaultBookingTrustPolicy);
   
   const mapRef = useRef<HTMLDivElement>(null);
 
@@ -191,18 +206,46 @@ const MasterDetail = () => {
   useEffect(() => {
     if (!bookingService || !master || !user) return;
     const checkAccess = async () => {
-      const [blRes, activeRes, resourcesRes] = await Promise.all([
+      const [blRes, activeRes, resourcesRes, settingsRes, scoreRes, priorBookingsRes, teacherLessonsRes] = await Promise.all([
         supabase.from('blacklists').select('id').eq('blocker_id', master.user_id).eq('blocked_id', user.id).maybeSingle(),
         supabase.from('bookings').select('id', { count: 'exact', head: true })
           .eq('client_id', user.id).in('status', ['pending', 'confirmed'] as any).gt('scheduled_at', new Date().toISOString()),
         master.business_id
           ? supabase.from('resources').select('id, name, capacity').eq('organization_id', master.business_id).eq('is_active', true)
           : Promise.resolve({ data: [] }),
+        master.business_id
+          ? supabase.from('business_settings').select('booking').eq('business_id', master.business_id).maybeSingle()
+          : Promise.resolve({ data: null }),
+        supabase.from('user_scores').select('total_score, status').eq('user_id', user.id).maybeSingle(),
+        supabase.from('bookings').select('id', { count: 'exact', head: true })
+          .eq('executor_id', master.user_id)
+          .eq('client_id', user.id)
+          .in('status', ['confirmed', 'completed'] as any),
+        supabase.from('lessons').select('id').eq('teacher_id', master.user_id),
       ]);
       setIsBlacklisted(!!blRes.data);
       setActiveBookingsCount(activeRes.count || 0);
       const resources = resourcesRes.data || [];
       setOrgResources(resources);
+      setBookingTrustPolicy(normalizeBookingTrustPolicy((settingsRes.data as any)?.booking?.trustPolicy));
+      setClientScore({
+        total_score: scoreRes.data?.total_score ?? null,
+        status: scoreRes.data?.status ?? null,
+      });
+
+      const teacherLessonIds = (teacherLessonsRes.data || []).map((lesson) => lesson.id);
+      let lessonCount = 0;
+      if (teacherLessonIds.length > 0) {
+        const { count } = await supabase
+          .from('lesson_bookings')
+          .select('id', { count: 'exact', head: true })
+          .eq('student_id', user.id)
+          .in('lesson_id', teacherLessonIds)
+          .in('status', ['confirmed', 'completed'] as any);
+        lessonCount = count || 0;
+      }
+      setHasPriorVisitsWithMaster(((priorBookingsRes.count || 0) + lessonCount) > 0);
+
       // Auto-select if single resource
       if (resources.length === 1) {
         setBookingData(prev => ({ ...prev, resource_id: resources[0].id }));
@@ -309,35 +352,26 @@ const MasterDetail = () => {
       // Use timezone-safe ISO string: append timezone offset so DB stores correct UTC
       const scheduledAt = new Date(`${bookingData.date}T${bookingData.time}:00`).toISOString();
 
-      // Determine booking status based on auto_booking_policy
-      const policy = master.auto_booking_policy || 'all';
-      let bookingStatus: 'confirmed' | 'pending' = 'pending';
-      if (policy === 'all') {
-        bookingStatus = 'confirmed';
-      } else if (policy === 'known') {
-        // Check if client has previous completed bookings with this master
-        const { count: bookingCount } = await supabase.from('bookings')
-          .select('id', { count: 'exact', head: true })
-          .eq('executor_id', master.user_id)
-          .eq('client_id', user.id)
-          .in('status', ['confirmed', 'completed'] as any);
-        // Check lesson bookings specifically with this teacher
-        const { data: teacherLessons } = await supabase.from('lessons')
-          .select('id')
-          .eq('teacher_id', master.user_id);
-        const teacherLessonIds = (teacherLessons || []).map(l => l.id);
-        let lessonCount = 0;
-        if (teacherLessonIds.length > 0) {
-          const { count } = await supabase.from('lesson_bookings')
-            .select('id', { count: 'exact', head: true })
-            .eq('student_id', user.id)
-            .in('lesson_id', teacherLessonIds)
-            .in('status', ['confirmed', 'completed'] as any);
-          lessonCount = count || 0;
-        }
-        if (((bookingCount || 0) + lessonCount) > 0) bookingStatus = 'confirmed';
+      const decision = evaluateBookingGate({
+        isBlacklisted,
+        activeBookingsCount,
+        hasPriorVisitsWithMaster,
+        score: clientScore?.total_score ?? null,
+        scoreStatus: clientScore?.status ?? null,
+        masterAutoBookingPolicy: master.auto_booking_policy,
+      }, bookingTrustPolicy);
+
+      if (!decision.allowBooking || !decision.bookingStatus) {
+        toast({
+          title: decision.title,
+          description: decision.description,
+          variant: 'destructive',
+        });
+        setSendingBooking(false);
+        return;
       }
-      // policy === 'none' stays pending
+
+      const bookingStatus = decision.bookingStatus;
 
       // Insert into bookings table
       const { data: newBooking, error: bookingError } = await supabase
@@ -458,6 +492,71 @@ const MasterDetail = () => {
     }
   };
 
+  const handleManualBookingRequest = async (serviceId: string) => {
+    if (!user || !master) {
+      toast({ title: 'Нужно войти в аккаунт', description: 'Авторизуйтесь, чтобы отправить запрос мастеру', variant: 'destructive' });
+      return;
+    }
+
+    const service = services.find((item) => item.id === serviceId);
+    if (!service || !bookingData.date || !bookingData.time) {
+      toast({ title: 'Заполните дату и время', description: 'Выберите слот, чтобы мастер понял, какой визит вы хотите согласовать.', variant: 'destructive' });
+      return;
+    }
+
+    setSendingMessage(true);
+    try {
+      const decision = evaluateBookingGate({
+        isBlacklisted,
+        activeBookingsCount,
+        hasPriorVisitsWithMaster,
+        score: clientScore?.total_score ?? null,
+        scoreStatus: clientScore?.status ?? null,
+        masterAutoBookingPolicy: master.auto_booking_policy,
+      }, bookingTrustPolicy);
+
+      const requestReason = decision.title.toLowerCase();
+      const requestMessage = [
+        `Запрос на ручную запись: ${service.name}.`,
+        `Дата: ${bookingData.date}, время: ${bookingData.time}.`,
+        bookingData.comment ? `Комментарий клиента: ${bookingData.comment}` : '',
+        `Причина автосогласования: ${requestReason}.`,
+        'Если вам подходит этот клиент, вы можете сами добавить его в расписание или ответить в чате.',
+      ].filter(Boolean).join(' ');
+
+      const { error } = await supabase.from('chat_messages').insert({
+        sender_id: user.id,
+        recipient_id: master.user_id,
+        message: requestMessage,
+        chat_type: 'direct',
+      });
+
+      if (error) throw error;
+
+      await supabase.from('notifications').insert({
+        user_id: master.user_id,
+        type: 'manual_booking_request',
+        title: 'Запрос на ручную запись',
+        message: `${bookingData.name || 'Клиент'} просит согласовать запись на «${service.name}» ${bookingData.date} в ${bookingData.time}.`,
+      });
+
+      await supabase.from('favorites').upsert({
+        user_id: user.id,
+        target_id: master.id,
+        favorite_type: 'master',
+      }, { onConflict: 'user_id,target_id,favorite_type' });
+
+      toast({
+        title: 'Запрос отправлен',
+        description: 'Мастер получит сообщение и сможет сам подтвердить или добавить вас в расписание.',
+      });
+    } catch (err: any) {
+      toast({ title: 'Ошибка', description: err.message || 'Не удалось отправить запрос мастеру', variant: 'destructive' });
+    } finally {
+      setSendingMessage(false);
+    }
+  };
+
   if (loading) return (
     <div className="min-h-screen">
       <Header />
@@ -477,6 +576,14 @@ const MasterDetail = () => {
   const masterName = `${master.profiles?.first_name || ''} ${master.profiles?.last_name || ''}`.trim() || 'Мастер';
   const avgRating = ratings.length > 0 ? (ratings.reduce((s, r) => s + r.score, 0) / ratings.length) : 0;
   const allPhotos = [...(master.work_photos || []), ...(master.interior_photos || [])];
+  const bookingDecision: BookingGateDecision | null = bookingService ? evaluateBookingGate({
+    isBlacklisted,
+    activeBookingsCount,
+    hasPriorVisitsWithMaster,
+    score: clientScore?.total_score ?? null,
+    scoreStatus: clientScore?.status ?? null,
+    masterAutoBookingPolicy: master.auto_booking_policy,
+  }, bookingTrustPolicy) : null;
 
   return (
     <div className="min-h-screen">
@@ -810,17 +917,34 @@ const MasterDetail = () => {
           <DialogContent className="max-h-[85vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Запись на «{services.find(s => s.id === bookingService)?.name}»</DialogTitle></DialogHeader>
             <div className="space-y-4">
-              {isBlacklisted ? (
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive">
-                  <ShieldAlert className="h-5 w-5 shrink-0" />
-                  <p className="text-sm font-medium">Запись недоступна для вашего профиля</p>
+              {bookingDecision && (
+                <div
+                  className={[
+                    'flex items-start gap-3 rounded-lg border p-3',
+                    bookingDecision.mode === 'block'
+                      ? 'border-destructive/30 bg-destructive/10 text-destructive'
+                      : bookingDecision.mode === 'prepayment'
+                        ? 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200'
+                        : bookingDecision.mode === 'manual' || bookingDecision.mode === 'pending'
+                          ? 'border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200'
+                          : 'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200',
+                  ].join(' ')}
+                >
+                  {bookingDecision.mode === 'block' ? (
+                    <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0" />
+                  ) : bookingDecision.mode === 'prepayment' ? (
+                    <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+                  ) : (
+                    <BadgeCheck className="mt-0.5 h-5 w-5 shrink-0" />
+                  )}
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold">{bookingDecision.title}</p>
+                    <p className="text-sm leading-relaxed">{bookingDecision.description}</p>
+                  </div>
                 </div>
-              ) : activeBookingsCount >= 3 ? (
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300">
-                  <AlertTriangle className="h-5 w-5 shrink-0" />
-                  <p className="text-sm font-medium">У вас уже 3 активных записи. Завершите или отмените существующие.</p>
-                </div>
-              ) : (
+              )}
+
+              {!bookingDecision || bookingDecision.mode !== 'block' || bookingDecision.allowManualRequest ? (
                 <>
                   <p className="text-sm text-muted-foreground">Мастер: {masterName}</p>
                   <p className="text-sm text-muted-foreground">{Number(services.find(s => s.id === bookingService)?.price || 0).toLocaleString()} ₽ · {services.find(s => s.id === bookingService)?.duration_minutes} мин</p>
@@ -877,12 +1001,28 @@ const MasterDetail = () => {
                     >
                       Отменить
                     </Button>
-                    <Button onClick={() => handleBook(bookingService)} className="flex-1" disabled={sendingBooking || !bookingData.date || !bookingData.time}>
-                      {sendingBooking ? 'Отправка...' : 'Подтвердить запись'}
-                    </Button>
+                    {bookingDecision?.allowBooking ? (
+                      <Button onClick={() => handleBook(bookingService)} className="flex-1" disabled={sendingBooking || !bookingData.date || !bookingData.time}>
+                        {sendingBooking
+                          ? 'Отправка...'
+                          : bookingDecision.mode === 'prepayment'
+                            ? 'Продолжить с предоплатой'
+                            : bookingDecision.mode === 'pending'
+                              ? 'Отправить на согласование'
+                              : 'Подтвердить запись'}
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={() => handleManualBookingRequest(bookingService)}
+                        className="flex-1"
+                        disabled={sendingMessage || !bookingData.date || !bookingData.time || !bookingDecision?.allowManualRequest}
+                      >
+                        {sendingMessage ? 'Отправка...' : 'Написать мастеру'}
+                      </Button>
+                    )}
                   </div>
                 </>
-              )}
+              ) : null}
             </div>
           </DialogContent>
         </Dialog>
