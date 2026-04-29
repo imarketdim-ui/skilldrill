@@ -14,10 +14,10 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import PushNotificationToggle from '@/components/dashboard/PushNotificationToggle';
 import { useToast } from '@/hooks/use-toast';
-import { getPhoneVerificationState, normalizeVerificationPhone, PENDING_PHONE_VERIFICATION_KEY } from '@/lib/phoneVerification';
+import { normalizeVerificationPhone } from '@/lib/phoneVerification';
 import {
   Loader2, Camera, Gift, ChevronRight, Copy, Share2, Check,
-  Lock, Bell, Users, UserX, MessageSquare, Smartphone
+  Lock, Bell, Users, UserX, MessageSquare
 } from 'lucide-react';
 import { z } from 'zod';
 
@@ -148,15 +148,8 @@ const ClientSettingsSection = () => {
   const [cropDialog, setCropDialog] = useState<{ open: boolean; url: string; file: File | null }>({ open: false, url: '', file: null });
   const [copiedId, setCopiedId] = useState(false);
   const [formData, setFormData] = useState<ProfileFormData>({ first_name: '', last_name: '', bio: '', telegram: '', birthday: '', gender: '' });
-  const [openingTelegram, setOpeningTelegram] = useState(false);
   const [sendingTelegramTest, setSendingTelegramTest] = useState(false);
   const [phoneDraft, setPhoneDraft] = useState('');
-  const [phoneError, setPhoneError] = useState('');
-  const [phoneCode, setPhoneCode] = useState('');
-  const [sendingPhoneCode, setSendingPhoneCode] = useState(false);
-  const [verifyingPhoneCode, setVerifyingPhoneCode] = useState(false);
-  const [phoneCodeSent, setPhoneCodeSent] = useState(false);
-  const [pendingVerificationPhone, setPendingVerificationPhone] = useState<string | null>(null);
 
   const [privacy, setPrivacy] = useState({
     allow_group_invites: true,
@@ -167,9 +160,6 @@ const ClientSettingsSection = () => {
   const [savingPrivacy, setSavingPrivacy] = useState(false);
 
   useEffect(() => {
-    const savedPendingPhone = window.localStorage.getItem(PENDING_PHONE_VERIFICATION_KEY);
-    setPendingVerificationPhone(savedPendingPhone);
-
     if (profile) {
       setFormData({
         first_name: profile.first_name || '',
@@ -179,7 +169,7 @@ const ClientSettingsSection = () => {
         birthday: (profile as any)?.birthday || '',
         gender: (profile as any)?.gender || '',
       });
-      setPhoneDraft(savedPendingPhone || profile.phone || '');
+      setPhoneDraft(profile.phone || '');
       const pv = (profile as any)?.privacy_settings;
       if (pv) setPrivacy(prev => ({ ...prev, ...pv }));
     }
@@ -236,22 +226,25 @@ const ClientSettingsSection = () => {
     }
     setIsSubmitting(true);
     try {
-      const { error } = await supabase.from('profiles').update({
+      const normalizedPhone = normalizeVerificationPhone(phoneDraft || '') || null;
+      const previousPhone = normalizeVerificationPhone(profile?.phone || '') || null;
+      const profileUpdate: Record<string, unknown> = {
         first_name: result.data.first_name || null,
         last_name: result.data.last_name || null,
+        phone: normalizedPhone,
         bio: result.data.bio || null,
         telegram: result.data.telegram || null,
         birthday: result.data.birthday || null,
         gender: result.data.gender || null,
-      } as any).eq('id', user!.id);
+      };
+      if (normalizedPhone !== previousPhone) {
+        profileUpdate.phone_verified_at = null;
+      }
+
+      const { error } = await supabase.from('profiles').update(profileUpdate as any).eq('id', user!.id);
       if (error) throw error;
       await refreshProfile();
-      toast({
-        title: 'Профиль обновлён',
-        description: pendingVerificationPhone
-          ? 'Личные данные сохранены. Новый номер применится после подтверждения по SMS.'
-          : 'Данные успешно сохранены',
-      });
+      toast({ title: 'Профиль обновлён', description: 'Данные успешно сохранены' });
     } catch (error: any) {
       toast({ title: 'Ошибка', description: error.message, variant: 'destructive' });
     } finally { setIsSubmitting(false); }
@@ -288,26 +281,6 @@ const ClientSettingsSection = () => {
     }
   };
 
-  const handleTelegramLink = async () => {
-    setOpeningTelegram(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('create-telegram-link-token');
-      if (error) throw error;
-
-      const token = data?.token;
-      if (!token) {
-        throw new Error('Не удалось создать токен привязки Telegram');
-      }
-
-      window.open(`https://t.me/skillspot_bot?start=${token}`, '_blank', 'noopener,noreferrer');
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Не удалось открыть привязку Telegram';
-      toast({ title: 'Ошибка', description: message, variant: 'destructive' });
-    } finally {
-      setOpeningTelegram(false);
-    }
-  };
-
   const handleTelegramTest = async () => {
     setSendingTelegramTest(true);
     try {
@@ -322,114 +295,6 @@ const ClientSettingsSection = () => {
       toast({ title: 'Ошибка', description: message, variant: 'destructive' });
     } finally {
       setSendingTelegramTest(false);
-    }
-  };
-
-  const phoneVerificationState = getPhoneVerificationState({
-    draftPhone: phoneDraft,
-    verifiedPhone: profile?.phone || user?.phone || '',
-    verifiedAt: (profile as any)?.phone_verified_at || user?.phone_confirmed_at || null,
-  });
-
-  const rememberPendingPhone = (value: string) => {
-    setPendingVerificationPhone(value);
-    window.localStorage.setItem(PENDING_PHONE_VERIFICATION_KEY, value);
-  };
-
-  const clearPendingPhone = () => {
-    setPendingVerificationPhone(null);
-    setPhoneCode('');
-    setPhoneCodeSent(false);
-    window.localStorage.removeItem(PENDING_PHONE_VERIFICATION_KEY);
-  };
-
-  const handleSendPhoneCode = async () => {
-    setPhoneError('');
-
-    if (!phoneVerificationState.normalizedDraftPhone) {
-      setPhoneError('Введите номер телефона');
-      return;
-    }
-
-    if (!phoneVerificationState.isValidDraftPhone) {
-      setPhoneError('Введите корректный номер в формате +7');
-      return;
-    }
-
-    if (!phoneVerificationState.needsVerification) {
-      toast({ title: 'Номер уже подтверждён' });
-      return;
-    }
-
-    setSendingPhoneCode(true);
-    try {
-      const { error } = await supabase.auth.updateUser({
-        phone: phoneVerificationState.normalizedDraftPhone,
-      });
-      if (error) throw error;
-
-      rememberPendingPhone(phoneVerificationState.normalizedDraftPhone);
-      setPhoneCodeSent(true);
-      toast({
-        title: 'Код отправлен',
-        description: 'Введите SMS-код, чтобы подтвердить номер телефона.',
-      });
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Не удалось отправить SMS-код';
-      setPhoneError(message);
-      toast({ title: 'Ошибка', description: message, variant: 'destructive' });
-    } finally {
-      setSendingPhoneCode(false);
-    }
-  };
-
-  const handleVerifyPhoneCode = async () => {
-    if (!pendingVerificationPhone) {
-      setPhoneError('Сначала отправьте код подтверждения');
-      return;
-    }
-
-    if (!phoneCode.trim()) {
-      setPhoneError('Введите код из SMS');
-      return;
-    }
-
-    setVerifyingPhoneCode(true);
-    setPhoneError('');
-
-    try {
-      const { error } = await supabase.auth.verifyOtp({
-        phone: pendingVerificationPhone,
-        token: phoneCode.trim(),
-        type: 'phone_change',
-      });
-      if (error) throw error;
-
-      const verifiedAt = new Date().toISOString();
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({
-          phone: pendingVerificationPhone,
-          phone_verified_at: verifiedAt,
-        } as any)
-        .eq('id', user!.id);
-      if (profileError) throw profileError;
-
-      await refreshProfile();
-      setPhoneDraft(pendingVerificationPhone);
-      clearPendingPhone();
-      await supabase.rpc('calculate_user_score', { _user_id: user!.id });
-
-      toast({
-        title: 'Номер подтверждён',
-        description: 'Телефон сохранён в профиле и учтён в рейтинге надёжности.',
-      });
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Не удалось подтвердить номер';
-      setPhoneError(message);
-      toast({ title: 'Ошибка', description: message, variant: 'destructive' });
-    } finally {
-      setVerifyingPhoneCode(false);
     }
   };
 
@@ -531,80 +396,13 @@ const ClientSettingsSection = () => {
                 type="tel"
                 placeholder="+7 (999) 123-45-67"
                 value={phoneDraft}
-                onChange={(e) => {
-                  setPhoneDraft(e.target.value);
-                  setPhoneError('');
-                }}
+                onChange={(e) => setPhoneDraft(e.target.value)}
                 onBlur={handlePhoneBlur}
-                className={phoneError ? 'border-destructive' : ''}
-                disabled={isSubmitting || sendingPhoneCode || verifyingPhoneCode}
+                disabled={isSubmitting}
               />
-              {phoneError && <p className="text-sm text-destructive">{phoneError}</p>}
-              <div className="flex flex-wrap items-center gap-2">
-                {phoneVerificationState.hasVerifiedPhone && phoneVerificationState.matchesVerifiedPhone ? (
-                  <Badge className="gap-1">
-                    <Check className="h-3 w-3" />
-                    Телефон подтверждён
-                  </Badge>
-                ) : phoneVerificationState.needsVerification ? (
-                  <Badge variant="secondary" className="gap-1">
-                    <Smartphone className="h-3 w-3" />
-                    Требуется подтверждение
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="gap-1">
-                    <Smartphone className="h-3 w-3" />
-                    Телефон не указан
-                  </Badge>
-                )}
-              </div>
-              <div className="rounded-lg border bg-muted/40 p-3 space-y-3">
-                <p className="text-xs text-muted-foreground">
-                  Новый номер применяется к профилю только после подтверждения по SMS.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleSendPhoneCode}
-                    disabled={sendingPhoneCode || verifyingPhoneCode || !phoneVerificationState.normalizedDraftPhone}
-                  >
-                    {sendingPhoneCode ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                    Отправить код
-                  </Button>
-                  {pendingVerificationPhone && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={clearPendingPhone}
-                      disabled={sendingPhoneCode || verifyingPhoneCode}
-                    >
-                      Сбросить
-                    </Button>
-                  )}
-                </div>
-                {(phoneCodeSent || pendingVerificationPhone) && (
-                  <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-                    <Input
-                      inputMode="numeric"
-                      placeholder="Код из SMS"
-                      value={phoneCode}
-                      onChange={(e) => setPhoneCode(e.target.value)}
-                      disabled={verifyingPhoneCode}
-                    />
-                    <Button
-                      type="button"
-                      onClick={handleVerifyPhoneCode}
-                      disabled={verifyingPhoneCode || !phoneCode.trim()}
-                    >
-                      {verifyingPhoneCode ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                      Подтвердить
-                    </Button>
-                  </div>
-                )}
-              </div>
+              <p className="text-xs text-muted-foreground">
+                Подтверждение телефона временно скрыто. Сейчас номер просто сохраняется в профиле.
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -657,21 +455,9 @@ const ClientSettingsSection = () => {
                     </Button>
                   </div>
                 ) : (
-                  <>
-                    <p className="text-sm text-muted-foreground">
-                      Привяжите Telegram, чтобы получать уведомления о записях и сообщениях.
-                    </p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleTelegramLink}
-                      disabled={openingTelegram}
-                    >
-                      {openingTelegram ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                      Открыть бота и привязать
-                    </Button>
-                  </>
+                  <p className="text-sm text-muted-foreground">
+                    Автоматическую привязку Telegram временно скрыли. Уже привязанные аккаунты продолжат получать уведомления.
+                  </p>
                 )}
               </div>
             </div>

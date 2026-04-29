@@ -31,7 +31,7 @@ const Auth = () => {
   const [resetMode, setResetMode] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   
-  const { signIn, signUp, signInWithProvider, user } = useAuth();
+  const { signIn, signUp, user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -105,19 +105,6 @@ const Auth = () => {
       toast({ title: 'Регистрация успешна!', description: 'Проверьте почту для подтверждения аккаунта' });
     }
     setIsLoading(false);
-  };
-
-  const handleOAuth = async (provider: 'google' | 'vk') => {
-    setIsLoading(true);
-    const { error } = await signInWithProvider(provider);
-    if (error) {
-      toast({
-        title: 'Не удалось начать вход',
-        description: error.message,
-        variant: 'destructive',
-      });
-      setIsLoading(false);
-    }
   };
 
   return (
@@ -195,18 +182,6 @@ const Auth = () => {
               <CardContent>
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                   <TabsContent value="signin">
-                    <div className="space-y-3 mb-6">
-                      <Button type="button" variant="outline" className="w-full" disabled={isLoading} onClick={() => handleOAuth('google')}>
-                        Войти через Google
-                      </Button>
-                      <Button type="button" variant="outline" className="w-full" disabled={isLoading} onClick={() => handleOAuth('vk')}>
-                        Войти через VK ID
-                      </Button>
-                      <p className="text-xs text-center text-muted-foreground">
-                        После входа мы вернём вас на защищённый callback-маршрут и затем в кабинет.
-                      </p>
-                      <p className="text-xs text-center text-muted-foreground">Или используйте email и пароль</p>
-                    </div>
                     <form onSubmit={handleSignIn} className="space-y-4">
                       <div className="space-y-2">
                         <Label htmlFor="signin-email">Email</Label>
@@ -237,18 +212,6 @@ const Auth = () => {
                   </TabsContent>
 
                   <TabsContent value="signup">
-                    <div className="space-y-3 mb-6">
-                      <Button type="button" variant="outline" className="w-full" disabled={isLoading} onClick={() => handleOAuth('google')}>
-                        Продолжить через Google
-                      </Button>
-                      <Button type="button" variant="outline" className="w-full" disabled={isLoading} onClick={() => handleOAuth('vk')}>
-                        Продолжить через VK ID
-                      </Button>
-                      <p className="text-xs text-center text-muted-foreground">
-                        OAuth-вход использует маршрут <code>/auth/callback</code>, который должен быть добавлен у провайдера.
-                      </p>
-                      <p className="text-xs text-center text-muted-foreground">Или зарегистрируйтесь по email</p>
-                    </div>
                     <form onSubmit={handleSignUp} className="space-y-4">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
