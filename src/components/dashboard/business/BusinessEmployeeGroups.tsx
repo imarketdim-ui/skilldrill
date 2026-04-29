@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Users, Plus, Trash2, Award } from 'lucide-react';
+import { fetchBusinessSettingsSections, updateBusinessSettingsSection } from '@/lib/businessSettings';
 
 interface Props { businessId: string; }
 
@@ -36,11 +37,7 @@ const BusinessEmployeeGroups = ({ businessId }: Props) => {
   const [assignGroup, setAssignGroup] = useState('');
 
   useEffect(() => {
-    const saved = localStorage.getItem(`emp_groups_${businessId}`);
-    if (saved) try { setCustomGroups(JSON.parse(saved)); } catch {}
-    const savedAssign = localStorage.getItem(`emp_assignments_${businessId}`);
-    if (savedAssign) try { setAssignments(JSON.parse(savedAssign)); } catch {}
-
+    fetchSettings();
     supabase.from('business_masters')
       .select('master_id, profile:profiles!business_masters_master_id_fkey(first_name, last_name)')
       .eq('business_id', businessId).eq('status', 'accepted')
@@ -52,36 +49,79 @@ const BusinessEmployeeGroups = ({ businessId }: Props) => {
       });
   }, [businessId]);
 
+  const fetchSettings = async () => {
+    try {
+      const data = await fetchBusinessSettingsSections(businessId);
+      const erp = (data?.erp as any) || {};
+      setCustomGroups((erp.employee_groups as EmployeeGroup[]) || []);
+      setAssignments((erp.employee_group_assignments as Record<string, string>) || {});
+    } catch (error: any) {
+      toast({ title: 'Не удалось загрузить группы сотрудников', description: error.message, variant: 'destructive' });
+    }
+  };
+
   const allGroups = [...systemGroups, ...customGroups];
 
-  const saveCustom = (updated: EmployeeGroup[]) => {
+  const saveCustom = async (updated: EmployeeGroup[]) => {
     setCustomGroups(updated);
-    localStorage.setItem(`emp_groups_${businessId}`, JSON.stringify(updated));
+    const existing = await fetchBusinessSettingsSections(businessId);
+    const erp = {
+      ...((existing?.erp as any) || {}),
+      employee_groups: updated,
+      employee_group_assignments: assignments,
+    };
+    await updateBusinessSettingsSection(businessId, 'erp', erp);
   };
 
-  const saveAssignments = (updated: Record<string, string>) => {
+  const saveAssignments = async (updated: Record<string, string>) => {
     setAssignments(updated);
-    localStorage.setItem(`emp_assignments_${businessId}`, JSON.stringify(updated));
+    const existing = await fetchBusinessSettingsSections(businessId);
+    const erp = {
+      ...((existing?.erp as any) || {}),
+      employee_groups: customGroups,
+      employee_group_assignments: updated,
+    };
+    await updateBusinessSettingsSection(businessId, 'erp', erp);
   };
 
-  const addGroup = () => {
+  const addGroup = async () => {
     if (!form.name.trim()) return;
     const g: EmployeeGroup = { id: crypto.randomUUID(), name: form.name, premium: form.premium, isSystem: false };
-    saveCustom([...customGroups, g]);
+    try {
+      await saveCustom([...customGroups, g]);
+    } catch (error: any) {
+      toast({ title: 'Не удалось добавить группу', description: error.message, variant: 'destructive' });
+      return;
+    }
     toast({ title: 'Группа добавлена' });
     setDialogOpen(false);
     setForm({ name: '', premium: 0 });
   };
 
-  const removeGroup = (id: string) => {
-    saveCustom(customGroups.filter(g => g.id !== id));
-    toast({ title: 'Группа удалена' });
+  const removeGroup = async (id: string) => {
+    try {
+      const nextGroups = customGroups.filter(g => g.id !== id);
+      const nextAssignments = Object.fromEntries(
+        Object.entries(assignments).filter(([, groupId]) => groupId !== id)
+      );
+      setAssignments(nextAssignments);
+      await saveCustom(nextGroups);
+      await saveAssignments(nextAssignments);
+      toast({ title: 'Группа удалена' });
+    } catch (error: any) {
+      toast({ title: 'Не удалось удалить группу', description: error.message, variant: 'destructive' });
+    }
   };
 
-  const handleAssign = () => {
+  const handleAssign = async () => {
     if (!assignMaster || !assignGroup) return;
     const updated = { ...assignments, [assignMaster]: assignGroup };
-    saveAssignments(updated);
+    try {
+      await saveAssignments(updated);
+    } catch (error: any) {
+      toast({ title: 'Не удалось сохранить назначение', description: error.message, variant: 'destructive' });
+      return;
+    }
     toast({ title: 'Мастер назначен в группу' });
     setAssignOpen(false);
   };

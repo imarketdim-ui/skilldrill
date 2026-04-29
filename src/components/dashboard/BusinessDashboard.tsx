@@ -55,6 +55,7 @@ import BusinessBookingSettings from './business/BusinessBookingSettings';
 import BusinessEmployeeGroups from './business/BusinessEmployeeGroups';
 import BusinessSalaries from './business/BusinessSalaries';
 import BusinessLoyaltyPrograms from './business/BusinessLoyaltyPrograms';
+import { fetchBusinessSettingsSections, updateBusinessSettingsSection } from '@/lib/businessSettings';
 
 // ── Notifications with real counter ──
 const BusinessNotifications = ({ businessId }: { businessId?: string }) => {
@@ -131,23 +132,39 @@ const ClientTypeDirectory = ({ businessId }: { businessId: string }) => {
   const systemTypes = ['VIP', 'Постоянный', 'Новый', 'Спящий', 'Неактивный', 'ЧС'];
 
   useEffect(() => {
-    const saved = localStorage.getItem(`client_types_${businessId}`);
-    if (saved) try { setCustomTypes(JSON.parse(saved)); } catch {}
+    fetchTypes();
   }, [businessId]);
 
-  const saveTypes = (types: string[]) => {
-    setCustomTypes(types);
-    localStorage.setItem(`client_types_${businessId}`, JSON.stringify(types));
+  const fetchTypes = async () => {
+    try {
+      const data = await fetchBusinessSettingsSections(businessId);
+      const crm = (data?.crm as any) || {};
+      setCustomTypes((crm.client_types as string[]) || []);
+    } catch (error: any) {
+      toast({ title: 'Не удалось загрузить типы клиентов', description: error.message, variant: 'destructive' });
+    }
   };
 
-  const addType = () => {
+  const saveTypes = async (types: string[]) => {
+    setCustomTypes(types);
+    const existing = await fetchBusinessSettingsSections(businessId);
+    const crm = { ...((existing?.crm as any) || {}), client_types: types };
+    await updateBusinessSettingsSection(businessId, 'crm', crm);
+  };
+
+  const addType = async () => {
     const trimmed = newType.trim();
     if (!trimmed) return;
     if (systemTypes.includes(trimmed) || customTypes.includes(trimmed)) {
       toast({ title: 'Такой тип уже существует', variant: 'destructive' });
       return;
     }
-    saveTypes([...customTypes, trimmed]);
+    try {
+      await saveTypes([...customTypes, trimmed]);
+    } catch (error: any) {
+      toast({ title: 'Не удалось сохранить тип клиента', description: error.message, variant: 'destructive' });
+      return;
+    }
     setNewType('');
     toast({ title: 'Тип добавлен' });
   };
@@ -177,7 +194,14 @@ const ClientTypeDirectory = ({ businessId }: { businessId: string }) => {
               {customTypes.map(t => (
                 <Badge key={t} variant="outline" className="text-sm gap-1 pr-1">
                   {t}
-                  <button onClick={() => { saveTypes(customTypes.filter(x => x !== t)); toast({ title: 'Тип удалён' }); }} className="ml-1 hover:text-destructive"><Trash2 className="h-3 w-3" /></button>
+                  <button onClick={async () => {
+                    try {
+                      await saveTypes(customTypes.filter(x => x !== t));
+                      toast({ title: 'Тип удалён' });
+                    } catch (error: any) {
+                      toast({ title: 'Не удалось удалить тип', description: error.message, variant: 'destructive' });
+                    }
+                  }} className="ml-1 hover:text-destructive"><Trash2 className="h-3 w-3" /></button>
                 </Badge>
               ))}
             </div>

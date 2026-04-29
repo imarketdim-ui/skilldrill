@@ -872,6 +872,8 @@ export type Database = {
       business_settings: {
         Row: {
           booking: Json | null
+          crm: Json | null
+          erp: Json | null
           business_id: string
           id: string
           notifications: Json | null
@@ -879,6 +881,8 @@ export type Database = {
         }
         Insert: {
           booking?: Json | null
+          crm?: Json | null
+          erp?: Json | null
           business_id: string
           id?: string
           notifications?: Json | null
@@ -886,6 +890,8 @@ export type Database = {
         }
         Update: {
           booking?: Json | null
+          crm?: Json | null
+          erp?: Json | null
           business_id?: string
           id?: string
           notifications?: Json | null

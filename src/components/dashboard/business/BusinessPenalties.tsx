@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { AlertTriangle, Save, Settings2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import { fetchBusinessSettingsSections, updateBusinessSettingsSection } from '@/lib/businessSettings';
 
 interface Props { businessId: string; }
 
@@ -29,10 +30,27 @@ const BusinessPenalties = ({ businessId }: Props) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const saved = localStorage.getItem(`penalty_settings_${businessId}`);
-    if (saved) try { setSettings(JSON.parse(saved)); } catch {}
+    fetchSettings();
     fetchPenalties();
   }, [businessId]);
+
+  const fetchSettings = async () => {
+    try {
+      const data = await fetchBusinessSettingsSections(businessId);
+      const crm = (data?.crm as any) || {};
+      const penaltySettings = crm.penalties;
+      if (penaltySettings) {
+        setSettings({
+          no_show_amount: Number(penaltySettings.no_show_amount ?? defaultSettings.no_show_amount),
+          late_cancel_amount: Number(penaltySettings.late_cancel_amount ?? defaultSettings.late_cancel_amount),
+          reschedule_amount: Number(penaltySettings.reschedule_amount ?? defaultSettings.reschedule_amount),
+          enabled: Boolean(penaltySettings.enabled),
+        });
+      }
+    } catch (error: any) {
+      toast({ title: 'Не удалось загрузить настройки штрафов', description: error.message, variant: 'destructive' });
+    }
+  };
 
   const fetchPenalties = async () => {
     const { data } = await supabase
@@ -46,9 +64,15 @@ const BusinessPenalties = ({ businessId }: Props) => {
     setLoading(false);
   };
 
-  const saveSettings = () => {
-    localStorage.setItem(`penalty_settings_${businessId}`, JSON.stringify(settings));
-    toast({ title: 'Настройки штрафов сохранены' });
+  const saveSettings = async () => {
+    try {
+      const existing = await fetchBusinessSettingsSections(businessId);
+      const crm = { ...((existing?.crm as any) || {}), penalties: settings };
+      await updateBusinessSettingsSection(businessId, 'crm', crm);
+      toast({ title: 'Настройки штрафов сохранены' });
+    } catch (error: any) {
+      toast({ title: 'Не удалось сохранить настройки штрафов', description: error.message, variant: 'destructive' });
+    }
   };
 
   const totalPenalties = penalties.reduce((s, p) => s + Number(p.amount), 0);
