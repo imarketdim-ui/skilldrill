@@ -872,27 +872,27 @@ export type Database = {
       business_settings: {
         Row: {
           booking: Json | null
+          business_id: string
           crm: Json | null
           erp: Json | null
-          business_id: string
           id: string
           notifications: Json | null
           updated_at: string | null
         }
         Insert: {
           booking?: Json | null
+          business_id: string
           crm?: Json | null
           erp?: Json | null
-          business_id: string
           id?: string
           notifications?: Json | null
           updated_at?: string | null
         }
         Update: {
           booking?: Json | null
+          business_id?: string
           crm?: Json | null
           erp?: Json | null
-          business_id?: string
           id?: string
           notifications?: Json | null
           updated_at?: string | null
@@ -2922,7 +2922,22 @@ export type Database = {
           telegram_chat_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_priority_business_id_fkey"
+            columns: ["priority_business_id"]
+            isOneToOne: false
+            referencedRelation: "business_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_priority_master_profile_id_fkey"
+            columns: ["priority_master_profile_id"]
+            isOneToOne: false
+            referencedRelation: "master_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       promo_codes: {
         Row: {
