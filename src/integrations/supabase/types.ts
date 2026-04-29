@@ -873,6 +873,8 @@ export type Database = {
         Row: {
           booking: Json | null
           business_id: string
+          crm: Json | null
+          erp: Json | null
           id: string
           notifications: Json | null
           updated_at: string | null
@@ -880,6 +882,8 @@ export type Database = {
         Insert: {
           booking?: Json | null
           business_id: string
+          crm?: Json | null
+          erp?: Json | null
           id?: string
           notifications?: Json | null
           updated_at?: string | null
@@ -887,6 +891,8 @@ export type Database = {
         Update: {
           booking?: Json | null
           business_id?: string
+          crm?: Json | null
+          erp?: Json | null
           id?: string
           notifications?: Json | null
           updated_at?: string | null
@@ -2856,6 +2862,8 @@ export type Database = {
           phone: string | null
           phone_verified_at: string | null
           platform_role: Database["public"]["Enums"]["platform_role"]
+          priority_business_id: string | null
+          priority_master_profile_id: string | null
           privacy_settings: Json | null
           referred_by: string | null
           reminder_minutes: number | null
@@ -2879,6 +2887,8 @@ export type Database = {
           phone?: string | null
           phone_verified_at?: string | null
           platform_role?: Database["public"]["Enums"]["platform_role"]
+          priority_business_id?: string | null
+          priority_master_profile_id?: string | null
           privacy_settings?: Json | null
           referred_by?: string | null
           reminder_minutes?: number | null
@@ -2902,6 +2912,8 @@ export type Database = {
           phone?: string | null
           phone_verified_at?: string | null
           platform_role?: Database["public"]["Enums"]["platform_role"]
+          priority_business_id?: string | null
+          priority_master_profile_id?: string | null
           privacy_settings?: Json | null
           referred_by?: string | null
           reminder_minutes?: number | null
@@ -2910,7 +2922,22 @@ export type Database = {
           telegram_chat_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_priority_business_id_fkey"
+            columns: ["priority_business_id"]
+            isOneToOne: false
+            referencedRelation: "business_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_priority_master_profile_id_fkey"
+            columns: ["priority_master_profile_id"]
+            isOneToOne: false
+            referencedRelation: "master_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       promo_codes: {
         Row: {
