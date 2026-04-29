@@ -102,6 +102,14 @@ const PWAInstallPrompt = () => {
     }
   };
 
+  // Автоматически скрывать баннер через 3 секунды, чтобы не мешать пользователю.
+  // Инструкции (диалог) при этом остаются доступны, если открыты вручную.
+  useEffect(() => {
+    if (!showBanner) return;
+    const timer = setTimeout(() => setShowBanner(false), 3000);
+    return () => clearTimeout(timer);
+  }, [showBanner]);
+
   if (!showBanner || isInstalled) return null;
 
   const instructions: Record<Platform, { title: string; icon: React.ReactNode; steps: string[] }> = {
