@@ -14,7 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { syncBidirectionalContacts } from '@/lib/contactSync';
+import { isSelfInteraction, syncBidirectionalContacts } from '@/lib/contactSync';
 import Header from '@/components/landing/Header';
 import AvailableSlotPicker from '@/components/marketplace/AvailableSlotPicker';
 import Footer from '@/components/landing/Footer';
@@ -34,6 +34,9 @@ const BusinessDetail = () => {
   const [isFavorite, setIsFavorite] = useState(false);
   const [bookingService, setBookingService] = useState<string | null>(null);
   const [bookingData, setBookingData] = useState({ name: '', phone: '', date: '', time: '', comment: '' });
+  const [messageOpen, setMessageOpen] = useState(false);
+  const [messageText, setMessageText] = useState('');
+  const [sendingMessage, setSendingMessage] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
 
   useEffect(() => {
@@ -129,6 +132,49 @@ const BusinessDetail = () => {
     }
   };
 
+  const handleMessage = async () => {
+    if (!user || !business) {
+      toast({ title: 'Нужно войти в аккаунт', variant: 'destructive' });
+      return;
+    }
+    if (isSelfInteraction(user.id, business.owner_id)) {
+      toast({ title: 'Нельзя писать самому себе', variant: 'destructive' });
+      return;
+    }
+    if (!messageText.trim()) return;
+
+    setSendingMessage(true);
+    try {
+      const { error } = await supabase.from('chat_messages').insert({
+        sender_id: user.id,
+        recipient_id: business.owner_id,
+        message: messageText.trim(),
+        chat_type: 'direct',
+      });
+
+      if (error) throw error;
+
+      await syncBidirectionalContacts(user.id, business.owner_id);
+      await supabase.functions.invoke('send-push-notification', {
+        body: {
+          user_ids: [business.owner_id],
+          title: 'Новое сообщение',
+          body: messageText.trim().slice(0, 120),
+          url: `/dashboard?section=messages&tab=chats&contact=${user.id}`,
+          tag: 'business-direct-chat',
+        },
+      }).catch(() => null);
+
+      toast({ title: 'Сообщение отправлено' });
+      setMessageText('');
+      setMessageOpen(false);
+    } catch (err: any) {
+      toast({ title: 'Ошибка', description: err.message || 'Не удалось отправить сообщение', variant: 'destructive' });
+    } finally {
+      setSendingMessage(false);
+    }
+  };
+
   const handleShare = (platform: string) => {
     const url = window.location.href;
     const text = `${business?.name} на SkillSpot`;
@@ -141,10 +187,62 @@ const BusinessDetail = () => {
     else window.open(links[platform], '_blank');
   };
 
-  const handleBook = () => {
-    toast({ title: 'Заявка отправлена!', description: 'Организация свяжется с вами для подтверждения.' });
-    setBookingService(null);
-    setBookingData({ name: '', phone: '', date: '', time: '', comment: '' });
+  const handleBook = async () => {
+    if (!user || !business || !bookingService) {
+      toast({ title: 'Нужно войти в аккаунт', description: 'Авторизуйтесь, чтобы отправить заявку', variant: 'destructive' });
+      return;
+    }
+    if (isSelfInteraction(user.id, business.owner_id)) {
+      toast({ title: 'Нельзя записаться в свою организацию как клиент', variant: 'destructive' });
+      return;
+    }
+
+    const service = services.find((item: any) => item.id === bookingService);
+    if (!service || !bookingData.date || !bookingData.time) {
+      toast({ title: 'Заполните дату и время', description: 'Выберите слот, чтобы отправить заявку в организацию.', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      const requestMessage = [
+        `Запрос на запись в организацию: ${service.name}.`,
+        `Дата: ${bookingData.date}, время: ${bookingData.time}.`,
+        bookingData.comment ? `Комментарий клиента: ${bookingData.comment}` : '',
+      ].filter(Boolean).join(' ');
+
+      const { error } = await supabase.from('chat_messages').insert({
+        sender_id: user.id,
+        recipient_id: business.owner_id,
+        message: requestMessage,
+        chat_type: 'direct',
+      });
+
+      if (error) throw error;
+
+      await supabase.from('notifications').insert({
+        user_id: business.owner_id,
+        type: 'manual_booking_request',
+        title: 'Запрос на запись',
+        message: `${bookingData.name || 'Клиент'} просит запись на «${service.name}» ${bookingData.date} в ${bookingData.time}.`,
+      });
+
+      await syncBidirectionalContacts(user.id, business.owner_id);
+      await supabase.functions.invoke('send-push-notification', {
+        body: {
+          user_ids: [business.owner_id],
+          title: 'Запрос на запись',
+          body: `${bookingData.name || 'Клиент'} просит запись на ${service.name}`,
+          url: `/dashboard?section=messages&tab=chats&contact=${user.id}`,
+          tag: 'business-booking-request',
+        },
+      }).catch(() => null);
+
+      toast({ title: 'Заявка отправлена', description: 'Организация получит сообщение и сможет согласовать запись вручную.' });
+      setBookingService(null);
+      setBookingData({ name: '', phone: '', date: '', time: '', comment: '' });
+    } catch (err: any) {
+      toast({ title: 'Ошибка', description: err.message || 'Не удалось отправить заявку', variant: 'destructive' });
+    }
   };
 
   if (loading) return <div className="min-h-screen"><Header /><main className="pt-24 pb-16 text-center"><p className="text-muted-foreground">Загрузка...</p></main><Footer /></div>;
@@ -333,6 +431,20 @@ const BusinessDetail = () => {
                   <CardContent className="pt-6 space-y-3">
                     {business.contact_phone && <p className="text-sm"><span className="font-medium">Телефон:</span> {business.contact_phone}</p>}
                     {business.contact_email && <p className="text-sm"><span className="font-medium">Email:</span> {business.contact_email}</p>}
+                    <Dialog open={messageOpen} onOpenChange={setMessageOpen}>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" className="w-full"><MessageSquare className="h-4 w-4 mr-2" /> Написать организации</Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader><DialogTitle>Написать {business.name}</DialogTitle></DialogHeader>
+                        <div className="space-y-3">
+                          <Textarea placeholder="Сообщение..." value={messageText} onChange={(e) => setMessageText(e.target.value)} rows={4} />
+                          <Button onClick={handleMessage} className="w-full" disabled={sendingMessage || !messageText.trim()}>
+                            {sendingMessage ? 'Отправка...' : 'Отправить'}
+                          </Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
                   </CardContent>
                 </Card>
               </div>
