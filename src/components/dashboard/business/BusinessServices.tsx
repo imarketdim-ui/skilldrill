@@ -17,6 +17,7 @@ import PhotoUploader from '@/components/marketplace/PhotoUploader';
 import { useAuth } from '@/hooks/useAuth';
 import TechnologyCardEditor from '@/components/dashboard/universal/TechnologyCardEditor';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { cn } from '@/lib/utils';
 
 interface Props {
   businessId: string;
@@ -32,6 +33,9 @@ interface ServiceItem {
   is_active: boolean;
   work_photos: string[];
   master_id: string | null;
+  tech_card?: any;
+  business_id?: string | null;
+  organization_id?: string | null;
 }
 
 interface MasterOption {
@@ -48,6 +52,8 @@ const BusinessServices = ({ businessId }: Props) => {
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [form, setForm] = useState({
     name: '', description: '', price: '', duration_minutes: '',
     hashtags: [] as string[], hashtagInput: '', is_active: true,
@@ -60,7 +66,11 @@ const BusinessServices = ({ businessId }: Props) => {
   const fetchAll = async () => {
     setLoading(true);
     const [svcRes, masterRes] = await Promise.all([
-      supabase.from('services').select('*').eq('business_id', businessId).order('created_at', { ascending: false }),
+      supabase
+        .from('services')
+        .select('*')
+        .or(`organization_id.eq.${businessId},business_id.eq.${businessId}`)
+        .order('created_at', { ascending: false }),
       supabase.from('business_masters')
         .select('master_id, profile:profiles!business_masters_master_id_fkey(first_name, last_name, skillspot_id)')
         .eq('business_id', businessId)
@@ -81,36 +91,96 @@ const BusinessServices = ({ businessId }: Props) => {
 
   const openCreate = () => {
     setEditingId(null);
+    setFieldErrors({});
     setForm({ name: '', description: '', price: '', duration_minutes: '', hashtags: [], hashtagInput: '', is_active: true, work_photos: [], assigned_master_id: '', break_after: false, break_after_minutes: '15' });
     setIsOpen(true);
   };
 
   const openEdit = (s: ServiceItem) => {
     setEditingId(s.id);
+    setFieldErrors({});
+    const breakAfterMinutes = Number((s.tech_card as any)?.break_after_minutes || 0);
     setForm({
       name: s.name, description: s.description || '',
       price: s.price != null ? String(s.price) : '', duration_minutes: s.duration_minutes != null ? String(s.duration_minutes) : '',
       hashtags: s.hashtags, hashtagInput: '', is_active: s.is_active, work_photos: s.work_photos,
       assigned_master_id: s.master_id || '',
-      break_after: !!(s as any).custom_data?.break_after_minutes,
-      break_after_minutes: String((s as any).custom_data?.break_after_minutes || '15'),
+      break_after: breakAfterMinutes > 0,
+      break_after_minutes: String(breakAfterMinutes || 15),
     });
     setIsOpen(true);
   };
 
+  const mapServiceError = (error: any) => {
+    const raw = String(error?.message || '').toLowerCase();
+    if (raw.includes('row-level security') || raw.includes('permission denied') || raw.includes('insufficient privilege')) {
+      return 'Недостаточно прав для управления услугами этой организации. Проверьте роль сотрудника и доступ к разделу услуг.';
+    }
+    if (raw.includes('custom_data')) {
+      return 'Форма услуги была отправлена в устаревшем формате. Мы обновили сохранение, попробуйте ещё раз.';
+    }
+    if (raw.includes('violates') && raw.includes('foreign key')) {
+      return 'Не удалось сохранить услугу из-за несоответствия связей. Проверьте выбранного мастера и организацию.';
+    }
+    if (raw.includes('invalid input syntax')) {
+      return 'Проверьте цену, длительность и числовые поля. В одном из них указан некорректный формат.';
+    }
+    return error?.message || 'Не удалось сохранить услугу. Попробуйте ещё раз.';
+  };
+
+  const validateForm = () => {
+    const nextErrors: Record<string, string> = {};
+
+    if (!form.name.trim()) {
+      nextErrors.name = 'Укажите название услуги.';
+    }
+
+    const price = Number(form.price);
+    if (!form.price || Number.isNaN(price) || price <= 0) {
+      nextErrors.price = 'Укажите стоимость услуги больше 0.';
+    }
+
+    const duration = Number(form.duration_minutes);
+    if (!form.duration_minutes || Number.isNaN(duration) || duration <= 0) {
+      nextErrors.duration_minutes = 'Укажите длительность услуги в минутах.';
+    }
+
+    if (form.break_after) {
+      const breakMinutes = Number(form.break_after_minutes);
+      if (!form.break_after_minutes || Number.isNaN(breakMinutes) || breakMinutes < 5) {
+        nextErrors.break_after_minutes = 'Минимальный перерыв после услуги — 5 минут.';
+      }
+    }
+
+    setFieldErrors(nextErrors);
+    return { valid: Object.keys(nextErrors).length === 0, price, duration };
+  };
+
   const handleSave = async () => {
-    if (!form.name.trim()) return;
+    const { valid, price, duration } = validateForm();
+    if (!valid) {
+      toast({ title: 'Заполните обязательные поля', description: 'Подсветили, что нужно исправить, чтобы сохранить услугу.', variant: 'destructive' });
+      return;
+    }
+
+    setSaving(true);
+    const currentService = editingId ? services.find((service) => service.id === editingId) : null;
+    const nextTechCard = {
+      ...((currentService?.tech_card as Record<string, unknown> | null) || {}),
+      ...(form.break_after ? { break_after_minutes: Number(form.break_after_minutes) } : { break_after_minutes: null }),
+    };
     const payload: any = {
       name: form.name.trim(),
       description: form.description.trim() || null,
-      price: form.price ? Number(form.price) : 0,
-      duration_minutes: form.duration_minutes ? Number(form.duration_minutes) : 60,
+      price,
+      duration_minutes: duration,
       hashtags: form.hashtags,
       is_active: form.is_active,
       business_id: businessId,
+      organization_id: businessId,
       master_id: form.assigned_master_id || null,
       work_photos: form.work_photos,
-      custom_data: form.break_after ? { break_after_minutes: Number(form.break_after_minutes) } : {},
+      tech_card: nextTechCard,
     };
     try {
       if (editingId) {
@@ -123,9 +193,12 @@ const BusinessServices = ({ businessId }: Props) => {
         toast({ title: 'Услуга создана' });
       }
       setIsOpen(false);
+      setFieldErrors({});
       fetchAll();
     } catch (err: any) {
-      toast({ title: 'Ошибка', description: err.message, variant: 'destructive' });
+      toast({ title: 'Ошибка', description: mapServiceError(err), variant: 'destructive' });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -191,8 +264,8 @@ const BusinessServices = ({ businessId }: Props) => {
                       </span>
                     )}
                   </div>
-                  {(s as any).custom_data?.break_after_minutes && (
-                    <Badge variant="secondary" className="text-xs"><Clock className="h-2.5 w-2.5 mr-1" /> +{(s as any).custom_data.break_after_minutes} мин перерыв</Badge>
+                  {Number((s.tech_card as any)?.break_after_minutes || 0) > 0 && (
+                    <Badge variant="secondary" className="text-xs"><Clock className="h-2.5 w-2.5 mr-1" /> +{Number((s.tech_card as any)?.break_after_minutes)} мин перерыв</Badge>
                   )}
                   {assignedMaster && (
                     <Badge variant="outline" className="text-xs">
@@ -223,7 +296,15 @@ const BusinessServices = ({ businessId }: Props) => {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Название *</Label>
-              <Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
+              <Input
+                value={form.name}
+                onChange={e => {
+                  setForm(p => ({ ...p, name: e.target.value }));
+                  if (fieldErrors.name) setFieldErrors(prev => ({ ...prev, name: '' }));
+                }}
+                className={cn(fieldErrors.name && 'border-destructive focus-visible:ring-destructive')}
+              />
+              {fieldErrors.name && <p className="text-xs text-destructive">{fieldErrors.name}</p>}
             </div>
             <div className="space-y-2">
               <Label>Описание</Label>
@@ -231,12 +312,34 @@ const BusinessServices = ({ businessId }: Props) => {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label>Цена (₽)</Label>
-                <Input type="text" inputMode="numeric" value={form.price} onChange={e => setForm(p => ({ ...p, price: e.target.value.replace(/[^\d]/g, '') }))} placeholder="0" />
+                <Label>Цена (₽) *</Label>
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  value={form.price}
+                  onChange={e => {
+                    setForm(p => ({ ...p, price: e.target.value.replace(/[^\d]/g, '') }));
+                    if (fieldErrors.price) setFieldErrors(prev => ({ ...prev, price: '' }));
+                  }}
+                  placeholder="0"
+                  className={cn(fieldErrors.price && 'border-destructive focus-visible:ring-destructive')}
+                />
+                {fieldErrors.price && <p className="text-xs text-destructive">{fieldErrors.price}</p>}
               </div>
               <div className="space-y-2">
-                <Label>Длительность (мин)</Label>
-                <Input type="text" inputMode="numeric" value={form.duration_minutes} onChange={e => setForm(p => ({ ...p, duration_minutes: e.target.value.replace(/[^\d]/g, '') }))} placeholder="60" />
+                <Label>Длительность (мин) *</Label>
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  value={form.duration_minutes}
+                  onChange={e => {
+                    setForm(p => ({ ...p, duration_minutes: e.target.value.replace(/[^\d]/g, '') }));
+                    if (fieldErrors.duration_minutes) setFieldErrors(prev => ({ ...prev, duration_minutes: '' }));
+                  }}
+                  placeholder="60"
+                  className={cn(fieldErrors.duration_minutes && 'border-destructive focus-visible:ring-destructive')}
+                />
+                {fieldErrors.duration_minutes && <p className="text-xs text-destructive">{fieldErrors.duration_minutes}</p>}
               </div>
             </div>
             {masters.length > 0 && (
@@ -312,12 +415,23 @@ const BusinessServices = ({ businessId }: Props) => {
               </div>
               {form.break_after && (
                 <div className="flex items-center gap-2">
-                  <Input type="number" className="w-20" value={form.break_after_minutes} onChange={e => setForm(p => ({ ...p, break_after_minutes: e.target.value }))} min={5} max={60} />
+                  <Input
+                    type="number"
+                    className={cn("w-20", fieldErrors.break_after_minutes && 'border-destructive focus-visible:ring-destructive')}
+                    value={form.break_after_minutes}
+                    onChange={e => {
+                      setForm(p => ({ ...p, break_after_minutes: e.target.value }));
+                      if (fieldErrors.break_after_minutes) setFieldErrors(prev => ({ ...prev, break_after_minutes: '' }));
+                    }}
+                    min={5}
+                    max={60}
+                  />
                   <span className="text-sm text-muted-foreground">минут</span>
                 </div>
               )}
+              {fieldErrors.break_after_minutes && <p className="text-xs text-destructive">{fieldErrors.break_after_minutes}</p>}
             </div>
-            <Button className="w-full" onClick={handleSave}>{editingId ? 'Сохранить' : 'Создать'}</Button>
+            <Button className="w-full" onClick={handleSave} disabled={saving}>{saving ? 'Сохранение...' : editingId ? 'Сохранить' : 'Создать'}</Button>
 
             {editingId && (() => {
               const editingService = services.find(s => s.id === editingId);

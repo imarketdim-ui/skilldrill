@@ -32,6 +32,20 @@ const PhotoUploader = ({
   const [uploading, setUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const mapUploadError = (error: any) => {
+    const raw = String(error?.message || '').toLowerCase();
+    if (raw.includes('row-level security') || raw.includes('permission denied') || raw.includes('unauthorized')) {
+      return 'Недостаточно прав для загрузки фото. Проверьте, что вы редактируете свою услугу или профиль.';
+    }
+    if (raw.includes('bucket')) {
+      return 'Хранилище фотографий временно недоступно. Попробуйте ещё раз чуть позже.';
+    }
+    if (raw.includes('mime') || raw.includes('content type')) {
+      return 'Не удалось загрузить файл. Используйте JPG, PNG или WebP.';
+    }
+    return error?.message || 'Не удалось загрузить изображение.';
+  };
+
   const handleUpload = async (files: FileList) => {
     if (photos.length + files.length > maxPhotos) {
       toast({ title: `Максимум ${maxPhotos} фото`, variant: "destructive" });
@@ -56,7 +70,7 @@ const PhotoUploader = ({
 
       const { error } = await supabase.storage.from(bucket).upload(path, file);
       if (error) {
-        toast({ title: "Ошибка загрузки", description: error.message, variant: "destructive" });
+        toast({ title: "Ошибка загрузки", description: mapUploadError(error), variant: "destructive" });
         continue;
       }
 
