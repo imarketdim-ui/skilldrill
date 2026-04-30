@@ -12,6 +12,8 @@ import VoiceRecorder from '@/components/chat/VoiceRecorder';
 import MediaUploader from '@/components/chat/MediaUploader';
 import ChatEmojiPicker from '@/components/chat/ChatEmojiPicker';
 import { useTypingIndicator } from '@/hooks/useTypingIndicator';
+import { useToast } from '@/hooks/use-toast';
+import { syncBidirectionalContacts } from '@/lib/contactSync';
 
 interface SupportChatProps {
   isAdmin?: boolean;
@@ -25,8 +27,14 @@ interface SupportThread {
   unread: number;
 }
 
+const SUPPORT_ROLE_PRIORITY = ['support', 'platform_admin', 'super_admin', 'platform_manager', 'integrator', 'moderator'] as const;
+
+const isSupportSelfMessage = (message: any) =>
+  Boolean(message?.sender_id && message?.recipient_id && message.sender_id === message.recipient_id);
+
 const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -76,6 +84,7 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
       .channel(`support-chat-${user.id}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: 'chat_type=eq.support' }, (payload) => {
         const msg = payload.new as any;
+        if (isSupportSelfMessage(msg)) return;
         if (isAdmin) {
           fetchThreads();
           if (selectedUserId && (msg.sender_id === selectedUserId || msg.recipient_id === selectedUserId)) {
@@ -94,12 +103,46 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
     return () => { supabase.removeChannel(channel); };
   }, [user, isAdmin, selectedUserId]);
 
+  const resolveSupportAgentIds = async () => {
+    const { data } = await supabase
+      .from('user_roles')
+      .select('user_id, role')
+      .in('role', [...SUPPORT_ROLE_PRIORITY] as any[])
+      .eq('is_active', true);
+
+    const uniqueIds = Array.from(new Set((data || []).map((row) => row.user_id).filter((id) => id && id !== user?.id)));
+
+    uniqueIds.sort((left, right) => {
+      const leftPriority = Math.min(
+        ...(data || [])
+          .filter((row) => row.user_id === left)
+          .map((row) => SUPPORT_ROLE_PRIORITY.indexOf(row.role as typeof SUPPORT_ROLE_PRIORITY[number]))
+          .filter((index) => index >= 0),
+      );
+      const rightPriority = Math.min(
+        ...(data || [])
+          .filter((row) => row.user_id === right)
+          .map((row) => SUPPORT_ROLE_PRIORITY.indexOf(row.role as typeof SUPPORT_ROLE_PRIORITY[number]))
+          .filter((index) => index >= 0),
+      );
+
+      return leftPriority - rightPriority;
+    });
+
+    return uniqueIds;
+  };
+
   const fetchMessages = async () => {
     if (!user) return;
     setLoading(true);
-    const { data: sentData } = await supabase.from('chat_messages').select('*').eq('chat_type', 'support').eq('sender_id', user.id).order('created_at', { ascending: true });
-    const { data: receivedData } = await supabase.from('chat_messages').select('*').eq('chat_type', 'support').eq('recipient_id', user.id).order('created_at', { ascending: true });
-    const all = [...(sentData || []), ...(receivedData || [])];
+    const supportAgentIds = await resolveSupportAgentIds();
+    const { data: sentData } = supportAgentIds.length > 0
+      ? await supabase.from('chat_messages').select('*').eq('chat_type', 'support').eq('sender_id', user.id).in('recipient_id', supportAgentIds).order('created_at', { ascending: true })
+      : { data: [] as any[] };
+    const { data: receivedData } = supportAgentIds.length > 0
+      ? await supabase.from('chat_messages').select('*').eq('chat_type', 'support').eq('recipient_id', user.id).in('sender_id', supportAgentIds).order('created_at', { ascending: true })
+      : { data: [] as any[] };
+    const all = [...(sentData || []), ...(receivedData || [])].filter((message) => !isSupportSelfMessage(message));
     const unique = Array.from(new Map(all.map(m => [m.id, m])).values());
     unique.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
     setMessages(unique);
@@ -117,7 +160,7 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
     if (!data) { setLoading(false); return; }
 
     const userMap = new Map<string, any[]>();
-    data.forEach(msg => {
+    data.filter((msg) => !isSupportSelfMessage(msg)).forEach(msg => {
       const threadKey = msg.sender_id === user.id ? msg.recipient_id : msg.sender_id;
       if (threadKey === user.id) return;
       if (!userMap.has(threadKey)) userMap.set(threadKey, []);
@@ -147,14 +190,21 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
   };
 
   const fetchAdminMessages = async (userId: string) => {
-    const { data: sentData } = await supabase.from('chat_messages').select('*').eq('chat_type', 'support').eq('sender_id', userId).order('created_at', { ascending: true });
-    const { data: receivedData } = await supabase.from('chat_messages').select('*').eq('chat_type', 'support').eq('recipient_id', userId).order('created_at', { ascending: true });
-    const all = [...(sentData || []), ...(receivedData || [])];
+    const supportAgentIds = await resolveSupportAgentIds();
+    const { data: sentData } = supportAgentIds.length > 0
+      ? await supabase.from('chat_messages').select('*').eq('chat_type', 'support').eq('sender_id', userId).in('recipient_id', supportAgentIds).order('created_at', { ascending: true })
+      : { data: [] as any[] };
+    const { data: receivedData } = supportAgentIds.length > 0
+      ? await supabase.from('chat_messages').select('*').eq('chat_type', 'support').eq('recipient_id', userId).in('sender_id', supportAgentIds).order('created_at', { ascending: true })
+      : { data: [] as any[] };
+    const all = [...(sentData || []), ...(receivedData || [])].filter((message) => !isSupportSelfMessage(message));
     const unique = Array.from(new Map(all.map(m => [m.id, m])).values());
     unique.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
     setMessages(unique);
     if (user) {
-      await supabase.from('chat_messages').update({ is_read: true }).eq('chat_type', 'support').eq('sender_id', userId).eq('is_read', false);
+      if (supportAgentIds.length > 0) {
+        await supabase.from('chat_messages').update({ is_read: true }).eq('chat_type', 'support').eq('sender_id', userId).in('recipient_id', supportAgentIds).eq('is_read', false);
+      }
     }
   };
 
@@ -175,6 +225,7 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
 
       if (isAdmin && selectedUserId) {
         await supabase.from('chat_messages').insert({ ...baseMsg, sender_id: user.id, recipient_id: selectedUserId });
+        await syncBidirectionalContacts(user.id, selectedUserId);
         await supabase.functions.invoke('send-push-notification', {
           body: {
             user_ids: [selectedUserId],
@@ -187,25 +238,30 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
         setNewMessage(''); setReplyTo(null);
         fetchAdminMessages(selectedUserId);
       } else {
-        const { data: adminRoles } = await supabase.from('user_roles').select('user_id').in('role', ['platform_admin', 'super_admin']).eq('is_active', true);
-        const adminIds = (adminRoles || []).map(r => r.user_id).filter(id => id !== user.id);
+        const supportAgentIds = await resolveSupportAgentIds();
+        const primarySupportId = supportAgentIds[0];
 
-        if (adminIds.length === 0) {
-          await supabase.from('chat_messages').insert({ ...baseMsg, sender_id: user.id, recipient_id: user.id, is_read: true });
-        } else {
-          await Promise.all(adminIds.map(adminId =>
-            supabase.from('chat_messages').insert({ ...baseMsg, sender_id: user.id, recipient_id: adminId })
-          ));
-          await supabase.functions.invoke('send-push-notification', {
-            body: {
-              user_ids: adminIds,
-              title: 'Новое обращение в поддержку',
-              body: text || 'Клиент отправил вложение',
-              url: '/dashboard?section=support&tab=support',
-              tag: 'support-chat',
-            },
-          }).catch(() => null);
+        if (!primarySupportId) {
+          toast({
+            title: 'Поддержка временно недоступна',
+            description: 'Попробуйте написать чуть позже. Сейчас мы не можем принять новое обращение.',
+            variant: 'destructive',
+          });
+          setSending(false);
+          return;
         }
+
+        await supabase.from('chat_messages').insert({ ...baseMsg, sender_id: user.id, recipient_id: primarySupportId });
+        await syncBidirectionalContacts(user.id, primarySupportId);
+        await supabase.functions.invoke('send-push-notification', {
+          body: {
+            user_ids: supportAgentIds,
+            title: 'Новое обращение в поддержку',
+            body: text || 'Пользователь отправил вложение',
+            url: '/dashboard?section=support&tab=support',
+            tag: 'support-chat',
+          },
+        }).catch(() => null);
 
         try {
           const existingTickets = await supabase.from('support_tickets').select('id', { count: 'exact', head: true }).eq('user_id', user.id).in('status', ['open', 'in_progress']);
@@ -221,6 +277,11 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
       }
     } catch (err: any) {
       console.error('Support send error:', err);
+      toast({
+        title: 'Не удалось отправить сообщение',
+        description: 'Попробуйте ещё раз через пару секунд.',
+        variant: 'destructive',
+      });
     }
     setSending(false);
   };
