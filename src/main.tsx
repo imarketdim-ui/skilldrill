@@ -1,4 +1,4 @@
-// build: sync 2026-04-29 (rebuild trigger 6 — PWA banner auto-hide 3s)
+// build: sync 2026-04-30 (rebuild trigger 7 — support ticket ownership + contact sync)
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
