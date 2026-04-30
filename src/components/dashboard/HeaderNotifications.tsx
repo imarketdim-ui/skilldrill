@@ -64,7 +64,7 @@ const HeaderNotifications = () => {
       related_id: n.related_id,
     }));
 
-    const chatList: NotifItem[] = (chatRes.data || []).map((m: any) => ({
+    const chatList: NotifItem[] = (chatRes.data || []).map((m: any): NotifItem => ({
       id: `c-${m.id}`,
       kind: 'chat',
       title: m.chat_type === 'support' ? 'Поддержка' : 'Новое сообщение',
