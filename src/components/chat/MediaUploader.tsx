@@ -42,7 +42,6 @@ const MediaUploader = ({ userId, onUploaded }: Props) => {
       <input
         ref={inputRef}
         type="file"
-        accept="image/*,video/*"
         multiple
         className="hidden"
         onChange={handleFiles}
@@ -52,7 +51,7 @@ const MediaUploader = ({ userId, onUploaded }: Props) => {
         variant="ghost"
         onClick={() => inputRef.current?.click()}
         disabled={uploading}
-        title="Прикрепить фото/видео"
+        title="Прикрепить файл"
       >
         {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
       </Button>

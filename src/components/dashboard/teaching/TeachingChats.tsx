@@ -6,14 +6,14 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { MessageSquare, Send, Search, Paperclip, Image, Smile, UserPlus, ShieldBan, Check, CheckCheck, X } from 'lucide-react';
+import { MessageSquare, Send, Search, Smile, UserPlus, ShieldBan, Check, CheckCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { isSelfInteraction, syncBidirectionalContacts } from '@/lib/contactSync';
+import MediaUploader from '@/components/chat/MediaUploader';
+import VoiceRecorder from '@/components/chat/VoiceRecorder';
+import ChatAttachmentContent from '@/components/chat/ChatAttachmentContent';
 
 // Extended emoji list with categories
 const EMOJI_LIST = [
@@ -37,86 +37,6 @@ interface ChatContact {
   groupId?: string;
 }
 
-interface FileAttachItem {
-  file: File;
-  preview?: string;
-  type: 'image' | 'file';
-}
-
-interface FileAttachDialogProps {
-  open: boolean;
-  onClose: () => void;
-  onSend: (files: FileAttachItem[], comment: string) => void;
-  uploading: boolean;
-}
-
-const FileAttachDialog = ({ open, onClose, onSend, uploading }: FileAttachDialogProps) => {
-  const [files, setFiles] = useState<FileAttachItem[]>([]);
-  const [comment, setComment] = useState('');
-  const fileRef = useRef<HTMLInputElement>(null);
-  const imageRef = useRef<HTMLInputElement>(null);
-
-  const handleFiles = (selected: FileList | null, type: 'image' | 'file') => {
-    if (!selected) return;
-    const items: FileAttachItem[] = Array.from(selected).map(f => ({
-      file: f, type,
-      preview: type === 'image' ? URL.createObjectURL(f) : undefined,
-    }));
-    setFiles(prev => [...prev, ...items]);
-  };
-
-  const remove = (idx: number) => {
-    setFiles(prev => {
-      const item = prev[idx];
-      if (item.preview) URL.revokeObjectURL(item.preview);
-      return prev.filter((_, i) => i !== idx);
-    });
-  };
-
-  const handleSend = () => { onSend(files, comment); setFiles([]); setComment(''); };
-
-  const handleClose = () => { files.forEach(f => f.preview && URL.revokeObjectURL(f.preview)); setFiles([]); setComment(''); onClose(); };
-
-  return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md">
-        <DialogHeader><DialogTitle>Прикрепить файлы</DialogTitle></DialogHeader>
-        <div className="space-y-4">
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => imageRef.current?.click()}><Image className="h-4 w-4 mr-1" /> Фото</Button>
-            <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}><Paperclip className="h-4 w-4 mr-1" /> Файл</Button>
-            <input ref={imageRef} type="file" accept="image/*" multiple className="hidden" onChange={e => handleFiles(e.target.files, 'image')} />
-            <input ref={fileRef} type="file" multiple className="hidden" onChange={e => handleFiles(e.target.files, 'file')} />
-          </div>
-          {files.length > 0 && (
-            <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto">
-              {files.map((f, i) => (
-                <div key={i} className="relative group rounded-lg border overflow-hidden bg-muted">
-                  {f.preview
-                    ? <img src={f.preview} alt="" className="w-full h-20 object-cover" />
-                    : <div className="w-full h-20 flex items-center justify-center"><Paperclip className="h-6 w-6 text-muted-foreground" /><span className="text-[10px] truncate px-1">{f.file.name}</span></div>
-                  }
-                  <button className="absolute top-0.5 right-0.5 bg-black/60 rounded-full p-0.5 hidden group-hover:block" onClick={() => remove(i)}><X className="h-3 w-3 text-white" /></button>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Комментарий (необязательно)</Label>
-            <Textarea value={comment} onChange={e => setComment(e.target.value)} placeholder="Добавить комментарий..." rows={2} />
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" className="flex-1" onClick={handleClose}>Отмена</Button>
-            <Button className="flex-1" onClick={handleSend} disabled={files.length === 0 || uploading}>
-              {uploading ? 'Отправка...' : `Отправить (${files.length})`}
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
 export type CabinetContext = 'client' | 'master' | 'business' | 'platform';
 
 interface Props {
@@ -135,8 +55,6 @@ const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [showEmoji, setShowEmoji] = useState(false);
-  const [uploadingFile, setUploadingFile] = useState(false);
-  const [showFileDialog, setShowFileDialog] = useState(false);
   const [totalUnread, setTotalUnread] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -313,10 +231,18 @@ const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange
         );
         const lastMsg = contactMsgs[0];
         const unread = contactMsgs.filter(m => m.sender_id === p.id && m.recipient_id === user.id && !m.is_read).length;
+        const lastMessageLabel =
+          lastMsg?.audio_url
+            ? '🎤 Голосовое'
+            : lastMsg?.media_urls?.length
+              ? '📎 Вложение'
+              : lastMsg?.attachment_url
+                ? '📎 Вложение'
+                : lastMsg?.message;
         unreadTotal += unread;
         return {
           id: p.id, first_name: p.first_name, last_name: p.last_name, email: p.email,
-          lastMessage: lastMsg?.attachment_url ? '📎 Вложение' : lastMsg?.message,
+          lastMessage: lastMessageLabel,
           lastMessageAt: lastMsg?.created_at,
           unread,
         };
@@ -359,15 +285,15 @@ const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange
     });
   };
 
-  const sendMessage = async (attachmentUrl?: string, attachmentType?: string, overrideText?: string) => {
+  const sendMessage = async (overrides?: { audio_url?: string; media_urls?: string[]; message_type?: string }) => {
     if (!user || !selectedContact) return;
     if (isSelfInteraction(user.id, selectedContact.id)) {
       toast({ title: 'Нельзя писать самому себе', variant: 'destructive' });
       return;
     }
-    const text = overrideText ?? newMessage.trim();
-    if (!text && !attachmentUrl) return;
-    const messageText = text || (attachmentType === 'image' ? '📷 Фото' : '📎 Файл');
+    const text = newMessage.trim();
+    if (!text && !overrides?.audio_url && !overrides?.media_urls?.length) return;
+    const messageText = text || (overrides?.audio_url ? '🎤 Голосовое' : '📎 Вложение');
 
     const { data: blocked } = await supabase.from('blacklists').select('id').eq('blocker_id', selectedContact.id).eq('blocked_id', user.id).maybeSingle();
     if (blocked) { toast({ title: 'Чат заблокирован собеседником', variant: 'destructive' }); return; }
@@ -377,8 +303,11 @@ const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange
       message: messageText,
       chat_type: 'direct',
       cabinet_type_scope: effectiveCabinet,
-      attachment_url: attachmentUrl || null,
-      attachment_type: attachmentType || null,
+      message_type: overrides?.message_type || (overrides?.audio_url ? 'audio' : overrides?.media_urls?.length ? 'media' : 'text'),
+      audio_url: overrides?.audio_url || null,
+      media_urls: overrides?.media_urls || null,
+      attachment_url: overrides?.media_urls?.length === 1 ? overrides.media_urls[0] : null,
+      attachment_type: overrides?.media_urls?.length === 1 ? 'file' : null,
     });
     if (error) {
       toast({ title: 'Не удалось отправить сообщение', description: error.message, variant: 'destructive' });
@@ -398,25 +327,6 @@ const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange
     setNewMessage('');
     setShowEmoji(false);
     await fetchContacts();
-  };
-
-  const handleFileSend = async (files: FileAttachItem[], comment: string) => {
-    if (!user || !selectedContact) return;
-    setUploadingFile(true);
-    setShowFileDialog(false);
-    try {
-      for (const item of files) {
-        if (item.file.size > 20 * 1024 * 1024) continue;
-        const ext = item.file.name.split('.').pop();
-        const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-        const { error } = await supabase.storage.from('chat-media').upload(path, item.file);
-        if (error) continue;
-        const { data: urlData } = supabase.storage.from('chat-media').getPublicUrl(path);
-        await sendMessage(urlData.publicUrl, item.type, comment || undefined);
-      }
-    } catch (err: any) {
-      toast({ title: 'Ошибка загрузки', description: err.message, variant: 'destructive' });
-    } finally { setUploadingFile(false); }
   };
 
   const handleAddToContacts = async () => {
@@ -592,17 +502,7 @@ const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange
                         ? 'bg-primary text-primary-foreground rounded-br-sm'
                         : 'bg-muted rounded-bl-sm'
                     }`}>
-                      {msg.attachment_url && msg.attachment_type === 'image' && (
-                        <img src={msg.attachment_url} alt="" className="rounded-lg max-w-[240px] mb-1 cursor-pointer" onClick={() => window.open(msg.attachment_url, '_blank')} />
-                      )}
-                      {msg.attachment_url && msg.attachment_type === 'file' && (
-                        <a href={msg.attachment_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs underline mb-1">
-                          <Paperclip className="h-3 w-3" /> Скачать файл
-                        </a>
-                      )}
-                      {msg.message && !(msg.attachment_url && (msg.message === '📷 Фото' || msg.message === '📎 Файл')) && (
-                        <p className="whitespace-pre-wrap">{msg.message}</p>
-                      )}
+                      <ChatAttachmentContent message={msg} />
                       <div className="flex items-center gap-1 mt-1 justify-end">
                         <span className={`text-[10px] ${msg.sender_id === user?.id ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>
                           {format(new Date(msg.created_at), 'HH:mm')}
@@ -618,9 +518,8 @@ const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange
 
             {/* Input */}
             <div className="p-3 border-t flex items-end gap-2 bg-card/80">
-              <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => setShowFileDialog(true)}>
-                <Paperclip className="h-4 w-4" />
-              </Button>
+              {user && <MediaUploader userId={user.id} onUploaded={(urls) => sendMessage({ media_urls: urls })} />}
+              {user && <VoiceRecorder userId={user.id} onUploaded={(url) => sendMessage({ audio_url: url })} />}
               <div className="flex-1 relative">
                 <Input
                   value={newMessage}
@@ -652,8 +551,6 @@ const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange
           </>
         )}
       </div>
-
-      <FileAttachDialog open={showFileDialog} onClose={() => setShowFileDialog(false)} onSend={handleFileSend} uploading={uploadingFile} />
     </div>
   );
 };

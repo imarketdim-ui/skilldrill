@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import VoiceRecorder from '@/components/chat/VoiceRecorder';
 import MediaUploader from '@/components/chat/MediaUploader';
 import ChatEmojiPicker from '@/components/chat/ChatEmojiPicker';
+import ChatAttachmentContent from '@/components/chat/ChatAttachmentContent';
 import { useTypingIndicator } from '@/hooks/useTypingIndicator';
 import { useToast } from '@/hooks/use-toast';
 import { syncBidirectionalContacts } from '@/lib/contactSync';
@@ -621,25 +622,7 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
                   <p className="line-clamp-2">{repliedMsg.message}</p>
                 </div>
               )}
-              {msg.media_urls?.length > 0 && (
-                <div className="grid grid-cols-2 gap-1 mb-1 max-w-[240px]">
-                  {msg.media_urls.map((url: string, i: number) => (
-                    /\.(mp4|webm|mov)$/i.test(url) ? (
-                      <video key={i} src={url} controls className="rounded max-w-full" />
-                    ) : (
-                      <a key={i} href={url} target="_blank" rel="noreferrer">
-                        <img src={url} alt="" className="rounded object-cover w-full h-24" />
-                      </a>
-                    )
-                  ))}
-                </div>
-              )}
-              {msg.audio_url && (
-                <audio src={msg.audio_url} controls className="max-w-full mb-1" />
-              )}
-              {msg.message && msg.message_type !== 'audio' && msg.message_type !== 'media' && (
-                <p className="whitespace-pre-wrap">{msg.message}</p>
-              )}
+              <ChatAttachmentContent message={msg} />
               <div className="flex items-center gap-1 mt-1 justify-end">
                 <button
                   onClick={() => setReplyTo(msg)}
