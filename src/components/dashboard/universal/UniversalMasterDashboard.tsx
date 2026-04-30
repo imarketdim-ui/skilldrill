@@ -272,7 +272,6 @@ const erpItems = [
 
 const directoryItems = [
   { key: 'dir_client_types', label: 'Типы клиентов', icon: Users, description: 'Системные и пользовательские типы' },
-  { key: 'dir_stats', label: 'Статистика', icon: BarChart3, description: 'Обзор справочных данных' },
 ];
 
 const allItems = [...mainItems, ...sidebarSections];
@@ -345,7 +344,6 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
       case 'erp': return <SectionHub title="ERP" description="Управление бизнес-процессами" items={erpItems} onNavigate={setActiveSection} />;
       case 'directories': return <SectionHub title="Справочники" description="Справочные данные и настройки" items={directoryItems} onNavigate={setActiveSection} />;
       case 'dir_client_types': return <MasterClientTypeDirectory />;
-      case 'dir_stats': return <UniversalStats config={config} />;
       case 'schedule': return <UniversalSchedule config={config} />;
       case 'services': return <UniversalServices config={config} />;
       case 'clients': return <UniversalClients config={config} onNavigateToChat={(contactId) => {
