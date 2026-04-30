@@ -475,7 +475,8 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
 
         const nowIso = new Date().toISOString();
         const activeTicket = await ensureSupportTicket(user.id, text || 'Обращение в поддержку');
-        await supabase.from('chat_messages').insert({ ...baseMsg, sender_id: user.id, recipient_id: primarySupportId, reference_id: activeTicket.id });
+        const assignedSupportId = activeTicket.admin_id || primarySupportId;
+        await supabase.from('chat_messages').insert({ ...baseMsg, sender_id: user.id, recipient_id: assignedSupportId, reference_id: activeTicket.id });
         await supabase.from('support_tickets').update({
           status: activeTicket.admin_id ? 'waiting_platform' : 'open',
           last_user_reply_at: nowIso,
@@ -504,7 +505,7 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
               .select('id')
               .eq('chat_type', 'support')
               .eq('sender_id', user.id)
-              .eq('recipient_id', primarySupportId)
+              .eq('recipient_id', assignedSupportId)
               .eq('reference_id', activeTicket.id)
               .order('created_at', { ascending: false })
               .limit(1)
