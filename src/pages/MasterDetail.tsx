@@ -26,6 +26,7 @@ import {
   evaluateBookingGate,
   normalizeBookingTrustPolicy,
 } from '@/lib/bookingTrustPolicy';
+import { isSelfInteraction, syncBidirectionalContacts } from '@/lib/contactSync';
 
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -65,6 +66,36 @@ const REMINDER_OPTIONS = [
   { value: '180', label: 'За 3 часа' },
   { value: '1440', label: 'За сутки' },
 ];
+
+const getBookingErrorCopy = (error: any) => {
+  const raw = String(error?.message || '').toLowerCase();
+
+  if (raw.includes('restricted') || raw.includes('cannot create bookings')) {
+    return {
+      title: 'Автоматическая запись сейчас недоступна',
+      description: 'Сейчас запись через сайт недоступна по настройкам мастера или организации. Напишите мастеру, чтобы согласовать визит вручную.',
+    };
+  }
+
+  if (raw.includes('duplicate') || raw.includes('already exists')) {
+    return {
+      title: 'Похожая запись уже создана',
+      description: 'Похоже, заявка уже отправлена. Проверьте раздел «Мои записи» или напишите мастеру в чат.',
+    };
+  }
+
+  if (raw.includes('conflict') || raw.includes('slot') || raw.includes('overlap')) {
+    return {
+      title: 'Этот слот уже занят',
+      description: 'Пока вы оформляли запись, время мог занять другой клиент. Выберите другой слот или уточните детали у мастера.',
+    };
+  }
+
+  return {
+    title: 'Не удалось завершить запись',
+    description: 'Попробуйте ещё раз чуть позже. Если ошибка повторится, напишите мастеру или в поддержку.',
+  };
+};
 
 const MasterDetail = () => {
   const { masterId } = useParams();
@@ -123,7 +154,7 @@ const MasterDetail = () => {
           setServices(svcRes.data || []);
           setRatings(ratRes.data || []);
           if (user) {
-            const { data: fav } = await supabase.from('favorites').select('id').eq('user_id', user.id).eq('target_id', mp2.user_id).eq('favorite_type', 'master').maybeSingle();
+            const { data: fav } = await supabase.from('favorites').select('id').eq('user_id', user.id).eq('favorite_type', 'master').in('target_id', [mp2.id, mp2.user_id]).limit(1).maybeSingle();
             setIsFavorite(!!fav);
           }
         }
@@ -136,7 +167,7 @@ const MasterDetail = () => {
         setServices(svcRes.data || []);
         setRatings(ratRes.data || []);
         if (user) {
-          const { data: fav } = await supabase.from('favorites').select('id').eq('user_id', user.id).eq('target_id', mp.user_id).eq('favorite_type', 'master').maybeSingle();
+          const { data: fav } = await supabase.from('favorites').select('id').eq('user_id', user.id).eq('favorite_type', 'master').in('target_id', [mp.id, mp.user_id]).limit(1).maybeSingle();
           setIsFavorite(!!fav);
         }
       }
@@ -278,10 +309,12 @@ const MasterDetail = () => {
   const toggleFavorite = async () => {
     if (!user || !master) { toast({ title: 'Войдите, чтобы добавить в избранное', variant: 'destructive' }); navigate('/auth'); return; }
     if (isFavorite) {
-      await supabase.from('favorites').delete().eq('user_id', user.id).eq('target_id', master.user_id).eq('favorite_type', 'master');
+      await supabase.from('favorites').delete().eq('user_id', user.id).eq('favorite_type', 'master').in('target_id', [master.id, master.user_id]);
       setIsFavorite(false);
     } else {
-      await supabase.from('favorites').insert({ user_id: user.id, target_id: master.user_id, favorite_type: 'master' });
+      await supabase.from('favorites').delete().eq('user_id', user.id).eq('favorite_type', 'master').eq('target_id', master.user_id);
+      await supabase.from('favorites').insert({ user_id: user.id, target_id: master.id, favorite_type: 'master' });
+      await syncBidirectionalContacts(user.id, master.user_id);
       setIsFavorite(true);
     }
   };
@@ -314,7 +347,7 @@ const MasterDetail = () => {
     if (sendingBooking) return; // double-click guard
 
     // Prevent self-booking
-    if (user.id === master.user_id) {
+    if (isSelfInteraction(user.id, master.user_id)) {
       toast({ title: 'Нельзя записаться к себе', variant: 'destructive' });
       return;
     }
@@ -392,6 +425,8 @@ const MasterDetail = () => {
 
       if (bookingError) throw bookingError;
 
+      await syncBidirectionalContacts(user.id, master.user_id);
+
       // Send notification to master
       await supabase.from('notifications').insert({
         user_id: master.user_id,
@@ -448,7 +483,8 @@ const MasterDetail = () => {
       
       navigate('/dashboard');
     } catch (err: any) {
-      toast({ title: 'Ошибка', description: err.message, variant: 'destructive' });
+      const copy = getBookingErrorCopy(err);
+      toast({ title: copy.title, description: copy.description, variant: 'destructive' });
     } finally {
       setSendingBooking(false);
     }
@@ -457,6 +493,10 @@ const MasterDetail = () => {
   const handleMessage = async () => {
     if (!user || !master) {
       toast({ title: 'Нужно войти в аккаунт', variant: 'destructive' });
+      return;
+    }
+    if (isSelfInteraction(user.id, master.user_id)) {
+      toast({ title: 'Нельзя писать самому себе', variant: 'destructive' });
       return;
     }
     if (!messageText.trim()) return;
@@ -483,6 +523,8 @@ const MasterDetail = () => {
       });
 
       if (error) throw error;
+
+      await syncBidirectionalContacts(user.id, master.user_id);
 
       // Save contact in favorites so it appears in client chats
       await supabase.from('favorites').upsert({
@@ -514,6 +556,10 @@ const MasterDetail = () => {
   const handleManualBookingRequest = async (serviceId: string) => {
     if (!user || !master) {
       toast({ title: 'Нужно войти в аккаунт', description: 'Авторизуйтесь, чтобы отправить запрос мастеру', variant: 'destructive' });
+      return;
+    }
+    if (isSelfInteraction(user.id, master.user_id)) {
+      toast({ title: 'Нельзя отправить запрос самому себе', variant: 'destructive' });
       return;
     }
 
@@ -551,6 +597,8 @@ const MasterDetail = () => {
       });
 
       if (error) throw error;
+
+      await syncBidirectionalContacts(user.id, master.user_id);
 
       await supabase.from('notifications').insert({
         user_id: master.user_id,

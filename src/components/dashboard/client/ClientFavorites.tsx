@@ -21,15 +21,28 @@ const ClientFavorites = ({ userId }: { userId?: string }) => {
       const masterIds = data.filter(f => f.favorite_type === 'master').map(f => f.target_id);
       const bizIds = data.filter(f => f.favorite_type === 'business').map(f => f.target_id);
 
-      const [mastersRes, bizRes] = await Promise.all([
-        masterIds.length > 0 ? supabase.from('master_profiles').select('user_id, profiles!master_profiles_user_id_fkey(first_name, last_name, avatar_url), service_categories(name)').in('user_id', masterIds) : { data: [] },
+      const [masterByIdRes, masterByUserIdRes, bizRes] = await Promise.all([
+        masterIds.length > 0
+          ? supabase
+              .from('master_profiles')
+              .select('id, user_id, profiles!master_profiles_user_id_fkey(first_name, last_name, avatar_url), service_categories(name)')
+              .in('id', masterIds)
+          : { data: [] },
+        masterIds.length > 0
+          ? supabase
+              .from('master_profiles')
+              .select('id, user_id, profiles!master_profiles_user_id_fkey(first_name, last_name, avatar_url), service_categories(name)')
+              .in('user_id', masterIds)
+          : { data: [] },
         bizIds.length > 0 ? supabase.from('business_locations').select('id, name, address').in('id', bizIds) : { data: [] },
       ]);
+      const masterRows = [...(masterByIdRes.data || []), ...(masterByUserIdRes.data || [])];
 
       const items = data.map(f => {
         if (f.favorite_type === 'master') {
-          const mp = (mastersRes.data || []).find((m: any) => m.user_id === f.target_id);
-          return { ...f, name: mp ? `${(mp.profiles as any)?.first_name || ''} ${(mp.profiles as any)?.last_name || ''}`.trim() : 'Мастер', category: (mp?.service_categories as any)?.name, avatar: (mp?.profiles as any)?.avatar_url };
+          const mp = masterRows.find((m: any) => m.id === f.target_id || m.user_id === f.target_id);
+          const targetId = mp?.id || f.target_id;
+          return { ...f, target_id: targetId, name: mp ? `${(mp.profiles as any)?.first_name || ''} ${(mp.profiles as any)?.last_name || ''}`.trim() : 'Мастер', category: (mp?.service_categories as any)?.name, avatar: (mp?.profiles as any)?.avatar_url };
         }
         if (f.favorite_type === 'business') {
           const bl = (bizRes.data || []).find((b: any) => b.id === f.target_id);
@@ -37,7 +50,8 @@ const ClientFavorites = ({ userId }: { userId?: string }) => {
         }
         return { ...f, name: 'Объект' };
       });
-      setFavorites(items);
+      const deduped = Array.from(new Map(items.map((item) => [`${item.favorite_type}:${item.target_id}`, item])).values());
+      setFavorites(deduped);
       setLoading(false);
     };
     fetchFavorites();

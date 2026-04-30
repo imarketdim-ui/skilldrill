@@ -40,6 +40,7 @@ const HeaderNotifications = () => {
       supabase.from('chat_messages')
         .select('id, message, sender_id, created_at, is_read, chat_type')
         .eq('recipient_id', user.id)
+        .neq('sender_id', user.id)
         .eq('is_read', false)
         .order('created_at', { ascending: false })
         .limit(20),
@@ -71,7 +72,7 @@ const HeaderNotifications = () => {
       created_at: m.created_at,
       sender_id: m.sender_id,
       chat_type: m.chat_type,
-    }));
+    })).filter((item) => item.chat_type === 'direct' || item.chat_type === 'support');
 
     const invList: NotifItem[] = (invRes.data || []).map((i: any) => ({
       id: `i-${i.id}`,

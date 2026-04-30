@@ -13,6 +13,7 @@ import { ru } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { isSelfInteraction, syncBidirectionalContacts } from '@/lib/contactSync';
 
 // Extended emoji list with categories
 const EMOJI_LIST = [
@@ -149,10 +150,11 @@ const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange
   useEffect(() => {
     const handler = async (e: CustomEvent) => {
       const contactId = e.detail;
-      if (!contactId || !user) return;
+      if (!contactId || !user || isSelfInteraction(user.id, contactId)) return;
       const { data: profile } = await supabase.from('profiles').select('id, first_name, last_name, email').eq('id', contactId).maybeSingle();
       if (profile) {
         const contact: ChatContact = { id: profile.id, first_name: profile.first_name, last_name: profile.last_name, email: profile.email, unread: 0 };
+        setContacts((prev) => prev.some((item) => item.id === contact.id) ? prev : [contact, ...prev]);
         openChat(contact);
       }
     };
@@ -166,7 +168,7 @@ const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange
       .channel(`teaching-chat-${user.id}-${effectiveCabinet}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, (payload) => {
         const msg = payload.new as any;
-        if (msg.chat_type === 'support') return;
+        if (msg.chat_type !== 'direct') return;
         const isMine = msg.sender_id === user.id || msg.recipient_id === user.id;
         if (!isMine) return;
         if (selectedContact && (
@@ -195,7 +197,7 @@ const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange
     // Fetch all direct messages
     const { data: msgs } = await supabase.from('chat_messages').select('*')
       .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
-      .neq('chat_type', 'support')
+      .eq('chat_type', 'direct')
       .order('created_at', { ascending: false });
 
     // Collect unique contact IDs from messages
@@ -232,8 +234,11 @@ const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange
         (bizOwners || []).forEach((b: any) => b.owner_id && contactIds.add(b.owner_id));
       }
       if (masterFavIds.length > 0) {
-        const { data: masterUsers } = await supabase.from('master_profiles').select('user_id').in('id', masterFavIds);
-        (masterUsers || []).forEach((m: any) => m.user_id && contactIds.add(m.user_id));
+        const [{ data: masterById }, { data: masterByUserId }] = await Promise.all([
+          supabase.from('master_profiles').select('id, user_id').in('id', masterFavIds),
+          supabase.from('master_profiles').select('id, user_id').in('user_id', masterFavIds),
+        ]);
+        [...(masterById || []), ...(masterByUserId || [])].forEach((m: any) => m.user_id && contactIds.add(m.user_id));
       }
       (bookRes.data || []).forEach((b: any) => b.executor_id && contactIds.add(b.executor_id));
       (lessonRes.data || []).forEach((l: any) => l.lessons?.teacher_id && contactIds.add(l.lessons.teacher_id));
@@ -269,11 +274,18 @@ const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange
     // Filter contacts by cabinet context
     const isAllowedContact = (contactId: string): boolean => {
       const contactRoles = roleMap.get(contactId) || new Set();
+      const hasMessageHistory = allMsgs.some((m) =>
+        (m.sender_id === contactId && m.recipient_id === user.id) ||
+        (m.sender_id === user.id && m.recipient_id === contactId),
+      );
+      const isSavedContact = (savedContacts || []).some((item: any) => item.target_id === contactId);
       
       const isMasterOrBusiness = contactRoles.has('master') || contactRoles.has('business_owner') || contactRoles.has('business_manager') || contactRoles.has('network_owner') || contactRoles.has('network_manager');
       const isPlatform = contactRoles.has('platform_admin') || contactRoles.has('super_admin') || contactRoles.has('platform_manager') || contactRoles.has('moderator') || contactRoles.has('support');
       const isClient = contactRoles.has('client');
       
+      if (hasMessageHistory || isSavedContact) return true;
+
       switch (effectiveCabinet) {
         case 'client':
           // Clients see masters, business staff, and platform admins
@@ -328,6 +340,7 @@ const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange
     if (!user) return;
     const { data } = await supabase.from('chat_messages').select('*')
       .or(`and(sender_id.eq.${user.id},recipient_id.eq.${contact.id}),and(sender_id.eq.${contact.id},recipient_id.eq.${user.id})`)
+      .eq('chat_type', 'direct')
       .order('created_at', { ascending: true });
     setMessages(data || []);
     // Mark unread messages from this contact as read
@@ -348,6 +361,10 @@ const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange
 
   const sendMessage = async (attachmentUrl?: string, attachmentType?: string, overrideText?: string) => {
     if (!user || !selectedContact) return;
+    if (isSelfInteraction(user.id, selectedContact.id)) {
+      toast({ title: 'Нельзя писать самому себе', variant: 'destructive' });
+      return;
+    }
     const text = overrideText ?? newMessage.trim();
     if (!text && !attachmentUrl) return;
     const messageText = text || (attachmentType === 'image' ? '📷 Фото' : '📎 Файл');
@@ -363,19 +380,24 @@ const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange
       attachment_url: attachmentUrl || null,
       attachment_type: attachmentType || null,
     });
-    if (!error) {
-      await supabase.functions.invoke('send-push-notification', {
-        body: {
-          user_ids: [selectedContact.id],
-          title: effectiveCabinet === 'client' ? 'Новое сообщение клиенту' : 'Новое сообщение от бизнеса',
-          body: messageText,
-          url: `/dashboard?section=${effectiveCabinet === 'client' ? 'communication' : 'messages'}&tab=chats&contact=${user.id}`,
-          tag: 'direct-chat',
-        },
-      }).catch(() => null);
-      setNewMessage('');
-      setShowEmoji(false);
+    if (error) {
+      toast({ title: 'Не удалось отправить сообщение', description: error.message, variant: 'destructive' });
+      return;
     }
+
+    await syncBidirectionalContacts(user.id, selectedContact.id);
+    await supabase.functions.invoke('send-push-notification', {
+      body: {
+        user_ids: [selectedContact.id],
+        title: effectiveCabinet === 'client' ? 'Новое сообщение клиенту' : 'Новое сообщение от бизнеса',
+        body: messageText,
+        url: `/dashboard?section=${effectiveCabinet === 'client' ? 'communication' : 'messages'}&tab=chats&contact=${user.id}`,
+        tag: 'direct-chat',
+      },
+    }).catch(() => null);
+    setNewMessage('');
+    setShowEmoji(false);
+    await fetchContacts();
   };
 
   const handleFileSend = async (files: FileAttachItem[], comment: string) => {
@@ -387,9 +409,9 @@ const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange
         if (item.file.size > 20 * 1024 * 1024) continue;
         const ext = item.file.name.split('.').pop();
         const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-        const { error } = await supabase.storage.from('portfolio').upload(path, item.file);
+        const { error } = await supabase.storage.from('chat-media').upload(path, item.file);
         if (error) continue;
-        const { data: urlData } = supabase.storage.from('portfolio').getPublicUrl(path);
+        const { data: urlData } = supabase.storage.from('chat-media').getPublicUrl(path);
         await sendMessage(urlData.publicUrl, item.type, comment || undefined);
       }
     } catch (err: any) {
@@ -399,16 +421,7 @@ const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange
 
   const handleAddToContacts = async () => {
     if (!user || !selectedContact) return;
-    const { error } = await supabase.from('favorites').upsert({
-      user_id: user.id,
-      target_id: selectedContact.id,
-      favorite_type: 'contact',
-    }, { onConflict: 'user_id,favorite_type,target_id' });
-
-    if (error) {
-      toast({ title: 'Ошибка', description: error.message, variant: 'destructive' });
-      return;
-    }
+    await syncBidirectionalContacts(user.id, selectedContact.id);
 
     toast({ title: 'Контакт сохранён', description: `${selectedContact.first_name || ''} добавлен в контакты` });
     await fetchContacts();
@@ -416,6 +429,10 @@ const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange
 
   const handleAddToClients = async () => {
     if (!user || !selectedContact) return;
+    if (isSelfInteraction(user.id, selectedContact.id)) {
+      toast({ title: 'Нельзя добавить себя в клиенты', variant: 'destructive' });
+      return;
+    }
     const { error } = await supabase.from('client_tags').insert({
       client_id: selectedContact.id, tagger_id: user.id, tag: 'new', note: 'Добавлен из чата',
     });
@@ -428,6 +445,10 @@ const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange
 
   const handleBlockInChat = async () => {
     if (!user || !selectedContact) return;
+    if (isSelfInteraction(user.id, selectedContact.id)) {
+      toast({ title: 'Нельзя заблокировать самого себя', variant: 'destructive' });
+      return;
+    }
     const { error } = await supabase.from('blacklists').insert({
       blocker_id: user.id, blocked_id: selectedContact.id, reason: 'Заблокирован в чате',
     });

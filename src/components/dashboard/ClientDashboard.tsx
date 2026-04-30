@@ -91,9 +91,9 @@ const ClientDashboard = () => {
       supabase.from('chat_messages')
         .select('id', { count: 'exact', head: true })
         .eq('recipient_id', user.id)
+        .neq('sender_id', user.id)
         .eq('is_read', false)
-        .neq('chat_type', 'support')
-        .or('cabinet_type_scope.eq.client,cabinet_type_scope.is.null'),
+        .eq('chat_type', 'direct'),
     ]).then(([balRes, invRes, bookRes, notifRes, chatRes]) => {
       setCabinetBalance(balRes.data?.main_balance || 0);
       setPendingInvites(invRes.count || 0);

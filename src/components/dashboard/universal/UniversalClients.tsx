@@ -16,6 +16,7 @@ import UserScoreCard from '@/components/dashboard/UserScoreCard';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow, format, differenceInDays } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import { isSelfInteraction, syncBidirectionalContacts } from '@/lib/contactSync';
 
 interface ClientInfo {
   id: string; first_name: string | null; last_name: string | null;
@@ -136,6 +137,7 @@ const UniversalClients = ({ config, onNavigateToChat }: Props) => {
     const interactions: Interaction[] = [];
 
     (lessonBookings || []).forEach(b => {
+      if (b.student_id === user.id) return;
       interactions.push({
         clientId: b.student_id,
         status: b.status,
@@ -146,6 +148,7 @@ const UniversalClients = ({ config, onNavigateToChat }: Props) => {
     });
 
     (mktBookings || []).forEach(b => {
+      if (b.client_id === user.id) return;
       interactions.push({
         clientId: b.client_id,
         status: b.status,
@@ -357,9 +360,14 @@ const UniversalClients = ({ config, onNavigateToChat }: Props) => {
 
   const startChat = async (client: ClientInfo) => {
     if (!user) return;
+    if (isSelfInteraction(user.id, client.id)) {
+      toast({ title: 'Нельзя писать самому себе', variant: 'destructive' });
+      return;
+    }
     // Check if chat already exists
     const { data: existing } = await supabase.from('chat_messages')
       .select('id').or(`and(sender_id.eq.${user.id},recipient_id.eq.${client.id}),and(sender_id.eq.${client.id},recipient_id.eq.${user.id})`)
+      .eq('chat_type', 'direct')
       .limit(1);
     if (!existing || existing.length === 0) {
       // Create initial message
@@ -372,6 +380,7 @@ const UniversalClients = ({ config, onNavigateToChat }: Props) => {
         return;
       }
     }
+    await syncBidirectionalContacts(user.id, client.id);
     // Navigate to chats section with this contact
     setSelectedClient(null);
     if (onNavigateToChat) {

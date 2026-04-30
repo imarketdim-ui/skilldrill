@@ -14,6 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { syncBidirectionalContacts } from '@/lib/contactSync';
 import Header from '@/components/landing/Header';
 import AvailableSlotPicker from '@/components/marketplace/AvailableSlotPicker';
 import Footer from '@/components/landing/Footer';
@@ -123,6 +124,7 @@ const BusinessDetail = () => {
       setIsFavorite(false);
     } else {
       await supabase.from('favorites').insert({ user_id: user.id, target_id: business.id, favorite_type: 'business' });
+      await syncBidirectionalContacts(user.id, business.owner_id);
       setIsFavorite(true);
     }
   };

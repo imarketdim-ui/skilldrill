@@ -46,8 +46,9 @@ const RoleSwitcher = ({ onSelectHub }: RoleSwitcherProps) => {
         .from('chat_messages')
         .select('id', { count: 'exact', head: true })
         .eq('recipient_id', user.id)
+        .neq('sender_id', user.id)
         .eq('is_read', false)
-        .or('cabinet_type_scope.eq.client,cabinet_type_scope.is.null');
+        .eq('chat_type', 'direct');
       counts.client += clientChats || 0;
 
       // Master notifications
@@ -64,8 +65,9 @@ const RoleSwitcher = ({ onSelectHub }: RoleSwitcherProps) => {
           .from('chat_messages')
           .select('id', { count: 'exact', head: true })
           .eq('recipient_id', user.id)
+          .neq('sender_id', user.id)
           .eq('is_read', false)
-          .eq('cabinet_type_scope', 'master');
+          .eq('chat_type', 'direct');
         counts.master += masterChats || 0;
       }
 
@@ -83,8 +85,9 @@ const RoleSwitcher = ({ onSelectHub }: RoleSwitcherProps) => {
           .from('chat_messages')
           .select('id', { count: 'exact', head: true })
           .eq('recipient_id', user.id)
+          .neq('sender_id', user.id)
           .eq('is_read', false)
-          .eq('cabinet_type_scope', 'business');
+          .eq('chat_type', 'direct');
         counts.business += bizChats || 0;
       }
 
