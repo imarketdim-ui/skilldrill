@@ -17,7 +17,13 @@ import { Plus, Percent, Trash2, Edit, Send, Users, Globe, AlertTriangle, Clock }
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 
-interface Props { businessId: string; }
+interface Props {
+  businessId?: string | null;
+  creatorScoped?: boolean;
+  creatorId?: string | null;
+  ownerLabel?: string;
+  ownClientSource?: 'business' | 'master';
+}
 
 interface Promotion {
   id: string; name: string; description: string | null;
@@ -30,7 +36,13 @@ interface Promotion {
 
 const COST_PER_CLIENT = 7;
 
-const BusinessPromotions = ({ businessId }: Props) => {
+const BusinessPromotions = ({
+  businessId = null,
+  creatorScoped = false,
+  creatorId = null,
+  ownerLabel = 'бизнеса',
+  ownClientSource = 'business',
+}: Props) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [promotions, setPromotions] = useState<Promotion[]>([]);
@@ -57,16 +69,24 @@ const BusinessPromotions = ({ businessId }: Props) => {
   const [sending, setSending] = useState(false);
 
   const fetchPromotions = async () => {
-    const { data } = await supabase
+    let query = supabase
       .from('promotions')
       .select('*')
-      .eq('business_id', businessId)
       .order('created_at', { ascending: false });
+
+    if (creatorScoped && creatorId) {
+      query = query.eq('creator_id', creatorId);
+      query = businessId ? query.eq('business_id', businessId) : query.is('business_id', null);
+    } else if (businessId) {
+      query = query.eq('business_id', businessId);
+    }
+
+    const { data } = await query;
     setPromotions((data || []) as Promotion[]);
     setLoading(false);
   };
 
-  useEffect(() => { fetchPromotions(); }, [businessId]);
+  useEffect(() => { fetchPromotions(); }, [businessId, creatorScoped, creatorId]);
 
   useEffect(() => {
     supabase.from('profiles').select('*', { count: 'exact', head: true }).then(({ count }) => {
@@ -105,7 +125,7 @@ const BusinessPromotions = ({ businessId }: Props) => {
       start_date: form.start_date || null,
       end_date: form.end_date || null,
       min_rating: form.min_rating ? Number(form.min_rating) : null,
-      business_id: businessId,
+      business_id: businessId || null,
       creator_id: user.id,
     };
 
@@ -165,10 +185,15 @@ const BusinessPromotions = ({ businessId }: Props) => {
     if (!user || !mailingMessage.trim()) return;
     setSending(true);
     try {
-      const { data: bookings } = await supabase
-        .from('bookings')
-        .select('client_id')
-        .eq('organization_id', businessId);
+      const { data: bookings } = ownClientSource === 'master'
+        ? await supabase
+            .from('bookings')
+            .select('client_id')
+            .eq('executor_id', user.id)
+        : await supabase
+            .from('bookings')
+            .select('client_id')
+            .eq('organization_id', businessId as string);
       
       const clientIds = [...new Set((bookings || []).map(b => b.client_id))];
       if (clientIds.length === 0) {
@@ -190,7 +215,7 @@ const BusinessPromotions = ({ businessId }: Props) => {
       if (error) throw error;
 
       await supabase.from('marketing_campaigns').insert({
-        creator_id: user.id, business_id: businessId,
+        creator_id: user.id, business_id: businessId || null,
         title: mailingTitle || 'Рассылка по акции',
         message: mailingMessage.trim(),
         target_type: 'own_clients', audience_filter: mailingFilter,
@@ -226,7 +251,7 @@ const BusinessPromotions = ({ businessId }: Props) => {
         description: `Холд за рассылку: ${mailingTitle}`,
       });
       await supabase.from('marketing_campaigns').insert({
-        creator_id: user.id, business_id: businessId,
+        creator_id: user.id, business_id: businessId || null,
         title: mailingTitle, message: mailingMessage.trim(),
         target_type: 'skillspot_clients', audience_filter: skillspotFilter,
         include_own_clients: includeOwnClients, target_count: skillspotCount,
@@ -298,7 +323,12 @@ const BusinessPromotions = ({ businessId }: Props) => {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Акции и скидки</h3>
+        <div>
+          <h3 className="text-lg font-semibold">Акции и скидки</h3>
+          <p className="text-sm text-muted-foreground">
+            Управляйте скидками, акциями и промо-рассылками для клиентов {ownerLabel}.
+          </p>
+        </div>
         <Button size="sm" onClick={openCreate} className="gap-1"><Plus className="h-4 w-4" /> Новая акция</Button>
       </div>
 
@@ -343,7 +373,7 @@ const BusinessPromotions = ({ businessId }: Props) => {
         <Card><CardContent className="text-center py-12">
           <Percent className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
           <p className="text-muted-foreground">Нет активных акций</p>
-          <p className="text-sm text-muted-foreground mt-1">Создайте акцию или выберите из типовых</p>
+          <p className="text-sm text-muted-foreground mt-1">Создайте акцию или выберите подходящий шаблон</p>
         </CardContent></Card>
       ) : (
         <div className="grid gap-3">{activePromos.map(renderPromoCard)}</div>

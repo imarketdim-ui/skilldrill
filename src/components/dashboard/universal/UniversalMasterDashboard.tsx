@@ -28,6 +28,7 @@ import UniversalStats from './UniversalStats';
 import TeachingChats from '../teaching/TeachingChats';
 import SupportChat from '../SupportChat';
 import BusinessMarketing from '../business/BusinessMarketing';
+import BusinessPromotions from '../business/BusinessPromotions';
 import { CategoryConfig } from './categoryConfig';
 import MasterProfileEditor from './MasterProfileEditor';
 import MasterProfileView from './MasterProfileView';
@@ -373,7 +374,15 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
       );
       case 'stats': return <UniversalStats config={config} />;
       case 'requests': return <MasterRequests />;
-      case 'promotions': return <p className="text-center py-10 text-muted-foreground">Акции и скидки — в разработке</p>;
+      case 'promotions': return (
+        <BusinessPromotions
+          businessId={masterProfile?.business_id ?? null}
+          creatorScoped
+          creatorId={profile?.id ?? null}
+          ownerLabel="мастера"
+          ownClientSource="master"
+        />
+      );
       case 'marketing': return <BusinessMarketing businessId={masterProfile?.id} />;
       default: return <UniversalDashboardHome config={config} />;
     }
