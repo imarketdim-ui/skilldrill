@@ -20,17 +20,35 @@ interface SupportChatProps {
 }
 
 interface SupportThread {
+  ticketId: string | null;
   userId: string;
   userName: string;
   lastMessage: string;
   lastMessageAt: string;
   unread: number;
+  status: string;
+  ownerId: string | null;
+  ownerLabel: string | null;
+  handoffAvailableAt: string | null;
+  isOwnedByCurrentAdmin: boolean;
+  canTakeOver: boolean;
 }
 
 const SUPPORT_ROLE_PRIORITY = ['support', 'platform_admin', 'super_admin', 'platform_manager', 'integrator', 'moderator'] as const;
+const ACTIVE_TICKET_STATUSES = ['open', 'claimed', 'in_progress', 'waiting_user', 'waiting_platform'] as const;
+const TAKEOVER_TIMEOUT_MS = 5 * 60 * 1000;
 
 const isSupportSelfMessage = (message: any) =>
   Boolean(message?.sender_id && message?.recipient_id && message.sender_id === message.recipient_id);
+
+const canTakeOverTicket = (thread: SupportThread | null, currentUserId?: string | null) => {
+  if (!thread || !currentUserId) return false;
+  if (['resolved', 'closed'].includes(thread.status)) return false;
+  if (!thread.ownerId) return true;
+  if (thread.ownerId === currentUserId) return false;
+  if (!thread.handoffAvailableAt) return false;
+  return new Date(thread.handoffAvailableAt).getTime() <= Date.now();
+};
 
 const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
   const { user } = useAuth();
@@ -46,6 +64,7 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const typingDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [actingOnTicket, setActingOnTicket] = useState(false);
 
   // Канал индикатора набора: для админа — пара (admin↔user), для клиента — общий support-канал
   const typingChannelKey = isAdmin
@@ -132,19 +151,115 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
     return uniqueIds;
   };
 
+  const resolveSupportRoleLabels = async (profileIds: string[]) => {
+    if (profileIds.length === 0) return new Map<string, string>();
+
+    const { data } = await supabase
+      .from('user_roles')
+      .select('user_id, role')
+      .in('user_id', profileIds)
+      .in('role', [...SUPPORT_ROLE_PRIORITY] as any[])
+      .eq('is_active', true);
+
+    const labels = new Map<string, string>();
+    profileIds.forEach((profileId) => {
+      const matchedRole = SUPPORT_ROLE_PRIORITY.find((role) =>
+        (data || []).some((row) => row.user_id === profileId && row.role === role),
+      );
+
+      if (!matchedRole) return;
+
+      const labelMap: Record<(typeof SUPPORT_ROLE_PRIORITY)[number], string> = {
+        support: 'Поддержка',
+        platform_admin: 'Администратор платформы',
+        super_admin: 'Супер-админ',
+        platform_manager: 'Платформенный менеджер',
+        integrator: 'Интегратор',
+        moderator: 'Модератор',
+      };
+
+      labels.set(profileId, labelMap[matchedRole]);
+    });
+
+    return labels;
+  };
+
+  const buildUniqueMessages = (items: any[]) => {
+    const unique = Array.from(new Map(items.map((item) => [item.id, item])).values());
+    unique.sort((left, right) => new Date(left.created_at).getTime() - new Date(right.created_at).getTime());
+    return unique;
+  };
+
+  const getTicketTimeoutCopy = (handoffAvailableAt: string | null) => {
+    if (!handoffAvailableAt) return null;
+    const diffMs = new Date(handoffAvailableAt).getTime() - Date.now();
+    if (diffMs <= 0) return 'Диалог можно перехватить сейчас';
+    const minutes = Math.floor(diffMs / 60000);
+    const seconds = Math.max(0, Math.floor((diffMs % 60000) / 1000));
+    return `Перехват будет доступен через ${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  const ensureSupportTicket = async (targetUserId: string, subject: string) => {
+    const { data: existingTickets } = await supabase
+      .from('support_tickets')
+      .select('*')
+      .eq('user_id', targetUserId)
+      .eq('category', 'support')
+      .in('status', [...ACTIVE_TICKET_STATUSES] as any[])
+      .order('updated_at', { ascending: false })
+      .limit(1);
+
+    const existingTicket = existingTickets?.[0] as any | undefined;
+    if (existingTicket) return existingTicket;
+
+    const nowIso = new Date().toISOString();
+    const { data: createdTicket, error } = await supabase
+      .from('support_tickets')
+      .insert({
+        user_id: targetUserId,
+        subject: subject.slice(0, 100),
+        category: 'support',
+        status: 'open',
+        last_activity_at: nowIso,
+        handoff_available_at: nowIso,
+      } as any)
+      .select('*')
+      .single();
+
+    if (error) throw error;
+    return createdTicket as any;
+  };
+
   const fetchMessages = async () => {
     if (!user) return;
     setLoading(true);
-    const supportAgentIds = await resolveSupportAgentIds();
-    const { data: sentData } = supportAgentIds.length > 0
-      ? await supabase.from('chat_messages').select('*').eq('chat_type', 'support').eq('sender_id', user.id).in('recipient_id', supportAgentIds).order('created_at', { ascending: true })
-      : { data: [] as any[] };
-    const { data: receivedData } = supportAgentIds.length > 0
-      ? await supabase.from('chat_messages').select('*').eq('chat_type', 'support').eq('recipient_id', user.id).in('sender_id', supportAgentIds).order('created_at', { ascending: true })
-      : { data: [] as any[] };
-    const all = [...(sentData || []), ...(receivedData || [])].filter((message) => !isSupportSelfMessage(message));
-    const unique = Array.from(new Map(all.map(m => [m.id, m])).values());
-    unique.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    const { data: tickets } = await supabase
+      .from('support_tickets')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('category', 'support')
+      .order('created_at', { ascending: true });
+
+    const ticketIds = (tickets || []).map((ticket) => ticket.id);
+    const { data: sentData } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .eq('chat_type', 'support')
+      .eq('sender_id', user.id)
+      .order('created_at', { ascending: true });
+    const { data: receivedData } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .eq('chat_type', 'support')
+      .eq('recipient_id', user.id)
+      .order('created_at', { ascending: true });
+
+    const all = [...(sentData || []), ...(receivedData || [])].filter((message) => {
+      if (isSupportSelfMessage(message)) return false;
+      if (!message.reference_id) return true;
+      return ticketIds.includes(message.reference_id);
+    });
+    const unique = buildUniqueMessages(all);
     setMessages(unique);
     const unreadIds = unique.filter(m => m.recipient_id === user.id && !m.is_read).map(m => m.id);
     if (!isAdmin && unreadIds.length > 0) {
@@ -156,50 +271,126 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
   const fetchThreads = async () => {
     if (!user) return;
     setLoading(true);
-    const { data } = await supabase.from('chat_messages').select('*').eq('chat_type', 'support').order('created_at', { ascending: false });
-    if (!data) { setLoading(false); return; }
+    const [ticketRes, messageRes] = await Promise.all([
+      supabase
+        .from('support_tickets')
+        .select('*')
+        .eq('category', 'support')
+        .neq('status', 'closed')
+        .order('updated_at', { ascending: false }),
+      supabase
+        .from('chat_messages')
+        .select('*')
+        .eq('chat_type', 'support')
+        .order('created_at', { ascending: false }),
+    ]);
 
-    const userMap = new Map<string, any[]>();
-    data.filter((msg) => !isSupportSelfMessage(msg)).forEach(msg => {
-      const threadKey = msg.sender_id === user.id ? msg.recipient_id : msg.sender_id;
-      if (threadKey === user.id) return;
-      if (!userMap.has(threadKey)) userMap.set(threadKey, []);
-      userMap.get(threadKey)!.push(msg);
+    const tickets = (ticketRes.data || []) as any[];
+    const messages = (messageRes.data || []).filter((message) => !isSupportSelfMessage(message));
+    const messageMap = new Map<string, any[]>();
+    const legacyMap = new Map<string, any[]>();
+
+    messages.forEach((message) => {
+      if (message.reference_id) {
+        if (!messageMap.has(message.reference_id)) messageMap.set(message.reference_id, []);
+        messageMap.get(message.reference_id)!.push(message);
+        return;
+      }
+      const legacyUserId = message.sender_id === user.id ? message.recipient_id : message.sender_id;
+      if (legacyUserId === user.id) return;
+      if (!legacyMap.has(legacyUserId)) legacyMap.set(legacyUserId, []);
+      legacyMap.get(legacyUserId)!.push(message);
     });
 
-    const userIds = Array.from(userMap.keys()).filter(id => id && id.length > 10);
-    if (userIds.length === 0) { setThreads([]); setLoading(false); return; }
+    const userIds = Array.from(new Set([
+      ...tickets.map((ticket) => ticket.user_id),
+      ...Array.from(legacyMap.keys()),
+    ])).filter((id) => id && id.length > 10);
 
-    const { data: profiles } = await supabase.from('profiles').select('id, first_name, last_name, email').in('id', userIds);
+    if (userIds.length === 0) {
+      setThreads([]);
+      setLoading(false);
+      return;
+    }
 
-    const threadList: SupportThread[] = userIds.map(uid => {
-      const p = profiles?.find(pr => pr.id === uid);
-      const msgs = userMap.get(uid)!;
-      const lastMsg = msgs[0];
-      return {
-        userId: uid,
-        userName: p ? `${p.first_name || ''} ${p.last_name || ''}`.trim() || p.email || 'Пользователь' : 'Пользователь',
-        lastMessage: lastMsg?.message || '',
-        lastMessageAt: lastMsg?.created_at || '',
-        unread: msgs.filter(m => m.recipient_id === user.id && !m.is_read).length,
+    const ownerIds = Array.from(new Set(tickets.map((ticket) => ticket.admin_id).filter(Boolean)));
+    const [profilesRes, ownerLabels] = await Promise.all([
+      supabase.from('profiles').select('id, first_name, last_name, email').in('id', [...new Set([...userIds, ...ownerIds])]),
+      resolveSupportRoleLabels(ownerIds as string[]),
+    ]);
+
+    const profiles = profilesRes.data || [];
+
+    const threadList: SupportThread[] = userIds.map((userId) => {
+      const profile = profiles.find((candidate) => candidate.id === userId);
+      const ticket = tickets.find((candidate) => candidate.user_id === userId) as any | undefined;
+      const ticketMessages = ticket ? messageMap.get(ticket.id) || [] : [];
+      const legacyMessages = legacyMap.get(userId) || [];
+      const relatedMessages = [...ticketMessages, ...legacyMessages].sort((left, right) => right.created_at.localeCompare(left.created_at));
+      const lastMessage = relatedMessages[0];
+      const ownerProfile = ticket?.admin_id ? profiles.find((candidate) => candidate.id === ticket.admin_id) : null;
+      const ownerLabel = ticket?.admin_id
+        ? ownerLabels.get(ticket.admin_id) || `${ownerProfile?.first_name || ''} ${ownerProfile?.last_name || ''}`.trim() || ownerProfile?.email || 'Администратор'
+        : null;
+
+      const thread: SupportThread = {
+        ticketId: ticket?.id || null,
+        userId,
+        userName: profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.email || 'Пользователь' : 'Пользователь',
+        lastMessage: lastMessage?.message || ticket?.subject || 'Новое обращение',
+        lastMessageAt: lastMessage?.created_at || ticket?.updated_at || ticket?.created_at || '',
+        unread: relatedMessages.filter((message) => message.recipient_id === user.id && !message.is_read).length,
+        status: ticket?.status || 'open',
+        ownerId: ticket?.admin_id || null,
+        ownerLabel,
+        handoffAvailableAt: ticket?.handoff_available_at || null,
+        isOwnedByCurrentAdmin: ticket?.admin_id === user.id,
+        canTakeOver: canTakeOverTicket({
+          ticketId: ticket?.id || null,
+          userId,
+          userName: '',
+          lastMessage: '',
+          lastMessageAt: '',
+          unread: 0,
+          status: ticket?.status || 'open',
+          ownerId: ticket?.admin_id || null,
+          ownerLabel: null,
+          handoffAvailableAt: ticket?.handoff_available_at || null,
+          isOwnedByCurrentAdmin: ticket?.admin_id === user.id,
+          canTakeOver: false,
+        }, user.id),
       };
-    }).filter(t => t.userName);
 
-    setThreads(threadList.sort((a, b) => b.lastMessageAt.localeCompare(a.lastMessageAt)));
+      return thread;
+    }).filter((thread) => thread.userName);
+
+    setThreads(threadList.sort((left, right) => (right.lastMessageAt || '').localeCompare(left.lastMessageAt || '')));
     setLoading(false);
   };
 
   const fetchAdminMessages = async (userId: string) => {
     const supportAgentIds = await resolveSupportAgentIds();
+    const { data: ticketRes } = await supabase
+      .from('support_tickets')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('category', 'support')
+      .order('updated_at', { ascending: false })
+      .limit(1);
+
+    const ticket = ticketRes?.[0] as any | undefined;
     const { data: sentData } = supportAgentIds.length > 0
       ? await supabase.from('chat_messages').select('*').eq('chat_type', 'support').eq('sender_id', userId).in('recipient_id', supportAgentIds).order('created_at', { ascending: true })
       : { data: [] as any[] };
     const { data: receivedData } = supportAgentIds.length > 0
       ? await supabase.from('chat_messages').select('*').eq('chat_type', 'support').eq('recipient_id', userId).in('sender_id', supportAgentIds).order('created_at', { ascending: true })
       : { data: [] as any[] };
-    const all = [...(sentData || []), ...(receivedData || [])].filter((message) => !isSupportSelfMessage(message));
-    const unique = Array.from(new Map(all.map(m => [m.id, m])).values());
-    unique.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    const all = [...(sentData || []), ...(receivedData || [])].filter((message) => {
+      if (isSupportSelfMessage(message)) return false;
+      if (ticket?.id && message.reference_id && message.reference_id !== ticket.id) return false;
+      return true;
+    });
+    const unique = buildUniqueMessages(all);
     setMessages(unique);
     if (user) {
       if (supportAgentIds.length > 0) {
@@ -224,7 +415,38 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
       };
 
       if (isAdmin && selectedUserId) {
-        await supabase.from('chat_messages').insert({ ...baseMsg, sender_id: user.id, recipient_id: selectedUserId });
+        const thread = threads.find((candidate) => candidate.userId === selectedUserId) || null;
+        if (!thread) {
+          toast({
+            title: 'Не найден тикет',
+            description: 'Сначала выберите обращение из списка.',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        if (!thread.isOwnedByCurrentAdmin) {
+          toast({
+            title: 'Диалог ведёт другой администратор',
+            description: thread.canTakeOver
+              ? 'Сначала перехватите тикет, чтобы ответить пользователю.'
+              : getTicketTimeoutCopy(thread.handoffAvailableAt) || 'Отвечать может только текущий владелец тикета.',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        const nowIso = new Date().toISOString();
+        const ticketId = thread.ticketId || (await ensureSupportTicket(selectedUserId, thread.lastMessage || 'Обращение в поддержку')).id;
+        await supabase.from('chat_messages').insert({ ...baseMsg, sender_id: user.id, recipient_id: selectedUserId, reference_id: ticketId });
+        await supabase.from('support_tickets').update({
+          admin_id: user.id,
+          status: 'waiting_user',
+          last_admin_reply_at: nowIso,
+          last_activity_at: nowIso,
+          handoff_available_at: null,
+          updated_at: nowIso,
+        } as any).eq('id', ticketId);
         await syncBidirectionalContacts(user.id, selectedUserId);
         await supabase.functions.invoke('send-push-notification', {
           body: {
@@ -251,7 +473,19 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
           return;
         }
 
-        await supabase.from('chat_messages').insert({ ...baseMsg, sender_id: user.id, recipient_id: primarySupportId });
+        const nowIso = new Date().toISOString();
+        const activeTicket = await ensureSupportTicket(user.id, text || 'Обращение в поддержку');
+        await supabase.from('chat_messages').insert({ ...baseMsg, sender_id: user.id, recipient_id: primarySupportId, reference_id: activeTicket.id });
+        await supabase.from('support_tickets').update({
+          status: activeTicket.admin_id ? 'waiting_platform' : 'open',
+          last_user_reply_at: nowIso,
+          last_activity_at: nowIso,
+          updated_at: nowIso,
+          chat_message_id: activeTicket.chat_message_id || null,
+          handoff_available_at: activeTicket.admin_id
+            ? new Date(Date.now() + TAKEOVER_TIMEOUT_MS).toISOString()
+            : nowIso,
+        } as any).eq('id', activeTicket.id);
         await syncBidirectionalContacts(user.id, primarySupportId);
         await supabase.functions.invoke('send-push-notification', {
           body: {
@@ -264,11 +498,21 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
         }).catch(() => null);
 
         try {
-          const existingTickets = await supabase.from('support_tickets').select('id', { count: 'exact', head: true }).eq('user_id', user.id).in('status', ['open', 'in_progress']);
-          if ((existingTickets.count || 0) === 0) {
-            await supabase.from('support_tickets').insert({
-              user_id: user.id, subject: (text || 'Вложение').slice(0, 100), category: 'support', status: 'open',
-            } as any);
+          if (!activeTicket.chat_message_id) {
+            const { data: latestMessage } = await supabase
+              .from('chat_messages')
+              .select('id')
+              .eq('chat_type', 'support')
+              .eq('sender_id', user.id)
+              .eq('recipient_id', primarySupportId)
+              .eq('reference_id', activeTicket.id)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            if (latestMessage?.id) {
+              await supabase.from('support_tickets').update({ chat_message_id: latestMessage.id } as any).eq('id', activeTicket.id);
+            }
           }
         } catch (_) { /* table may not exist yet */ }
 
@@ -282,8 +526,9 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
         description: 'Попробуйте ещё раз через пару секунд.',
         variant: 'destructive',
       });
+    } finally {
+      setSending(false);
     }
-    setSending(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -307,6 +552,53 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
     const q = searchQuery.toLowerCase();
     return messages.filter(m => (m.message || '').toLowerCase().includes(q));
   }, [messages, searchQuery]);
+
+  const selectedThread = useMemo(
+    () => threads.find((thread) => thread.userId === selectedUserId) || null,
+    [threads, selectedUserId],
+  );
+
+  const canReplyAsAdmin = !isAdmin || (selectedThread?.isOwnedByCurrentAdmin ?? false);
+
+  const claimThread = async (thread: SupportThread) => {
+    if (!user) return;
+    setActingOnTicket(true);
+    try {
+      const nowIso = new Date().toISOString();
+      const handoffAtIso = new Date(Date.now() + TAKEOVER_TIMEOUT_MS).toISOString();
+      const ticket = thread.ticketId
+        ? { id: thread.ticketId }
+        : await ensureSupportTicket(thread.userId, thread.lastMessage || 'Обращение в поддержку');
+
+      await supabase
+        .from('support_tickets')
+        .update({
+          admin_id: user.id,
+          claimed_at: nowIso,
+          status: 'claimed',
+          updated_at: nowIso,
+          last_activity_at: nowIso,
+          handoff_available_at: handoffAtIso,
+        } as any)
+        .eq('id', ticket.id);
+
+      setSelectedUserId(thread.userId);
+      await fetchThreads();
+      await fetchAdminMessages(thread.userId);
+      toast({
+        title: thread.ownerId ? 'Диалог перехвачен' : 'Тикет взят в работу',
+        description: thread.ownerId ? 'Теперь отвечать в этом диалоге можете вы.' : 'Теперь отвечать в этом диалоге можете вы.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Не удалось взять тикет',
+        description: error?.message || 'Попробуйте ещё раз.',
+        variant: 'destructive',
+      });
+    } finally {
+      setActingOnTicket(false);
+    }
+  };
 
   const renderMessages = (msgList: any[]) => (
     <div className="space-y-2">
@@ -392,13 +684,21 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
           {typingUsers[0].name || 'Собеседник'} печатает…
         </div>
       )}
+      {isAdmin && selectedThread && !canReplyAsAdmin && (
+        <div className="px-3 py-2 border-t bg-muted/30 text-xs text-muted-foreground">
+          {selectedThread.ownerId
+            ? `Диалог ведёт ${selectedThread.ownerLabel || 'другой администратор'}. ${getTicketTimeoutCopy(selectedThread.handoffAvailableAt) || 'Отвечать может только текущий владелец тикета.'}`
+            : 'Тикет ещё никто не взял в работу. Сначала нажмите «Взять в работу».'
+          }
+        </div>
+      )}
       {renderReplyPreview()}
       <div className="p-2 border-t flex items-center gap-1">
         {user && <ChatEmojiPicker onSelect={(e) => setNewMessage(prev => prev + e)} />}
-        {user && <MediaUploader userId={user.id} onUploaded={(urls) => sendMessage({ media_urls: urls })} />}
-        {user && <VoiceRecorder userId={user.id} onUploaded={(url) => sendMessage({ audio_url: url })} />}
-        <Input value={newMessage} onChange={e => { setNewMessage(e.target.value); debouncedNotifyTyping(); }} onKeyDown={handleKeyDown} placeholder={isAdmin ? 'Ответить...' : 'Написать в поддержку...'} className="flex-1" />
-        <Button size="icon" onClick={() => sendMessage()} disabled={sending || !newMessage.trim()}>
+        {user && (!isAdmin || canReplyAsAdmin) && <MediaUploader userId={user.id} onUploaded={(urls) => sendMessage({ media_urls: urls })} />}
+        {user && (!isAdmin || canReplyAsAdmin) && <VoiceRecorder userId={user.id} onUploaded={(url) => sendMessage({ audio_url: url })} />}
+        <Input value={newMessage} onChange={e => { setNewMessage(e.target.value); debouncedNotifyTyping(); }} onKeyDown={handleKeyDown} placeholder={isAdmin ? 'Ответить...' : 'Написать в поддержку...'} className="flex-1" disabled={isAdmin && !canReplyAsAdmin} />
+        <Button size="icon" onClick={() => sendMessage()} disabled={sending || !newMessage.trim() || (isAdmin && !canReplyAsAdmin)}>
           {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </Button>
       </div>
@@ -425,6 +725,21 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
                       <p className="font-medium text-sm truncate">{t.userName}</p>
                       {t.unread > 0 && <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">{t.unread}</Badge>}
                     </div>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {!t.ownerId && <Badge variant="secondary" className="text-[10px]">Свободен</Badge>}
+                      {t.ownerId && t.isOwnedByCurrentAdmin && <Badge variant="default" className="text-[10px]">У вас</Badge>}
+                      {t.ownerId && !t.isOwnedByCurrentAdmin && (
+                        <Badge variant={t.canTakeOver ? 'destructive' : 'outline'} className="text-[10px]">
+                          {t.canTakeOver ? 'Можно перехватить' : `Ведёт: ${t.ownerLabel || 'другой админ'}`}
+                        </Badge>
+                      )}
+                      {['waiting_platform', 'claimed', 'in_progress'].includes(t.status) && (
+                        <Badge variant="outline" className="text-[10px]">Ждёт платформу</Badge>
+                      )}
+                      {t.status === 'waiting_user' && (
+                        <Badge variant="secondary" className="text-[10px]">Ждёт пользователя</Badge>
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground truncate mt-0.5">{t.lastMessage}</p>
                   </div>
                 ))}
@@ -439,7 +754,35 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
                 <>
                   <div className="p-3 border-b flex items-center gap-2">
                     <Button variant="ghost" size="sm" className="md:hidden" onClick={() => setSelectedUserId(null)}>←</Button>
-                    <p className="font-medium text-sm flex-1">{threads.find(t => t.userId === selectedUserId)?.userName}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">{selectedThread?.userName}</p>
+                      {selectedThread && (
+                        <p className="text-xs text-muted-foreground truncate">
+                          {!selectedThread.ownerId
+                            ? 'Тикет ещё не взят в работу'
+                            : selectedThread.isOwnedByCurrentAdmin
+                              ? 'Вы ведёте этот диалог'
+                              : selectedThread.canTakeOver
+                                ? 'Диалог можно перехватить'
+                                : `Диалог ведёт ${selectedThread.ownerLabel || 'другой администратор'}`
+                          }
+                        </p>
+                      )}
+                    </div>
+                    {selectedThread && !selectedThread.isOwnedByCurrentAdmin && (
+                      <Button
+                        size="sm"
+                        variant={selectedThread.canTakeOver || !selectedThread.ownerId ? 'default' : 'outline'}
+                        disabled={actingOnTicket || Boolean(selectedThread.ownerId && !selectedThread.canTakeOver)}
+                        onClick={() => claimThread(selectedThread)}
+                      >
+                        {actingOnTicket
+                          ? '...'
+                          : selectedThread.ownerId
+                            ? 'Перехватить'
+                            : 'Взять в работу'}
+                      </Button>
+                    )}
                     <Button size="icon" variant="ghost" onClick={() => setShowSearch(s => !s)}><Search className="h-4 w-4" /></Button>
                   </div>
                   {showSearch && (
@@ -480,7 +823,7 @@ const SupportChat = ({ isAdmin = false }: SupportChatProps) => {
               <div className="text-center py-12 text-muted-foreground">
                 <MessageSquare className="h-10 w-10 mx-auto mb-3 opacity-30" />
                 <p className="text-sm">Напишите нам, если у вас есть вопросы</p>
-                <p className="text-xs mt-1 opacity-70">Все администраторы платформы получат ваше сообщение</p>
+                <p className="text-xs mt-1 opacity-70">Команда поддержки увидит ваше обращение и возьмёт его в работу</p>
               </div>
             ) : renderMessages(filteredMessages)}
           </ScrollArea>
