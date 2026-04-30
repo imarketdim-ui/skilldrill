@@ -867,6 +867,14 @@ const BusinessDashboard = () => {
   useEffect(() => { fetchBusinesses(); }, [fetchBusinesses]);
 
   const canActivate = masterCount >= 1 && serviceCount >= 1;
+  const isDowngradedReadOnlyPoint = Boolean(
+    selectedBusiness &&
+    subscription.tier === 'business' &&
+    !subscription.isReadOnly &&
+    subscription.primaryEntityId &&
+    selectedBusiness.id !== subscription.primaryEntityId,
+  );
+  const readOnlyNavigationSections = ['overview', 'crm', 'erp', 'directories'];
 
   const getSubscriptionBadge = () => {
     if (!selectedBusiness) return null;
@@ -920,6 +928,27 @@ const BusinessDashboard = () => {
     </Button>
   );
 
+  const wrapReadOnlyContent = (content: any) => {
+    if (!isDowngradedReadOnlyPoint || readOnlyNavigationSections.includes(activeSection)) {
+      return content;
+    }
+
+    return (
+      <div className="space-y-4">
+        <Alert className="border-amber-300 bg-amber-50 text-amber-900">
+          <Lock className="h-4 w-4" />
+          <AlertDescription>
+            Эта точка открыта в режиме просмотра после понижения тарифа. Полный доступ к изменениям
+            сохраняется только у приоритетной точки.
+          </AlertDescription>
+        </Alert>
+        <div className="pointer-events-none select-none opacity-95">
+          {content}
+        </div>
+      </div>
+    );
+  };
+
   const renderContent = () => {
     if (paywallSection && selectedBusiness) {
       return (
@@ -933,7 +962,8 @@ const BusinessDashboard = () => {
         />
       );
     }
-    switch (activeSection) {
+    const content = (() => {
+      switch (activeSection) {
       case 'crm':
         return <SectionHub title="CRM" description="Управление клиентами и коммуникациями" items={decorateItems(crmItems)} onNavigate={navigateTo} onLockedClick={(it: any) => setPaywallSection({ key: it.key, label: it.label, requiredTierLabel: it.requiredTierLabel })} />;
       case 'erp':
@@ -1144,11 +1174,25 @@ const BusinessDashboard = () => {
         ) : null;
       default:
         return null;
-    }
+      }
+    })();
+
+    return wrapReadOnlyContent(content);
   };
 
   return (
     <div className="flex flex-col lg:flex-row lg:gap-6 w-full overflow-hidden">
+      {isDowngradedReadOnlyPoint && (
+        <div className="w-full bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4 flex items-center gap-3 lg:hidden">
+          <Lock className="h-5 w-5 text-amber-700 shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-amber-900">Точка открыта в режиме просмотра</p>
+            <p className="text-xs text-amber-800/80">
+              После понижения тарифа изменения доступны только в приоритетной точке
+            </p>
+          </div>
+        </div>
+      )}
       <aside className={`hidden lg:flex flex-col shrink-0 sticky top-20 self-start h-[calc(100vh-6rem)] transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-60'}`}>
         <div className="flex items-center gap-3 px-3 pb-4 border-b mb-2">
           {!sidebarCollapsed && (
@@ -1166,6 +1210,14 @@ const BusinessDashboard = () => {
             {sidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
           </Button>
         </div>
+        {isDowngradedReadOnlyPoint && !sidebarCollapsed && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 mx-1">
+            <p className="text-xs font-medium text-amber-800">Точка в режиме просмотра</p>
+            <p className="text-[10px] text-amber-700/80 mt-0.5">
+              После понижения тарифа изменения доступны только в приоритетной точке
+            </p>
+          </div>
+        )}
         <div className="space-y-0.5 overflow-y-auto flex-1">
           {!sidebarCollapsed && <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Основное</p>}
           {mainItems.map(item => <NavButton key={item.key} item={item} />)}

@@ -22,6 +22,7 @@ interface SubRole {
   icon: React.ReactNode;
   role: UserRoleType;
   disabled?: boolean;
+  readOnly?: boolean;
 }
 
 interface BusinessRoleHubProps {
@@ -125,7 +126,8 @@ const BusinessRoleHub = ({ onSelect, onBack }: BusinessRoleHubProps) => {
         sublabel: 'Владелец',
         icon: <Building2 className="h-5 w-5" />,
         role: 'business_owner',
-        disabled: isExpired || (!canAccess && subscription.tier === 'master') || lockedByDowngrade,
+        disabled: isExpired || (!canAccess && subscription.tier === 'master'),
+        readOnly: lockedByDowngrade,
       });
     });
 
@@ -339,16 +341,22 @@ const BusinessRoleHub = ({ onSelect, onBack }: BusinessRoleHubProps) => {
               className={`transition-colors ${
                 sr.disabled
                   ? 'opacity-60 cursor-not-allowed border-muted'
-                  : 'cursor-pointer hover:border-primary/50'
+                  : sr.readOnly
+                    ? 'cursor-pointer border-amber-200 bg-amber-50/40 hover:border-amber-300'
+                    : 'cursor-pointer hover:border-primary/50'
               }`}
               onClick={() => handleSelect(sr)}
             >
               <CardContent className="py-4 px-5">
                 <div className="flex items-center gap-4">
                   <div className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0 ${
-                    sr.disabled ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary'
+                    sr.disabled
+                      ? 'bg-muted text-muted-foreground'
+                      : sr.readOnly
+                        ? 'bg-amber-100 text-amber-700'
+                        : 'bg-primary/10 text-primary'
                   }`}>
-                    {sr.disabled ? <Lock className="h-5 w-5" /> : sr.icon}
+                    {sr.disabled || sr.readOnly ? <Lock className="h-5 w-5" /> : sr.icon}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold">{sr.label}</p>
@@ -362,8 +370,10 @@ const BusinessRoleHub = ({ onSelect, onBack }: BusinessRoleHubProps) => {
                     {sr.role === 'master' && priorityMasterId === sr.entityId && (
                       <p className="text-xs text-primary mt-0.5">Сохраняется при понижении до тарифа «Мастер»</p>
                     )}
-                    {sr.disabled && subscription.tier === 'business' && sr.role === 'business_owner' && !isExpired && (
-                      <p className="text-xs text-destructive mt-0.5">На тарифе «Про» активна только приоритетная точка</p>
+                    {sr.readOnly && subscription.tier === 'business' && sr.role === 'business_owner' && !isExpired && (
+                      <p className="text-xs text-amber-700 mt-0.5">
+                        Эта точка доступна в режиме просмотра после понижения тарифа
+                      </p>
                     )}
                     {sr.disabled && isExpired && (
                       <p className="text-xs text-destructive mt-0.5">Подписка истекла — только просмотр</p>
