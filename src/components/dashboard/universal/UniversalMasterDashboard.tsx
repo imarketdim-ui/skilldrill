@@ -296,6 +296,7 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
     const section = searchParams.get('section');
     const tab = searchParams.get('tab');
     const contact = searchParams.get('contact');
+    const contactScope = searchParams.get('contact_scope');
 
     if (section && ['home', 'messages'].includes(section)) {
       setActiveSection(section);
@@ -307,7 +308,9 @@ const UniversalMasterDashboard = ({ masterProfile, isSubscriptionActive, config 
 
     if (section === 'messages' && contact) {
       const timer = window.setTimeout(() => {
-        window.dispatchEvent(new CustomEvent('open-chat-with', { detail: contact }));
+        window.dispatchEvent(new CustomEvent('open-chat-with', {
+          detail: { contactId: contact, targetCabinet: contactScope || 'master' },
+        }));
       }, 150);
       return () => window.clearTimeout(timer);
     }

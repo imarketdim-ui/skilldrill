@@ -67,7 +67,8 @@ const RoleSwitcher = ({ onSelectHub }: RoleSwitcherProps) => {
           .eq('recipient_id', user.id)
           .neq('sender_id', user.id)
           .eq('is_read', false)
-          .eq('chat_type', 'direct');
+          .eq('chat_type', 'direct')
+          .eq('cabinet_type_scope', 'master');
         counts.master += masterChats || 0;
       }
 
@@ -87,7 +88,8 @@ const RoleSwitcher = ({ onSelectHub }: RoleSwitcherProps) => {
           .eq('recipient_id', user.id)
           .neq('sender_id', user.id)
           .eq('is_read', false)
-          .eq('chat_type', 'direct');
+          .eq('chat_type', 'direct')
+          .eq('cabinet_type_scope', 'business');
         counts.business += bizChats || 0;
       }
 

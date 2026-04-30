@@ -467,6 +467,7 @@ const MasterDetail = () => {
         recipient_id: master.user_id,
         message: `Новая запись: ${service.name} на ${bookingData.date} в ${bookingData.time}. ${bookingData.comment ? `Комментарий: ${bookingData.comment}` : ''}`,
         chat_type: 'direct',
+        cabinet_type_scope: 'master',
       });
       await supabase.functions.invoke('send-push-notification', {
         body: {
@@ -545,6 +546,7 @@ const MasterDetail = () => {
         recipient_id: master.user_id,
         message: messageText.trim(),
         chat_type: 'direct',
+        cabinet_type_scope: 'master',
       });
 
       if (error) throw error;
@@ -619,6 +621,7 @@ const MasterDetail = () => {
         recipient_id: master.user_id,
         message: requestMessage,
         chat_type: 'direct',
+        cabinet_type_scope: 'master',
       });
 
       if (error) throw error;

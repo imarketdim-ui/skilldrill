@@ -27,18 +27,36 @@ const HeaderNotifications = () => {
   const [items, setItems] = useState<NotifItem[]>([]);
   const [unread, setUnread] = useState(0);
   const [open, setOpen] = useState(false);
+  const directScope =
+    activeRole === 'master'
+      ? 'master'
+      : ['business_owner', 'business_manager', 'network_owner', 'network_manager'].includes(activeRole)
+        ? 'business'
+        : 'client';
 
   const fetchAll = async () => {
     if (!user) { setItems([]); setUnread(0); return; }
 
+    const notificationsQuery = supabase.from('notifications')
+      .select('id, type, title, message, created_at, is_read, related_id')
+      .eq('user_id', user.id);
+
+    if (activeRole === 'client') {
+      notificationsQuery.or('cabinet_type.eq.client,cabinet_type.is.null');
+    } else if (activeRole === 'master') {
+      notificationsQuery.eq('cabinet_type', 'master');
+    } else if (['business_owner', 'business_manager', 'network_owner', 'network_manager'].includes(activeRole)) {
+      notificationsQuery.eq('cabinet_type', 'business');
+    } else {
+      notificationsQuery.eq('cabinet_type', 'platform');
+    }
+
     const [notifRes, chatRes, invRes] = await Promise.all([
-      supabase.from('notifications')
-        .select('id, type, title, message, created_at, is_read, related_id')
-        .eq('user_id', user.id)
+      notificationsQuery
         .order('created_at', { ascending: false })
         .limit(20),
       supabase.from('chat_messages')
-        .select('id, message, sender_id, created_at, is_read, chat_type')
+        .select('id, message, sender_id, created_at, is_read, chat_type, cabinet_type_scope')
         .eq('recipient_id', user.id)
         .neq('sender_id', user.id)
         .eq('is_read', false)
@@ -72,7 +90,14 @@ const HeaderNotifications = () => {
       created_at: m.created_at,
       sender_id: m.sender_id,
       chat_type: m.chat_type,
-    })).filter((item) => item.chat_type === 'direct' || item.chat_type === 'support');
+      related_id: m.cabinet_type_scope,
+    })).filter((item) => {
+      if (item.chat_type === 'support') {
+        return ['platform_admin', 'super_admin', 'platform_manager', 'moderator', 'support', 'integrator'].includes(activeRole);
+      }
+      if (item.chat_type !== 'direct') return false;
+      return activeRole === 'client' ? true : item.related_id === directScope;
+    });
 
     const invList: NotifItem[] = (invRes.data || []).map((i: any) => ({
       id: `i-${i.id}`,
@@ -92,7 +117,7 @@ const HeaderNotifications = () => {
     setUnread(unreadNotif + chatList.length + invList.length);
   };
 
-  useEffect(() => { fetchAll(); }, [user]);
+  useEffect(() => { fetchAll(); }, [user, activeRole]);
 
   useEffect(() => {
     if (!user) return;
@@ -117,6 +142,7 @@ const HeaderNotifications = () => {
       const params = new URLSearchParams({ section, tab });
       if (item.chat_type !== 'support' && item.sender_id) {
         params.set('contact', item.sender_id);
+        if (item.related_id) params.set('contact_scope', item.related_id);
       }
       navigate(`/dashboard?${params.toString()}`);
     } else if (item.kind === 'invitation') {
@@ -127,10 +153,23 @@ const HeaderNotifications = () => {
 
   const markAllRead = async () => {
     if (!user) return;
-    await Promise.all([
-      supabase.from('notifications').update({ is_read: true }).eq('user_id', user.id).eq('is_read', false),
-      supabase.from('chat_messages').update({ is_read: true }).eq('recipient_id', user.id).eq('is_read', false),
-    ]);
+    const notificationUpdate = supabase.from('notifications').update({ is_read: true }).eq('user_id', user.id).eq('is_read', false);
+    if (activeRole === 'client') {
+      notificationUpdate.or('cabinet_type.eq.client,cabinet_type.is.null');
+    } else if (activeRole === 'master') {
+      notificationUpdate.eq('cabinet_type', 'master');
+    } else if (['business_owner', 'business_manager', 'network_owner', 'network_manager'].includes(activeRole)) {
+      notificationUpdate.eq('cabinet_type', 'business');
+    } else {
+      notificationUpdate.eq('cabinet_type', 'platform');
+    }
+
+    const chatUpdate = supabase.from('chat_messages').update({ is_read: true }).eq('recipient_id', user.id).eq('is_read', false);
+    if (activeRole !== 'client') {
+      chatUpdate.eq('cabinet_type_scope', directScope);
+    }
+
+    await Promise.all([notificationUpdate, chatUpdate]);
     fetchAll();
   };
 

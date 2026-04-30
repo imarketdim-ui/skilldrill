@@ -167,6 +167,7 @@ const BusinessDetail = () => {
         recipient_id: business.owner_id,
         message: messageText.trim(),
         chat_type: 'direct',
+        cabinet_type_scope: 'business',
       });
 
       if (error) throw error;
@@ -232,6 +233,7 @@ const BusinessDetail = () => {
         recipient_id: business.owner_id,
         message: requestMessage,
         chat_type: 'direct',
+        cabinet_type_scope: 'business',
       });
 
       if (error) throw error;

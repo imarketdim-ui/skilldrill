@@ -30,6 +30,7 @@ interface ChatContact {
   first_name: string | null;
   last_name: string | null;
   email: string | null;
+  targetCabinet?: CabinetContext | null;
   lastMessage?: string;
   lastMessageAt?: string;
   unread: number;
@@ -61,17 +62,46 @@ const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange
   // Determine effective cabinet context
   const effectiveCabinet: CabinetContext = cabinetContext || (isClientContext ? 'client' : 'master');
 
+  const getConversationScope = (contact?: ChatContact | null, messageList?: any[]): CabinetContext | null => {
+    const scopedMessage = [...(messageList || [])]
+      .reverse()
+      .find((msg) => msg.chat_type === 'direct' && ['client', 'master', 'business'].includes(msg.cabinet_type_scope || ''));
+
+    if (scopedMessage?.cabinet_type_scope) {
+      return scopedMessage.cabinet_type_scope as CabinetContext;
+    }
+
+    if (effectiveCabinet === 'master' || effectiveCabinet === 'business') {
+      return effectiveCabinet;
+    }
+
+    if (effectiveCabinet === 'client') {
+      return contact?.targetCabinet || null;
+    }
+
+    return null;
+  };
+
   useEffect(() => { if (user) fetchContacts(); }, [user, effectiveCabinet]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   // Listen for open-chat-with event
   useEffect(() => {
     const handler = async (e: CustomEvent) => {
-      const contactId = e.detail;
+      const detail = e.detail;
+      const contactId = typeof detail === 'string' ? detail : detail?.contactId;
+      const targetCabinet = typeof detail === 'string' ? null : detail?.targetCabinet || null;
       if (!contactId || !user || isSelfInteraction(user.id, contactId)) return;
       const { data: profile } = await supabase.from('profiles').select('id, first_name, last_name, email').eq('id', contactId).maybeSingle();
       if (profile) {
-        const contact: ChatContact = { id: profile.id, first_name: profile.first_name, last_name: profile.last_name, email: profile.email, unread: 0 };
+        const contact: ChatContact = {
+          id: profile.id,
+          first_name: profile.first_name,
+          last_name: profile.last_name,
+          email: profile.email,
+          targetCabinet,
+          unread: 0,
+        };
         setContacts((prev) => prev.some((item) => item.id === contact.id) ? prev : [contact, ...prev]);
         openChat(contact);
       }
@@ -89,6 +119,7 @@ const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange
         if (msg.chat_type !== 'direct') return;
         const isMine = msg.sender_id === user.id || msg.recipient_id === user.id;
         if (!isMine) return;
+        if (effectiveCabinet !== 'client' && msg.cabinet_type_scope && msg.cabinet_type_scope !== effectiveCabinet) return;
         if (selectedContact && (
           (msg.sender_id === selectedContact.id && msg.recipient_id === user.id) ||
           (msg.sender_id === user.id && msg.recipient_id === selectedContact.id)
@@ -181,6 +212,7 @@ const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange
     
     const profiles = profilesRes.data || [];
     const roles = rolesRes.data || [];
+    const allMsgs = msgs || [];
     
     // Build role map
     const roleMap = new Map<string, Set<string>>();
@@ -189,10 +221,16 @@ const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange
       roleMap.get(r.user_id)!.add(r.role);
     });
     
+    const relevantMsgs = allMsgs.filter((msg) => {
+      if (msg.chat_type !== 'direct') return false;
+      if (effectiveCabinet === 'client') return true;
+      return msg.cabinet_type_scope === effectiveCabinet;
+    });
+
     // Filter contacts by cabinet context
     const isAllowedContact = (contactId: string): boolean => {
       const contactRoles = roleMap.get(contactId) || new Set();
-      const hasMessageHistory = allMsgs.some((m) =>
+      const hasMessageHistory = relevantMsgs.some((m) =>
         (m.sender_id === contactId && m.recipient_id === user.id) ||
         (m.sender_id === user.id && m.recipient_id === contactId),
       );
@@ -221,16 +259,25 @@ const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange
     };
 
     let unreadTotal = 0;
-    const allMsgs = msgs || [];
     const contactList: ChatContact[] = profiles
       .filter(p => isAllowedContact(p.id))
       .map(p => {
-        const contactMsgs = allMsgs.filter(m =>
+        const contactMsgs = relevantMsgs.filter(m =>
           (m.sender_id === p.id && m.recipient_id === user.id) ||
           (m.sender_id === user.id && m.recipient_id === p.id)
         );
         const lastMsg = contactMsgs[0];
         const unread = contactMsgs.filter(m => m.sender_id === p.id && m.recipient_id === user.id && !m.is_read).length;
+        const contactRoles = roleMap.get(p.id) || new Set<string>();
+        const inferredTargetCabinet =
+          getConversationScope(undefined, contactMsgs) ||
+          (effectiveCabinet === 'client'
+            ? ((contactRoles.has('master') && !contactRoles.has('business_owner') && !contactRoles.has('business_manager') && !contactRoles.has('network_owner') && !contactRoles.has('network_manager'))
+                ? 'master'
+                : (contactRoles.has('business_owner') || contactRoles.has('business_manager') || contactRoles.has('network_owner') || contactRoles.has('network_manager'))
+                  ? 'business'
+                  : null)
+            : 'client');
         const lastMessageLabel =
           lastMsg?.audio_url
             ? '🎤 Голосовое'
@@ -242,6 +289,7 @@ const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange
         unreadTotal += unread;
         return {
           id: p.id, first_name: p.first_name, last_name: p.last_name, email: p.email,
+          targetCabinet: inferredTargetCabinet,
           lastMessage: lastMessageLabel,
           lastMessageAt: lastMsg?.created_at,
           unread,
@@ -268,9 +316,15 @@ const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange
       .or(`and(sender_id.eq.${user.id},recipient_id.eq.${contact.id}),and(sender_id.eq.${contact.id},recipient_id.eq.${user.id})`)
       .eq('chat_type', 'direct')
       .order('created_at', { ascending: true });
-    setMessages(data || []);
+    const scopedData = (data || []).filter((msg: any) => {
+      if (effectiveCabinet === 'client') {
+        return !contact.targetCabinet || !msg.cabinet_type_scope || msg.cabinet_type_scope === contact.targetCabinet;
+      }
+      return msg.cabinet_type_scope === effectiveCabinet;
+    });
+    setMessages(scopedData);
     // Mark unread messages from this contact as read
-    const unreadIds = (data || []).filter(m => m.sender_id === contact.id && !m.is_read).map(m => m.id);
+    const unreadIds = scopedData.filter((m: any) => m.sender_id === contact.id && !m.is_read).map((m: any) => m.id);
     if (unreadIds.length > 0) {
       await supabase.from('chat_messages').update({ is_read: true, is_delivered: true })
         .in('id', unreadIds);
@@ -298,11 +352,12 @@ const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange
     const { data: blocked } = await supabase.from('blacklists').select('id').eq('blocker_id', selectedContact.id).eq('blocked_id', user.id).maybeSingle();
     if (blocked) { toast({ title: 'Чат заблокирован собеседником', variant: 'destructive' }); return; }
 
+    const conversationScope = getConversationScope(selectedContact, messages);
     const { error } = await supabase.from('chat_messages').insert({
       sender_id: user.id, recipient_id: selectedContact.id,
       message: messageText,
       chat_type: 'direct',
-      cabinet_type_scope: effectiveCabinet,
+      cabinet_type_scope: conversationScope,
       message_type: overrides?.message_type || (overrides?.audio_url ? 'audio' : overrides?.media_urls?.length ? 'media' : 'text'),
       audio_url: overrides?.audio_url || null,
       media_urls: overrides?.media_urls || null,
@@ -394,7 +449,7 @@ const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange
   const filteredContacts = contacts.filter(c => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
-    return c.first_name?.toLowerCase().includes(q) || c.last_name?.toLowerCase().includes(q) || c.email?.toLowerCase().includes(q);
+    return c.first_name?.toLowerCase().includes(q) || c.last_name?.toLowerCase().includes(q);
   });
 
   return (
@@ -474,7 +529,15 @@ const TeachingChats = ({ isClientContext = false, cabinetContext, onUnreadChange
                 </Avatar>
                 <div>
                   <p className="font-medium text-sm">{selectedContact.first_name} {selectedContact.last_name}</p>
-                  <p className="text-[10px] text-muted-foreground">{selectedContact.email}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {selectedContact.targetCabinet === 'business'
+                      ? 'Организация в SkillSpot'
+                      : selectedContact.targetCabinet === 'master'
+                        ? 'Мастер в SkillSpot'
+                        : selectedContact.targetCabinet === 'client'
+                          ? 'Клиент в SkillSpot'
+                          : 'Контакт в SkillSpot'}
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-1">

@@ -107,6 +107,7 @@ const ClientDashboard = () => {
     const section = searchParams.get('section');
     const tab = searchParams.get('tab');
     const contact = searchParams.get('contact');
+    const contactScope = searchParams.get('contact_scope');
 
     if (section && ['overview', 'bookings', 'favorites', 'reviews', 'communication', 'notifications', 'stats', 'wallet', 'settings'].includes(section)) {
       setActiveSection(section);
@@ -118,7 +119,9 @@ const ClientDashboard = () => {
 
     if (section === 'communication' && contact) {
       setTimeout(() => {
-        window.dispatchEvent(new CustomEvent('open-chat-with', { detail: contact }));
+        window.dispatchEvent(new CustomEvent('open-chat-with', {
+          detail: { contactId: contact, targetCabinet: contactScope || undefined },
+        }));
       }, 150);
     }
   }, [searchParams]);

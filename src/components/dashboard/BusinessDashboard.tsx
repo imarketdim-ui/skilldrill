@@ -768,7 +768,7 @@ const BusinessDashboard = () => {
   const [messagesTab, setMessagesTab] = useState<'chats' | 'notifications' | 'support'>('chats');
   const [previousSection, setPreviousSection] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [chatTargetId, setChatTargetId] = useState<string | null>(null);
+  const [chatTarget, setChatTarget] = useState<{ contactId: string; targetCabinet?: string | null } | null>(null);
   // Paywall state for soft-gated sections
   const [paywallSection, setPaywallSection] = useState<{ key: string; label: string; requiredTierLabel: string } | null>(null);
   // Transfer ownership dialog state
@@ -820,6 +820,7 @@ const BusinessDashboard = () => {
     const section = searchParams.get('section');
     const tab = searchParams.get('tab');
     const contact = searchParams.get('contact');
+    const contactScope = searchParams.get('contact_scope');
 
     if (section && ['overview', 'messages'].includes(section)) {
       setActiveSection(section);
@@ -830,18 +831,18 @@ const BusinessDashboard = () => {
     }
 
     if (section === 'messages' && contact) {
-      setChatTargetId(contact);
+      setChatTarget({ contactId: contact, targetCabinet: contactScope || 'business' });
     }
   }, [searchParams]);
 
   useEffect(() => {
-    if (activeSection === 'messages' && chatTargetId) {
+    if (activeSection === 'messages' && chatTarget) {
       const timer = window.setTimeout(() => {
-        window.dispatchEvent(new CustomEvent('open-chat-with', { detail: chatTargetId }));
+        window.dispatchEvent(new CustomEvent('open-chat-with', { detail: chatTarget }));
       }, 150);
       return () => window.clearTimeout(timer);
     }
-  }, [activeSection, chatTargetId]);
+  }, [activeSection, chatTarget]);
 
   const fetchBusinesses = useCallback(async () => {
     if (!user) return;
@@ -1075,7 +1076,7 @@ const BusinessDashboard = () => {
       case 'marketing':
         return selectedBusiness ? <BusinessMarketing businessId={selectedBusiness.id} /> : null;
       case 'clients':
-        return selectedBusiness ? <BusinessClients businessId={selectedBusiness.id} onOpenChat={(clientId) => { setChatTargetId(clientId); navigateTo('messages'); }} /> : null;
+        return selectedBusiness ? <BusinessClients businessId={selectedBusiness.id} onOpenChat={(clientId) => { setChatTarget({ contactId: clientId, targetCabinet: 'business' }); navigateTo('messages'); }} /> : null;
       case 'stats':
         return selectedBusiness ? <BusinessAnalytics businessId={selectedBusiness.id} /> : null;
       case 'messages':
