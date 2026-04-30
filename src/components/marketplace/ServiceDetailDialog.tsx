@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Clock, Banknote, Copy, Check, MapPin, User } from 'lucide-react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { getPublicSiteUrl } from '@/lib/seoUtils';
 
 interface ServiceDetailDialogProps {
   service: any;
@@ -82,7 +83,7 @@ const ServiceDetailDialog = ({
 
   const photos = service.work_photos || [];
   const hashtags = service.hashtags || [];
-  const serviceUrl = masterId ? `${window.location.origin}/master/${masterId}?service=${service.id}` : '';
+  const serviceUrl = service?.id ? getPublicSiteUrl(`/service/${service.id}`) : '';
 
   const copyLink = () => {
     navigator.clipboard.writeText(serviceUrl);

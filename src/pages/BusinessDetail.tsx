@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { updatePageMeta } from '@/lib/seoUtils';
+import { getPublicSiteUrl, removeStructuredData, updatePageMeta, updateStructuredData } from '@/lib/seoUtils';
 import { Star, MapPin, ArrowLeft, Users, Clock, MessageSquare, Heart, Share2, Camera } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -101,11 +101,28 @@ const BusinessDetail = () => {
     if (!business) return;
     const topService = services[0];
     const priceStr = topService ? `от ${topService.price} ₽` : '';
+    const url = getPublicSiteUrl(`/business/${business.id}`);
     updatePageMeta({
       title: `${business.name}${business.city ? ` в ${business.city}` : ''} — SkillSpot`,
       description: `${business.description || business.name}${topService ? `. ${topService.name} ${priceStr}` : ''}. Онлайн-запись.`,
-      url: window.location.href,
+      url,
+      canonicalUrl: url,
+      type: 'website',
     });
+
+    updateStructuredData('business-detail', {
+      '@context': 'https://schema.org',
+      '@type': 'LocalBusiness',
+      name: business.name,
+      description: business.description || undefined,
+      image: business.interior_photos?.[0] || business.exterior_photos?.[0] || undefined,
+      address: business.address || undefined,
+      telephone: business.contact_phone || undefined,
+      email: business.contact_email || undefined,
+      url,
+    });
+
+    return () => removeStructuredData('business-detail');
   }, [business, services]);
 
   useEffect(() => {
@@ -331,6 +348,15 @@ const BusinessDetail = () => {
                           <div className="flex-1">
                             <h3 className="font-semibold text-lg mb-1">{service.name}</h3>
                             {service.description && <p className="text-sm text-muted-foreground mb-1">{service.description}</p>}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/service/${service.id}`);
+                              }}
+                              className="text-xs text-primary hover:underline mb-1"
+                            >
+                              Открыть страницу услуги
+                            </button>
                             {service.profiles && (
                               <p className="text-xs text-primary cursor-pointer" onClick={() => navigate(`/master/${service.master_id}`)}>
                                 Мастер: {(service.profiles as any)?.first_name} {(service.profiles as any)?.last_name}

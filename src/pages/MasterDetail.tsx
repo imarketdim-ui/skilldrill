@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, Link, useSearchParams } from 'react-router-dom';
-import { updatePageMeta } from '@/lib/seoUtils';
+import { getPublicSiteUrl, removeStructuredData, updatePageMeta, updateStructuredData } from '@/lib/seoUtils';
 import { Star, MapPin, Clock, MessageSquare, Camera, Heart, Share2, Bell, ShieldAlert, AlertTriangle, BadgeCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -184,12 +184,28 @@ const MasterDetail = () => {
     const city = (master as any).city || '';
     const topService = services[0];
     const priceStr = topService ? `от ${topService.price} ₽` : '';
+    const url = getPublicSiteUrl(`/master/${master.user_id}`);
     updatePageMeta({
       title: `Запись к ${name}${city ? ` в ${city}` : ''} — SkillSpot`,
       description: `${category}${topService ? `. ${topService.name} ${priceStr}` : ''}. Отзывы, расписание и онлайн-запись.`,
-      url: window.location.href,
+      url,
+      canonicalUrl: url,
       image: master.profiles.avatar_url || undefined,
+      type: 'profile',
     });
+
+    updateStructuredData('master-detail', {
+      '@context': 'https://schema.org',
+      '@type': 'Person',
+      name,
+      description: master.description || undefined,
+      image: master.profiles.avatar_url || undefined,
+      address: master.address || undefined,
+      url,
+      knowsAbout: category || undefined,
+    });
+
+    return () => removeStructuredData('master-detail');
   }, [master, services]);
 
   // Auto-open booking from URL param (e.g. from service card "Записаться")
@@ -202,6 +218,15 @@ const MasterDetail = () => {
       }
     }
   }, [searchParams, services, bookingService]);
+
+  useEffect(() => {
+    const requestedServiceId = searchParams.get('service');
+    if (!requestedServiceId || services.length === 0 || viewingService) return;
+    const serviceToView = services.find((service) => service.id === requestedServiceId);
+    if (serviceToView) {
+      setViewingService(serviceToView);
+    }
+  }, [searchParams, services, viewingService]);
 
   useEffect(() => {
     if (!bookingService) return;
@@ -820,6 +845,15 @@ const MasterDetail = () => {
                           <div className="flex-1">
                             <h3 className="font-semibold text-lg mb-1">{service.name}</h3>
                             {service.description && <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{service.description}</p>}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/service/${service.id}`);
+                              }}
+                              className="text-xs text-primary hover:underline mb-2"
+                            >
+                              Открыть страницу услуги
+                            </button>
                             <div className="flex items-center gap-4 text-sm text-muted-foreground">
                               <span className="flex items-center gap-1"><Clock className="w-4 h-4" />{service.duration_minutes} мин</span>
                             </div>

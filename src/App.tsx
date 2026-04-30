@@ -20,6 +20,7 @@ import Terms from "./pages/Terms";
 import Offer from "./pages/Offer";
 import Contacts from "./pages/Contacts";
 import Catalog from "./pages/Catalog";
+import ServiceDetail from "./pages/ServiceDetail";
 import MasterDetail from "./pages/MasterDetail";
 import BusinessDetail from "./pages/BusinessDetail";
 import Subscription from "./pages/Subscription";
@@ -48,6 +49,7 @@ const App = () => (
               <Route path="/" element={<Catalog />} />
               <Route path="/landing" element={<Index />} />
               <Route path="/catalog" element={<Catalog />} />
+              <Route path="/service/:serviceId" element={<ServiceDetail />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/dashboard" element={<Dashboard />} />

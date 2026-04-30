@@ -1,9 +1,11 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Check, Star, Shield, Calendar, Bell, Gift, Users, ArrowRight, Search, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Header from '@/components/landing/Header';
 import Footer from '@/components/landing/Footer';
+import { getPublicSiteUrl, removeStructuredData, updatePageMeta, updateStructuredData } from '@/lib/seoUtils';
 
 const clientBenefits = [
   { icon: Search, title: 'Умный поиск', description: 'Находите мастеров и организации по услуге, рейтингу, цене и расположению. Фильтры помогают найти именно то, что нужно.' },
@@ -18,6 +20,27 @@ const clientBenefits = [
 
 const About = () => {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const url = getPublicSiteUrl('/about');
+    updatePageMeta({
+      title: 'О платформе SkillSpot — возможности для клиентов',
+      description: 'Узнайте, как SkillSpot помогает находить услуги, записываться онлайн, работать с рейтингами и безопасно взаимодействовать с мастерами.',
+      url,
+      canonicalUrl: url,
+      type: 'article',
+    });
+
+    updateStructuredData('about-page', {
+      '@context': 'https://schema.org',
+      '@type': 'AboutPage',
+      name: 'О платформе SkillSpot',
+      url,
+      description: 'Описание возможностей SkillSpot для клиентов и принципов работы платформы.',
+    });
+
+    return () => removeStructuredData('about-page');
+  }, []);
 
   return (
     <div className="min-h-screen">

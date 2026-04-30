@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -9,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import Header from '@/components/landing/Header';
 import Footer from '@/components/landing/Footer';
 import { usePlatformPricing } from '@/hooks/usePlatformPricing';
+import { getPublicSiteUrl, removeStructuredData, updatePageMeta, updateStructuredData } from '@/lib/seoUtils';
 
 const masterFeatures = [
   { icon: Calendar, title: 'Личное расписание', description: 'Управляйте рабочим временем, выходными и перерывами. Клиенты видят только свободные слоты.' },
@@ -33,6 +35,27 @@ const businessFeatures = [
 const ForBusiness = () => {
   const navigate = useNavigate();
   const pricing = usePlatformPricing();
+
+  useEffect(() => {
+    const url = getPublicSiteUrl('/for-business');
+    updatePageMeta({
+      title: 'SkillSpot для бизнеса и мастеров — CRM, ERP и онлайн-запись',
+      description: 'Решение для мастеров, организаций и сетей: расписание, CRM, ERP, рейтинги клиентов, уведомления и онлайн-запись на SkillSpot.',
+      url,
+      canonicalUrl: url,
+      type: 'website',
+    });
+
+    updateStructuredData('for-business-page', {
+      '@context': 'https://schema.org',
+      '@type': 'WebPage',
+      name: 'SkillSpot для бизнеса и мастеров',
+      url,
+      description: 'Возможности платформы SkillSpot для мастеров, организаций и сетей.',
+    });
+
+    return () => removeStructuredData('for-business-page');
+  }, []);
 
   const plans = [
     {

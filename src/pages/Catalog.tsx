@@ -17,6 +17,8 @@ import BusinessCardItem from "@/components/marketplace/BusinessCardItem";
 import ServiceCardItem, { type ServiceCardData } from "@/components/marketplace/ServiceCardItem";
 
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { getPublicSiteUrl, removeStructuredData, updatePageMeta, updateStructuredData } from "@/lib/seoUtils";
 
 // Categories from DB
 const CATEGORY_ALL = "all";
@@ -73,6 +75,10 @@ const sortOptions = [
 
 import { haversineDistance, getSearchVariants } from '@/lib/searchUtils';
 
+const GEO_CACHE_KEY = "skillspot_geo_cache";
+const GEO_PREF_KEY = "skillspot_geo_preference";
+const GEO_CACHE_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 30;
+
 const parseFiltersFromURL = (params: URLSearchParams) => ({
   searchQuery: params.get("q") || "",
   categoryFilter: params.get("category") || CATEGORY_ALL,
@@ -85,6 +91,7 @@ const parseFiltersFromURL = (params: URLSearchParams) => ({
 
 const Catalog = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const initial = parseFiltersFromURL(searchParams);
@@ -110,6 +117,8 @@ const Catalog = () => {
   const [popularityMap, setPopularityMap] = useState<{ masters: Record<string, number>; businesses: Record<string, number> }>({ masters: {}, businesses: {} });
   
   const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
+  const [geoPreference, setGeoPreference] = useState<"granted" | "denied" | "unknown">("unknown");
+  const [geoLoading, setGeoLoading] = useState(false);
 
   const [citySearch, setCitySearch] = useState("");
 
@@ -145,15 +154,127 @@ const Catalog = () => {
 
   useEffect(() => { syncURL(); }, [syncURL]);
 
-  // Load user geolocation
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => setUserLocation({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
-        () => {} // silently fail
-      );
+    const url = getPublicSiteUrl("/catalog");
+    updatePageMeta({
+      title: "Каталог услуг, мастеров и организаций — SkillSpot",
+      description: "Найдите мастеров, организации и конкретные услуги с онлайн-записью, ценами, отзывами и свободными слотами.",
+      url,
+      canonicalUrl: url,
+      type: "website",
+    });
+
+    updateStructuredData("catalog-page", {
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      name: "Каталог услуг SkillSpot",
+      description: "Каталог мастеров, организаций и услуг с онлайн-записью.",
+      url,
+      isPartOf: {
+        "@type": "WebSite",
+        name: "SkillSpot",
+        url: getPublicSiteUrl("/"),
+      },
+    });
+
+    return () => removeStructuredData("catalog-page");
+  }, []);
+
+  // Restore cached geolocation and saved user preference without prompting again
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const storedPreference = window.localStorage.getItem(GEO_PREF_KEY);
+    if (storedPreference === "granted" || storedPreference === "denied") {
+      setGeoPreference(storedPreference);
+    }
+
+    const cached = window.localStorage.getItem(GEO_CACHE_KEY);
+    if (!cached) return;
+
+    try {
+      const parsed = JSON.parse(cached) as { lat: number; lon?: number; lng?: number; ts: number };
+      const cachedLon = parsed.lon ?? parsed.lng;
+      if (!parsed.lat || !cachedLon || !parsed.ts) return;
+      if (Date.now() - parsed.ts > GEO_CACHE_MAX_AGE_MS) return;
+      setUserLocation({ lat: parsed.lat, lon: cachedLon });
+    } catch {
+      // Ignore malformed cache silently.
     }
   }, []);
+
+  const requestUserLocation = useCallback((intent: "nearest" | "city" = "nearest") => {
+    if (typeof window === "undefined" || !navigator.geolocation) {
+      toast({
+        title: "Геолокация недоступна",
+        description: "На этом устройстве нельзя определить местоположение. Выберите город вручную.",
+        variant: "destructive",
+      });
+      if (intent === "nearest") setSortBy("popular");
+      return;
+    }
+
+    setGeoLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const nextLocation = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+        setUserLocation(nextLocation);
+        setGeoPreference("granted");
+        window.localStorage.setItem(GEO_PREF_KEY, "granted");
+        window.localStorage.setItem(GEO_CACHE_KEY, JSON.stringify({ ...nextLocation, ts: Date.now() }));
+        if (intent === "nearest") {
+          setSortBy("nearest");
+        }
+        setLocationOpen(false);
+        setGeoLoading(false);
+      },
+      () => {
+        setGeoPreference("denied");
+        window.localStorage.setItem(GEO_PREF_KEY, "denied");
+        setGeoLoading(false);
+        toast({
+          title: "Геолокация отключена",
+          description: "Запомнили ваш выбор и больше не будем спрашивать автоматически. При желании город можно выбрать вручную.",
+        });
+        if (intent === "nearest") {
+          setSortBy("popular");
+        }
+      },
+      {
+        enableHighAccuracy: false,
+        timeout: 8000,
+        maximumAge: GEO_CACHE_MAX_AGE_MS,
+      },
+    );
+  }, [toast]);
+
+  const handleSortChange = useCallback((value: string) => {
+    if (value !== "nearest") {
+      setSortBy(value);
+      return;
+    }
+
+    if (userLocation) {
+      setSortBy("nearest");
+      return;
+    }
+
+    if (geoPreference === "denied") {
+      toast({
+        title: "Сортировка по расстоянию недоступна",
+        description: "Геолокация отключена. Выберите город вручную или включите доступ к местоположению позже.",
+      });
+      return;
+    }
+
+    requestUserLocation("nearest");
+  }, [geoPreference, requestUserLocation, toast, userLocation]);
+
+  useEffect(() => {
+    if (sortBy === "nearest" && !userLocation && geoPreference !== "granted") {
+      setSortBy("popular");
+    }
+  }, [geoPreference, sortBy, userLocation]);
 
   // Fetch categories
   useEffect(() => {
@@ -732,6 +853,13 @@ const Catalog = () => {
                     </div>
                     <div className="max-h-48 overflow-y-auto p-1">
                       <button
+                        onClick={() => requestUserLocation("nearest")}
+                        disabled={geoLoading}
+                        className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-accent transition-colors text-primary font-medium disabled:opacity-60"
+                      >
+                        {geoLoading ? "Определяем местоположение..." : "Рядом со мной"}
+                      </button>
+                      <button
                         onClick={() => { setLocationFilter(""); setLocationOpen(false); setCitySearch(""); }}
                         className={`w-full text-left px-3 py-2 text-sm rounded-md hover:bg-accent transition-colors ${!locationFilter ? "bg-accent font-medium" : ""}`}
                       >
@@ -785,7 +913,7 @@ const Catalog = () => {
                 {/* Sort */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground">Сортировка</label>
-                  <Select value={sortBy} onValueChange={setSortBy}>
+                  <Select value={sortBy} onValueChange={handleSortChange}>
                     <SelectTrigger className="h-10">
                       <ArrowUpDown className="w-3.5 h-3.5 mr-2" />
                       <SelectValue />
@@ -1105,7 +1233,7 @@ const Catalog = () => {
                     <ServiceCardItem
                       key={s.id}
                       service={s}
-                      onClick={() => navigate(`/master/${s.master_id}?book=${s.id}`)}
+                      onClick={() => navigate(`/service/${s.id}`)}
                     />
                   ))}
             </div>
