@@ -73,21 +73,21 @@ const getBookingErrorCopy = (error: any) => {
   if (raw.includes('restricted') || raw.includes('cannot create bookings')) {
     return {
       title: 'Автоматическая запись сейчас недоступна',
-      description: 'Сейчас запись через сайт недоступна по настройкам мастера или организации. Напишите мастеру, чтобы согласовать визит вручную.',
+      description: 'Сейчас запись доступна только после подтверждения мастером. Отправьте заявку ещё раз и ожидайте подтверждения.',
     };
   }
 
   if (raw.includes('duplicate') || raw.includes('already exists')) {
     return {
       title: 'Похожая запись уже создана',
-      description: 'Похоже, заявка уже отправлена. Проверьте раздел «Мои записи» или напишите мастеру в чат.',
+      description: 'Похоже, такая заявка уже создана. Проверьте раздел «Мои записи».',
     };
   }
 
   if (raw.includes('conflict') || raw.includes('slot') || raw.includes('overlap')) {
     return {
       title: 'Этот слот уже занят',
-      description: 'Пока вы оформляли запись, время мог занять другой клиент. Выберите другой слот или уточните детали у мастера.',
+      description: 'Пока вы оформляли запись, время мог занять другой клиент. Выберите другой слот.',
     };
   }
 
@@ -125,6 +125,11 @@ const MasterDetail = () => {
   const [hasPriorVisitsWithMaster, setHasPriorVisitsWithMaster] = useState(false);
   const [clientScore, setClientScore] = useState<ClientScoreSnapshot | null>(null);
   const [bookingTrustPolicy, setBookingTrustPolicy] = useState<BookingTrustPolicySettings>(defaultBookingTrustPolicy);
+  const [pendingBookingDialog, setPendingBookingDialog] = useState<{
+    bookingId: string;
+    title: string;
+    description: string;
+  } | null>(null);
   
   const mapRef = useRef<HTMLDivElement>(null);
 
@@ -460,33 +465,30 @@ const MasterDetail = () => {
         message: `${bookingData.name || user.user_metadata?.first_name || 'Клиент'} записался на «${service.name}» ${bookingData.date} в ${bookingData.time}`,
         related_id: newBooking.id,
       });
-
-      // Create chat contact
-      await supabase.from('chat_messages').insert({
-        sender_id: user.id,
-        recipient_id: master.user_id,
-        message: `Новая запись: ${service.name} на ${bookingData.date} в ${bookingData.time}. ${bookingData.comment ? `Комментарий: ${bookingData.comment}` : ''}`,
-        chat_type: 'direct',
-        cabinet_type_scope: master.business_id ? 'business' : 'master',
-      });
       await supabase.functions.invoke('send-push-notification', {
         body: {
           user_ids: [master.user_id],
-          title: 'Новая запись',
-          body: `${bookingData.name || 'Клиент'} записался на ${service.name}`,
-          url: `/dashboard?section=messages&tab=chats&contact=${user.id}&contact_scope=${master.business_id ? 'business' : 'master'}`,
-          tag: 'booking-chat',
+          title: bookingStatus === 'confirmed' ? 'Новая запись' : 'Новая заявка на запись',
+          body: `${bookingData.name || 'Клиент'} ${bookingStatus === 'confirmed' ? 'записался' : 'отправил заявку'} на ${service.name}`,
+          url: `/dashboard?section=${master.business_id ? 'overview' : 'schedule'}`,
+          tag: 'booking-request',
         },
       }).catch(() => null);
 
+      const createdBookingId = newBooking.id;
+
       if (bookingStatus === 'confirmed') {
-        toast({ title: 'Запись подтверждена!', description: 'Вы записаны. Мастер получит уведомление.' });
+        toast({ title: 'Запись подтверждена', description: 'Вы записаны. Мастер получит уведомление.' });
       } else {
-        toast({ title: 'Запись отправлена', description: 'Ожидаем подтверждения мастера. Вы получите уведомление.' });
+        setPendingBookingDialog({
+          bookingId: createdBookingId,
+          title: 'Ожидайте подтверждения',
+          description: 'Автоматическая запись сейчас недоступна. Мы отправили заявку мастеру. Ожидайте подтверждения, при желании вы можете дополнительно связаться с мастером в сообщениях.',
+        });
       }
 
       // Offer Tinkoff payment if service has a price
-      if (service.price && service.price > 0 && newBooking?.id) {
+      if (bookingStatus === 'confirmed' && service.price && service.price > 0 && newBooking?.id) {
         const payNow = window.confirm(`Оплатить ${Number(service.price).toLocaleString()} ₽ через Тинькофф прямо сейчас? Вы также можете оплатить позже из Личного кабинета.`);
         if (payNow) {
           try {
@@ -506,8 +508,6 @@ const MasterDetail = () => {
 
       setBookingService(null);
       setBookingData({ name: '', phone: '', date: '', time: '', comment: '', reminder: '60', resource_id: '' });
-      
-      navigate('/dashboard');
     } catch (err: any) {
       const copy = getBookingErrorCopy(err);
       toast({ title: copy.title, description: copy.description, variant: 'destructive' });
@@ -580,86 +580,25 @@ const MasterDetail = () => {
     }
   };
 
-  const handleManualBookingRequest = async (serviceId: string) => {
-    if (!user || !master) {
-      toast({ title: 'Нужно войти в аккаунт', description: 'Авторизуйтесь, чтобы отправить запрос мастеру', variant: 'destructive' });
+  const cancelPendingBooking = async () => {
+    if (!pendingBookingDialog) return;
+    const { error } = await supabase
+      .from('bookings')
+      .update({
+        status: 'cancelled',
+        cancellation_reason: 'Отменено клиентом до подтверждения',
+        cancelled_by: user?.id || null,
+      })
+      .eq('id', pendingBookingDialog.bookingId)
+      .eq('status', 'pending');
+
+    if (error) {
+      toast({ title: 'Не удалось отменить заявку', description: error.message, variant: 'destructive' });
       return;
     }
-    if (isSelfInteraction(user.id, master.user_id)) {
-      toast({ title: 'Нельзя отправить запрос самому себе', variant: 'destructive' });
-      return;
-    }
 
-    const service = services.find((item) => item.id === serviceId);
-    if (!service || !bookingData.date || !bookingData.time) {
-      toast({ title: 'Заполните дату и время', description: 'Выберите слот, чтобы мастер понял, какой визит вы хотите согласовать.', variant: 'destructive' });
-      return;
-    }
-
-    setSendingMessage(true);
-    try {
-      const decision = evaluateBookingGate({
-        isBlacklisted,
-        activeBookingsCount,
-        hasPriorVisitsWithMaster,
-        score: clientScore?.total_score ?? null,
-        scoreStatus: clientScore?.status ?? null,
-        masterAutoBookingPolicy: master.auto_booking_policy,
-      }, bookingTrustPolicy);
-
-      const requestReason = decision.title.toLowerCase();
-      const requestMessage = [
-        `Запрос на ручную запись: ${service.name}.`,
-        `Дата: ${bookingData.date}, время: ${bookingData.time}.`,
-        bookingData.comment ? `Комментарий клиента: ${bookingData.comment}` : '',
-        `Причина автосогласования: ${requestReason}.`,
-        'Если вам подходит этот клиент, вы можете сами добавить его в расписание или ответить в чате.',
-      ].filter(Boolean).join(' ');
-
-      const { error } = await supabase.from('chat_messages').insert({
-        sender_id: user.id,
-        recipient_id: master.user_id,
-        message: requestMessage,
-        chat_type: 'direct',
-        cabinet_type_scope: master.business_id ? 'business' : 'master',
-      });
-
-      if (error) throw error;
-
-      await syncBidirectionalContacts(user.id, master.user_id);
-
-      await supabase.from('notifications').insert({
-        user_id: master.user_id,
-        type: 'manual_booking_request',
-        title: 'Запрос на ручную запись',
-        message: `${bookingData.name || 'Клиент'} просит согласовать запись на «${service.name}» ${bookingData.date} в ${bookingData.time}.`,
-      });
-
-      await supabase.from('favorites').upsert({
-        user_id: user.id,
-        target_id: master.id,
-        favorite_type: 'master',
-      }, { onConflict: 'user_id,target_id,favorite_type' });
-
-      await supabase.functions.invoke('send-push-notification', {
-        body: {
-          user_ids: [master.user_id],
-          title: 'Запрос на ручную запись',
-          body: `${bookingData.name || 'Клиент'} просит согласовать запись`,
-          url: `/dashboard?section=messages&tab=chats&contact=${user.id}&contact_scope=${master.business_id ? 'business' : 'master'}`,
-          tag: 'manual-booking-request',
-        },
-      }).catch(() => null);
-
-      toast({
-        title: 'Запрос отправлен',
-        description: 'Мастер получит сообщение и сможет сам подтвердить или добавить вас в расписание.',
-      });
-    } catch (err: any) {
-      toast({ title: 'Ошибка', description: err.message || 'Не удалось отправить запрос мастеру', variant: 'destructive' });
-    } finally {
-      setSendingMessage(false);
-    }
+    toast({ title: 'Заявка отменена' });
+    setPendingBookingDialog(null);
   };
 
   if (loading) return (
@@ -1122,18 +1061,10 @@ const MasterDetail = () => {
                           : bookingDecision.mode === 'prepayment'
                             ? 'Продолжить с предоплатой'
                             : bookingDecision.mode === 'pending'
-                              ? 'Отправить на согласование'
+                              ? 'Записаться с подтверждением'
                               : 'Подтвердить запись'}
                       </Button>
-                    ) : (
-                      <Button
-                        onClick={() => handleManualBookingRequest(bookingService)}
-                        className="flex-1"
-                        disabled={sendingMessage || !bookingData.date || !bookingData.time || !bookingDecision?.allowManualRequest}
-                      >
-                        {sendingMessage ? 'Отправка...' : 'Написать мастеру'}
-                      </Button>
-                    )}
+                    ) : null}
                   </div>
                 </>
               ) : null}
@@ -1155,6 +1086,25 @@ const MasterDetail = () => {
             </Button>
             <Button className="flex-1" onClick={() => navigate(`/auth?mode=signup&redirect=${encodeURIComponent(window.location.pathname)}`)}>
               Регистрация
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!pendingBookingDialog} onOpenChange={(open) => !open && setPendingBookingDialog(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{pendingBookingDialog?.title || 'Ожидайте подтверждения'}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            {pendingBookingDialog?.description}
+          </p>
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" className="flex-1" onClick={cancelPendingBooking}>
+              Отменить запись
+            </Button>
+            <Button className="flex-1" onClick={() => setPendingBookingDialog(null)}>
+              Ок
             </Button>
           </div>
         </DialogContent>
