@@ -467,14 +467,14 @@ const MasterDetail = () => {
         recipient_id: master.user_id,
         message: `Новая запись: ${service.name} на ${bookingData.date} в ${bookingData.time}. ${bookingData.comment ? `Комментарий: ${bookingData.comment}` : ''}`,
         chat_type: 'direct',
-        cabinet_type_scope: 'master',
+        cabinet_type_scope: master.business_id ? 'business' : 'master',
       });
       await supabase.functions.invoke('send-push-notification', {
         body: {
           user_ids: [master.user_id],
           title: 'Новая запись',
           body: `${bookingData.name || 'Клиент'} записался на ${service.name}`,
-          url: '/dashboard?section=messages&tab=chats&contact=' + user.id,
+          url: `/dashboard?section=messages&tab=chats&contact=${user.id}&contact_scope=${master.business_id ? 'business' : 'master'}`,
           tag: 'booking-chat',
         },
       }).catch(() => null);
@@ -546,7 +546,7 @@ const MasterDetail = () => {
         recipient_id: master.user_id,
         message: messageText.trim(),
         chat_type: 'direct',
-        cabinet_type_scope: 'master',
+        cabinet_type_scope: master.business_id ? 'business' : 'master',
       });
 
       if (error) throw error;
@@ -565,7 +565,7 @@ const MasterDetail = () => {
           user_ids: [master.user_id],
           title: 'Новое сообщение',
           body: messageText.trim().slice(0, 120),
-          url: '/dashboard?section=messages&tab=chats&contact=' + user.id,
+          url: `/dashboard?section=messages&tab=chats&contact=${user.id}&contact_scope=${master.business_id ? 'business' : 'master'}`,
           tag: 'direct-chat',
         },
       }).catch(() => null);
@@ -621,7 +621,7 @@ const MasterDetail = () => {
         recipient_id: master.user_id,
         message: requestMessage,
         chat_type: 'direct',
-        cabinet_type_scope: 'master',
+        cabinet_type_scope: master.business_id ? 'business' : 'master',
       });
 
       if (error) throw error;
@@ -646,7 +646,7 @@ const MasterDetail = () => {
           user_ids: [master.user_id],
           title: 'Запрос на ручную запись',
           body: `${bookingData.name || 'Клиент'} просит согласовать запись`,
-          url: '/dashboard?section=messages&tab=chats&contact=' + user.id,
+          url: `/dashboard?section=messages&tab=chats&contact=${user.id}&contact_scope=${master.business_id ? 'business' : 'master'}`,
           tag: 'manual-booking-request',
         },
       }).catch(() => null);
