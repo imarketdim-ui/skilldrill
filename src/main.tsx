@@ -1,4 +1,4 @@
-// build: sync 2026-05-01 (rebuild trigger 9 — header landing link removed + schedule conflict hints)
+// build: sync 2026-05-01 (rebuild trigger 10 — main sync + push function auth fix)
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
