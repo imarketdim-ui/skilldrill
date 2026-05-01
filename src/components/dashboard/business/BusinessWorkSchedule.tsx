@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import { Calendar, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, getDay } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { normalizeMasterScheduleSettings } from '@/lib/serviceSchedule';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   BusinessDaySchedule as SharedBusinessDaySchedule,
   findBusinessScheduleConflicts,
@@ -38,6 +39,7 @@ const BusinessWorkSchedule = ({ businessId }: Props) => {
   const [editDay, setEditDay] = useState<string | null>(null);
   const [dayForm, setDayForm] = useState<DaySchedule>({ status: 'work', start: '09:00', end: '18:00' });
   const [defaultHours, setDefaultHours] = useState({ start: '09:00', end: '18:00', breakStart: '13:00', breakEnd: '14:00' });
+  const [personalSettings, setPersonalSettings] = useState<any | null>(null);
 
   useEffect(() => {
     supabase.from('business_masters')
@@ -59,7 +61,33 @@ const BusinessWorkSchedule = ({ businessId }: Props) => {
     const saved = localStorage.getItem(key);
     if (saved) try { setSchedule(JSON.parse(saved)); } catch { setSchedule({}); }
     else setSchedule({});
+
+    supabase
+      .from('master_profiles')
+      .select('work_days, work_hours_config, break_config')
+      .eq('user_id', selectedMaster)
+      .maybeSingle()
+      .then(({ data }) => {
+        setPersonalSettings(
+          data
+            ? normalizeMasterScheduleSettings(data.work_days, data.work_hours_config, data.break_config)
+            : null,
+        );
+      });
   }, [selectedMaster, month, businessId]);
+
+  const scheduleConflicts = useMemo(
+    () =>
+      selectedMaster
+        ? findBusinessScheduleConflicts({
+            masterId: selectedMaster,
+            businessId,
+            schedule,
+            personalSettings,
+          })
+        : [],
+    [businessId, personalSettings, schedule, selectedMaster],
+  );
 
   const saveSchedule = async (updated: Record<string, DaySchedule>) => {
     if (!selectedMaster) return false;
@@ -165,6 +193,25 @@ const BusinessWorkSchedule = ({ businessId }: Props) => {
         </div>
       </div>
 
+      {scheduleConflicts.length > 0 && (
+        <Alert variant="destructive">
+          <AlertTitle>Есть пересечение расписаний</AlertTitle>
+          <AlertDescription>
+            <div className="space-y-1">
+              <p>Этот график пересекается с личным кабинетом мастера или его расписанием в другой организации.</p>
+              <ul className="list-disc pl-4">
+                {scheduleConflicts.slice(0, 5).map(conflict => (
+                  <li key={`${conflict.date}-${conflict.start}-${conflict.end}`}>
+                    {formatScheduleConflictMessage(conflict)}
+                  </li>
+                ))}
+              </ul>
+              {scheduleConflicts.length > 5 && <p>И ещё {scheduleConflicts.length - 5} пересечений.</p>}
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Пресеты</CardTitle>
@@ -243,6 +290,22 @@ const BusinessWorkSchedule = ({ businessId }: Props) => {
               <div className="space-y-2"><Label>Перерыв с</Label><Input type="time" value={dayForm.breakStart || ''} onChange={e => setDayForm(p => ({ ...p, breakStart: e.target.value }))} /></div>
               <div className="space-y-2"><Label>Перерыв до</Label><Input type="time" value={dayForm.breakEnd || ''} onChange={e => setDayForm(p => ({ ...p, breakEnd: e.target.value }))} /></div>
             </div>
+            {editDay && (() => {
+              const previewConflicts = selectedMaster
+                ? findBusinessScheduleConflicts({
+                    masterId: selectedMaster,
+                    businessId,
+                    schedule: { ...schedule, [editDay]: dayForm },
+                    personalSettings,
+                  })
+                : [];
+              return previewConflicts.length > 0 ? (
+                <Alert variant="destructive">
+                  <AlertTitle>Пересечение в этом дне</AlertTitle>
+                  <AlertDescription>{formatScheduleConflictMessage(previewConflicts[0])}</AlertDescription>
+                </Alert>
+              ) : null;
+            })()}
             <Button className="w-full" onClick={saveDayEdit}>Сохранить</Button>
           </div>
         </DialogContent>

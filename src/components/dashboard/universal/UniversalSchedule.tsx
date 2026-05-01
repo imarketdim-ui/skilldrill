@@ -43,6 +43,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import ClientHoverCard from '../schedule/ClientHoverCard';
 import MasterTimeOffManager from './MasterTimeOffManager';
 import { CategoryConfig } from './categoryConfig';
@@ -639,6 +640,11 @@ const UniversalSchedule = ({ config }: Props) => {
     );
   }, [clients, clientSearch]);
 
+  const scheduleConflicts = useMemo(
+    () => (user ? findSoloScheduleConflicts(user.id, settings) : []),
+    [settings, user],
+  );
+
   const visibleItems = useMemo(() => {
     const sorted = [...items].sort((left, right) => new Date(left.scheduled_at).getTime() - new Date(right.scheduled_at).getTime());
     if (view === 'day') return sorted.filter(item => isSameDay(new Date(item.scheduled_at), currentDate));
@@ -1139,8 +1145,30 @@ const UniversalSchedule = ({ config }: Props) => {
                   </div>
                 </div>
 
+                {scheduleConflicts.length > 0 && (
+                  <Alert variant="destructive">
+                    <AlertTitle>Расписание пересекается</AlertTitle>
+                    <AlertDescription>
+                      <div className="space-y-1">
+                        <p>Исправьте пересечения, прежде чем сохранять график.</p>
+                        <ul className="list-disc pl-4">
+                          {scheduleConflicts.slice(0, 5).map(conflict => (
+                            <li key={`${conflict.date}-${conflict.start}-${conflict.end}`}>
+                              {formatScheduleConflictMessage(conflict)}
+                            </li>
+                          ))}
+                        </ul>
+                        {scheduleConflicts.length > 5 && (
+                          <p>И ещё {scheduleConflicts.length - 5} пересечений.</p>
+                        )}
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 <Button
                   className="w-full"
+                  disabled={scheduleConflicts.length > 0}
                   onClick={async () => {
                     if (timeToMinutes(settings.defaultHours.end) <= timeToMinutes(settings.defaultHours.start)) {
                       toast({ title: 'Ошибка', description: 'Окончание должно быть позже начала', variant: 'destructive' });
