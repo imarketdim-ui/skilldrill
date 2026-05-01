@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, Link, useSearchParams } from 'react-router-dom';
 import { getPublicSiteUrl, removeStructuredData, updatePageMeta, updateStructuredData } from '@/lib/seoUtils';
-import { Star, MapPin, Clock, MessageSquare, Camera, Heart, Share2, ShieldAlert, AlertTriangle, BadgeCheck, Award, Brush, Images, Sparkles, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Star, MapPin, Clock, MessageSquare, Camera, Heart, Share2, ShieldAlert, AlertTriangle, BadgeCheck, Award, Brush, Images, Sparkles, ArrowRight, CheckCircle2, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
