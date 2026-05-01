@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -33,7 +34,7 @@ const BusinessDetail = () => {
   const [loading, setLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
   const [bookingService, setBookingService] = useState<string | null>(null);
-  const [bookingData, setBookingData] = useState({ name: '', phone: '', date: '', time: '', comment: '' });
+  const [bookingData, setBookingData] = useState({ name: '', phone: '', date: '', time: '', comment: '', selected_master_id: '' });
   const [messageOpen, setMessageOpen] = useState(false);
   const [messageText, setMessageText] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
@@ -95,6 +96,28 @@ const BusinessDetail = () => {
     };
     fetch();
   }, [businessId, user]);
+
+  const getAssignedMasterIds = (service: any) => {
+    const assignedFromTechCard = Array.isArray(service?.tech_card?.assigned_master_ids)
+      ? service.tech_card.assigned_master_ids.filter(Boolean)
+      : [];
+
+    if (assignedFromTechCard.length > 0) return assignedFromTechCard;
+    return service?.master_id ? [service.master_id] : [];
+  };
+
+  const getAssignedMasters = (service: any) => {
+    const assignedIds = getAssignedMasterIds(service);
+    return masters.filter((master: any) => assignedIds.includes(master.id));
+  };
+
+  const getSelectedMasterId = (service: any) => {
+    const assignedIds = getAssignedMasterIds(service);
+    if (bookingData.selected_master_id && assignedIds.includes(bookingData.selected_master_id)) {
+      return bookingData.selected_master_id;
+    }
+    return assignedIds.length === 1 ? assignedIds[0] : '';
+  };
 
   // Dynamic SEO meta tags
   useEffect(() => {
@@ -216,14 +239,23 @@ const BusinessDetail = () => {
     }
 
     const service = services.find((item: any) => item.id === bookingService);
+    const assignedMasterIds = service ? getAssignedMasterIds(service) : [];
+    const selectedMasterId = service ? getSelectedMasterId(service) : '';
+    const selectedMaster = masters.find((master: any) => master.id === selectedMasterId);
+
     if (!service || !bookingData.date || !bookingData.time) {
       toast({ title: 'Заполните дату и время', description: 'Выберите слот, чтобы отправить заявку в организацию.', variant: 'destructive' });
+      return;
+    }
+    if (assignedMasterIds.length > 1 && !selectedMasterId) {
+      toast({ title: 'Выберите мастера', description: 'Для этой услуги в организации работают несколько мастеров.', variant: 'destructive' });
       return;
     }
 
     try {
       const requestMessage = [
         `Запрос на запись в организацию: ${service.name}.`,
+        selectedMaster ? `Выбранный мастер: ${selectedMaster.first_name} ${selectedMaster.last_name}.` : '',
         `Дата: ${bookingData.date}, время: ${bookingData.time}.`,
         bookingData.comment ? `Комментарий клиента: ${bookingData.comment}` : '',
       ].filter(Boolean).join(' ');
@@ -258,7 +290,7 @@ const BusinessDetail = () => {
 
       toast({ title: 'Заявка отправлена', description: 'Организация получит сообщение и сможет согласовать запись вручную.' });
       setBookingService(null);
-      setBookingData({ name: '', phone: '', date: '', time: '', comment: '' });
+      setBookingData({ name: '', phone: '', date: '', time: '', comment: '', selected_master_id: '' });
     } catch (err: any) {
       toast({ title: 'Ошибка', description: err.message || 'Не удалось отправить заявку', variant: 'destructive' });
     }
@@ -347,6 +379,10 @@ const BusinessDetail = () => {
                     {services.map((service: any) => (
                       <Card key={service.id}>
                         <CardContent className="flex flex-col md:flex-row gap-4 p-4">
+                          {(() => {
+                            const assignedMasters = getAssignedMasters(service);
+                            const hasMultipleMasters = assignedMasters.length > 1;
+                            return (
                           <div className="flex-1">
                             <h3 className="font-semibold text-lg mb-1">{service.name}</h3>
                             {service.description && <p className="text-sm text-muted-foreground mb-1">{service.description}</p>}
@@ -359,34 +395,82 @@ const BusinessDetail = () => {
                             >
                               Открыть страницу услуги
                             </button>
-                            {service.profiles && (
+                            {hasMultipleMasters ? (
+                              <p className="text-xs text-muted-foreground">
+                                Доступно у {assignedMasters.length} мастеров. Выбор мастера будет доступен при записи.
+                              </p>
+                            ) : service.profiles ? (
                               <p className="text-xs text-primary cursor-pointer" onClick={() => navigate(`/master/${service.master_id}`)}>
                                 Мастер: {(service.profiles as any)?.first_name} {(service.profiles as any)?.last_name}
                               </p>
-                            )}
+                            ) : null}
                             <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
                               <span className="flex items-center gap-1"><Clock className="w-4 h-4" />{service.duration_minutes} мин</span>
                             </div>
                           </div>
+                            );
+                          })()}
                           <div className="flex flex-col items-end justify-between">
                             <p className="text-2xl font-bold">{Number(service.price).toLocaleString()} ₽</p>
-                            <Dialog open={bookingService === service.id} onOpenChange={open => setBookingService(open ? service.id : null)}>
+                            <Dialog
+                              open={bookingService === service.id}
+                              onOpenChange={open => {
+                                if (open) {
+                                  const assignedMasterIds = getAssignedMasterIds(service);
+                                  setBookingService(service.id);
+                                  setBookingData(prev => ({
+                                    ...prev,
+                                    time: '',
+                                    comment: '',
+                                    selected_master_id: assignedMasterIds.length === 1 ? assignedMasterIds[0] : '',
+                                  }));
+                                } else {
+                                  setBookingService(null);
+                                  setBookingData(prev => ({ ...prev, time: '', comment: '', selected_master_id: '' }));
+                                }
+                              }}
+                            >
                               <DialogTrigger asChild><Button>Записаться</Button></DialogTrigger>
                               <DialogContent className="max-h-[85vh] overflow-y-auto">
                                 <DialogHeader><DialogTitle>Запись на «{service.name}»</DialogTitle></DialogHeader>
                                 <div className="space-y-4">
+                                  {(() => {
+                                    const assignedMasters = getAssignedMasters(service);
+                                    const selectedMasterId = getSelectedMasterId(service);
+                                    return (
+                                      <>
                                   <p className="text-sm text-muted-foreground">{Number(service.price).toLocaleString()} ₽ · {service.duration_minutes} мин</p>
                                   <Input placeholder="Ваше имя" value={bookingData.name} onChange={e => setBookingData({...bookingData, name: e.target.value})} />
                                   <Input type="tel" placeholder="Телефон" value={bookingData.phone} onChange={e => setBookingData({...bookingData, phone: e.target.value})} />
+                                  {assignedMasters.length > 1 && (
+                                    <div className="space-y-1">
+                                      <label className="text-sm font-medium">Мастер</label>
+                                      <Select
+                                        value={selectedMasterId}
+                                        onValueChange={(value) => setBookingData({ ...bookingData, selected_master_id: value, time: '' })}
+                                      >
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Выберите мастера" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {assignedMasters.map((master: any) => (
+                                            <SelectItem key={master.id} value={master.id}>
+                                              {master.first_name} {master.last_name}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  )}
                                   <div className="space-y-1">
                                     <label className="text-sm font-medium">Дата</label>
                                     <Input type="date" min={new Date().toISOString().slice(0, 10)} value={bookingData.date} onChange={e => setBookingData({...bookingData, date: e.target.value, time: ''})} />
                                   </div>
                                   <div className="space-y-1">
                                     <label className="text-sm font-medium">Доступное время</label>
-                                    {bookingData.date && service.master_id ? (
+                                    {bookingData.date && selectedMasterId ? (
                                       <AvailableSlotPicker
-                                        masterId={service.master_id}
+                                        masterId={selectedMasterId}
                                         date={bookingData.date}
                                         durationMinutes={Number(service.duration_minutes) || 60}
                                         selected={bookingData.time}
@@ -394,7 +478,9 @@ const BusinessDetail = () => {
                                         onJumpToDate={(d) => setBookingData({ ...bookingData, date: d, time: '' })}
                                       />
                                     ) : (
-                                      <p className="text-sm text-muted-foreground">Выберите дату</p>
+                                      <p className="text-sm text-muted-foreground">
+                                        {assignedMasters.length > 1 ? 'Сначала выберите мастера и дату' : 'Выберите дату'}
+                                      </p>
                                     )}
                                   </div>
                                   <Textarea placeholder="Комментарий (необязательно)" value={bookingData.comment} onChange={e => setBookingData({...bookingData, comment: e.target.value})} />
@@ -402,12 +488,15 @@ const BusinessDetail = () => {
                                     <Button
                                       variant="outline"
                                       className="flex-1"
-                                      onClick={() => { setBookingService(null); setBookingData({ name: '', phone: '', date: '', time: '', comment: '' }); }}
+                                      onClick={() => { setBookingService(null); setBookingData({ name: '', phone: '', date: '', time: '', comment: '', selected_master_id: '' }); }}
                                     >
                                       Отменить
                                     </Button>
                                     <Button onClick={handleBook} className="flex-1">Подтвердить запись</Button>
                                   </div>
+                                      </>
+                                    );
+                                  })()}
                                 </div>
                               </DialogContent>
                             </Dialog>
