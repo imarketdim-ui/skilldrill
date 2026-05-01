@@ -1,4 +1,4 @@
-// build: sync 2026-04-30 (rebuild trigger 7 — support ticket ownership + contact sync)
+// build: sync 2026-05-01 (rebuild trigger 8 — business service master choice)
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
