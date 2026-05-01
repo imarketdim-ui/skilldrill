@@ -46,6 +46,13 @@ interface MasterOption {
   skillspot_id: string;
 }
 
+interface AccessState {
+  isOwner: boolean;
+  isManager: boolean;
+  isBusinessAdmin: boolean;
+  isMaster: boolean;
+}
+
 const BusinessServices = ({ businessId }: Props) => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -56,6 +63,7 @@ const BusinessServices = ({ businessId }: Props) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [access, setAccess] = useState<AccessState>({ isOwner: false, isManager: false, isBusinessAdmin: false, isMaster: false });
   const [form, setForm] = useState({
     name: '', description: '', price: '', duration_minutes: '',
     hashtags: [] as string[], hashtagInput: '', is_active: true,
@@ -67,7 +75,7 @@ const BusinessServices = ({ businessId }: Props) => {
 
   const fetchAll = async () => {
     setLoading(true);
-    const [svcRes, masterRes] = await Promise.all([
+    const [svcRes, masterRes, businessRes, managerRes, masterRoleRes, rolesRes] = await Promise.all([
       supabase
         .from('services')
         .select('*')
@@ -77,6 +85,10 @@ const BusinessServices = ({ businessId }: Props) => {
         .select('master_id, profile:profiles!business_masters_master_id_fkey(first_name, last_name, skillspot_id)')
         .eq('business_id', businessId)
         .eq('status', 'accepted'),
+      user ? supabase.from('business_locations').select('owner_id').eq('id', businessId).maybeSingle() : Promise.resolve({ data: null } as any),
+      user ? supabase.from('business_managers').select('id').eq('business_id', businessId).eq('user_id', user.id).eq('is_active', true).maybeSingle() : Promise.resolve({ data: null } as any),
+      user ? supabase.from('business_masters').select('id').eq('business_id', businessId).eq('master_id', user.id).eq('status', 'accepted').maybeSingle() : Promise.resolve({ data: null } as any),
+      user ? supabase.from('user_roles').select('role, is_active').eq('user_id', user.id).eq('is_active', true) : Promise.resolve({ data: [] } as any),
     ]);
     setServices((svcRes.data || []).map((s: any) => ({
       ...s,
@@ -91,6 +103,13 @@ const BusinessServices = ({ businessId }: Props) => {
       name: `${m.profile?.first_name || ''} ${m.profile?.last_name || ''}`.trim() || 'Без имени',
       skillspot_id: m.profile?.skillspot_id || '',
     })));
+    const activeRoles = new Set(((rolesRes as any).data || []).map((item: any) => item.role));
+    setAccess({
+      isOwner: !!user && businessRes.data?.owner_id === user.id,
+      isManager: Boolean(managerRes.data),
+      isBusinessAdmin: Boolean(managerRes.data) && activeRoles.has('business_admin'),
+      isMaster: Boolean(masterRoleRes.data),
+    });
     setLoading(false);
   };
 
@@ -121,7 +140,7 @@ const BusinessServices = ({ businessId }: Props) => {
   const mapServiceError = (error: any) => {
     const raw = String(error?.message || '').toLowerCase();
     if (raw.includes('row-level security') || raw.includes('permission denied') || raw.includes('insufficient privilege')) {
-      return 'Недостаточно прав для управления услугами этой организации. Проверьте роль сотрудника и доступ к разделу услуг.';
+      return 'Недостаточно прав для управления услугами этой точки. Для создания и редактирования нужны права владельца, менеджера или администратора точки.';
     }
     if (raw.includes('custom_data')) {
       return 'Форма услуги была отправлена в устаревшем формате. Мы обновили сохранение, попробуйте ещё раз.';
@@ -164,6 +183,15 @@ const BusinessServices = ({ businessId }: Props) => {
   };
 
   const handleSave = async () => {
+    if (!access.isOwner && !access.isManager && !access.isBusinessAdmin) {
+      toast({
+        title: 'Недостаточно прав',
+        description: 'Создавать и редактировать услуги могут владелец, менеджер или администратор точки.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const { valid, price, duration } = validateForm();
     if (!valid) {
       toast({ title: 'Заполните обязательные поля', description: 'Подсветили, что нужно исправить, чтобы сохранить услугу.', variant: 'destructive' });
@@ -433,7 +461,7 @@ const BusinessServices = ({ businessId }: Props) => {
                 photos={form.work_photos}
                 onPhotosChange={photos => setForm(p => ({ ...p, work_photos: photos }))}
                 bucket="portfolio"
-                storagePath={`business/${businessId}/services/${editingId || 'new'}`}
+                storagePath={`${user?.id || 'anonymous'}/business/${businessId}/services/${editingId || 'new'}`}
                 maxPhotos={12}
                 maxSizeMb={8}
                 supabase={supabase}
