@@ -904,7 +904,7 @@ const MasterDetail = () => {
                                 <p className="text-sm text-muted-foreground">{item.description}</p>
                                 {'createdAt' in item && item.createdAt && (
                                   <p className="mt-1 text-xs text-muted-foreground">
-                                    {new Date(item.createdAt).toLocaleDateString('ru-RU')}
+                                    {new Date(item.createdAt as string).toLocaleDateString('ru-RU')}
                                   </p>
                                 )}
                               </div>
