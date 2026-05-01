@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Download, X, Smartphone, Share, MoreVertical, Plus, Monitor, Apple } from 'lucide-react';
+import { Download, X, Smartphone, Monitor, Apple } from 'lucide-react';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -26,6 +26,7 @@ const PWAInstallPrompt = () => {
   const [showInstructions, setShowInstructions] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
   const [platform, setPlatform] = useState<Platform>('unknown');
+  const [installMode, setInstallMode] = useState<'native' | 'manual'>('manual');
 
   useEffect(() => {
     setPlatform(detectPlatform());
@@ -45,6 +46,7 @@ const PWAInstallPrompt = () => {
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
+      setInstallMode('native');
       if (!isDismissed) setShowBanner(true);
     };
 
@@ -57,8 +59,8 @@ const PWAInstallPrompt = () => {
     window.addEventListener('beforeinstallprompt', handler);
     window.addEventListener('appinstalled', installedHandler);
 
-    // For iOS / desktop without prompt event — still show banner so user can open instructions
-    if (!isDismissed && (platform === 'ios' || platform === 'desktop')) {
+    // For platforms without a native prompt we still show manual instructions.
+    if (!isDismissed && platform === 'ios') {
       const t = setTimeout(() => setShowBanner(true), 3000);
       return () => {
         clearTimeout(t);
@@ -81,6 +83,9 @@ const PWAInstallPrompt = () => {
         if (outcome === 'accepted') {
           setIsInstalled(true);
           setShowBanner(false);
+          if (typeof localStorage !== 'undefined') {
+            localStorage.removeItem('pwa-dismissed');
+          }
         } else {
           // User dismissed system prompt → fall back to instructions
           setShowInstructions(true);
@@ -91,6 +96,7 @@ const PWAInstallPrompt = () => {
       }
     } else {
       // No native prompt available — always show platform-specific instructions
+      setInstallMode('manual');
       setShowInstructions(true);
     }
   };
@@ -102,11 +108,12 @@ const PWAInstallPrompt = () => {
     }
   };
 
-  // Автоматически скрывать баннер через 3 секунды, чтобы не мешать пользователю.
+  // Автоматически скрывать баннер через 5 секунд, чтобы у пользователя было время
+  // заметить предложение, но при этом он не мешал навигации.
   // Инструкции (диалог) при этом остаются доступны, если открыты вручную.
   useEffect(() => {
     if (!showBanner) return;
-    const timer = setTimeout(() => setShowBanner(false), 3000);
+    const timer = setTimeout(() => setShowBanner(false), 5000);
     return () => clearTimeout(timer);
   }, [showBanner]);
 
@@ -170,12 +177,16 @@ const PWAInstallPrompt = () => {
             <div className="flex-1 min-w-0">
               <p className="font-medium text-sm">Установить SkillSpot</p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Быстрый доступ с рабочего стола, уведомления и работа оффлайн
+                {deferredPrompt
+                  ? 'Добавьте приложение на экран в один тап'
+                  : platform === 'ios'
+                    ? 'На iPhone установка делается через меню Safari'
+                    : 'Быстрый доступ с рабочего стола, уведомления и работа оффлайн'}
               </p>
               <div className="flex items-center gap-2 mt-3">
                 <Button size="sm" onClick={handleInstall} className="gap-1.5">
                   <Download className="h-3.5 w-3.5" />
-                  {deferredPrompt ? 'Установить' : 'Как установить'}
+                  {deferredPrompt ? 'Установить' : installMode === 'manual' ? 'Как установить' : 'Установить'}
                 </Button>
                 <Button size="sm" variant="ghost" onClick={handleDismiss}>
                   Позже
@@ -199,6 +210,11 @@ const PWAInstallPrompt = () => {
               {currentInstructions.title}
             </DialogTitle>
           </DialogHeader>
+          {platform !== 'ios' && (
+            <p className="text-sm text-muted-foreground">
+              Если браузер не показал системное окно установки автоматически, можно установить приложение вручную по шагам ниже.
+            </p>
+          )}
           <div className="space-y-4 py-2">
             {currentInstructions.steps.map((step, i) => (
               <div key={i} className="flex gap-3">
