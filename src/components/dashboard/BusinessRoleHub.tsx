@@ -70,12 +70,11 @@ const BusinessRoleHub = ({ onSelect, onBack }: BusinessRoleHubProps) => {
 
     if (masterProfile) {
       setHasMaster(true);
-      const bizName = (masterProfile.business_locations as any)?.name;
       entries.push({
         id: `master-${masterProfile.id}`,
         entityId: masterProfile.id,
-        label: bizName ? `Мастер в «${bizName}»` : 'Соло мастер',
-        sublabel: bizName ? 'Мастер в организации' : 'Индивидуальный специалист',
+        label: 'Соло мастер',
+        sublabel: 'Личный кабинет мастера',
         icon: <Wrench className="h-5 w-5" />,
         role: 'master',
         disabled: isExpired,
@@ -87,7 +86,7 @@ const BusinessRoleHub = ({ onSelect, onBack }: BusinessRoleHubProps) => {
       setMasterOptions([
         {
           id: masterProfile.id,
-          label: bizName ? `Мастер в «${bizName}»` : 'Соло мастер',
+          label: 'Соло мастер',
         },
       ]);
       setPriorityMasterId(masterChoice);
@@ -96,6 +95,25 @@ const BusinessRoleHub = ({ onSelect, onBack }: BusinessRoleHubProps) => {
       setMasterOptions([]);
       setPriorityMasterId(null);
     }
+
+    const { data: businessMasterMemberships } = await supabase
+      .from('business_masters')
+      .select('id, business_id, business_locations:business_locations!business_masters_business_id_fkey(name)')
+      .eq('master_id', user.id)
+      .eq('status', 'accepted');
+
+    (businessMasterMemberships || []).forEach((membership: any) => {
+      const bizName = membership.business_locations?.name || 'Организация';
+      entries.push({
+        id: `biz-master-${membership.id}`,
+        entityId: membership.business_id,
+        label: `«${bizName}»`,
+        sublabel: 'Мастер в организации',
+        icon: <Wrench className="h-5 w-5" />,
+        role: 'business_master',
+        disabled: isExpired,
+      });
+    });
 
     // Business owner
     const { data: businesses } = await supabase

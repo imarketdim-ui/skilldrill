@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
 import { buildAuthCallbackUrl, buildVkAuthUrl, storePostAuthRedirect } from '@/lib/oauth';
 
-export type UserRoleType = 'client' | 'master' | 'business_manager' | 'business_admin' | 'network_manager' | 'business_owner' | 'network_owner' | 'platform_admin' | 'super_admin' | 'platform_manager' | 'moderator' | 'support' | 'integrator';
+export type UserRoleType = 'client' | 'master' | 'business_master' | 'business_manager' | 'business_admin' | 'network_manager' | 'business_owner' | 'network_owner' | 'platform_admin' | 'super_admin' | 'platform_manager' | 'moderator' | 'support' | 'integrator';
 
 interface Profile {
   id: string;
@@ -63,18 +63,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const fetchRoles = async (userId: string) => {
-    const { data, error } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', userId)
-      .eq('is_active', true);
+    const [{ data, error }, { count: businessMasterMemberships, error: membershipError }] = await Promise.all([
+      supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .eq('is_active', true),
+      supabase
+        .from('business_masters')
+        .select('id', { count: 'exact', head: true })
+        .eq('master_id', userId)
+        .eq('status', 'accepted'),
+    ]);
 
     if (error) {
       console.error('Error fetching roles:', error);
       return ['client' as UserRoleType];
     }
+    if (membershipError) {
+      console.error('Error fetching business master memberships:', membershipError);
+    }
 
     const userRoles = (data || []).map((r: any) => r.role as UserRoleType);
+    if ((businessMasterMemberships || 0) > 0 && !userRoles.includes('business_master')) {
+      userRoles.push('business_master');
+    }
     return userRoles.length > 0 ? userRoles : ['client' as UserRoleType];
   };
 

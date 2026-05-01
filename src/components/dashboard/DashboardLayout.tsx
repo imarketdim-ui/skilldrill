@@ -20,7 +20,7 @@ const HeaderTierBadge = () => {
   const { tier, tierLabel, status, expiresAt } = useSubscriptionTier(user?.id);
 
   // Только для бизнес-ролей — у платформенных ролей нет подписки
-  const isBusinessRole = ['master', 'business_owner', 'business_manager', 'network_owner', 'network_manager'].includes(activeRole);
+  const isBusinessRole = ['master', 'business_master', 'business_owner', 'business_manager', 'network_owner', 'network_manager'].includes(activeRole);
   if (!isBusinessRole || tier === 'none') return null;
 
   const variant: 'default' | 'secondary' | 'destructive' | 'outline' =

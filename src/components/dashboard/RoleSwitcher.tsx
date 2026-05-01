@@ -19,11 +19,11 @@ const RoleSwitcher = ({ onSelectHub }: RoleSwitcherProps) => {
     ['platform_admin', 'super_admin', 'platform_manager', 'moderator', 'support', 'integrator'].includes(r)
   );
   const hasBusinessRoles = roles.some(r =>
-    ['master', 'business_owner', 'business_manager', 'network_owner', 'network_manager'].includes(r)
+    ['master', 'business_master', 'business_owner', 'business_manager', 'network_owner', 'network_manager'].includes(r)
   );
   const hasMasterRole = roles.includes('master');
   const hasOrgRoles = roles.some(r =>
-    ['business_owner', 'business_manager', 'network_owner', 'network_manager'].includes(r)
+    ['business_master', 'business_owner', 'business_manager', 'network_owner', 'network_manager'].includes(r)
   );
 
   // Fetch unread notification counts per cabinet
@@ -116,7 +116,7 @@ const RoleSwitcher = ({ onSelectHub }: RoleSwitcherProps) => {
   const getActiveTab = (): TabKey => {
     if (activeRole === 'client') return 'client';
     if (activeRole === 'master') return 'master';
-    if (['business_owner', 'business_manager', 'network_owner', 'network_manager'].includes(activeRole)) return 'business';
+    if (['business_master', 'business_owner', 'business_manager', 'network_owner', 'network_manager'].includes(activeRole)) return 'business';
     if (['platform_admin', 'super_admin', 'platform_manager', 'moderator', 'support', 'integrator'].includes(activeRole)) return 'platform';
     return 'client';
   };

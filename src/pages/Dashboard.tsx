@@ -52,7 +52,7 @@ const Dashboard = () => {
   }, [activeRole, skipNextRoleEffect]);
 
   const handleBackToHubInternal = useCallback(() => {
-    const isBusinessRole = ['master', 'business_owner', 'business_manager', 'network_owner', 'network_manager'].includes(activeRole);
+    const isBusinessRole = ['master', 'business_master', 'business_owner', 'business_manager', 'network_owner', 'network_manager'].includes(activeRole);
     const isPlatformRole = ['platform_admin', 'super_admin', 'platform_manager', 'moderator', 'support', 'integrator'].includes(activeRole);
 
     if (isBusinessRole) {
@@ -111,6 +111,8 @@ const Dashboard = () => {
     switch (activeRole) {
       case 'master':
         return roles.includes('master') ? <MasterDashboard /> : <ClientDashboard />;
+      case 'business_master':
+        return roles.includes('business_master') ? <BusinessDashboard /> : <ClientDashboard />;
       case 'business_owner':
       case 'business_manager':
         return roles.includes(activeRole) ? <BusinessDashboard /> : <ClientDashboard />;

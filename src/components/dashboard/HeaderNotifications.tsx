@@ -30,7 +30,7 @@ const HeaderNotifications = () => {
   const directScope =
     activeRole === 'master'
       ? 'master'
-      : ['business_owner', 'business_manager', 'network_owner', 'network_manager'].includes(activeRole)
+      : ['business_master', 'business_owner', 'business_manager', 'network_owner', 'network_manager'].includes(activeRole)
         ? 'business'
         : 'client';
 
@@ -45,7 +45,7 @@ const HeaderNotifications = () => {
       notificationsQuery.or('cabinet_type.eq.client,cabinet_type.is.null');
     } else if (activeRole === 'master') {
       notificationsQuery.eq('cabinet_type', 'master');
-    } else if (['business_owner', 'business_manager', 'network_owner', 'network_manager'].includes(activeRole)) {
+    } else if (['business_master', 'business_owner', 'business_manager', 'network_owner', 'network_manager'].includes(activeRole)) {
       notificationsQuery.eq('cabinet_type', 'business');
     } else {
       notificationsQuery.eq('cabinet_type', 'platform');
@@ -158,7 +158,7 @@ const HeaderNotifications = () => {
       notificationUpdate.or('cabinet_type.eq.client,cabinet_type.is.null');
     } else if (activeRole === 'master') {
       notificationUpdate.eq('cabinet_type', 'master');
-    } else if (['business_owner', 'business_manager', 'network_owner', 'network_manager'].includes(activeRole)) {
+    } else if (['business_master', 'business_owner', 'business_manager', 'network_owner', 'network_manager'].includes(activeRole)) {
       notificationUpdate.eq('cabinet_type', 'business');
     } else {
       notificationUpdate.eq('cabinet_type', 'platform');

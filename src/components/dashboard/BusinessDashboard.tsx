@@ -755,7 +755,7 @@ const SECTION_TIER_KEY: Record<string, string> = {
 
 const BusinessDashboard = () => {
   const [searchParams] = useSearchParams();
-  const { user, profile, activeEntityId } = useAuth();
+  const { user, profile, activeEntityId, activeRole } = useAuth();
   const { toast } = useToast();
   const pricing = usePlatformPricing();
   const subscription = useSubscriptionTier(user?.id);
@@ -779,6 +779,9 @@ const BusinessDashboard = () => {
   const [managerOpen, setManagerOpen] = useState(false);
   const [managerId, setManagerId] = useState('');
   const [assigningManager, setAssigningManager] = useState(false);
+  const [masterImportPromptOpen, setMasterImportPromptOpen] = useState(false);
+  const [importableMasterServices, setImportableMasterServices] = useState<any[]>([]);
+  const [importingMasterCatalog, setImportingMasterCatalog] = useState(false);
 
   /** Возвращает требуемый тариф для раздела, если он недоступен текущему. */
   const getLockInfo = (sectionKey: string): { locked: boolean; requiredTierLabel: string } => {
@@ -846,8 +849,37 @@ const BusinessDashboard = () => {
 
   const fetchBusinesses = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase.from('business_locations').select('*').eq('owner_id', user.id);
-    setBusinesses(data || []);
+    const [ownedRes, managedRes, masterRes] = await Promise.all([
+      supabase.from('business_locations').select('*').eq('owner_id', user.id),
+      supabase
+        .from('business_managers')
+        .select('business_id, business_locations:business_locations!business_managers_business_id_fkey(*)')
+        .eq('user_id', user.id)
+        .eq('is_active', true),
+      supabase
+        .from('business_masters')
+        .select('business_id, business_locations:business_locations!business_masters_business_id_fkey(*)')
+        .eq('master_id', user.id)
+        .eq('status', 'accepted'),
+    ]);
+
+    const scopedBusinesses = new Map<string, any>();
+    (ownedRes.data || []).forEach((biz: any) => {
+      scopedBusinesses.set(biz.id, { ...biz, accessRole: 'owner' });
+    });
+    (managedRes.data || []).forEach((entry: any) => {
+      const biz = entry.business_locations;
+      if (!biz || scopedBusinesses.has(biz.id)) return;
+      scopedBusinesses.set(biz.id, { ...biz, accessRole: 'manager' });
+    });
+    (masterRes.data || []).forEach((entry: any) => {
+      const biz = entry.business_locations;
+      if (!biz || scopedBusinesses.has(biz.id)) return;
+      scopedBusinesses.set(biz.id, { ...biz, accessRole: 'master' });
+    });
+
+    const data = Array.from(scopedBusinesses.values());
+    setBusinesses(data);
     if (data && data.length > 0) {
       const target = activeEntityId
         ? data.find(b => b.id === activeEntityId)
@@ -867,7 +899,47 @@ const BusinessDashboard = () => {
 
   useEffect(() => { fetchBusinesses(); }, [fetchBusinesses]);
 
+  useEffect(() => {
+    const maybePromptImport = async () => {
+      if (!user || !selectedBusiness || activeRole !== 'business_master') return;
+
+      const dismissedKey = `skillspot_master_import_prompt_${selectedBusiness.id}_${user.id}`;
+      if (localStorage.getItem(dismissedKey) === 'dismissed') return;
+
+      const [sourceRes, targetRes] = await Promise.all([
+        supabase
+          .from('services')
+          .select('id, name, description, price, duration_minutes, hashtags, work_photos, business_id, organization_id, master_id')
+          .eq('master_id', user.id)
+          .eq('is_active', true)
+          .limit(100),
+        supabase
+          .from('services')
+          .select('id, tech_card')
+          .or(`business_id.eq.${selectedBusiness.id},organization_id.eq.${selectedBusiness.id}`),
+      ]);
+
+      const sourceServices = (sourceRes.data || []).filter((service: any) =>
+        service.business_id !== selectedBusiness.id && service.organization_id !== selectedBusiness.id
+      );
+      const importedIds = new Set(
+        (targetRes.data || [])
+          .map((service: any) => service.tech_card?.imported_source_service_id)
+          .filter(Boolean)
+      );
+      const nextImportable = sourceServices.filter((service: any) => !importedIds.has(service.id));
+
+      if (nextImportable.length > 0) {
+        setImportableMasterServices(nextImportable);
+        setMasterImportPromptOpen(true);
+      }
+    };
+
+    maybePromptImport();
+  }, [user, selectedBusiness, activeRole]);
+
   const canActivate = masterCount >= 1 && serviceCount >= 1;
+  const isBusinessMasterCabinet = activeRole === 'business_master';
   const isDowngradedReadOnlyPoint = Boolean(
     selectedBusiness &&
     subscription.tier === 'business' &&
@@ -916,6 +988,56 @@ const BusinessDashboard = () => {
 
   const getInitials = () =>
     `${(profile?.first_name || '')[0] || ''}${(profile?.last_name || '')[0] || ''}`.toUpperCase() || '?';
+
+  const dismissMasterImportPrompt = () => {
+    if (user && selectedBusiness) {
+      localStorage.setItem(`skillspot_master_import_prompt_${selectedBusiness.id}_${user.id}`, 'dismissed');
+    }
+    setMasterImportPromptOpen(false);
+  };
+
+  const importMasterServicesToBusiness = async () => {
+    if (!selectedBusiness || !importableMasterServices.length || !user) return;
+    setImportingMasterCatalog(true);
+    try {
+      for (const service of importableMasterServices) {
+        const { error } = await supabase.from('services').insert({
+          name: service.name,
+          price: service.price,
+          duration_minutes: service.duration_minutes,
+          description: service.description,
+          hashtags: service.hashtags || [],
+          work_photos: service.work_photos || [],
+          business_id: selectedBusiness.id,
+          organization_id: null,
+          master_id: user.id,
+          is_active: true,
+          tech_card: {
+            assigned_master_ids: [user.id],
+            imported_source_service_id: service.id,
+          },
+        });
+        if (error) throw error;
+      }
+
+      toast({
+        title: 'Услуги подтянуты в организацию',
+        description: 'Это отдельные услуги организации. Вы сможете изменить цену, описание и правила работы без влияния на ваш личный кабинет мастера.',
+      });
+      dismissMasterImportPrompt();
+      fetchBusinesses();
+    } catch (error: any) {
+      toast({ title: 'Не удалось импортировать услуги', description: error.message, variant: 'destructive' });
+    } finally {
+      setImportingMasterCatalog(false);
+    }
+  };
+
+  const visibleMainItems = isBusinessMasterCabinet
+    ? mainItems.filter((item) => item.key !== 'profile')
+    : mainItems;
+  const visibleProfileItems = isBusinessMasterCabinet ? [] : profileItems;
+  const allVisibleItems = [...visibleMainItems, ...sidebarSections];
 
   const NavButton = ({ item }: { item: typeof mainItems[0] }) => (
     <Button
@@ -1002,10 +1124,18 @@ const BusinessDashboard = () => {
       case 'work_schedule':
         return selectedBusiness ? <BusinessWorkSchedule businessId={selectedBusiness.id} /> : null;
       case 'overview':
-        return (
-          <div className="space-y-6">
-            <BusinessOnboardingTour onNavigate={navigateTo} />
-            {!canActivate && selectedBusiness && (
+      return (
+        <div className="space-y-6">
+          <BusinessOnboardingTour onNavigate={navigateTo} />
+          {isBusinessMasterCabinet && (
+            <Alert className="border-primary/20 bg-primary/5">
+              <Wrench className="h-4 w-4" />
+              <AlertDescription>
+                Вы находитесь в кабинете организации как мастер. Услуги организации живут отдельно от ваших личных услуг и могут настраиваться по собственным ценам, описаниям и зарплатной политике.
+              </AlertDescription>
+            </Alert>
+          )}
+          {!canActivate && selectedBusiness && (
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>
@@ -1114,7 +1244,7 @@ const BusinessDashboard = () => {
           />
         );
       case 'profile':
-        return selectedBusiness ? (
+        return isBusinessMasterCabinet ? null : selectedBusiness ? (
           <div className="space-y-6">
             <BusinessSettings business={selectedBusiness} onUpdated={fetchBusinesses} />
             {/* Transfer ownership */}
@@ -1221,7 +1351,7 @@ const BusinessDashboard = () => {
         )}
         <div className="space-y-0.5 overflow-y-auto flex-1">
           {!sidebarCollapsed && <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Основное</p>}
-          {mainItems.map(item => <NavButton key={item.key} item={item} />)}
+          {visibleMainItems.map(item => <NavButton key={item.key} item={item} />)}
           {sidebarSections.map(sec => <NavButton key={sec.key} item={sec} />)}
         </div>
         {!sidebarCollapsed && (
@@ -1238,7 +1368,7 @@ const BusinessDashboard = () => {
       </aside>
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t z-50 safe-area-bottom">
         <div className="flex overflow-x-auto scrollbar-hide">
-          {allItems.map(item => (
+          {allVisibleItems.map(item => (
             <button key={item.key} onClick={() => setActiveSection(item.key)}
               className={`flex flex-col items-center justify-center gap-0.5 min-w-[4rem] flex-1 py-2 text-[10px] leading-tight transition-colors ${activeSection === item.key ? 'text-primary' : 'text-muted-foreground'}`}>
               <item.icon className="h-4 w-4 shrink-0" />
@@ -1248,6 +1378,32 @@ const BusinessDashboard = () => {
         </div>
       </nav>
       <div className="flex-1 min-w-0 pb-20 lg:pb-0">{renderContent()}</div>
+      <Dialog open={masterImportPromptOpen} onOpenChange={(open) => { if (!open) dismissMasterImportPrompt(); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Подтянуть ваши услуги в организацию?</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Нашли {importableMasterServices.length} услуг из вашего личного кабинета мастера. Их можно импортировать в организацию как новые услуги, а затем при необходимости изменить цены, описание, фото и правила начисления.
+            </p>
+            <div className="max-h-48 overflow-y-auto rounded-md border p-3 space-y-2">
+              {importableMasterServices.map((service) => (
+                <div key={service.id} className="text-sm">
+                  <p className="font-medium">{service.name}</p>
+                  <p className="text-muted-foreground">{Number(service.price || 0).toLocaleString()} ₽ · {service.duration_minutes || 0} мин</p>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={dismissMasterImportPrompt}>
+                Пока пропустить
+              </Button>
+              <Button className="flex-1" onClick={importMasterServicesToBusiness} disabled={importingMasterCatalog}>
+                {importingMasterCatalog ? 'Импортируем...' : 'Импортировать'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
