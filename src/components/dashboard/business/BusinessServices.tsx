@@ -18,6 +18,7 @@ import { useAuth } from '@/hooks/useAuth';
 import TechnologyCardEditor from '@/components/dashboard/universal/TechnologyCardEditor';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { cn } from '@/lib/utils';
+import BusinessServiceImport from './BusinessServiceImport';
 
 interface Props {
   businessId: string;
@@ -36,6 +37,7 @@ interface ServiceItem {
   tech_card?: any;
   business_id?: string | null;
   organization_id?: string | null;
+  assigned_master_ids?: string[];
 }
 
 interface MasterOption {
@@ -57,7 +59,7 @@ const BusinessServices = ({ businessId }: Props) => {
   const [form, setForm] = useState({
     name: '', description: '', price: '', duration_minutes: '',
     hashtags: [] as string[], hashtagInput: '', is_active: true,
-    work_photos: [] as string[], assigned_master_id: '',
+    work_photos: [] as string[], assigned_master_ids: [] as string[],
     break_after: false, break_after_minutes: '15',
   });
 
@@ -80,6 +82,9 @@ const BusinessServices = ({ businessId }: Props) => {
       ...s,
       hashtags: (s.hashtags as string[]) || [],
       work_photos: (s.work_photos as string[]) || [],
+      assigned_master_ids: Array.isArray(s.tech_card?.assigned_master_ids)
+        ? s.tech_card.assigned_master_ids
+        : (s.master_id ? [s.master_id] : []),
     })));
     setMasters((masterRes.data || []).map((m: any) => ({
       master_id: m.master_id,
@@ -92,7 +97,7 @@ const BusinessServices = ({ businessId }: Props) => {
   const openCreate = () => {
     setEditingId(null);
     setFieldErrors({});
-    setForm({ name: '', description: '', price: '', duration_minutes: '', hashtags: [], hashtagInput: '', is_active: true, work_photos: [], assigned_master_id: '', break_after: false, break_after_minutes: '15' });
+    setForm({ name: '', description: '', price: '', duration_minutes: '', hashtags: [], hashtagInput: '', is_active: true, work_photos: [], assigned_master_ids: [], break_after: false, break_after_minutes: '15' });
     setIsOpen(true);
   };
 
@@ -104,7 +109,9 @@ const BusinessServices = ({ businessId }: Props) => {
       name: s.name, description: s.description || '',
       price: s.price != null ? String(s.price) : '', duration_minutes: s.duration_minutes != null ? String(s.duration_minutes) : '',
       hashtags: s.hashtags, hashtagInput: '', is_active: s.is_active, work_photos: s.work_photos,
-      assigned_master_id: s.master_id || '',
+      assigned_master_ids: Array.isArray((s.tech_card as any)?.assigned_master_ids)
+        ? (s.tech_card as any).assigned_master_ids
+        : (s.master_id ? [s.master_id] : []),
       break_after: breakAfterMinutes > 0,
       break_after_minutes: String(breakAfterMinutes || 15),
     });
@@ -175,12 +182,15 @@ const BusinessServices = ({ businessId }: Props) => {
       price,
       duration_minutes: duration,
       hashtags: form.hashtags,
-      is_active: form.is_active,
+      is_active: form.assigned_master_ids.length > 0 ? form.is_active : false,
       business_id: businessId,
       organization_id: currentService?.organization_id || null,
-      master_id: form.assigned_master_id || null,
+      master_id: form.assigned_master_ids[0] || null,
       work_photos: form.work_photos,
-      tech_card: nextTechCard,
+      tech_card: {
+        ...nextTechCard,
+        assigned_master_ids: form.assigned_master_ids,
+      },
     };
     try {
       if (editingId) {
@@ -215,7 +225,10 @@ const BusinessServices = ({ businessId }: Props) => {
           <h2 className="text-xl font-bold">Каталог услуг</h2>
           <p className="text-sm text-muted-foreground">{services.length} услуг</p>
         </div>
-        <Button onClick={openCreate}><Plus className="h-4 w-4 mr-1" /> Добавить</Button>
+        <div className="flex items-center gap-2">
+          <BusinessServiceImport businessId={businessId} masters={masters} onImported={fetchAll} />
+          <Button onClick={openCreate}><Plus className="h-4 w-4 mr-1" /> Добавить</Button>
+        </div>
       </div>
 
       {loading ? (
@@ -231,7 +244,8 @@ const BusinessServices = ({ businessId }: Props) => {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {services.map(s => {
-            const assignedMaster = masters.find(m => m.master_id === s.master_id);
+            const assignedMasters = masters.filter(m => (s.assigned_master_ids || []).includes(m.master_id));
+            const hasAssignments = assignedMasters.length > 0;
             return (
               <Card key={s.id} className={!s.is_active ? 'opacity-60' : ''}>
                 <CardHeader className="pb-2">
@@ -267,9 +281,17 @@ const BusinessServices = ({ businessId }: Props) => {
                   {Number((s.tech_card as any)?.break_after_minutes || 0) > 0 && (
                     <Badge variant="secondary" className="text-xs"><Clock className="h-2.5 w-2.5 mr-1" /> +{Number((s.tech_card as any)?.break_after_minutes)} мин перерыв</Badge>
                   )}
-                  {assignedMaster && (
-                    <Badge variant="outline" className="text-xs">
-                      <Users className="h-2.5 w-2.5 mr-1" /> {assignedMaster.name}
+                  {hasAssignments ? (
+                    <div className="flex flex-wrap gap-1">
+                      {assignedMasters.map((master) => (
+                        <Badge key={master.master_id} variant="outline" className="text-xs">
+                          <Users className="h-2.5 w-2.5 mr-1" /> {master.name}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : (
+                    <Badge variant="secondary" className="text-xs text-amber-700 bg-amber-50 border border-amber-200">
+                      Нужен мастер: услуга станет активной в поиске после назначения
                     </Badge>
                   )}
                   {s.hashtags.length > 0 && (
@@ -344,18 +366,31 @@ const BusinessServices = ({ businessId }: Props) => {
             </div>
             {masters.length > 0 && (
               <div className="space-y-2">
-                <Label>Назначить мастера</Label>
-                <Select value={form.assigned_master_id} onValueChange={v => setForm(p => ({ ...p, assigned_master_id: v === '_none' ? '' : v }))}>
-                  <SelectTrigger><SelectValue placeholder="Без назначения" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="_none">Без назначения</SelectItem>
-                    {masters.map(m => (
-                      <SelectItem key={m.master_id} value={m.master_id}>
-                        {m.name} ({m.skillspot_id})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Назначить мастеров</Label>
+                <div className="space-y-2 rounded-md border p-3">
+                  {masters.map(m => {
+                    const checked = form.assigned_master_ids.includes(m.master_id);
+                    return (
+                      <label key={m.master_id} className="flex items-center gap-3 text-sm">
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(value) => setForm((prev) => ({
+                            ...prev,
+                            assigned_master_ids: value
+                              ? [...prev.assigned_master_ids, m.master_id]
+                              : prev.assigned_master_ids.filter((id) => id !== m.master_id),
+                          }))}
+                        />
+                        <span>{m.name} ({m.skillspot_id})</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                {form.assigned_master_ids.length === 0 && (
+                  <p className="text-xs text-amber-700">
+                    Услуга сохранится, но будет неактивна в поиске, пока вы не назначите хотя бы одного мастера.
+                  </p>
+                )}
               </div>
             )}
             <div className="space-y-2">
