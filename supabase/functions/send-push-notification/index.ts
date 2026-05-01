@@ -99,13 +99,14 @@ Deno.serve(async (req) => {
       // Direct user call — must be authenticated.
       if (!bearer) return json(401, { error: 'Unauthorized' });
 
-      const { data: claims, error: claimsErr } = await adminClient.auth.getClaims(
-        bearer,
-      );
-      if (claimsErr || !claims?.claims?.sub) {
+      const userClient = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_ANON_KEY')!, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: userData, error: userErr } = await userClient.auth.getUser(bearer);
+      if (userErr || !userData?.user?.id) {
         return json(401, { error: 'Unauthorized' });
       }
-      const callerId = claims.claims.sub as string;
+      const callerId = userData.user.id;
 
       // Allowed: pushing to yourself.
       const onlySelf = targetIds.length === 1 && targetIds[0] === callerId;
