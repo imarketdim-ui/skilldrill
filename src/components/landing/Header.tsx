@@ -8,7 +8,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const navLinks = [
   { label: "Каталог", href: "/catalog", isRoute: true },
-  { label: "Лендинг", href: "/landing", isRoute: true },
   { label: "О платформе", href: "/about", isRoute: true },
   { label: "Для бизнеса", href: "/for-business", isRoute: true },
 ];
