@@ -13,7 +13,7 @@ import {
   ArrowRightLeft, UserPlus, AlertTriangle, MessageSquare, LayoutDashboard,
   CreditCard, Package, Percent, Megaphone, BarChart3, Bell, Database,
   PanelLeftClose, PanelLeftOpen, Wallet, Briefcase, Plus, Trash2, Shield,
-  Search, User, Merge, Gift, Ticket, Globe, Award, Lock, Banknote, DoorOpen
+  Search, User, Merge, Gift, Ticket, Globe, Award, Lock, Banknote, DoorOpen, Wrench
 } from 'lucide-react';
 import { TIER_LABELS, getRequiredTier, tierAllowsSection } from '@/lib/tierSections';
 import { Input } from '@/components/ui/input';
