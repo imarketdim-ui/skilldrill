@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, Link, useSearchParams } from 'react-router-dom';
 import { getPublicSiteUrl, removeStructuredData, updatePageMeta, updateStructuredData } from '@/lib/seoUtils';
-import { Star, MapPin, Clock, MessageSquare, Camera, Heart, Share2, Bell, ShieldAlert, AlertTriangle, BadgeCheck } from 'lucide-react';
+import { Star, MapPin, Clock, MessageSquare, Camera, Heart, Share2, Bell, ShieldAlert, AlertTriangle, BadgeCheck, Award, Brush, Images, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -620,6 +620,45 @@ const MasterDetail = () => {
   const masterName = `${master.profiles?.first_name || ''} ${master.profiles?.last_name || ''}`.trim() || 'Мастер';
   const avgRating = ratings.length > 0 ? (ratings.reduce((s, r) => s + r.score, 0) / ratings.length) : 0;
   const allPhotos = [...(master.work_photos || []), ...(master.interior_photos || [])];
+  const heroPhoto = allPhotos[0] || master.profiles?.avatar_url || '';
+  const feedItems = [
+    ...(master.work_photos?.length ? [{
+      id: 'works',
+      type: 'works',
+      title: 'Новые работы в портфолио',
+      description: 'Свежие примеры работ и результаты последних записей.',
+      photos: master.work_photos.slice(0, 4),
+      icon: Images,
+      accent: 'bg-emerald-50 text-emerald-900 border-emerald-200',
+    }] : []),
+    ...(master.certificate_photos?.length ? [{
+      id: 'certs',
+      type: 'certs',
+      title: 'Обучение и сертификаты',
+      description: 'Мастер обновил квалификацию, добавил новые сертификаты и техники работы.',
+      photos: master.certificate_photos.slice(0, 3),
+      icon: Award,
+      accent: 'bg-amber-50 text-amber-900 border-amber-200',
+    }] : []),
+    ...(services.length ? [{
+      id: 'services',
+      type: 'services',
+      title: 'Актуальные услуги',
+      description: services.slice(0, 3).map(service => `${service.name} · ${Number(service.price).toLocaleString()} ₽`).join(' • '),
+      photos: services.flatMap(service => Array.isArray(service.work_photos) ? service.work_photos.slice(0, 1) : []).slice(0, 3),
+      icon: Brush,
+      accent: 'bg-blue-50 text-blue-900 border-blue-200',
+    }] : []),
+    ...(ratings[0]?.comment ? [{
+      id: 'review',
+      type: 'review',
+      title: 'Свежий отзыв клиента',
+      description: `«${ratings[0].comment}»`,
+      photos: [],
+      icon: Sparkles,
+      accent: 'bg-primary/10 text-primary border-primary/20',
+    }] : []),
+  ];
   const bookingDecision: BookingGateDecision | null = bookingService ? evaluateBookingGate({
     isBlacklisted,
     activeBookingsCount,
@@ -647,133 +686,177 @@ const MasterDetail = () => {
             <span className="text-foreground">{masterName}</span>
           </div>
 
-          {/* Image Gallery */}
-          {allPhotos.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-8 rounded-xl overflow-hidden">
-              <div className="md:col-span-2 h-64 md:h-80">
+          <div className="mb-8 overflow-hidden rounded-[28px] border bg-card shadow-sm">
+            <div className="relative h-64 md:h-80 overflow-hidden">
+              {heroPhoto ? (
                 <img
-                  src={allPhotos[0]}
+                  src={heroPhoto}
                   alt={masterName}
-                  className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform duration-300"
-                  onClick={() => setSelectedPhoto(allPhotos[0])}
+                  className="h-full w-full object-cover"
                 />
-              </div>
-              <div className="grid grid-rows-2 gap-2 h-64 md:h-80">
-                {allPhotos.slice(1, 3).map((img, i) => (
-                  <img
-                    key={i}
-                    src={img}
-                    alt=""
-                    className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform duration-300"
-                    onClick={() => setSelectedPhoto(img)}
-                  />
-                ))}
-                {allPhotos.length <= 1 && <div className="bg-muted rounded flex items-center justify-center"><Camera className="h-8 w-8 text-muted-foreground" /></div>}
-                {allPhotos.length <= 2 && allPhotos.length > 1 && <div className="bg-muted rounded flex items-center justify-center"><Camera className="h-8 w-8 text-muted-foreground" /></div>}
+              ) : (
+                <div className="h-full w-full bg-gradient-to-br from-primary/15 via-emerald-100 to-muted" />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-background via-background/35 to-transparent" />
+              <div className="absolute left-6 right-6 top-6 flex justify-end gap-2">
+                <Button variant="secondary" size="icon" onClick={toggleFavorite} className={isFavorite ? 'text-destructive' : ''}>
+                  <Heart className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} />
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="secondary" size="icon"><Share2 className="h-4 w-4" /></Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => handleShare('vk')}>ВКонтакте</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleShare('telegram')}>Telegram</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleShare('whatsapp')}>WhatsApp</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleShare('copy')}>Скопировать ссылку</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
-          )}
 
-          <div className="flex flex-col lg:flex-row gap-8">
-            {/* Main Content */}
-            <div className="flex-1 min-w-0">
-              {/* Profile Header */}
-              <div className="flex items-start gap-4 mb-6">
+            <div className="relative px-6 pb-6">
+              <div className="-mt-14 flex flex-col gap-5 md:flex-row md:items-end">
                 {master.profiles?.avatar_url ? (
-                  <img src={master.profiles.avatar_url} alt={masterName} className="w-16 h-16 rounded-full object-cover border-2 border-border" />
+                  <img src={master.profiles.avatar_url} alt={masterName} className="h-28 w-28 rounded-full border-4 border-background object-cover shadow-lg" />
                 ) : (
-                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-xl font-bold text-primary">
+                  <div className="flex h-28 w-28 items-center justify-center rounded-full border-4 border-background bg-primary/10 text-3xl font-bold text-primary shadow-lg">
                     {(master.profiles?.first_name || '?')[0]}
                   </div>
                 )}
                 <div className="flex-1">
-                  <h1 className="text-2xl font-bold">{masterName}</h1>
-                  {master.service_categories && <Badge variant="secondary" className="mt-1">{master.service_categories.name}</Badge>}
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground mt-2">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h1 className="text-3xl font-bold tracking-tight">{masterName}</h1>
+                    {master.service_categories && <Badge variant="secondary">{master.service_categories.name}</Badge>}
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2 text-sm">
                     {ratings.length > 0 && (
-                      <div className="flex items-center gap-1">
-                        <Star className="w-4 h-4 text-accent fill-accent" />
-                        {avgRating.toFixed(1)} ({ratings.length} отзывов)
+                      <div className="rounded-full bg-muted px-3 py-1.5 text-muted-foreground flex items-center gap-1">
+                        <Star className="h-4 w-4 text-accent fill-accent" />
+                        {avgRating.toFixed(1)} · {ratings.length} отзывов
                       </div>
+                    )}
+                    <div className="rounded-full bg-muted px-3 py-1.5 text-muted-foreground">{services.length} услуг</div>
+                    <div className="rounded-full bg-muted px-3 py-1.5 text-muted-foreground">{(master.work_photos || []).length} работ</div>
+                    {!!master.certificate_photos?.length && (
+                      <div className="rounded-full bg-muted px-3 py-1.5 text-muted-foreground">{master.certificate_photos.length} сертификатов</div>
                     )}
                     {master.address && (
                       <button
-                        className="flex items-center gap-1 hover:text-foreground transition-colors"
+                        className="rounded-full bg-muted px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground flex items-center gap-1"
                         onClick={() => {
-                          if (master.latitude && master.longitude) {
-                            setMapOpen(true);
-                          } else if (master.address) {
-                            window.open(`https://yandex.ru/maps/?text=${encodeURIComponent(master.address)}`, '_blank');
-                          }
+                          if (master.latitude && master.longitude) setMapOpen(true);
+                          else if (master.address) window.open(`https://yandex.ru/maps/?text=${encodeURIComponent(master.address)}`, '_blank');
                         }}
                       >
-                        <MapPin className="w-4 h-4" />{master.address}
+                        <MapPin className="h-4 w-4" />
+                        {master.address}
                       </button>
                     )}
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="icon" onClick={toggleFavorite} className={isFavorite ? 'text-destructive' : ''}>
-                    <Heart className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} />
-                  </Button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="icon"><Share2 className="h-4 w-4" /></Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleShare('vk')}>ВКонтакте</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleShare('telegram')}>Telegram</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleShare('whatsapp')}>WhatsApp</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleShare('copy')}>Скопировать ссылку</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                <div className="flex flex-wrap gap-2">
+                  <Button onClick={() => services[0] && setBookingService(services[0].id)}>Записаться</Button>
+                  {user ? (
+                    <Button variant="outline" onClick={() => setMessageOpen(true)}>
+                      <MessageSquare className="mr-2 h-4 w-4" /> Написать
+                    </Button>
+                  ) : (
+                    <Button variant="outline" onClick={() => setLoginPromptOpen(true)}>
+                      <MessageSquare className="mr-2 h-4 w-4" /> Написать
+                    </Button>
+                  )}
                 </div>
               </div>
 
-              {master.description && <p className="text-muted-foreground mb-6">{master.description}</p>}
+              {master.description && <p className="mt-5 max-w-3xl text-muted-foreground">{master.description}</p>}
 
               {master.hashtags && master.hashtags.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mb-4">
+                <div className="mt-4 flex flex-wrap gap-1.5">
                   {master.hashtags.map(tag => <Badge key={tag} variant="outline">#{tag}</Badge>)}
                 </div>
               )}
 
-              {/* Social Links */}
               {master.social_links && Object.values(master.social_links).some(Boolean) && (
-                <div className="flex flex-wrap gap-2 mb-6">
+                <div className="mt-4 flex flex-wrap gap-2">
                   {master.social_links.telegram && (
-                    <a href={master.social_links.telegram.startsWith('http') ? master.social_links.telegram : `https://t.me/${master.social_links.telegram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#26A5E4]/10 text-[#26A5E4] hover:bg-[#26A5E4]/20 transition-colors text-sm font-medium">
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+                    <a href={master.social_links.telegram.startsWith('http') ? master.social_links.telegram : `https://t.me/${master.social_links.telegram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 rounded-full bg-[#26A5E4]/10 px-3 py-1.5 text-sm font-medium text-[#26A5E4] transition-colors hover:bg-[#26A5E4]/20">
                       Telegram
                     </a>
                   )}
                   {master.social_links.vk && (
-                    <a href={master.social_links.vk.startsWith('http') ? master.social_links.vk : `https://vk.com/${master.social_links.vk}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#0077FF]/10 text-[#0077FF] hover:bg-[#0077FF]/20 transition-colors text-sm font-medium">
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M15.684 0H8.316C1.592 0 0 1.592 0 8.316v7.368C0 22.408 1.592 24 8.316 24h7.368C22.408 24 24 22.408 24 15.684V8.316C24 1.592 22.408 0 15.684 0zm3.692 17.123h-1.744c-.66 0-.862-.523-2.046-1.747-1.03-1-1.485-1.14-1.74-1.14-.356 0-.457.104-.457.6v1.59c0 .427-.138.683-1.263.683-1.866 0-3.94-1.13-5.4-3.235C4.754 10.745 4.203 8.2 4.203 7.73c0-.255.102-.49.593-.49h1.744c.444 0 .61.204.783.675.856 2.485 2.283 4.663 2.875 4.663.218 0 .318-.102.318-.66V9.4c-.068-1.186-.695-1.287-.695-1.71 0-.204.17-.408.444-.408h2.75c.373 0 .508.204.508.64v3.467c0 .373.17.508.272.508.22 0 .407-.135.814-.543 1.26-1.406 2.156-3.578 2.156-3.578.12-.255.322-.49.762-.49h1.744c.525 0 .643.27.525.64-.22 1.017-2.354 4.031-2.354 4.031-.186.305-.254.44 0 .78.186.254.796.78 1.2 1.253.745.847 1.32 1.558 1.473 2.05.17.49-.085.74-.576.74z"/></svg>
+                    <a href={master.social_links.vk.startsWith('http') ? master.social_links.vk : `https://vk.com/${master.social_links.vk}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 rounded-full bg-[#0077FF]/10 px-3 py-1.5 text-sm font-medium text-[#0077FF] transition-colors hover:bg-[#0077FF]/20">
                       VK
                     </a>
                   )}
                   {master.social_links.instagram && (
-                    <a href={master.social_links.instagram.startsWith('http') ? master.social_links.instagram : `https://instagram.com/${master.social_links.instagram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-[#F58529]/10 via-[#DD2A7B]/10 to-[#515BD4]/10 text-[#DD2A7B] hover:from-[#F58529]/20 hover:via-[#DD2A7B]/20 hover:to-[#515BD4]/20 transition-colors text-sm font-medium">
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                    <a href={master.social_links.instagram.startsWith('http') ? master.social_links.instagram : `https://instagram.com/${master.social_links.instagram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#F58529]/10 via-[#DD2A7B]/10 to-[#515BD4]/10 px-3 py-1.5 text-sm font-medium text-[#DD2A7B] transition-colors hover:from-[#F58529]/20 hover:via-[#DD2A7B]/20 hover:to-[#515BD4]/20">
                       Instagram
                     </a>
                   )}
                   {master.social_links.youtube && (
-                    <a href={master.social_links.youtube.startsWith('http') ? master.social_links.youtube : `https://youtube.com/@${master.social_links.youtube.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FF0000]/10 text-[#FF0000] hover:bg-[#FF0000]/20 transition-colors text-sm font-medium">
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                    <a href={master.social_links.youtube.startsWith('http') ? master.social_links.youtube : `https://youtube.com/@${master.social_links.youtube.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 rounded-full bg-[#FF0000]/10 px-3 py-1.5 text-sm font-medium text-[#FF0000] transition-colors hover:bg-[#FF0000]/20">
                       YouTube
                     </a>
                   )}
                 </div>
               )}
+            </div>
+          </div>
 
-              <Tabs defaultValue="services">
+          <div className="flex flex-col lg:flex-row gap-8">
+            {/* Main Content */}
+            <div className="flex-1 min-w-0">
+              <Tabs defaultValue="feed">
                 <TabsList className="mb-6">
+                  <TabsTrigger value="feed">Лента</TabsTrigger>
                   <TabsTrigger value="services">Услуги ({services.length})</TabsTrigger>
                   <TabsTrigger value="reviews">Отзывы ({ratings.length})</TabsTrigger>
                   <TabsTrigger value="portfolio">Работы</TabsTrigger>
                 </TabsList>
+
+                <TabsContent value="feed">
+                  <div className="space-y-4">
+                    {feedItems.length > 0 ? feedItems.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <Card key={item.id} className="overflow-hidden">
+                          <CardContent className="p-0">
+                            <div className="flex items-center gap-3 border-b px-5 py-4">
+                              <div className={`rounded-full border p-2 ${item.accent}`}>
+                                <Icon className="h-4 w-4" />
+                              </div>
+                              <div>
+                                <p className="font-semibold">{item.title}</p>
+                                <p className="text-sm text-muted-foreground">{item.description}</p>
+                              </div>
+                            </div>
+                            {item.photos.length > 0 && (
+                              <div className="grid grid-cols-2 gap-2 p-4 md:grid-cols-4">
+                                {item.photos.map((img: string, index: number) => (
+                                  <img
+                                    key={`${item.id}-${index}`}
+                                    src={img}
+                                    alt=""
+                                    className="h-36 w-full rounded-xl object-cover cursor-pointer hover:scale-[1.01] transition-transform"
+                                    onClick={() => setSelectedPhoto(img)}
+                                  />
+                                ))}
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      );
+                    }) : (
+                      <Card>
+                        <CardContent className="py-12 text-center text-muted-foreground">
+                          Лента пока пустая. Как только мастер добавит новые работы, услуги или сертификаты, они появятся здесь.
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+                </TabsContent>
 
                 <TabsContent value="services">
                   <div className="grid gap-4">
@@ -868,7 +951,24 @@ const MasterDetail = () => {
             {/* Sticky Sidebar */}
             <div className="lg:w-80 shrink-0">
               <div className="lg:sticky lg:top-24 space-y-4">
-                {/* Address card */}
+                <Card className="overflow-hidden border-primary/15 shadow-sm">
+                  <CardContent className="space-y-4 p-5">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Ближайшая запись</p>
+                      <p className="mt-1 text-lg font-semibold">Выберите услугу и подходящий слот</p>
+                    </div>
+                    {services[0] ? (
+                      <Button className="w-full" onClick={() => setBookingService(services[0].id)}>
+                        Записаться к мастеру
+                      </Button>
+                    ) : (
+                      <Button className="w-full" disabled>
+                        Скоро появятся услуги
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+
                 {master.address && (
                   <Card>
                     <CardContent className="pt-6">
@@ -895,7 +995,7 @@ const MasterDetail = () => {
                     {user ? (
                       <Dialog open={messageOpen} onOpenChange={setMessageOpen}>
                         <DialogTrigger asChild>
-                          <Button variant="outline" className="w-full"><MessageSquare className="h-4 w-4 mr-2" /> Написать</Button>
+                          <Button variant="outline" className="w-full"><MessageSquare className="h-4 w-4 mr-2" /> Написать мастеру</Button>
                         </DialogTrigger>
                         <DialogContent>
                           <DialogHeader><DialogTitle>Написать {masterName}</DialogTitle></DialogHeader>

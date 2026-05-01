@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { getPublicSiteUrl, removeStructuredData, updatePageMeta, updateStructuredData } from '@/lib/seoUtils';
-import { Star, MapPin, ArrowLeft, Users, Clock, MessageSquare, Heart, Share2, Camera } from 'lucide-react';
+import { Star, MapPin, Users, Clock, MessageSquare, Heart, Share2, Camera, Sparkles, Images, BadgeCheck, ScissorsSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -300,6 +300,33 @@ const BusinessDetail = () => {
   if (!business) return <div className="min-h-screen"><Header /><main className="pt-24 pb-16 text-center"><p>Организация не найдена</p></main><Footer /></div>;
 
   const allPhotos = [...(business.interior_photos || []), ...(business.work_photos || []), ...(business.exterior_photos || [])];
+  const heroPhoto = allPhotos[0] || '';
+  const feedItems = [
+    ...(allPhotos.length ? [{
+      id: 'photos',
+      title: 'Новые фото пространства и работ',
+      description: 'Свежие кадры из организации, интерьера и примеры оказанных услуг.',
+      photos: allPhotos.slice(0, 4),
+      icon: Images,
+      accent: 'bg-emerald-50 text-emerald-900 border-emerald-200',
+    }] : []),
+    ...(services.length ? [{
+      id: 'services',
+      title: 'Подборка актуальных услуг',
+      description: services.slice(0, 3).map((service: any) => `${service.name} · ${Number(service.price).toLocaleString()} ₽`).join(' • '),
+      photos: services.flatMap((service: any) => Array.isArray(service.work_photos) ? service.work_photos.slice(0, 1) : []).slice(0, 3),
+      icon: ScissorsSquare,
+      accent: 'bg-blue-50 text-blue-900 border-blue-200',
+    }] : []),
+    ...(masters.length ? [{
+      id: 'team',
+      title: 'Команда организации',
+      description: `Сейчас в команде ${masters.length} ${masters.length === 1 ? 'мастер' : masters.length < 5 ? 'мастера' : 'мастеров'}. Клиент может выбрать подходящего специалиста при записи.`,
+      photos: masters.map((master: any) => master.avatar_url).filter(Boolean).slice(0, 4),
+      icon: BadgeCheck,
+      accent: 'bg-primary/10 text-primary border-primary/20',
+    }] : []),
+  ];
 
   return (
     <div className="min-h-screen">
@@ -313,66 +340,120 @@ const BusinessDetail = () => {
             <span className="text-foreground">{business.name}</span>
           </div>
 
-          {/* Gallery */}
-          {allPhotos.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-8 rounded-xl overflow-hidden">
-              <div className="md:col-span-2 h-64 md:h-80">
-                <img src={allPhotos[0]} alt={business.name} className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform duration-300" onClick={() => setSelectedPhoto(allPhotos[0])} />
-              </div>
-              <div className="grid grid-rows-2 gap-2 h-64 md:h-80">
-                {allPhotos.slice(1, 3).map((img: string, i: number) => (
-                  <img key={i} src={img} alt="" className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform duration-300" onClick={() => setSelectedPhoto(img)} />
-                ))}
-                {allPhotos.length < 3 && <div className="bg-muted rounded flex items-center justify-center"><Camera className="h-8 w-8 text-muted-foreground" /></div>}
+          <div className="mb-8 overflow-hidden rounded-[28px] border bg-card shadow-sm">
+            <div className="relative h-64 overflow-hidden md:h-80">
+              {heroPhoto ? (
+                <img src={heroPhoto} alt={business.name} className="h-full w-full object-cover" />
+              ) : (
+                <div className="h-full w-full bg-gradient-to-br from-primary/15 via-emerald-100 to-muted" />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-background via-background/35 to-transparent" />
+              <div className="absolute right-6 top-6 flex gap-2">
+                <Button variant="secondary" size="icon" onClick={toggleFavorite} className={isFavorite ? 'text-destructive' : ''}>
+                  <Heart className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} />
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild><Button variant="secondary" size="icon"><Share2 className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => handleShare('vk')}>ВКонтакте</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleShare('telegram')}>Telegram</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleShare('whatsapp')}>WhatsApp</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleShare('copy')}>Скопировать ссылку</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
-          )}
 
-          <div className="flex flex-col lg:flex-row gap-8">
-            <div className="flex-1 min-w-0">
-              {/* Header */}
-              <div className="flex items-start justify-between mb-6">
-                <div>
-                  <h1 className="text-2xl font-bold mb-2">{business.name}</h1>
-                  <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+            <div className="relative px-6 pb-6">
+              <div className="-mt-14 flex flex-col gap-5 md:flex-row md:items-end">
+                <div className="flex h-28 w-28 items-center justify-center rounded-full border-4 border-background bg-primary/10 text-3xl font-bold text-primary shadow-lg">
+                  {(business.name || '?')[0]}
+                </div>
+                <div className="flex-1">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h1 className="text-3xl font-bold tracking-tight">{business.name}</h1>
+                    <Badge variant="secondary">Организация</Badge>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2 text-sm">
+                    <div className="rounded-full bg-muted px-3 py-1.5 text-muted-foreground">{masters.length} мастеров</div>
+                    <div className="rounded-full bg-muted px-3 py-1.5 text-muted-foreground">{services.length} услуг</div>
+                    <div className="rounded-full bg-muted px-3 py-1.5 text-muted-foreground">{allPhotos.length} фото</div>
                     {business.address && (
-                      <button className="flex items-center gap-1 hover:text-foreground transition-colors" onClick={() => business.latitude ? setMapOpen(true) : null}>
-                        <MapPin className="w-4 h-4" />{business.address}
+                      <button className="rounded-full bg-muted px-3 py-1.5 text-muted-foreground flex items-center gap-1 hover:text-foreground transition-colors" onClick={() => business.latitude ? setMapOpen(true) : null}>
+                        <MapPin className="h-4 w-4" />{business.address}
                       </button>
                     )}
-                    <div className="flex items-center gap-1"><Users className="w-4 h-4" />{masters.length} мастеров</div>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="icon" onClick={toggleFavorite} className={isFavorite ? 'text-destructive' : ''}>
-                    <Heart className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} />
+                <div className="flex flex-wrap gap-2">
+                  {services[0] && <Button onClick={() => setBookingService(services[0].id)}>Записаться</Button>}
+                  <Button variant="outline" onClick={() => setMessageOpen(true)}>
+                    <MessageSquare className="mr-2 h-4 w-4" /> Написать организации
                   </Button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild><Button variant="outline" size="icon"><Share2 className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleShare('vk')}>ВКонтакте</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleShare('telegram')}>Telegram</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleShare('whatsapp')}>WhatsApp</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleShare('copy')}>Скопировать ссылку</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
                 </div>
               </div>
 
-              {business.description && <p className="text-muted-foreground mb-6">{business.description}</p>}
+              {business.description && <p className="mt-5 max-w-3xl text-muted-foreground">{business.description}</p>}
 
               {business.hashtags && business.hashtags.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mb-6">
+                <div className="mt-4 flex flex-wrap gap-1.5">
                   {business.hashtags.map((tag: string) => <Badge key={tag} variant="outline">#{tag}</Badge>)}
                 </div>
               )}
+            </div>
+          </div>
 
-              <Tabs defaultValue="services">
+          <div className="flex flex-col lg:flex-row gap-8">
+            <div className="flex-1 min-w-0">
+              <Tabs defaultValue="feed">
                 <TabsList className="mb-6">
+                  <TabsTrigger value="feed">Лента</TabsTrigger>
                   <TabsTrigger value="services">Услуги ({services.length})</TabsTrigger>
                   <TabsTrigger value="masters">Мастера ({masters.length})</TabsTrigger>
                   <TabsTrigger value="info">О нас</TabsTrigger>
                 </TabsList>
+
+                <TabsContent value="feed">
+                  <div className="space-y-4">
+                    {feedItems.length > 0 ? feedItems.map((item: any) => {
+                      const Icon = item.icon;
+                      return (
+                        <Card key={item.id} className="overflow-hidden">
+                          <CardContent className="p-0">
+                            <div className="flex items-center gap-3 border-b px-5 py-4">
+                              <div className={`rounded-full border p-2 ${item.accent}`}>
+                                <Icon className="h-4 w-4" />
+                              </div>
+                              <div>
+                                <p className="font-semibold">{item.title}</p>
+                                <p className="text-sm text-muted-foreground">{item.description}</p>
+                              </div>
+                            </div>
+                            {item.photos.length > 0 && (
+                              <div className="grid grid-cols-2 gap-2 p-4 md:grid-cols-4">
+                                {item.photos.map((img: string, index: number) => (
+                                  <img
+                                    key={`${item.id}-${index}`}
+                                    src={img}
+                                    alt=""
+                                    className="h-36 w-full rounded-xl object-cover cursor-pointer hover:scale-[1.01] transition-transform"
+                                    onClick={() => setSelectedPhoto(img)}
+                                  />
+                                ))}
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      );
+                    }) : (
+                      <Card>
+                        <CardContent className="py-12 text-center text-muted-foreground">
+                          Лента пока пустая. Здесь будут появляться новые фото, мастера и услуги организации.
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+                </TabsContent>
 
                 <TabsContent value="services">
                   <div className="grid gap-4">
@@ -544,6 +625,23 @@ const BusinessDetail = () => {
             {/* Sidebar */}
             <div className="lg:w-80 shrink-0">
               <div className="lg:sticky lg:top-24 space-y-4">
+                <Card className="overflow-hidden border-primary/15 shadow-sm">
+                  <CardContent className="space-y-4 p-5">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Быстрая запись</p>
+                      <p className="mt-1 text-lg font-semibold">Выберите услугу и мастера</p>
+                    </div>
+                    {services[0] ? (
+                      <Button className="w-full" onClick={() => setBookingService(services[0].id)}>
+                        Записаться в организацию
+                      </Button>
+                    ) : (
+                      <Button className="w-full" disabled>
+                        Услуги скоро появятся
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
                 <Card>
                   <CardContent className="pt-6 space-y-3">
                     {business.contact_phone && <p className="text-sm"><span className="font-medium">Телефон:</span> {business.contact_phone}</p>}
