@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, Link, useSearchParams } from 'react-router-dom';
 import { getPublicSiteUrl, removeStructuredData, updatePageMeta, updateStructuredData } from '@/lib/seoUtils';
-import { Star, MapPin, Clock, MessageSquare, Camera, Heart, Share2, Bell, ShieldAlert, AlertTriangle, BadgeCheck, Award, Brush, Images, Sparkles } from 'lucide-react';
+import { Star, MapPin, Clock, MessageSquare, Camera, Heart, Share2, ShieldAlert, AlertTriangle, BadgeCheck, Award, Brush, Images, Sparkles, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -647,7 +647,16 @@ const MasterDetail = () => {
   const avgRating = ratings.length > 0 ? (ratings.reduce((s, r) => s + r.score, 0) / ratings.length) : 0;
   const allPhotos = [...(master.work_photos || []), ...(master.interior_photos || [])];
   const heroPhoto = allPhotos[0] || master.profiles?.avatar_url || '';
+  const uniqueWorkPhotos = Array.from(new Set(master.work_photos || []));
   const activeStories = publicPosts.filter((post) => isStoryActive(post));
+  const featuredServices = services.slice(0, 3);
+  const spotlightPhotos = uniqueWorkPhotos.slice(0, 6);
+  const profileHighlights = [
+    services.length ? `${services.length} услуг для записи` : null,
+    uniqueWorkPhotos.length ? `${uniqueWorkPhotos.length} работ в портфолио` : null,
+    master.certificate_photos?.length ? `${master.certificate_photos.length} сертификатов и обучений` : null,
+    ratings.length > 0 ? `${avgRating.toFixed(1)} средняя оценка клиентов` : null,
+  ].filter(Boolean) as string[];
   const publicFeedItems = publicPosts
     .filter((post) => post.post_kind !== 'story' && post.is_published)
     .map((post) => ({
@@ -661,12 +670,12 @@ const MasterDetail = () => {
       createdAt: post.created_at,
     }));
   const derivedFeedItems = [
-    ...(master.work_photos?.length ? [{
+    ...(uniqueWorkPhotos.length ? [{
       id: 'works',
       type: 'works',
       title: 'Новые работы в портфолио',
       description: 'Свежие примеры работ и результаты последних записей.',
-      photos: master.work_photos.slice(0, 4),
+      photos: uniqueWorkPhotos.slice(0, 4),
       icon: Images,
       accent: 'bg-emerald-50 text-emerald-900 border-emerald-200',
     }] : []),
@@ -684,7 +693,7 @@ const MasterDetail = () => {
       type: 'services',
       title: 'Актуальные услуги',
       description: services.slice(0, 3).map(service => `${service.name} · ${Number(service.price).toLocaleString()} ₽`).join(' • '),
-      photos: services.flatMap(service => Array.isArray(service.work_photos) ? service.work_photos.slice(0, 1) : []).slice(0, 3),
+      photos: [],
       icon: Brush,
       accent: 'bg-blue-50 text-blue-900 border-blue-200',
     }] : []),
@@ -726,18 +735,19 @@ const MasterDetail = () => {
             <span className="text-foreground">{masterName}</span>
           </div>
 
-          <div className="mb-8 overflow-hidden rounded-[28px] border bg-card shadow-sm">
+          <div className="mb-8 overflow-hidden rounded-[32px] border bg-card shadow-sm">
             <div className="relative h-64 md:h-80 overflow-hidden">
               {heroPhoto ? (
                 <img
                   src={heroPhoto}
                   alt={masterName}
-                  className="h-full w-full object-cover"
+                  className="h-full w-full object-cover scale-[1.03]"
                 />
               ) : (
-                <div className="h-full w-full bg-gradient-to-br from-primary/15 via-emerald-100 to-muted" />
+                <div className="h-full w-full bg-[radial-gradient(circle_at_top_left,_hsl(var(--primary)/0.18),_transparent_35%),linear-gradient(135deg,hsl(var(--background)),hsl(150_45%_94%))]" />
               )}
-              <div className="absolute inset-0 bg-gradient-to-t from-background via-background/35 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-background via-background/55 to-background/10" />
+              <div className="absolute inset-x-0 bottom-0 h-24 bg-[linear-gradient(180deg,transparent,rgba(255,255,255,0.9))]" />
               <div className="absolute left-6 right-6 top-6 flex justify-end gap-2">
                 <Button variant="secondary" size="icon" onClick={toggleFavorite} className={isFavorite ? 'text-destructive' : ''}>
                   <Heart className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} />
@@ -756,35 +766,35 @@ const MasterDetail = () => {
               </div>
             </div>
 
-            <div className="relative px-6 pb-6">
-              <div className="-mt-14 flex flex-col gap-5 md:flex-row md:items-end">
+            <div className="relative px-6 pb-8">
+              <div className="-mt-16 flex flex-col gap-6 md:flex-row md:items-end">
                 {master.profiles?.avatar_url ? (
-                  <img src={master.profiles.avatar_url} alt={masterName} className="h-28 w-28 rounded-full border-4 border-background object-cover shadow-lg" />
+                  <img src={master.profiles.avatar_url} alt={masterName} className="h-32 w-32 rounded-full border-4 border-background object-cover shadow-xl ring-4 ring-primary/10" />
                 ) : (
-                  <div className="flex h-28 w-28 items-center justify-center rounded-full border-4 border-background bg-primary/10 text-3xl font-bold text-primary shadow-lg">
+                  <div className="flex h-32 w-32 items-center justify-center rounded-full border-4 border-background bg-primary/10 text-3xl font-bold text-primary shadow-xl ring-4 ring-primary/10">
                     {(master.profiles?.first_name || '?')[0]}
                   </div>
                 )}
                 <div className="flex-1">
                   <div className="flex flex-wrap items-center gap-3">
-                    <h1 className="text-3xl font-bold tracking-tight">{masterName}</h1>
-                    {master.service_categories && <Badge variant="secondary">{master.service_categories.name}</Badge>}
+                    <h1 className="text-4xl font-bold tracking-tight md:text-5xl">{masterName}</h1>
+                    {master.service_categories && <Badge className="rounded-full bg-background/90 px-3 py-1 text-foreground shadow-sm" variant="secondary">{master.service_categories.name}</Badge>}
                   </div>
-                  <div className="mt-3 flex flex-wrap gap-2 text-sm">
+                  <div className="mt-4 flex flex-wrap gap-2 text-sm">
                     {ratings.length > 0 && (
-                      <div className="rounded-full bg-muted px-3 py-1.5 text-muted-foreground flex items-center gap-1">
+                      <div className="rounded-full border bg-background/90 px-3 py-1.5 text-muted-foreground flex items-center gap-1 shadow-sm">
                         <Star className="h-4 w-4 text-accent fill-accent" />
                         {avgRating.toFixed(1)} · {ratings.length} отзывов
                       </div>
                     )}
-                    <div className="rounded-full bg-muted px-3 py-1.5 text-muted-foreground">{services.length} услуг</div>
-                    <div className="rounded-full bg-muted px-3 py-1.5 text-muted-foreground">{(master.work_photos || []).length} работ</div>
+                    <div className="rounded-full border bg-background/90 px-3 py-1.5 text-muted-foreground shadow-sm">{services.length} услуг</div>
+                    <div className="rounded-full border bg-background/90 px-3 py-1.5 text-muted-foreground shadow-sm">{uniqueWorkPhotos.length} работ</div>
                     {!!master.certificate_photos?.length && (
-                      <div className="rounded-full bg-muted px-3 py-1.5 text-muted-foreground">{master.certificate_photos.length} сертификатов</div>
+                      <div className="rounded-full border bg-background/90 px-3 py-1.5 text-muted-foreground shadow-sm">{master.certificate_photos.length} сертификатов</div>
                     )}
                     {master.address && (
                       <button
-                        className="rounded-full bg-muted px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground flex items-center gap-1"
+                        className="rounded-full border bg-background/90 px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground flex items-center gap-1 shadow-sm"
                         onClick={() => {
                           if (master.latitude && master.longitude) setMapOpen(true);
                           else if (master.address) window.open(`https://yandex.ru/maps/?text=${encodeURIComponent(master.address)}`, '_blank');
@@ -796,25 +806,35 @@ const MasterDetail = () => {
                     )}
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button onClick={() => services[0] && setBookingService(services[0].id)}>Записаться</Button>
+                <div className="flex flex-wrap gap-2 md:justify-end">
+                  <Button className="h-12 rounded-2xl px-6 text-base shadow-sm" onClick={() => services[0] && setBookingService(services[0].id)}>Записаться</Button>
                   {user ? (
-                    <Button variant="outline" onClick={() => setMessageOpen(true)}>
+                    <Button variant="outline" className="h-12 rounded-2xl px-6 text-base" onClick={() => setMessageOpen(true)}>
                       <MessageSquare className="mr-2 h-4 w-4" /> Написать
                     </Button>
                   ) : (
-                    <Button variant="outline" onClick={() => setLoginPromptOpen(true)}>
+                    <Button variant="outline" className="h-12 rounded-2xl px-6 text-base" onClick={() => setLoginPromptOpen(true)}>
                       <MessageSquare className="mr-2 h-4 w-4" /> Написать
                     </Button>
                   )}
                 </div>
               </div>
 
-              {master.description && <p className="mt-5 max-w-3xl text-muted-foreground">{master.description}</p>}
+              {master.description && <p className="mt-6 max-w-4xl text-lg leading-8 text-muted-foreground">{master.description}</p>}
+
+              {profileHighlights.length > 0 && (
+                <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                  {profileHighlights.map((highlight) => (
+                    <div key={highlight} className="rounded-2xl border bg-muted/40 px-4 py-3 text-sm font-medium text-foreground">
+                      {highlight}
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {master.hashtags && master.hashtags.length > 0 && (
-                <div className="mt-4 flex flex-wrap gap-1.5">
-                  {master.hashtags.map(tag => <Badge key={tag} variant="outline">#{tag}</Badge>)}
+                <div className="mt-5 flex flex-wrap gap-2">
+                  {master.hashtags.map(tag => <Badge key={tag} variant="outline" className="rounded-full px-3 py-1 text-sm">#{tag}</Badge>)}
                 </div>
               )}
 
@@ -881,7 +901,7 @@ const MasterDetail = () => {
             {/* Main Content */}
             <div className="flex-1 min-w-0">
               <Tabs defaultValue="feed">
-                <TabsList className="mb-6">
+                <TabsList className="mb-6 rounded-2xl bg-muted/70 p-1">
                   <TabsTrigger value="feed">Лента</TabsTrigger>
                   <TabsTrigger value="services">Услуги ({services.length})</TabsTrigger>
                   <TabsTrigger value="reviews">Отзывы ({ratings.length})</TabsTrigger>
@@ -893,19 +913,24 @@ const MasterDetail = () => {
                     {feedItems.length > 0 ? feedItems.map((item) => {
                       const Icon = item.icon;
                       return (
-                        <Card key={item.id} className="overflow-hidden">
+                        <Card key={item.id} className="overflow-hidden rounded-[24px] border bg-card shadow-sm">
                           <CardContent className="p-0">
-                            <div className="flex items-center gap-3 border-b px-5 py-4">
-                              <div className={`rounded-full border p-2 ${item.accent}`}>
+                            <div className="flex items-start gap-4 border-b px-5 py-5">
+                              <div className={`rounded-2xl border p-3 shadow-sm ${item.accent}`}>
                                 <Icon className="h-4 w-4" />
                               </div>
-                              <div>
-                                <p className="font-semibold">{item.title}</p>
-                                <p className="text-sm text-muted-foreground">{item.description}</p>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <p className="font-semibold text-lg">{item.title}</p>
+                                  {'createdAt' in item && item.createdAt && (
+                                    <Badge variant="outline" className="rounded-full">
+                                      {new Date(item.createdAt as string).toLocaleDateString('ru-RU')}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="mt-1 text-sm leading-6 text-muted-foreground">{item.description}</p>
                                 {'createdAt' in item && item.createdAt && (
-                                  <p className="mt-1 text-xs text-muted-foreground">
-                                    {new Date(item.createdAt as string).toLocaleDateString('ru-RU')}
-                                  </p>
+                                  <p className="mt-2 text-xs text-muted-foreground">Обновлено {new Date(item.createdAt as string).toLocaleDateString('ru-RU')}</p>
                                 )}
                               </div>
                             </div>
@@ -916,9 +941,30 @@ const MasterDetail = () => {
                                     key={`${item.id}-${index}`}
                                     src={img}
                                     alt=""
-                                    className="h-36 w-full rounded-xl object-cover cursor-pointer hover:scale-[1.01] transition-transform"
+                                    className="h-40 w-full rounded-2xl object-cover cursor-pointer hover:scale-[1.01] transition-transform"
                                     onClick={() => setSelectedPhoto(img)}
                                   />
+                                ))}
+                              </div>
+                            )}
+                            {item.type === 'services' && featuredServices.length > 0 && (
+                              <div className="grid gap-3 p-4 md:grid-cols-3">
+                                {featuredServices.map((service) => (
+                                  <button
+                                    key={service.id}
+                                    type="button"
+                                    onClick={() => setViewingService(service)}
+                                    className="rounded-2xl border bg-muted/30 p-4 text-left transition-colors hover:border-primary/30 hover:bg-background"
+                                  >
+                                    <p className="font-medium">{service.name}</p>
+                                    <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
+                                      {service.description || 'Подробности доступны в карточке услуги.'}
+                                    </p>
+                                    <div className="mt-3 flex items-center justify-between text-sm">
+                                      <span className="font-semibold">{Number(service.price).toLocaleString()} ₽</span>
+                                      <span className="text-muted-foreground">{service.duration_minutes} мин</span>
+                                    </div>
+                                  </button>
                                 ))}
                               </div>
                             )}
@@ -940,28 +986,28 @@ const MasterDetail = () => {
                     {services.map(service => (
                       <Card 
                         key={service.id} 
-                        className="hover:border-primary/50 transition-colors cursor-pointer"
+                        className="overflow-hidden rounded-[24px] hover:border-primary/50 transition-colors cursor-pointer"
                         onClick={() => setViewingService(service)}
                       >
-                        <CardContent className="flex flex-col md:flex-row gap-4 p-4">
+                        <CardContent className="flex flex-col gap-4 p-5 md:flex-row">
                           <div className="flex-1">
-                            <h3 className="font-semibold text-lg mb-1">{service.name}</h3>
-                            {service.description && <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{service.description}</p>}
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h3 className="font-semibold text-xl">{service.name}</h3>
+                              <Badge variant="outline" className="rounded-full">{service.duration_minutes} мин</Badge>
+                            </div>
+                            {service.description && <p className="mt-2 text-sm leading-6 text-muted-foreground line-clamp-2">{service.description}</p>}
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 navigate(`/service/${service.id}`);
                               }}
-                              className="text-xs text-primary hover:underline mb-2"
+                              className="mt-3 inline-flex items-center gap-1 text-xs text-primary hover:underline"
                             >
-                              Открыть страницу услуги
+                              Открыть страницу услуги <ArrowRight className="h-3.5 w-3.5" />
                             </button>
-                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                              <span className="flex items-center gap-1"><Clock className="w-4 h-4" />{service.duration_minutes} мин</span>
-                            </div>
                           </div>
                           <div className="flex flex-col items-end justify-between gap-2">
-                            <p className="text-2xl font-bold">{Number(service.price).toLocaleString()} ₽</p>
+                            <p className="text-3xl font-bold">{Number(service.price).toLocaleString()} ₽</p>
                             <Button 
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1009,10 +1055,10 @@ const MasterDetail = () => {
                 </TabsContent>
 
                 <TabsContent value="portfolio">
-                  {allPhotos.length > 0 ? (
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      {allPhotos.map((img, i) => (
-                        <img key={i} src={img} alt={`Работа ${i + 1}`} className="w-full h-48 object-cover rounded-lg cursor-pointer hover:scale-105 transition-transform" onClick={() => setSelectedPhoto(img)} />
+                  {spotlightPhotos.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+                      {spotlightPhotos.map((img, i) => (
+                        <img key={i} src={img} alt={`Работа ${i + 1}`} className="h-56 w-full cursor-pointer rounded-2xl object-cover transition-transform hover:scale-[1.02]" onClick={() => setSelectedPhoto(img)} />
                       ))}
                     </div>
                   ) : (
@@ -1028,14 +1074,15 @@ const MasterDetail = () => {
             {/* Sticky Sidebar */}
             <div className="lg:w-80 shrink-0">
               <div className="lg:sticky lg:top-24 space-y-4">
-                <Card className="overflow-hidden border-primary/15 shadow-sm">
+                <Card className="overflow-hidden rounded-[24px] border-primary/15 shadow-sm">
                   <CardContent className="space-y-4 p-5">
                     <div>
-                      <p className="text-sm text-muted-foreground">Ближайшая запись</p>
-                      <p className="mt-1 text-lg font-semibold">Выберите услугу и подходящий слот</p>
+                      <p className="text-sm text-muted-foreground">Онлайн-запись</p>
+                      <p className="mt-1 text-2xl font-semibold leading-tight">Выберите услугу и подходящий слот</p>
+                      <p className="mt-2 text-sm text-muted-foreground">Если нужно уточнить детали, можно сначала написать мастеру.</p>
                     </div>
                     {services[0] ? (
-                      <Button className="w-full" onClick={() => setBookingService(services[0].id)}>
+                      <Button className="h-12 w-full rounded-2xl text-base" onClick={() => setBookingService(services[0].id)}>
                         Записаться к мастеру
                       </Button>
                     ) : (
@@ -1047,11 +1094,11 @@ const MasterDetail = () => {
                 </Card>
 
                 {master.address && (
-                  <Card>
+                  <Card className="rounded-[24px]">
                     <CardContent className="pt-6">
-                      <p className="font-medium text-foreground mb-1">Адрес</p>
+                      <p className="mb-1 font-medium text-foreground">Адрес</p>
                       <button
-                        className="text-sm text-muted-foreground flex items-center gap-1 hover:text-foreground transition-colors"
+                        className="flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
                         onClick={() => {
                           if (master.latitude && master.longitude) {
                             setMapOpen(true);
@@ -1067,12 +1114,12 @@ const MasterDetail = () => {
                 )}
 
                 {/* Chat card */}
-                <Card>
+                <Card className="rounded-[24px]">
                   <CardContent className="pt-6">
                     {user ? (
                       <Dialog open={messageOpen} onOpenChange={setMessageOpen}>
                         <DialogTrigger asChild>
-                          <Button variant="outline" className="w-full"><MessageSquare className="h-4 w-4 mr-2" /> Написать мастеру</Button>
+                          <Button variant="outline" className="h-12 w-full rounded-2xl"><MessageSquare className="mr-2 h-4 w-4" /> Написать мастеру</Button>
                         </DialogTrigger>
                         <DialogContent>
                           <DialogHeader><DialogTitle>Написать {masterName}</DialogTitle></DialogHeader>
@@ -1084,12 +1131,31 @@ const MasterDetail = () => {
                         </DialogContent>
                       </Dialog>
                     ) : (
-                      <Button variant="outline" className="w-full" onClick={() => setLoginPromptOpen(true)}>
+                      <Button variant="outline" className="h-12 w-full rounded-2xl" onClick={() => setLoginPromptOpen(true)}>
                         <MessageSquare className="h-4 w-4 mr-2" /> Написать
                       </Button>
                     )}
                   </CardContent>
                 </Card>
+
+                {(profileHighlights.length > 0 || master.social_links) && (
+                  <Card className="rounded-[24px]">
+                    <CardContent className="space-y-4 pt-6">
+                      <div>
+                        <p className="text-sm text-muted-foreground">О мастере</p>
+                        <p className="mt-1 text-lg font-semibold">Почему сюда возвращаются</p>
+                      </div>
+                      <div className="space-y-2">
+                        {profileHighlights.slice(0, 3).map((highlight) => (
+                          <div key={highlight} className="flex items-start gap-2 text-sm">
+                            <CheckCircle2 className="mt-0.5 h-4 w-4 text-primary" />
+                            <span>{highlight}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
 
                 {/* Availability calendar */}
                 {master?.user_id && (
