@@ -128,6 +128,13 @@ const ServiceDetail = () => {
             url: serviceUrl,
           }
         : undefined,
+      breadcrumb: {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Каталог услуг", item: getPublicSiteUrl("/catalog") },
+          { "@type": "ListItem", position: 2, name: service.name, item: serviceUrl },
+        ],
+      },
     });
 
     return () => removeStructuredData("service-detail");

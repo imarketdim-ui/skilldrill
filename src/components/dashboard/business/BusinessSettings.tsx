@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Pencil, Settings, Percent, Save, Loader2, Plus, Trash2, X, Tag } from 'lucide-react';
 import BusinessOnboardingProgress from './BusinessOnboardingProgress';
+import ProfilePostsManager from '@/components/content/ProfilePostsManager';
 
 const legalForms = [
   { value: 'ip', label: 'ИП' },
@@ -56,6 +57,7 @@ const BusinessSettings = ({ business, onUpdated }: Props) => {
   const [allCategories, setAllCategories] = useState<any[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [savingCategory, setSavingCategory] = useState(false);
+  const [contentDialogOpen, setContentDialogOpen] = useState(false);
 
   useEffect(() => {
     if (business) {
@@ -204,6 +206,9 @@ const BusinessSettings = ({ business, onUpdated }: Props) => {
           </Button>
           <Button variant="outline" className="w-full justify-start gap-2" onClick={openCommissions}>
             <Percent className="h-4 w-4" /> Настройки комиссий
+          </Button>
+          <Button variant="outline" className="w-full justify-start gap-2" onClick={() => setContentDialogOpen(true)}>
+            <Plus className="h-4 w-4" /> Публичные посты и сторис
           </Button>
         </CardContent>
       </Card>
@@ -415,6 +420,22 @@ const BusinessSettings = ({ business, onUpdated }: Props) => {
               Сохранить
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={contentDialogOpen} onOpenChange={setContentDialogOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Публичный контент организации</DialogTitle>
+          </DialogHeader>
+          <ProfilePostsManager
+            entityType="business"
+            entityId={business.id}
+            title="Посты, сторис и новости организации"
+            description="Публикуйте новые работы, обновления услуг, новости команды и достижения, которые увидят клиенты на публичной странице."
+            emptyText="Пока нет публикаций. Добавьте первую новость, работу или сторис организации."
+            onChanged={onUpdated}
+          />
         </DialogContent>
       </Dialog>
     </div>

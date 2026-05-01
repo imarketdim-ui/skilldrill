@@ -19,10 +19,20 @@ const Index = () => {
 
     updateStructuredData("landing-page", {
       "@context": "https://schema.org",
-      "@type": "WebPage",
+      "@type": "WebSite",
       name: "SkillSpot",
       url,
       description: "Платформа для онлайн-записи к мастерам и организациям.",
+      potentialAction: {
+        "@type": "SearchAction",
+        target: `${getPublicSiteUrl("/catalog")}?q={search_term_string}`,
+        "query-input": "required name=search_term_string",
+      },
+      publisher: {
+        "@type": "Organization",
+        name: "SkillSpot",
+        url,
+      },
     });
 
     return () => removeStructuredData("landing-page");

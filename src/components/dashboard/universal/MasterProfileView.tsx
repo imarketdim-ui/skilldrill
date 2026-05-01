@@ -6,6 +6,7 @@ import { MapPin, ExternalLink, Edit, Eye, X } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { useState } from 'react';
 import { CategoryConfig } from './categoryConfig';
+import ProfilePostsManager from '@/components/content/ProfilePostsManager';
 
 interface Props {
   masterProfile: any;
@@ -175,6 +176,16 @@ const MasterProfileView = ({ masterProfile, profile, config, onEditClick }: Prop
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {masterProfile?.id && (
+          <ProfilePostsManager
+            entityType="master"
+            entityId={masterProfile.id}
+            title="Посты, сторис и обновления"
+            description="Добавляйте новые работы, новости об обучении, техниках и услугах прямо в публичный профиль."
+            emptyText="Пока нет ни одной публикации. Добавьте первую работу, новость или сторис."
+          />
         )}
 
         {/* Empty state */}

@@ -16,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { isSelfInteraction, syncBidirectionalContacts } from '@/lib/contactSync';
+import { PROFILE_POST_KIND_META, type ProfilePostRecord, getProfilePostExcerpt, isStoryActive, sortProfilePosts } from '@/lib/profilePosts';
 import Header from '@/components/landing/Header';
 import AvailableSlotPicker from '@/components/marketplace/AvailableSlotPicker';
 import Footer from '@/components/landing/Footer';
@@ -31,6 +32,7 @@ const BusinessDetail = () => {
   const [masters, setMasters] = useState<any[]>([]);
   const [services, setServices] = useState<any[]>([]);
   const [ratings, setRatings] = useState<any[]>([]);
+  const [publicPosts, setPublicPosts] = useState<ProfilePostRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
   const [bookingService, setBookingService] = useState<string | null>(null);
@@ -87,6 +89,15 @@ const BusinessDetail = () => {
       ]);
       setMasters((mastersRes.data || []).map((m: any) => m.profiles).filter(Boolean));
       setServices(svcRes.data || []);
+      const { data: posts } = await (supabase as any)
+        .from('profile_posts')
+        .select('*')
+        .eq('entity_type', 'business')
+        .eq('entity_id', biz.id)
+        .eq('is_published', true)
+        .order('is_pinned', { ascending: false })
+        .order('created_at', { ascending: false });
+      setPublicPosts(sortProfilePosts((posts || []) as ProfilePostRecord[]));
 
       if (user) {
         const { data: fav } = await supabase.from('favorites').select('id').eq('user_id', user.id).eq('target_id', biz.id).eq('favorite_type', 'business').maybeSingle();
@@ -124,10 +135,12 @@ const BusinessDetail = () => {
     if (!business) return;
     const topService = services[0];
     const priceStr = topService ? `от ${topService.price} ₽` : '';
+    const latestPost = publicPosts.find((post) => post.post_kind !== 'story') || null;
+    const latestPostExcerpt = latestPost ? getProfilePostExcerpt(latestPost, 120) : '';
     const url = getPublicSiteUrl(`/business/${business.id}`);
     updatePageMeta({
       title: `${business.name}${business.city ? ` в ${business.city}` : ''} — SkillSpot`,
-      description: `${business.description || business.name}${topService ? `. ${topService.name} ${priceStr}` : ''}. Онлайн-запись.`,
+      description: `${business.description || business.name}${topService ? `. ${topService.name} ${priceStr}` : ''}${latestPostExcerpt ? `. ${latestPostExcerpt}` : ''}. Онлайн-запись.`,
       url,
       canonicalUrl: url,
       type: 'website',
@@ -143,10 +156,18 @@ const BusinessDetail = () => {
       telephone: business.contact_phone || undefined,
       email: business.contact_email || undefined,
       url,
+      hasPart: publicPosts.slice(0, 5).map((post) => ({
+        '@type': 'BlogPosting',
+        headline: post.title || PROFILE_POST_KIND_META[post.post_kind].label,
+        articleBody: post.body || undefined,
+        datePublished: post.created_at,
+        dateModified: post.updated_at,
+        image: Array.isArray(post.media_urls) ? post.media_urls[0] : undefined,
+      })),
     });
 
     return () => removeStructuredData('business-detail');
-  }, [business, services]);
+  }, [business, services, publicPosts]);
 
   useEffect(() => {
     if (!mapOpen || !mapRef.current || !business?.latitude || !business?.longitude) return;
@@ -301,7 +322,19 @@ const BusinessDetail = () => {
 
   const allPhotos = [...(business.interior_photos || []), ...(business.work_photos || []), ...(business.exterior_photos || [])];
   const heroPhoto = allPhotos[0] || '';
-  const feedItems = [
+  const activeStories = publicPosts.filter((post) => isStoryActive(post));
+  const publicFeedItems = publicPosts
+    .filter((post) => post.post_kind !== 'story' && post.is_published)
+    .map((post) => ({
+      id: post.id,
+      title: post.title || PROFILE_POST_KIND_META[post.post_kind].label,
+      description: post.body || 'Без дополнительного описания',
+      photos: Array.isArray(post.media_urls) ? post.media_urls.slice(0, 4) : [],
+      icon: PROFILE_POST_KIND_META[post.post_kind].icon,
+      accent: PROFILE_POST_KIND_META[post.post_kind].accentClass,
+      createdAt: post.created_at,
+    }));
+  const derivedFeedItems = [
     ...(allPhotos.length ? [{
       id: 'photos',
       title: 'Новые фото пространства и работ',
@@ -327,6 +360,7 @@ const BusinessDetail = () => {
       accent: 'bg-primary/10 text-primary border-primary/20',
     }] : []),
   ];
+  const feedItems = publicFeedItems.length > 0 ? [...publicFeedItems, ...derivedFeedItems] : derivedFeedItems;
 
   return (
     <div className="min-h-screen">
@@ -400,6 +434,38 @@ const BusinessDetail = () => {
                   {business.hashtags.map((tag: string) => <Badge key={tag} variant="outline">#{tag}</Badge>)}
                 </div>
               )}
+
+              {activeStories.length > 0 && (
+                <div className="mt-6">
+                  <p className="mb-3 text-sm font-medium text-muted-foreground">Сторис и свежие обновления</p>
+                  <div className="flex gap-3 overflow-x-auto pb-2">
+                    {activeStories.slice(0, 8).map((story) => (
+                      <button
+                        key={story.id}
+                        type="button"
+                        onClick={() => {
+                          const firstPhoto = Array.isArray(story.media_urls) ? story.media_urls[0] : '';
+                          if (firstPhoto) setSelectedPhoto(firstPhoto);
+                        }}
+                        className="min-w-[200px] rounded-2xl border bg-card/90 p-3 text-left shadow-sm transition-transform hover:-translate-y-0.5"
+                      >
+                        <div className="mb-2 flex items-center gap-2">
+                          <div className={`rounded-full border p-2 ${PROFILE_POST_KIND_META.story.accentClass}`}>
+                            <Sparkles className="h-3.5 w-3.5" />
+                          </div>
+                          <span className="text-xs font-medium text-muted-foreground">
+                            До {story.expires_at ? new Date(story.expires_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : 'конца дня'}
+                          </span>
+                        </div>
+                        <p className="line-clamp-1 font-semibold">{story.title || 'Новая сторис'}</p>
+                        <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+                          {getProfilePostExcerpt(story, 90) || 'Короткое обновление для клиентов организации.'}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -427,6 +493,11 @@ const BusinessDetail = () => {
                               <div>
                                 <p className="font-semibold">{item.title}</p>
                                 <p className="text-sm text-muted-foreground">{item.description}</p>
+                                {'createdAt' in item && item.createdAt && (
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    {new Date(item.createdAt).toLocaleDateString('ru-RU')}
+                                  </p>
+                                )}
                               </div>
                             </div>
                             {item.photos.length > 0 && (

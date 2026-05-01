@@ -32,6 +32,21 @@ const businessFeatures = [
   { icon: Bell, title: 'Оповещения', description: 'Уведомления в Telegram, push и in-app. Ни одна запись не потеряется.' },
 ];
 
+const businessFaqItems = [
+  {
+    question: 'Можно ли вести и соло-кабинет мастера, и работу в организации?',
+    answer: 'Да. SkillSpot разделяет соло-кабинет мастера и роль мастера в организации, а расписание помогает избежать пересечений между этими маршрутами записи.',
+  },
+  {
+    question: 'Чем полезны посты, сторис и отдельные публичные страницы?',
+    answer: 'Отдельные страницы мастеров, организаций и услуг индексируются поисковиками, а посты и сторис добавляют уникальный контент, который помогает расти в органическом поиске.',
+  },
+  {
+    question: 'Что получает бизнес помимо онлайн-записи?',
+    answer: 'Организация получает CRM, расписание, роли сотрудников, маркетинг, отчёты, складские и финансовые инструменты в едином рабочем кабинете.',
+  },
+];
+
 const ForBusiness = () => {
   const navigate = useNavigate();
   const pricing = usePlatformPricing();
@@ -48,10 +63,23 @@ const ForBusiness = () => {
 
     updateStructuredData('for-business-page', {
       '@context': 'https://schema.org',
-      '@type': 'WebPage',
+      '@type': 'Service',
       name: 'SkillSpot для бизнеса и мастеров',
       url,
       description: 'Возможности платформы SkillSpot для мастеров, организаций и сетей.',
+      provider: {
+        '@type': 'Organization',
+        name: 'SkillSpot',
+        url: getPublicSiteUrl('/landing'),
+      },
+      mainEntity: businessFaqItems.map((item) => ({
+        '@type': 'Question',
+        name: item.question,
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: item.answer,
+        },
+      })),
     });
 
     return () => removeStructuredData('for-business-page');

@@ -27,6 +27,7 @@ import {
   normalizeBookingTrustPolicy,
 } from '@/lib/bookingTrustPolicy';
 import { isSelfInteraction, syncBidirectionalContacts } from '@/lib/contactSync';
+import { PROFILE_POST_KIND_META, type ProfilePostRecord, getProfilePostExcerpt, isStoryActive, sortProfilePosts } from '@/lib/profilePosts';
 
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -125,6 +126,7 @@ const MasterDetail = () => {
   const [hasPriorVisitsWithMaster, setHasPriorVisitsWithMaster] = useState(false);
   const [clientScore, setClientScore] = useState<ClientScoreSnapshot | null>(null);
   const [bookingTrustPolicy, setBookingTrustPolicy] = useState<BookingTrustPolicySettings>(defaultBookingTrustPolicy);
+  const [publicPosts, setPublicPosts] = useState<ProfilePostRecord[]>([]);
   const [pendingBookingDialog, setPendingBookingDialog] = useState<{
     bookingId: string;
     title: string;
@@ -143,6 +145,18 @@ const MasterDetail = () => {
         .eq('id', masterId as string)
         .maybeSingle();
 
+      const fetchPosts = async (entityId: string) => {
+        const { data: posts } = await (supabase as any)
+          .from('profile_posts')
+          .select('*')
+          .eq('entity_type', 'master')
+          .eq('entity_id', entityId)
+          .eq('is_published', true)
+          .order('is_pinned', { ascending: false })
+          .order('created_at', { ascending: false });
+        setPublicPosts(sortProfilePosts((posts || []) as ProfilePostRecord[]));
+      };
+
       if (!mp) {
         // Try by user_id
         const { data: mp2 } = await supabase
@@ -158,6 +172,7 @@ const MasterDetail = () => {
           ]);
           setServices(svcRes.data || []);
           setRatings(ratRes.data || []);
+          await fetchPosts(mp2.id);
           if (user) {
             const { data: fav } = await supabase.from('favorites').select('id').eq('user_id', user.id).eq('favorite_type', 'master').in('target_id', [mp2.id, mp2.user_id]).limit(1).maybeSingle();
             setIsFavorite(!!fav);
@@ -171,6 +186,7 @@ const MasterDetail = () => {
         ]);
         setServices(svcRes.data || []);
         setRatings(ratRes.data || []);
+        await fetchPosts(mp.id);
         if (user) {
           const { data: fav } = await supabase.from('favorites').select('id').eq('user_id', user.id).eq('favorite_type', 'master').in('target_id', [mp.id, mp.user_id]).limit(1).maybeSingle();
           setIsFavorite(!!fav);
@@ -189,10 +205,12 @@ const MasterDetail = () => {
     const city = (master as any).city || '';
     const topService = services[0];
     const priceStr = topService ? `от ${topService.price} ₽` : '';
+    const latestPost = publicPosts.find((post) => post.post_kind !== 'story') || null;
+    const latestPostExcerpt = latestPost ? getProfilePostExcerpt(latestPost, 120) : '';
     const url = getPublicSiteUrl(`/master/${master.user_id}`);
     updatePageMeta({
       title: `Запись к ${name}${city ? ` в ${city}` : ''} — SkillSpot`,
-      description: `${category}${topService ? `. ${topService.name} ${priceStr}` : ''}. Отзывы, расписание и онлайн-запись.`,
+      description: `${category}${topService ? `. ${topService.name} ${priceStr}` : ''}${latestPostExcerpt ? `. ${latestPostExcerpt}` : ''}. Отзывы, расписание и онлайн-запись.`,
       url,
       canonicalUrl: url,
       image: master.profiles.avatar_url || undefined,
@@ -208,10 +226,18 @@ const MasterDetail = () => {
       address: master.address || undefined,
       url,
       knowsAbout: category || undefined,
+      hasPart: publicPosts.slice(0, 5).map((post) => ({
+        '@type': 'BlogPosting',
+        headline: post.title || PROFILE_POST_KIND_META[post.post_kind].label,
+        articleBody: post.body || undefined,
+        datePublished: post.created_at,
+        dateModified: post.updated_at,
+        image: Array.isArray(post.media_urls) ? post.media_urls[0] : undefined,
+      })),
     });
 
     return () => removeStructuredData('master-detail');
-  }, [master, services]);
+  }, [master, services, publicPosts]);
 
   // Auto-open booking from URL param (e.g. from service card "Записаться")
   useEffect(() => {
@@ -621,7 +647,20 @@ const MasterDetail = () => {
   const avgRating = ratings.length > 0 ? (ratings.reduce((s, r) => s + r.score, 0) / ratings.length) : 0;
   const allPhotos = [...(master.work_photos || []), ...(master.interior_photos || [])];
   const heroPhoto = allPhotos[0] || master.profiles?.avatar_url || '';
-  const feedItems = [
+  const activeStories = publicPosts.filter((post) => isStoryActive(post));
+  const publicFeedItems = publicPosts
+    .filter((post) => post.post_kind !== 'story' && post.is_published)
+    .map((post) => ({
+      id: post.id,
+      type: 'public-post',
+      title: post.title || PROFILE_POST_KIND_META[post.post_kind].label,
+      description: post.body || 'Без дополнительного описания',
+      photos: Array.isArray(post.media_urls) ? post.media_urls.slice(0, 4) : [],
+      icon: PROFILE_POST_KIND_META[post.post_kind].icon,
+      accent: PROFILE_POST_KIND_META[post.post_kind].accentClass,
+      createdAt: post.created_at,
+    }));
+  const derivedFeedItems = [
     ...(master.work_photos?.length ? [{
       id: 'works',
       type: 'works',
@@ -659,6 +698,7 @@ const MasterDetail = () => {
       accent: 'bg-primary/10 text-primary border-primary/20',
     }] : []),
   ];
+  const feedItems = publicFeedItems.length > 0 ? [...publicFeedItems, ...derivedFeedItems] : derivedFeedItems;
   const bookingDecision: BookingGateDecision | null = bookingService ? evaluateBookingGate({
     isBlacklisted,
     activeBookingsCount,
@@ -802,6 +842,38 @@ const MasterDetail = () => {
                   )}
                 </div>
               )}
+
+              {activeStories.length > 0 && (
+                <div className="mt-6">
+                  <p className="mb-3 text-sm font-medium text-muted-foreground">Сторис и быстрые обновления</p>
+                  <div className="flex gap-3 overflow-x-auto pb-2">
+                    {activeStories.slice(0, 8).map((story) => (
+                      <button
+                        key={story.id}
+                        type="button"
+                        onClick={() => {
+                          const firstPhoto = Array.isArray(story.media_urls) ? story.media_urls[0] : '';
+                          if (firstPhoto) setSelectedPhoto(firstPhoto);
+                        }}
+                        className="min-w-[180px] rounded-2xl border bg-card/90 p-3 text-left shadow-sm transition-transform hover:-translate-y-0.5"
+                      >
+                        <div className="mb-2 flex items-center gap-2">
+                          <div className={`rounded-full border p-2 ${PROFILE_POST_KIND_META.story.accentClass}`}>
+                            <Sparkles className="h-3.5 w-3.5" />
+                          </div>
+                          <span className="text-xs font-medium text-muted-foreground">
+                            До {story.expires_at ? new Date(story.expires_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : 'конца дня'}
+                          </span>
+                        </div>
+                        <p className="line-clamp-1 font-semibold">{story.title || 'Новая сторис'}</p>
+                        <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+                          {getProfilePostExcerpt(story, 90) || 'Короткое обновление для клиентов.'}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -830,6 +902,11 @@ const MasterDetail = () => {
                               <div>
                                 <p className="font-semibold">{item.title}</p>
                                 <p className="text-sm text-muted-foreground">{item.description}</p>
+                                {'createdAt' in item && item.createdAt && (
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    {new Date(item.createdAt).toLocaleDateString('ru-RU')}
+                                  </p>
+                                )}
                               </div>
                             </div>
                             {item.photos.length > 0 && (
