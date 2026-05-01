@@ -11,10 +11,16 @@ import { useToast } from '@/hooks/use-toast';
 import { Calendar, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, getDay } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import { normalizeMasterScheduleSettings } from '@/lib/serviceSchedule';
+import {
+  BusinessDaySchedule as SharedBusinessDaySchedule,
+  findBusinessScheduleConflicts,
+  formatScheduleConflictMessage,
+} from '@/lib/masterScheduleConflicts';
 
 interface Props { businessId: string; }
 
-interface DaySchedule { status: 'work' | 'off' | 'custom'; start?: string; end?: string; breakStart?: string; breakEnd?: string; }
+interface DaySchedule extends SharedBusinessDaySchedule {}
 
 const presets = [
   { label: 'Будние дни', value: 'weekdays' },
@@ -55,15 +61,43 @@ const BusinessWorkSchedule = ({ businessId }: Props) => {
     else setSchedule({});
   }, [selectedMaster, month, businessId]);
 
-  const saveSchedule = (updated: Record<string, DaySchedule>) => {
+  const saveSchedule = async (updated: Record<string, DaySchedule>) => {
+    if (!selectedMaster) return false;
+    const { data: profile } = await supabase
+      .from('master_profiles')
+      .select('work_days, work_hours_config, break_config')
+      .eq('user_id', selectedMaster)
+      .maybeSingle();
+
+    const personalSettings = profile
+      ? normalizeMasterScheduleSettings(profile.work_days, profile.work_hours_config, profile.break_config)
+      : null;
+
+    const conflicts = findBusinessScheduleConflicts({
+      masterId: selectedMaster,
+      businessId,
+      schedule: updated,
+      personalSettings,
+    });
+
+    if (conflicts.length > 0) {
+      toast({
+        title: 'Есть пересечение расписаний',
+        description: formatScheduleConflictMessage(conflicts[0]),
+        variant: 'destructive',
+      });
+      return false;
+    }
+
     setSchedule(updated);
     const key = `work_schedule_${businessId}_${selectedMaster}_${format(month, 'yyyy-MM')}`;
     localStorage.setItem(key, JSON.stringify(updated));
+    return true;
   };
 
   const days = eachDayOfInterval({ start: startOfMonth(month), end: endOfMonth(month) });
 
-  const applyPreset = (preset: string) => {
+  const applyPreset = async (preset: string) => {
     const newSchedule: Record<string, DaySchedule> = {};
     days.forEach(d => {
       const key = format(d, 'yyyy-MM-dd');
@@ -73,16 +107,17 @@ const BusinessWorkSchedule = ({ businessId }: Props) => {
       else if (preset === 'alldays') newSchedule[key] = { status: 'work', ...defaultHours };
       else if (preset === 'weekends') newSchedule[key] = isWeekend ? { status: 'work', ...defaultHours } : { status: 'off' };
     });
-    saveSchedule(newSchedule);
+    const saved = await saveSchedule(newSchedule);
+    if (!saved) return;
     toast({ title: 'Пресет применён' });
   };
 
-  const toggleDay = (dateKey: string) => {
+  const toggleDay = async (dateKey: string) => {
     const current = schedule[dateKey];
     if (!current || current.status === 'off') {
-      saveSchedule({ ...schedule, [dateKey]: { status: 'work', ...defaultHours } });
+      await saveSchedule({ ...schedule, [dateKey]: { status: 'work', ...defaultHours } });
     } else {
-      saveSchedule({ ...schedule, [dateKey]: { status: 'off' } });
+      await saveSchedule({ ...schedule, [dateKey]: { status: 'off' } });
     }
   };
 
@@ -92,9 +127,10 @@ const BusinessWorkSchedule = ({ businessId }: Props) => {
     setEditDay(dateKey);
   };
 
-  const saveDayEdit = () => {
+  const saveDayEdit = async () => {
     if (!editDay) return;
-    saveSchedule({ ...schedule, [editDay]: dayForm });
+    const saved = await saveSchedule({ ...schedule, [editDay]: dayForm });
+    if (!saved) return;
     setEditDay(null);
     toast({ title: 'День обновлён' });
   };

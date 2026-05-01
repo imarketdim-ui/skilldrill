@@ -55,6 +55,10 @@ import {
   serializeMasterScheduleSettings,
   timeToMinutes,
 } from '@/lib/serviceSchedule';
+import {
+  findSoloScheduleConflicts,
+  formatScheduleConflictMessage,
+} from '@/lib/masterScheduleConflicts';
 
 interface Props {
   config: CategoryConfig;
@@ -343,6 +347,16 @@ const UniversalSchedule = ({ config }: Props) => {
 
   const persistSettings = async (nextSettings: MasterScheduleSettings) => {
     if (!user) return false;
+    const conflicts = findSoloScheduleConflicts(user.id, nextSettings);
+    if (conflicts.length > 0) {
+      toast({
+        title: 'Есть пересечение расписаний',
+        description: formatScheduleConflictMessage(conflicts[0]),
+        variant: 'destructive',
+      });
+      return false;
+    }
+
     const payload = serializeMasterScheduleSettings(nextSettings, usePerDayHours);
     const { error } = await supabase
       .from('master_profiles')
