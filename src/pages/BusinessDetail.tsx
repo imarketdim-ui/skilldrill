@@ -82,7 +82,7 @@ const BusinessDetail = () => {
 
       const [mastersRes, svcRes] = await Promise.all([
         supabase.from('business_masters').select('master_id, profiles!business_masters_master_id_fkey(id, first_name, last_name, avatar_url)').eq('business_id', biz.id).eq('status', 'accepted'),
-        supabase.from('services').select('*, profiles!services_master_id_fkey(first_name, last_name)').eq('organization_id', biz.id).eq('is_active', true),
+        supabase.from('services').select('*, profiles!services_master_id_fkey(first_name, last_name)').or(`business_id.eq.${biz.id},organization_id.eq.${biz.id}`).eq('is_active', true),
       ]);
       setMasters((mastersRes.data || []).map((m: any) => m.profiles).filter(Boolean));
       setServices(svcRes.data || []);

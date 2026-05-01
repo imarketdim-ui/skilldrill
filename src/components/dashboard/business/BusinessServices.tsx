@@ -177,7 +177,7 @@ const BusinessServices = ({ businessId }: Props) => {
       hashtags: form.hashtags,
       is_active: form.is_active,
       business_id: businessId,
-      organization_id: businessId,
+      organization_id: currentService?.organization_id || null,
       master_id: form.assigned_master_id || null,
       work_photos: form.work_photos,
       tech_card: nextTechCard,

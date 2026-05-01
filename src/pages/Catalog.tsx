@@ -454,7 +454,7 @@ const Catalog = () => {
       let svcQuery = supabase
         .from("services")
         .select(`
-          id, name, price, duration_minutes, work_photos, hashtags, is_active, master_id, organization_id,
+          id, name, price, duration_minutes, work_photos, hashtags, is_active, master_id, organization_id, business_id,
           profiles!services_master_id_fkey(first_name, last_name, avatar_url)
         `)
         .eq("is_active", true);
@@ -482,7 +482,7 @@ const Catalog = () => {
       (mpData || []).forEach((mp: any) => { mpMap[mp.user_id] = mp; });
 
       // Get business locations for org services
-      const orgIds = [...new Set((data as any[]).filter((s: any) => s.organization_id).map((s: any) => s.organization_id))];
+      const orgIds = [...new Set((data as any[]).map((s: any) => s.business_id || s.organization_id).filter(Boolean))];
       let blMap: Record<string, any> = {};
       if (orgIds.length > 0) {
         const { data: blData } = await supabase
@@ -497,13 +497,15 @@ const Catalog = () => {
         .filter((s: any) => {
           // Only show services from approved masters or approved businesses
           if (mpMap[s.master_id]) return true;
-          if (s.organization_id && blMap[s.organization_id]) return true;
+          const businessKey = s.business_id || s.organization_id;
+          if (businessKey && blMap[businessKey]) return true;
           return false;
         })
         .map((s: any) => {
           const profile = s.profiles;
           const mp = mpMap[s.master_id];
-          const bl = s.organization_id ? blMap[s.organization_id] : null;
+          const businessKey = s.business_id || s.organization_id;
+          const bl = businessKey ? blMap[businessKey] : null;
           const loc = mp || bl;
           return {
             id: s.id,

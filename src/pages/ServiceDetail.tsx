@@ -30,7 +30,7 @@ const ServiceDetail = () => {
       const { data: serviceData } = await supabase
         .from("services")
         .select(`
-          id, name, description, price, duration_minutes, work_photos, hashtags, master_id, organization_id,
+          id, name, description, price, duration_minutes, work_photos, hashtags, master_id, organization_id, business_id,
           profiles!services_master_id_fkey(first_name, last_name, avatar_url)
         `)
         .eq("id", serviceId)
@@ -56,11 +56,11 @@ const ServiceDetail = () => {
           `)
           .eq("user_id", serviceData.master_id)
           .maybeSingle(),
-        serviceData.organization_id
+        (serviceData.business_id || serviceData.organization_id)
           ? supabase
               .from("business_locations")
               .select("id, name, address, city, latitude, longitude")
-              .eq("id", serviceData.organization_id)
+              .eq("id", serviceData.business_id || serviceData.organization_id)
               .maybeSingle()
           : Promise.resolve({ data: null }),
       ]);

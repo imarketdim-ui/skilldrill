@@ -34,7 +34,7 @@ const BusinessServiceImport = ({ businessId }: Props) => {
       .from('services')
       .select('id, name, price, duration_minutes, description, service_categories(name)')
       .eq('is_active', true)
-      .neq('organization_id', businessId)
+      .neq('business_id', businessId)
       .ilike('name', `%${search}%`)
       .limit(20);
 
@@ -58,8 +58,9 @@ const BusinessServiceImport = ({ businessId }: Props) => {
         price: service.price,
         duration_minutes: service.duration_minutes,
         description: service.description,
-        organization_id: businessId,
-        master_id: user.id,
+        business_id: businessId,
+        organization_id: null,
+        master_id: null,
         is_active: true,
       });
       if (error) throw error;
